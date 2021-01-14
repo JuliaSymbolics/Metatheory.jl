@@ -34,13 +34,18 @@ t = @theory begin
     x * 1 => x
 end;
 
-
 @test (@reduce a + a t) == :(2a)
-
 @test (@reduce a + (x * 1) t) == :(a + x)
 
+# Let's extend an operator from base, for sake of example
+import Base.(+)
+function +(x::Symbol, y)
+    :(@reduce $x + $y t) |> eval
+end
 
-# Let's build a more complex theory from basic calculus facts
+:a + :a
+
+## Let's build a more complex theory from basic calculus facts
 t = @theory begin
     f(x) => 42
     !a => f(x)
@@ -56,12 +61,14 @@ t = @theory begin
     log(a^n) => n * log(a)
     log(a * b) => log(a) + log(b)
     log(1) => 0
-    #e^(log(x)) => x
     log(x) ↦ (x == :ℯ ? 1 : :(log($x)))
+    a::Number * b::Number ↦ a*b
 end
 
 @test (@reduce log(ℯ) t) == 1
-@test (@reduce log(ℯ ^ 3) t) == :(3*1)
+@test (@reduce log(x) t) == :(log(x))
+
+@test (@reduce log(ℯ ^ 3) t) == 3
 
 @reduce log(a ^ 3) t
 
@@ -80,33 +87,59 @@ end
 
 t = @theory begin
     # maps
-    $(a::Number) * $(b::Number) ↦ a * b
+    a::Number * b::Number ↦ a * b
 end
 
 
 @test (@reduce 3*1 t) == 3
 
+# let's try type assertions and destructuring
 t = @theory begin
-    # maps
-    $(a::Number) + $(b::Number) ↦ a + b
-    $(a::Number) * $(b::Number) ↦ a * b
-
-    # Associativity of * on numbers
-    $(a::Number) * ($(b::Number) * c) ↦ :($(a * b) * $c)
-    $(a::Number) * (c * $(b::Number)) ↦ :($(a * b) * $c)
-
-    a + $(b::Number) * a ↦ :($(b + 1) * $a)
-    $(b::Number) * a + a ↦ :($(b + 1) * $a)
+    f(a::Number) => a
+    f(a...) => a
 end
 
-@test (@reduce 3*1 t) == 3
-@test (@reduce 3*(2*a) t) == :(6a)
+@test (@reduce f(3) t) == 3
+@test (@reduce f(2, 3) t) == [2,3]
 
-@test (@reduce 3a + a t) == :(4a)
+# destructuring in right hand
+t = @theory begin
+    f(a...) => +(a...)
+end
 
-@test (@reduce 3(x*z) + (x*z) t) == :(4(x*z))
+@test (@reduce f(2, 3) t) == :(2 + 3)
+@test (@reduce f(a,b,c,d) t) == :(a+b+c+d)
 
+# let's try summing things up
+R = @theory begin
+    # + operator
+    +(xs...) + +(ys...) => +(xs..., ys...) # associative both ways
+    a + +(xs...) => +(a, xs...)
+    +(xs...) + a => +(xs..., a)
+    a+a => 2a
 
+    # * operator
+    *(xs...) * *(ys...) => *(xs..., ys...)
+    a * *(xs...) => *(a, xs...)
+    *(xs...) * a => *(xs..., a)
+    a * 1 => a
+    1 * a => a
+
+    # * distributes over +
+    a * +(bs...) => +( [:($a * $b) for b ∈ bs]... )
+    +(bs...) * a => +( [:($b * $a) for b ∈ bs]... )
+
+end
+
+@test (@reduce x + (y + z) R) == :(x+y+z)
+@test (@reduce (x + y) + z R) == :(x+y+z)
+@test (@reduce (x + y) + (z + k) R) == :(x+y+z+k)
+
+@test (@reduce x*1 R) == :x
+@test (@reduce x*(y*z) R) == :(x*y*z)
+
+@test (@reduce x*(y+z) R) == :(x*y + x*z)
+@test (@reduce (b+c)*a R) == :(b*a + c*a)
 
 # let's loop this
 #t = @theory begin
