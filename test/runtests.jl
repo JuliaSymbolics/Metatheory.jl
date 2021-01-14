@@ -152,8 +152,23 @@ sym_reduce(:(x*1), R)
 #@reduce a + b t
 
 
+## comparisons
 t = @theory begin
     a ∈ b => a
 end
 
 @reduce a ∈ b ∈ c t
+
+
+## Cases on custom types
+
+struct Airplane end
+
+struct Car end
+
+t = @theory begin
+    a::Airplane * b => :airp
+    a::Car * b => :car
+end
+
+@reduce $(Airplane()) * b t

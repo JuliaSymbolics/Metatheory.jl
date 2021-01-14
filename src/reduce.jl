@@ -16,7 +16,7 @@ end
 function reduce_step(ex, block, __source__::LineNumberNode, __module__::Module)
     res = MatchCore.gen_match(quot(ex), block, __source__, __module__)
     res = MatchCore.AbstractPatterns.init_cfg(res)
-    res |> eval
+    res |> __module__.eval
 end
 
 const MAX_ITER = 1000
@@ -37,6 +37,13 @@ end
 
 # Only works in interactive sessions because it evals theory
 macro reduce(ex, theory)
-    t = getfield(__module__, theory)
+    t = nothing
+    try
+        t = getfield(__module__, theory)
+    catch e
+        error(`theory $theory not found!`)
+    end
+
+    if !(t isa Theory) error(`$theory is not a Theory`) end
     sym_reduce(ex, t; __source__=__source__, __module__=__module__) |> quot
 end
