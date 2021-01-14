@@ -15,9 +15,9 @@ theory = :(quote
 end) |> rmlines
 
 theory_macro = @theory begin
-           a + a => 2a
-           b + b + b => 3b
-           end
+    a + a => 2a
+    b + b + b => 3b
+end
 
 
 r = Rule(:(a+a => 2a))
@@ -35,6 +35,7 @@ t = @theory begin
 end;
 
 @test (@reduce a + a t) == :(2a)
+@test sym_reduce(:(a + a), t) == :(2a)
 @test (@reduce a + (x * 1) t) == :(a + x)
 
 # Let's extend an operator from base, for sake of example
@@ -119,17 +120,19 @@ R = @theory begin
     a+a => 2a
 
     # * operator
+    a * 1 => a
+    1 * a => a
     *(xs...) * *(ys...) => *(xs..., ys...)
     a * *(xs...) => *(a, xs...)
     *(xs...) * a => *(xs..., a)
-    a * 1 => a
-    1 * a => a
+
 
     # * distributes over +
     a * +(bs...) => +( [:($a * $b) for b ∈ bs]... )
     +(bs...) * a => +( [:($b * $a) for b ∈ bs]... )
-
 end
+
+sym_reduce(:(x*1), R)
 
 @test (@reduce x + (y + z) R) == :(x+y+z)
 @test (@reduce (x + y) + z R) == :(x+y+z)

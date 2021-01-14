@@ -20,7 +20,6 @@ function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
     end
-
     start = 1
     # skip walking on function names
     if skip_call && isexpr(e, :call)
@@ -28,7 +27,6 @@ function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     end
     e.args[start:end] = e.args[start:end] .|> x ->
         df_walk!(f, x, f_args...; skip=skip, skip_call=skip_call)
-
     return f(e, f_args...)
 end
 
@@ -39,11 +37,8 @@ function bf_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
     end
-
     e = f(e, f_args...)
-
     if !(e isa Expr) return e end
-
     start = 1
     # skip walking on function names
     if skip_call && isexpr(e, :call)
@@ -51,6 +46,5 @@ function bf_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     end
     e.args[start:end] = e.args[start:end] .|> x ->
         bf_walk!(f, x, f_args...; skip=skip, skip_call=skip_call)
-
     return e
 end
