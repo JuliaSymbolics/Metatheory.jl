@@ -32,7 +32,7 @@ function sym_reduce(ex, theory;
         n += 1
         n >= MAX_ITER ? error("max reduction iterations exceeded") : nothing
     end
-    step = x -> reduce_step(x, theory.patternblock,  __source__, __module__)
+    step = x -> reduce_step(x, makeblock(theory),  __source__, __module__)
     norm_step = x -> normalize(step, x; callback=countit)
 
     # evaluation policy: outer = suitable for symbolic maths
@@ -53,7 +53,7 @@ macro reduce(ex, theory, inner)
         error(`theory $theory not found!`)
     end
 
-    if !(t isa Theory) error(`$theory is not a Theory`) end
+    if !(t isa Vector{Rule}) error(`$theory is not a Vector\{Rule\}`) end
     sym_reduce(ex, t; inner=inner, __source__=__source__, __module__=__module__) |> quot
 end
 

@@ -10,5 +10,6 @@ export Rule
 export sym_reduce
 export @reduce
 export @inner_reduce
+export makeblock
 
 end # module
