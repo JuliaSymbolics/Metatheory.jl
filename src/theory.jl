@@ -22,6 +22,10 @@ function Base.push!(t::Theory, r::Expr)
     push!(t.patternblock.args, r)
 end
 
+function Base.show(io::IO, x::Theory)
+    println(io, "(theory with ", length(x.rules), " rules)")
+end
+
 identity_axiom = :($(quot(dollar(:i))) => i) #Expr(:call, :(=>), dollar(:i), :i)
 
 macro theory(e)
