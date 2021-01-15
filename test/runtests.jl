@@ -60,15 +60,18 @@ end
 
 ## Free Monoid
 
-@testset "Free Monoid" begin
+@testset "Free Monoid - Overriding identity" begin
     # support symbol literals
-    free_monoid = @theory begin
-        a ⋅ :ε => a
-        :ε ⋅ a => a
-        a::Symbol ⋅ b::Symbol ↦ Symbol(String(a) * String(b))
-    end
+	symbol_monoid = @theory begin
+		a ⋅ :ε => a
+		:ε ⋅ a => a
+		a::Symbol => a
+		a::Symbol ⋅ b::Symbol ↦ Symbol(String(a) * String(b))
+		i ↦ error("unsupported ", i)
+	end;
 
-    @test sym_reduce(:(ε ⋅ a ⋅ ε ⋅ b ⋅ c ⋅ (ε ⋅ ε ⋅ d) ⋅ e), free_monoid) == :abcde
+    @test sym_reduce(:(ε ⋅ a ⋅ ε ⋅ b ⋅ c ⋅ (ε ⋅ ε ⋅ d) ⋅ e), symbol_monoid; order=:inner) == :abcde
+	@test_throws Exception sym_reduce(:(ε ⋅ 2), symbol_monoid; order=:inner) == :abcde
 end
 
 
@@ -174,7 +177,17 @@ end
         +(xs...) + +(ys...) => +(xs..., ys...)
         a + +(xs...) => +(a, xs...)
         +(xs...) + a => +(xs..., a)
+
+        #
         a + a => 2a
+
+        # we can simplify over number literals
+        x::Number + y::Number ↦ x+y
+        x::Number * y::Number ↦ x*y
+        x::Number * (y::Number * z) ↦ :( $(x*y) * z)
+        (y::Number * z) * x::Number ↦ :( $(x*y) * z)
+        x + (y::Number * x) ↦ :( $(y+1) * z)
+        (y::Number * x) + x ↦ :( $(y+1) * z)
 
         # * operator
         a * 1 => a
@@ -187,9 +200,7 @@ end
         a * +(bs...) => +([:($a * $b) for b ∈ bs]...)
         +(bs...) * a => +([:($b * $a) for b ∈ bs]...)
 
-        # we can simplify over number literals
-        x::Number + y::Number ↦ x+y
-        x::Number * y::Number ↦ x*y
+
     end
 
     sym_reduce(:(x * 1), R)
@@ -211,6 +222,13 @@ end
     end
 
     @test_throws Exception sym_reduce(:(a + b), t)
+
+	t = @theory begin
+	    a + b => b + a
+	    b + a => a + b
+	end
+
+	@test_throws Exception sym_reduce(:(a + b), t)
 end
 
 ## comparisons

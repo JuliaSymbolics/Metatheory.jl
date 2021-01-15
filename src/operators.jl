@@ -11,7 +11,7 @@ macro extend_operator(op, theory, order)
     end
     if(order == :inner)
         inner = true
-    else if(order == :outer)
+    elseif(order == :outer)
         inner = false
     else
         error(`invalid evaluation order '$order', expected 'inner' or 'outer'`)
