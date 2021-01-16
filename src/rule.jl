@@ -41,19 +41,23 @@ const rewrite_syms = [:(=>), :(⇒), :(⟹), :(⤇), :(⟾)]
 # operator symbols for regular pattern matching rules, "direct rules"
 # that eval the right side at reduction time.
 # might be used to implement big step semantics
-const direct_syms = [:(→), :(⟶), :(↦), :(⟼)]
+const direct_syms = [:(>>=)]
 
 # TODO implement equality saturation
 const equality_syms = [:(=)]
 
 
 function Rule(e::Expr)
-    if !isexpr(e, :call)
-        error(`rule "$e" is not in valid form.\n`)
+    mode = :undef
+    if isexpr(e, :call)
+        mode = e.args[1]
+        l = e.args[2]
+        r = e.args[3]
+    else
+        mode = e.head
+        l = e.args[1]
+        r = e.args[2]
     end
-    mode = e.args[1]
-    l = e.args[2]
-    r = e.args[3]
 
     le = df_walk(c_left, l, Set{Symbol}(); skip=skips, skip_call=true) |> quot
     #le = c_left(l, Set{Symbol}()) |> quot

@@ -66,8 +66,8 @@ end
 		a ⋅ :ε => a
 		:ε ⋅ a => a
 		a::Symbol => a
-		a::Symbol ⋅ b::Symbol ↦ Symbol(String(a) * String(b))
-		i ↦ error("unsupported ", i)
+		a::Symbol ⋅ b::Symbol >>= Symbol(String(a) * String(b))
+		i >>= error("unsupported ", i)
 	end;
 
     @test sym_reduce(:(ε ⋅ a ⋅ ε ⋅ b ⋅ c ⋅ (ε ⋅ ε ⋅ d) ⋅ e), symbol_monoid; order=:inner) == :abcde
@@ -116,9 +116,9 @@ end
         log(1) => 0
         log(:ℯ) => 1
         :ℯ^(log(x)) => x
-        #log(x) ↦ (x == :ℯ ? 1 : :(log($x)))
-        a::Number * b::Number ↦ a * b
-        a::Number * b + b ↦ :($(a + 1) * $b)
+        #log(x) >>= (x == :ℯ ? 1 : :(log($x)))
+        a::Number * b::Number >>= a * b
+        a::Number * b + b >>= :($(a + 1) * $b)
         x * 1 => x
         1 * x => x
     end
@@ -136,13 +136,13 @@ end
 @testset "Direct Rules" begin
     t = @theory begin
         # maps
-        a * b ↦ ((a isa Number && b isa Number) ? a * b : :(a * b))
+        a * b >>= ((a isa Number && b isa Number) ? a * b : :(a * b))
     end
     @test sym_reduce(:(3 * 1), t) == 3
 
     t = @theory begin
         # maps
-        a::Number * b::Number ↦ a * b
+        a::Number * b::Number >>= a * b
     end
     @test sym_reduce(:(3 * 1), t) == 3
 end
@@ -166,8 +166,10 @@ end
     end
 
     @test sym_reduce(:(f(2, 3)), n) == :(2 + 3)
-    @test sym_reduce(:(f(a, b, c, d)), n) == :(a + b + c + d)
+    @test sym_reduce(:(f(a, b, c, d)), n) == :(((a + b) + c) + d)
 end
+
+# TODO use example from notebook
 
 @testset "Spicing things up" begin
     # let's try spicing things up
@@ -182,12 +184,12 @@ end
         a + a => 2a
 
         # we can simplify over number literals
-        x::Number + y::Number ↦ x+y
-        x::Number * y::Number ↦ x*y
-        x::Number * (y::Number * z) ↦ :( $(x*y) * z)
-        (y::Number * z) * x::Number ↦ :( $(x*y) * z)
-        x + (y::Number * x) ↦ :( $(y+1) * z)
-        (y::Number * x) + x ↦ :( $(y+1) * z)
+        x::Number + y::Number >>= x+y
+        x::Number * y::Number >>= x*y
+        x::Number * (y::Number * z) >>= :( $(x*y) * z)
+        (y::Number * z) * x::Number >>= :( $(x*y) * z)
+        x + (y::Number * x) >>= :( $(y+1) * z)
+        (y::Number * x) + x >>= :( $(y+1) * z)
 
         # * operator
         a * 1 => a
@@ -205,11 +207,11 @@ end
 
     sym_reduce(:(x * 1), R)
 
-    @test sym_reduce(:(x + (y + z)), R) == :(x + y + z)
-    @test sym_reduce(:((x + y) + z), R) == :(x + y + z)
-    @test sym_reduce(:((x + y) + (z + k)), R) == :(x + y + z + k)
+    @test sym_reduce(:(x + (y + z)), R) == :((x + y) + z)
+    @test sym_reduce(:((x + y) + z), R) == :((x + y) + z)
+    @test sym_reduce(:((x + y) + (z + k)), R) == :(((x + y) + z) + k)
     @test sym_reduce(:(x * 1), R) == :x
-    @test sym_reduce(:(x * (y * z)), R) == :(x * y * z)
+    @test sym_reduce(:(x * (y * z)), R) == :((x * y) * z)
     @test sym_reduce(:(x * (y + z)), R) == :(x * y + x * z)
     @test sym_reduce(:((b + c) * a), R) == :(b * a + c * a)
 end
@@ -227,6 +229,8 @@ end
 	    a + b => b + a
 	    b + a => a + b
 	end
+
+	# TODO trace and test for loops in computation configurations.
 
 	@test_throws Exception sym_reduce(:(a + b), t)
 end
