@@ -37,20 +37,20 @@ function matchcore_match(block, __source__, __module__)
     matching = MatchCore.gen_match(parameter, block, __source__, __module__)
     matching = MatchCore.AbstractPatterns.init_cfg(matching)
 
-    ex = :(($parameter) -> $matching)
+    ex = :(($parameter, world) -> $matching)
     println(ex)
     @RuntimeGeneratedFunction(ex)
     #mk_function([parameter], [], matching)
 end
 
-function closurize(block, __source__, __module__)
-    mk_function(__module__, :(
-        param ->
-        #matching =
-        #matching =
-        MatchCore.AbstractPatterns.init_cfg(MatchCore.gen_match(param, block, __source__, __module__)))
-    )
-end
+# function closurize(block, __source__, __module__)
+#     mk_function(__module__, :(
+#         param ->
+#         #matching =
+#         #matching =
+#         MatchCore.AbstractPatterns.init_cfg(MatchCore.gen_match(param, block, __source__, __module__)))
+#     )
+# end
 
 const MAX_ITER = 1000
 
@@ -73,7 +73,7 @@ function sym_reduce(ex, theory;
     #matcher = matchcore_match(makeblock(theory),  __source__, m) |> eval
     matcher = matchcore_match(makeblock(theory),  __source__, m)
     #step = x -> Base.invokelatest(matcher, x) |>
-    step = x -> matcher(x) |>
+    step = x -> matcher(x, m) |>
         x -> binarize!(x, :(+)) |>
         x -> binarize!(x, :(*))
 

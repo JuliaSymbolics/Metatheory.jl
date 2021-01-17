@@ -186,6 +186,21 @@ t = logids ∪ Z;
     @test sym_reduce(:(log(x^2 * ℯ^(log(x)))), t; order=:inner) == :(3 * log(x))
 end
 
+
+@testset "Symbolic Differentiation, Accessing Outer Variables" begin
+	using Calculus: differentiate
+	diff = @theory begin
+		∂(y)/∂(x) >>= world.differentiate(y, x)
+		a * (1/x) => a/x
+		a * 0 => 0
+		0 * a => 0
+	end
+	finalt = t ∪ diff
+	#TODO move null element
+	@test sym_reduce(:(∂( log(x^2 * ℯ^(log(x))) )/∂(x)), finalt; order=:inner, m=@__MODULE__) == :(3/x)
+	@test (@reduce ∂( log(x^2 * ℯ^(log(x))) )/∂(x) finalt inner false) == :(3/x)
+end;
+
 ## let's loop this
 @testset "Reduction loop should error. Bound on iterations." begin
     t = @theory begin
