@@ -21,6 +21,7 @@ function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
     end
+    #println("walking on", e)
     start = 1
     # skip walking on function names
     if skip_call && isexpr(e, :call)
@@ -75,14 +76,14 @@ function bf_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
     end
-    e = f(e, f_args...)
-    if !(e isa Expr) return e end
+    ne = copy(e)
+    ne = f(e, f_args...)
+    if !(ne isa Expr) return ne end
     start = 1
     # skip walking on function names
-    if skip_call && isexpr(e, :call)
+    if skip_call && isexpr(ne, :call)
         start = 2
     end
-    ne = copy(e)
     ne.args[start:end] = ne.args[start:end] .|> x ->
         bf_walk(f, x, f_args...; skip=skip, skip_call=skip_call)
     return ne

@@ -9,8 +9,6 @@ export @theory
 export Theory
 export Rule
 export sym_reduce
-export @reduce
-export @inner_reduce
 export makeblock
 
 # theory generation macros
@@ -18,5 +16,8 @@ export @monoid
 export @commutative_monoid
 export @abelian_group
 export @distrib
+
+export @reduce
+export @ret_reduce
 
 end # module

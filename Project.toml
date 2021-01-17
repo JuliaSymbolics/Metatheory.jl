@@ -5,7 +5,9 @@ version = "0.1.0"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+GeneralizedGenerated = "6b9d7cbe-bcb9-11e9-073f-15a7a543e2eb"
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 MatchCore = "5dd3f0b1-72a9-48ad-ae6e-79f673da005f"
+RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
