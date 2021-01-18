@@ -88,3 +88,27 @@ function bf_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
         bf_walk(f, x, f_args...; skip=skip, skip_call=skip_call)
     return ne
 end
+
+##
+
+## Iterate a function on a datum until a fixed point is reached where f(x) = x
+function normalize(f, datum, fargs...; callback=()->())
+    old = datum
+    new = f(old, fargs...)
+    while new != old
+        old = new
+        new = f(old, fargs...)
+        callback()
+    end
+    new
+end
+
+
+## HARD FIX of n-arity of the (*) and (+) operators in Expr trees
+function binarize!(e, op::Symbol)
+    f(e) = if (isexpr(e, :call) && e.args[1] == op && length(e.args) > 3)
+        foldl((x,y) -> Expr(:call, op, x, y), e.args[2:end])
+    else e end
+
+    df_walk!(f, e)
+end

@@ -13,6 +13,23 @@
 	@test sym_reduce(:(a + (a * 1)), t; order=:inner) == :(2a)
 end
 
+t = @theory begin
+	a + a => 2a
+	x / x => 1
+	x * 1 => x
+end
+@testset "Precompiling Theories" begin
+
+
+	ct = @compile_theory t
+
+    # basic theory to check that everything works
+    @test sym_reduce(:(a + a), ct) == :(2a)
+    @test sym_reduce(:(a + a), ct) == :(2a)
+    @test sym_reduce(:(a + (x * 1)), ct) == :(a + x)
+	@test sym_reduce(:(a + (a * 1)), ct; order=:inner) == :(2a)
+end
+
 
 import Base.(+)
 @testset "Extending Algebra Operators" begin
@@ -187,18 +204,18 @@ t = logids ∪ Z;
 end
 
 
+using Calculus: differentiate
+diff = @theory begin
+	∂(y)/∂(x) >>= world.differentiate(y, x)
+	a * (1/x) => a/x
+	a * 0 => 0
+	0 * a => 0
+end
+finalt = t ∪ diff
 @testset "Symbolic Differentiation, Accessing Outer Variables" begin
-	using Calculus: differentiate
-	diff = @theory begin
-		∂(y)/∂(x) >>= world.differentiate(y, x)
-		a * (1/x) => a/x
-		a * 0 => 0
-		0 * a => 0
-	end
-	finalt = t ∪ diff
 	#TODO move null element
 	@test sym_reduce(:(∂( log(x^2 * ℯ^(log(x))) )/∂(x)), finalt; order=:inner, m=@__MODULE__) == :(3/x)
-	@test (@reduce ∂( log(x^2 * ℯ^(log(x))) )/∂(x) finalt inner false) == :(3/x)
+	@test (@reduce ∂( log(x^2 * ℯ^(log(x))) )/∂(x) finalt inner) == :(3/x)
 end;
 
 ## let's loop this

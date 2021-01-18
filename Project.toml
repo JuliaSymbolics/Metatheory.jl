@@ -4,6 +4,7 @@ authors = ["0x0f0f0f <sudo-woodo3@protonmail.com>"]
 version = "0.1.0"
 
 [deps]
+Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 GeneralizedGenerated = "6b9d7cbe-bcb9-11e9-073f-15a7a543e2eb"
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"

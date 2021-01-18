@@ -10,7 +10,7 @@ using Metatheory
     rm = @rule a + a => 2a
     @test r.left == rm.left
     @test r.right == rm.right
-    @test r.pattern == rm.pattern
+    @test r.expr == rm.expr
 end
 
 @testset "Theories" begin
@@ -25,7 +25,7 @@ end
         a + a => 2a
         b + b + b => 3b
     end
-    @test (makeblock(theory_macro) == theory)
+    @test (Metatheory.theory_block(theory_macro) == theory)
 end
 
 include("test_reductions.jl")
