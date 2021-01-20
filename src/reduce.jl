@@ -9,17 +9,21 @@ function sym_reduce(ex, theory::Vector{Rule};
     )
 
     # matcher IS A CLOSURE WITH THE GENERATED MATCHING CODE! FASTER AF! 🔥
-    matcher = compile_theory(theory,  __source__, m)
+    matcher = compile_theory(theory, m; __source__=__source__)
     sym_reduce(ex, matcher; __source__=__source__, order=order, m=m)
 end
 
+
+cleanast(ex) = rmlines(ex) |>
+    x -> binarize!(x, :(+)) |>
+    x -> binarize!(x, :(*))
 
 function sym_reduce(ex, matcher::Function;
         __source__=LineNumberNode(0),
         order=:outer,                   # evaluation order
         m::Module=@__MODULE__
     )
-    ex=rmlines(ex)
+    ex=cleanast(ex)
 
     # n = iteration count. useful to protect against ∞ loops
     # let's use a closure :)
@@ -30,9 +34,7 @@ function sym_reduce(ex, matcher::Function;
     end
 
     #step = x -> Base.invokelatest(matcher, x) |>
-    step = x -> matcher(x, m) |>
-        x -> binarize!(x, :(+)) |>
-        x -> binarize!(x, :(*)) 
+    step = x -> matcher(x, m) |> cleanast
 
     norm_step = x -> begin
         @debug `Normalization step: $ex`
@@ -72,3 +74,22 @@ macro ret_reduce(ex, theory, order)
     sym_reduce(ex, t; order=order, __source__=__source__, m=__module__) |> esc
 end
 macro ret_reduce(ex, theory) :(@ret_reduce $ex $theory outer) end
+
+
+macro reducer(te, order)
+    if Meta.isexpr(te, :block) # @matcher begine rules... end
+		te = rmlines(te)
+        t = compile_theory(te.args .|> Rule, __module__)
+    else
+        if !isdefined(__module__, te) error(`theory $te not found!`) end
+        t = getfield(__module__, te)
+		if t isa Vector{Rule}; t = compile_theory(t, __module__) end
+        if !t isa Function error(`$te is not a valid theory`) end
+    end
+
+	quote
+		(ex) ->
+			sym_reduce(ex, $t; order=$order, __source__=$__source__, m=$__module__)
+	end
+	quote (x) -> ($t)(x, $__module__) end
+end

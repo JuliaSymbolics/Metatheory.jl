@@ -54,13 +54,13 @@ theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 
 # Compile a theory to a closure that does the pattern matching job
 # RETURNS A QUOTED CLOSURE WITH THE GENERATED MATCHING CODE! FASTER AF! 🔥
-function compile_theory(theory::Vector{Rule}, __source__, __module__)
+function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
     # generate an unique parameter name
     parameter = Meta.gensym(:reducing_expression)
 
     block = theory_block(theory)
 
-    matching = MatchCore.gen_match(parameter, block, __source__, __module__)
+    matching = MatchCore.gen_match(parameter, block, __source__, mod)
     matching = MatchCore.AbstractPatterns.init_cfg(matching)
 
     ex = :(($parameter, world) -> $matching)
@@ -69,7 +69,7 @@ function compile_theory(theory::Vector{Rule}, __source__, __module__)
     #mk_function([parameter], [], matching)
 end
 
-# TODO does not work. ask Taine Zhao.
+# TODO GG does not work. ask Taine Zhao.
 # function closurize(block, __source__, __module__)
 #     mk_function(__module__, :(
 #         param ->
@@ -79,8 +79,10 @@ end
 #     )
 # end
 
-# Compile a theory to a closure that does the pattern matching job
-macro compile_theory(theory)
-    t = getfield(__module__, theory)
-    compile_theory(t, __source__, __module__)
+# TODO consider compiling at parse time and test.
+# Compile a theory at runtime to a closure that does the pattern matching job
+macro compile_theory(t)
+    quote
+        Metatheory.compile_theory($(esc(t)), $__module__)
+    end
 end

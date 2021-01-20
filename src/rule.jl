@@ -16,7 +16,7 @@ const rewrite_syms = [:(=>), :(⇒), :(⟹), :(⤇), :(⟾)]
 # operator symbols for regular pattern matching rules, "direct rules"
 # that eval the right side at reduction time.
 # might be used to implement big step semantics
-const direct_syms = [:(>>=)]
+const direct_syms = [:(|>)]
 # TODO implement equality saturation
 const equality_syms = [:(=)]
 

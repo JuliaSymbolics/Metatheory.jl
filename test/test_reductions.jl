@@ -19,15 +19,21 @@ t = @theory begin
 	x * 1 => x
 end
 @testset "Precompiling Theories" begin
-
+	@test @time sym_reduce(:(a + a), t) == :(2a)
+	@test @time sym_reduce(:(a + a), t) == :(2a)
+    @test @time sym_reduce(:(a + (x * 1)), t) == :(a + x)
 
 	ct = @compile_theory t
+	@test t isa Vector{Rule} # Vector{Rule} == Theory
+	@test ct isa Function  # Callable Function
+
+	# TODO test cattura ambiente by reference con parametro "world"
 
     # basic theory to check that everything works
-    @test sym_reduce(:(a + a), ct) == :(2a)
-    @test sym_reduce(:(a + a), ct) == :(2a)
-    @test sym_reduce(:(a + (x * 1)), ct) == :(a + x)
-	@test sym_reduce(:(a + (a * 1)), ct; order=:inner) == :(2a)
+    @test @time sym_reduce(:(a + a), ct) == :(2a)
+    @test @time sym_reduce(:(a + a), ct) == :(2a)
+    @test @time sym_reduce(:(a + (x * 1)), ct) == :(a + x)
+	@test @time sym_reduce(:(a + (a * 1)), ct; order=:inner) == :(2a)
 end
 
 
@@ -54,22 +60,22 @@ end
 		a ⋅ :ε => a
 		:ε ⋅ a => a
 		a::Symbol => a
-		a::Symbol ⋅ b::Symbol >>= Symbol(String(a) * String(b))
-		i >>= error("unsupported ", i)
+		a::Symbol ⋅ b::Symbol |> Symbol(String(a) * String(b))
+		i |> error("unsupported ", i)
 	end;
 
     @test sym_reduce(:(ε ⋅ a ⋅ ε ⋅ b ⋅ c ⋅ (ε ⋅ ε ⋅ d) ⋅ e), symbol_monoid; order=:inner) == :abcde
 	@test_throws Exception sym_reduce(:(ε ⋅ 2), symbol_monoid; order=:inner) == :abcde
 end
 
-## Interpolation should not be possible
+## Interpolation should be possible at runtime
 
 
 @testset "Calculator" begin
 	calculator = @theory begin
-		x::Number ⊕ y::Number >>= x + y
-		x::Number ⊗ y::Number >>= x * y
-		x::Number ⊖ y::Number >>= x ÷ y
+		x::Number ⊕ y::Number |> x + y
+		x::Number ⊗ y::Number |> x * y
+		x::Number ⊖ y::Number |> x ÷ y
 		x::Symbol => x
 		x::Number => x
 	end;
@@ -102,13 +108,13 @@ end
 @testset "Direct Rules" begin
     t = @theory begin
         # maps
-        a * b >>= ((a isa Number && b isa Number) ? a * b : :(a * b))
+        a * b |> ((a isa Number && b isa Number) ? a * b : :(a * b))
     end
     @test sym_reduce(:(3 * 1), t) == 3
 
     t = @theory begin
         # maps
-        a::Number * b::Number >>= a * b
+        a::Number * b::Number |> a * b
     end
     @test sym_reduce(:(3 * 1), t) == 3
 end
@@ -176,8 +182,8 @@ end
 
 logids = @theory begin
 	x * x => x^2
-	x^n * x >>= :($x^($(n+1)))
-	x * x^n >>= :($x^($(n+1)))
+	x^n * x |> :($x^($(n+1)))
+	x * x^n |> :($x^($(n+1)))
 	a * (a * b) => a^2 * b
 	a * (b * a) => a^2 * b
 	(a * b) * a => a^2 * b
@@ -199,14 +205,14 @@ t = logids ∪ Z;
     @test sym_reduce(:(log(a^3)), t) == :(3 * log(a))
     # Reduce.jl wtf u doing? log(:x^-2 * ℯ^3) = :(log(5021384230796917 / (250000000000000 * x ^ 2)))
 
-    @test sym_reduce(:(log(x^2 * ℯ^3)), t) == :((2 * log(x)) * 3)
-    @test sym_reduce(:(log(x^2 * ℯ^(log(x)))), t; order=:inner) == :(3 * log(x))
+    @test sym_reduce(:(log(x^2 * ℯ^3)), t) == :((6 * log(x)))
+    @time @test sym_reduce(:(log(x^2 * ℯ^(log(x)))), t; order=:inner) == :(3 * log(x))
 end
 
 
 using Calculus: differentiate
 diff = @theory begin
-	∂(y)/∂(x) >>= world.differentiate(y, x)
+	∂(y)/∂(x) |> world.differentiate(y, x)
 	a * (1/x) => a/x
 	a * 0 => 0
 	0 * a => 0
