@@ -81,15 +81,17 @@ macro reducer(te, order)
 		te = rmlines(te)
         t = compile_theory(te.args .|> Rule, __module__)
     else
-        if !isdefined(__module__, te) error(`theory $te not found!`) end
-        t = getfield(__module__, te)
+        #if !isdefined(__module__, te) error(`theory $te not found!`) end
+        #t = getfield(__module__, te)
+		t = Core.eval(__module__, te)
 		if t isa Vector{Rule}; t = compile_theory(t, __module__) end
-        if !t isa Function error(`$te is not a valid theory`) end
+		println(typeof(t))
+		println(t isa Function)
+        if !(t isa Function) error(`$te is not a valid theory`) end
     end
 
 	quote
 		(ex) ->
 			sym_reduce(ex, $t; order=$order, __source__=$__source__, m=$__module__)
 	end
-	quote (x) -> ($t)(x, $__module__) end
 end
