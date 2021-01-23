@@ -1,5 +1,10 @@
 module Metatheory
 
+include("util.jl")
+include("rule.jl")
+include("theory.jl")
+include("matchcore_compiler.jl")
+include("reduce.jl")
 include("match.jl")
 include("macros.jl")
 

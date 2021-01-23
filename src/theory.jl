@@ -1,5 +1,3 @@
-include("rule.jl")
-
 # Theories can just be vectors of rules!
 
 macro theory(e)

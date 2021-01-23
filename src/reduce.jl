@@ -1,5 +1,3 @@
-include("matchcore_compiler.jl")
-
 const MAX_ITER = 1000
 
 function sym_reduce(ex, theory::Vector{Rule};

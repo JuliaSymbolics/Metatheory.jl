@@ -1,7 +1,3 @@
-include("util.jl")
-
-# core mechanism of extending Taine Zhao's @thautwarm 's MatchCore pattern matching.
-
 ## Rules
 
 struct Rule

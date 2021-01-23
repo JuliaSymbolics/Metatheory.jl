@@ -1,5 +1,4 @@
 # regular, old school pattern matching
-include("./reduce.jl")
 
 macro matcher(te)
     if Meta.isexpr(te, :block) # @matcher begine rules... end
