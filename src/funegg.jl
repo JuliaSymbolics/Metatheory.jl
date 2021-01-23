@@ -36,12 +36,12 @@ AbstractTrees.printnode(io::IO, node::Expr) = show(io, node.head) #show(IOContex
 
 struct EClass
     id::UInt
+    # parents::Vector{EClass}
 end
 
 # check if an expr is an enode ⟺
 # all args are e-classes
 function isenode(e::Expr)
-    if isexpr(e, :eclass) return false end
     start = isexpr(e, :call) ? 2 : 1
     return all(x -> x isa EClass, e.args[start:end])
 end
@@ -97,49 +97,49 @@ function canonicalize(U::DisjointSets{UInt}, n::Expr)
     @assert isenode(n)
     start = isexpr(n, :call) ? 2 : 1
     ne = copy(n)
-    ne.args[start, end] = [EClass(find_root!(U, x.id)) for x ∈ ne.args[start:end]]
+    ne.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ ne.args[start:end]]
+    println("canonicalized ", ne)
     return ne
 end
 
 # literals are already canonical
 canonicalize(U::DisjointSets{UInt}, n) = n
 
-function lookup(U::DisjointSets{UInt}, n)
-    @assert isenode(n)
-    a = UInt(0)
-    try a = hash(canonicalize(U, n))
-    catch e; (e isa KeyError) ? nothing : throw(e) end
-    a ∈ U ? a : nothing
-end
-
-
 struct EGraph
     U::DisjointSets{UInt}       # equality relation over e-class ids
     M::Dict{UInt, Vector{Any}}  # id => sets of e-nodes
     #H::????? hashcons?
+    parents::Dict{UInt, Vector{UInt}}
     dirty::Vector{UInt}         # worklist for ammortized upwards merging
     root::UInt
 end
 
-EGraph() = EGraph(DisjointSets{UInt}(), Dict{UInt, Vector{Expr}}(), Vector{UInt}(), 0)
+EGraph() = EGraph(DisjointSets{UInt}(), Dict{UInt, Vector{Expr}}(), Dict{UInt, Vector{UInt}}(), Vector{UInt}(), 0)
+
+function addparent!(G::EGraph, a::UInt, parent::UInt)
+    if !haskey(G.parents, a); G.parents[a] = [parent]
+    else union!(G.parents[a], parent) end
+end
 
 function add!(G::EGraph, n)
     println("adding ", n)
-    @assert isenode(n)
-    a = lookup(G.U,n)
-    println(n, " |> lookup  ==== ",a)
-    if a == nothing
-        println(n, " not found in U")
-        a = hash(n)
-        pushnew!(G.U, a)
-        if (n isa Expr)
-            start = isexpr(n, :call) ? 2 : 1
-            n.args[start:end] .|> x -> pushnew!(G.U, x.id)
-        end
-        G.M[a] = [n]
+    n = canonicalize(G.U, n)
+    a = hash(n)
+    if a ∈ G.U; return EClass(a) end
+
+    println(n, " not found in U")
+    pushnew!(G.U, a)
+    if (n isa Expr)
+        start = isexpr(n, :call) ? 2 : 1
+        display(n.args)
+        n.args[start:end] .|> x -> addparent!(G, x.id, a)
+    else
+        G.parents[a] = []
     end
+    G.M[a] = [n]
     return EClass(a)
 end
+
 
 function Base.merge!(G::EGraph, a::UInt, b::UInt)
     fa = find(G,a)
@@ -156,25 +156,23 @@ find(G::EGraph, a::UInt) = find_root!(G.U, a)
 
 recadd!(G::EGraph, e) = df_walk((x->add!(G,x)), e; skip_call=true)
 
-function EGraph(e::Expr)
+function EGraph(e)
     G = EGraph()
     rootclass = recadd!(G, e)
-    EGraph(G.U, G.M, G.dirty, rootclass.id)
+    EGraph(G.U, G.M, G.parents, G.dirty, rootclass.id)
 end
 
 ## SPAZZATURA
 
-#G = EGraph()
-
-#println(G)
-
 #testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))
-testexpr = :((a * 2)/a)
+testexpr = :((a * 2)/2)
 
 #t1 = recadd(G, testexpr)
 G = EGraph(testexpr)
 display(G.U)
 display(G.M)
+display(G.parents)
+
 
 testmatch = :(a << 1)
 t2 = recadd!(G, testmatch)
@@ -189,6 +187,10 @@ in_same_set(G.U, t2.id, 0xd269aee6c8a22b36)
 
 display(G.U)
 display(G.M)
+display(G.dirty)
+display(G.parents)
+
+# DOES NOT UPWARD MERGE
 
 ## TODO Test UPWARD merging
 
@@ -210,4 +212,6 @@ display(G.M)
 
 # DOES NOT UPWARD MERGE
 
-## TODO
+
+
+## TODO adapt pattern matching
