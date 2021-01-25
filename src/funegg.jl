@@ -15,24 +15,6 @@ AbstractTrees.printnode(io::IO, node::Expr) = show(io, node.head) #show(IOContex
 
 ## Utility methods
 
-# NOTE: iseclass and isenode are mutually recursive
-
-# # check if an expr is an eclass id annotation
-# iseclass(e::Expr) =
-#     isexpr(e, :eclass) &&
-#     e.args[1] isa UInt #&&
-#     #length(e.args) > 1 && all(isenode, e.args[2:end])
-#
-# # literals are not e-classes
-# iseclass(x) = false
-#
-# @test iseclass(2) == false
-# @test iseclass(Dict(:x => 3 )) == false
-# @test iseclass(Expr(:eclass, "hi")) == false
-# @test iseclass(Expr(:eclass, 0)) == false
-# @test iseclass(Expr(:eclass, UInt(3), 1)) == true
-# @test iseclass(Expr(:eclass, UInt(3), Expr(:(=), hashnode(2), hashnode(3)))) == true
-# @test iseclass(Expr(:eclass, UInt(3), Expr(:(=), 3, 2))) == true
 
 struct EClass
     id::UInt
@@ -49,35 +31,11 @@ end
 isenode(x::EClass) = false
 isenode(x) = true
 
-
 @test isenode(2) == true
 @test isenode( :(2 + 3)  ) == false
 @test isenode( EClass(2) ) == false
 @test isenode( Expr(:call, :foo, EClass(2)) ) == true
 @test isenode( Expr(:call, :foo, 3, EClass(2)) ) == false
-
-
-#getid(e::Expr) = iseclass(e) ? e.args[1] : error(`$e not a valid eclass`)
-
-
-# annotate an expression tree with :eclass nodes, containing the e-class id (expr hash)
-#hashnode(x) = Expr(:eclass, hash(x), x)
-
-
-## Step 1:
-
-# annotate all (excluding function names in :call exprs.) nodes of the AST
-# with an e-class metadata node, starting from the leaves of AST and going upwards.
-# TODO verify this property
-# produces a valid hierarchy, forall e-class node x, containing
-# class id in x.args[1] and valid e-nodes in args[2:end]
-#annot_eclass(e::Expr) = df_walk(hashnode, e; skip_call=true)
-
-#testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))
-#testexpr = :((a * 2)/a)
-
-#test_annot_hash = annot_eclass(testexpr)
-#print_tree(test_annot_hash, Inf)
 
 function pushnew!(U::DisjointSets, x)
     x ∈ U ? nothing : push!(U, x)
@@ -98,46 +56,59 @@ function canonicalize(U::DisjointSets{UInt}, n::Expr)
     start = isexpr(n, :call) ? 2 : 1
     ne = copy(n)
     ne.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ ne.args[start:end]]
-    println("canonicalized ", ne)
+    println("canonicalized ", n, " to ", ne)
     return ne
 end
 
+function canonicalize!(U::DisjointSets{UInt}, n::Expr)
+    @assert isenode(n)
+    start = isexpr(n, :call) ? 2 : 1
+    n.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ n.args[start:end]]
+    println("canonicalized ", n)
+    return n
+end
+
+
 # literals are already canonical
 canonicalize(U::DisjointSets{UInt}, n) = n
+canonicalize!(U::DisjointSets{UInt}, n) = n
 
 struct EGraph
     U::DisjointSets{UInt}       # equality relation over e-class ids
     M::Dict{UInt, Vector{Any}}  # id => sets of e-nodes
-    #H::????? hashcons?
-    parents::Dict{UInt, Vector{UInt}}
+    H::Dict{Any, UInt}         # hashcons
+    parents::Dict{UInt, Vector{Tuple{Any, UInt}}}  # parent enodes and eclasses
     dirty::Vector{UInt}         # worklist for ammortized upwards merging
     root::UInt
 end
 
-EGraph() = EGraph(DisjointSets{UInt}(), Dict{UInt, Vector{Expr}}(), Dict{UInt, Vector{UInt}}(), Vector{UInt}(), 0)
+EGraph() = EGraph(DisjointSets{UInt}(), Dict{UInt, Vector{Expr}}(),
+    Dict{Expr, UInt}(),
+    Dict{UInt, Vector{UInt}}(), Vector{UInt}(), 0)
 
-function addparent!(G::EGraph, a::UInt, parent::UInt)
+function addparent!(G::EGraph, a::UInt, parent::Tuple{Any,UInt})
+    @assert isenode(parent[1])
     if !haskey(G.parents, a); G.parents[a] = [parent]
-    else union!(G.parents[a], parent) end
+    else union!(G.parents[a], [parent]) end
 end
+
 
 function add!(G::EGraph, n)
     println("adding ", n)
-    n = canonicalize(G.U, n)
-    a = hash(n)
-    if a ∈ G.U; return EClass(a) end
+    canonicalize!(G.U, n)
+    if haskey(G.H, n); return find(G, G.H[n]) |> EClass end   # TODO change with memoization?
 
-    println(n, " not found in U")
-    pushnew!(G.U, a)
+    println(n, " not found in H")
+    id = hash(n)
+    pushnew!(G.U, id)
     if (n isa Expr)
         start = isexpr(n, :call) ? 2 : 1
         display(n.args)
-        n.args[start:end] .|> x -> addparent!(G, x.id, a)
-    else
-        G.parents[a] = []
+        n.args[start:end] .|> x -> addparent!(G, x.id, (n,id))
     end
-    G.M[a] = [n]
-    return EClass(a)
+    G.H[n] = id
+    G.M[id] = [n]
+    return EClass(id)
 end
 
 
@@ -146,6 +117,7 @@ function Base.merge!(G::EGraph, a::UInt, b::UInt)
     if fa == find(G,b) return fa end
     root = union!(G.U, a, b)
     G.M[a] = G.M[b] = G.M[a] ∪ G.M[b]
+    G.parents[a] = G.parents[b] = G.parents[a] ∪ G.parents[b]
     push!(G.dirty, root)
     return root
 end
@@ -159,8 +131,47 @@ recadd!(G::EGraph, e) = df_walk((x->add!(G,x)), e; skip_call=true)
 function EGraph(e)
     G = EGraph()
     rootclass = recadd!(G, e)
-    EGraph(G.U, G.M, G.parents, G.dirty, rootclass.id)
+    EGraph(G.U, G.M, G.H, G.parents, G.dirty, rootclass.id)
 end
+
+
+function rebuild!(e::EGraph)
+    while !isempty(e.dirty)
+        todo = unique([ find(e, id) for id ∈ e.dirty ])
+        empty!(e.dirty)
+        foreach(todo) do x
+            repair!(e, x)
+        end
+    end
+end
+
+using Printf
+
+function repair!(e::EGraph, id::UInt)
+    @printf "repairing %x \n" id
+    for (p_enode, p_eclass) ∈ e.parents[id]
+        delete!(e.H, p_enode)
+        println("deleted ", p_enode, " from H")
+        display(e.H)
+        n = canonicalize(e.U, p_enode)
+        @show e.H[n] = find(e, p_eclass)
+    end
+
+    new_parents = Dict()
+
+    for (p_enode, p_eclass) ∈ e.parents[id]
+        canonicalize!(e.U, p_enode)
+        # deduplicate parents
+        if haskey(new_parents, p_enode)
+            println(`merging $p_eclass and $(new_parents[p_enode])`)
+            merge!(e, p_eclass, new_parents[p_enode])
+        end
+        new_parents[p_enode] = find(e, p_eclass)
+    end
+    e.parents[id] = [ (n, id) for (n,id) ∈ new_parents ]
+    println(`updated parents: $(e.parents[id])`)
+end
+
 
 ## SPAZZATURA
 
@@ -171,8 +182,9 @@ testexpr = :((a * 2)/2)
 G = EGraph(testexpr)
 display(G.U)
 display(G.M)
+display(G.H)
 display(G.parents)
-
+display(G.dirty)
 
 testmatch = :(a << 1)
 t2 = recadd!(G, testmatch)
@@ -194,24 +206,40 @@ display(G.parents)
 
 ## TODO Test UPWARD merging
 
-testexpr = :(f(a,b) + f(b,c))
+testexpr = :(f(a,b) + f(a,c))
 G = EGraph(testexpr)
-display(G.U)
 display(G.M)
+display(G.H)
 
-testrewrite = :c
-t2 = recadd!(G, testrewrite)
-display(G.U)
+t2 = recadd!(G, :c)
 display(G.M)
+display(G.H)
 
 # merge b and c
-merge!(G, t2.id, 0x8e5e38f3ddbfbcc1)
+c_id = merge!(G, t2.id, 0x8e5e38f3ddbfbcc1)
 
-display(G.U)
+in_same_set(G.U, c_id, 0x8e5e38f3ddbfbcc1)
+in_same_set(G.U, t2.id, 0x8e5e38f3ddbfbcc1)
+
+find_root!(G.U, t2.id)
+
+
 display(G.M)
+display(G.H)
+display(G.dirty)
+display(G.parents)
 
 # DOES NOT UPWARD MERGE
 
 
+rebuild!(G)
 
-## TODO adapt pattern matching
+# f(a,b) = f(a,c)
+in_same_set(G.U, 0xadfb9a19461fbd80, 0xe4646feaf0d276f4)
+
+# IT WORKS
+
+display(G.M)
+display(G.H)
+display(G.dirty)
+display(G.parents)
