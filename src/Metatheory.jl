@@ -7,6 +7,9 @@ include("matchcore_compiler.jl")
 include("reduce.jl")
 include("match.jl")
 include("macros.jl")
+include("EGraphs/EGraphs.jl")
+
+export EGraphs
 
 export @rule
 export @theory
