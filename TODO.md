@@ -1,12 +1,13 @@
 TODO:
-* Extend first class binary operators from a theory `src/operators.jl`
+* Extend regular binary operators from a theory `src/operators.jl`
 * `@judgment` for natural deduction syntax style like racket's redex
 * Abstract interface to allow interchangeable solvers .
 * FIXME allow ∀ and ∃ as symbols
-* Specify monoids commutativity
+* E-Graph extractor from cost function 
 
 
 DONE:
+* Equational theories with e-graphs
 * Deal WITH N-ARITY OF * AND + - `binarize` hack in `src/reduce.jl`
 * FIXED runtime sym_reduce
 * FIXED: PARSE TIME INNER REDUCTION DOES NOT WORK

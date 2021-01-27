@@ -66,6 +66,8 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
 
     # read only phase
     for rule ∈ theory
+        rule.mode != :rewrite && error("unsupported rule mode")
+
         for (id, cls) ∈ G.M
             for sub in ematch(G, rule.left, id, EMPTY_DICT2)
                 # display(sub); println()
@@ -91,7 +93,7 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
 end
 
 # TODO plot how egraph shrinks and grows during saturation
-function equality_saturation!(G::EGraph, theory::Vector{Rule}; timeout=3000)
+function saturate!(G::EGraph, theory::Vector{Rule}; timeout=3000)
     curr_iter = 0
     while true
         @info curr_iter
@@ -143,7 +145,7 @@ end
 
 function getbest(G::EGraph, costs::Dict{Int64, Vector{Tuple{Any, Float64}}}, root::Int64)
     # computed costs of equivalent nodes, weighted sum
-    ccosts =
+    ccosts = []
     for n ∈ G.M[root]
 
     end
