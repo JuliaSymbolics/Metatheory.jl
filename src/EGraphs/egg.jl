@@ -51,7 +51,7 @@ end
 canonicalize(U::IntDisjointSets, n) = n
 canonicalize!(U::IntDisjointSets, n) = n
 
-struct EGraph
+mutable struct EGraph
     U::IntDisjointSets       # equality relation over e-class ids
     M::Dict{Int64, Vector{Any}}  # id => sets of e-nodes
     H::Dict{Any, Int64}         # hashcons
@@ -60,9 +60,22 @@ struct EGraph
     root::Int64
 end
 
+const TIMEOUT = 3000
+
+
 EGraph() = EGraph(IntDisjointSets(0), Dict{Int64, Vector{Expr}}(),
     Dict{Expr, Int64}(),
     Dict{Int64, Vector{Int64}}(), Vector{Int64}(), 0)
+
+
+function EGraph(e)
+    G = EGraph()
+    rootclass = addexpr!(G, e)
+    G.root = rootclass.id
+    G
+end
+
+
 
 function addparent!(G::EGraph, a::Int64, parent::Tuple{Any,Int64})
     @assert isenode(parent[1])
@@ -132,17 +145,11 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
 
     mergeparents!(G, from, to)
     delete!(G.M, from)
+    delete!(G.H, from)
     return id_u
 end
 
 find(G::EGraph, a::Int64) = find_root!(G.U, a)
-
-
-function EGraph(e)
-    G = EGraph()
-    rootclass = addexpr!(G, e)
-    EGraph(G.U, G.M, G.H, G.parents, G.dirty, rootclass.id)
-end
 
 
 function rebuild!(e::EGraph)
