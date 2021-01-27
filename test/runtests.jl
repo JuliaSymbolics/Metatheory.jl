@@ -4,6 +4,6 @@ include("../src/util.jl")
 
 using Metatheory
 
-include("test_theories.jl")
-include("test_reductions.jl")
-include("test_funegg.jl")
+#include("test_theories.jl")
+#include("test_reductions.jl")
+include("test_egraphs.jl")

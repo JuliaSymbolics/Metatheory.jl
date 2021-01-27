@@ -34,7 +34,7 @@ function canonicalize(U::IntDisjointSets, n::Expr)
     start = isexpr(n, :call) ? 2 : 1
     ne = copy(n)
     ne.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ ne.args[start:end]]
-    println("canonicalized ", n, " to ", ne)
+    @debug("canonicalized ", n, " to ", ne)
     return ne
 end
 
@@ -42,7 +42,7 @@ function canonicalize!(U::IntDisjointSets, n::Expr)
     @assert isenode(n)
     start = isexpr(n, :call) ? 2 : 1
     n.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ n.args[start:end]]
-    println("canonicalized ", n)
+    @debug("canonicalized ", n)
     return n
 end
 
@@ -72,15 +72,15 @@ end
 
 
 function add!(G::EGraph, n)
-    println("adding ", n)
+    @debug("adding ", n)
     canonicalize!(G.U, n)
     if haskey(G.H, n); return find(G, G.H[n]) |> EClass end   # TODO change with memoization?
 
-    println(n, " not found in H")
+    @debug(n, " not found in H")
     id = push!(G.U)
+    !haskey(G.parents, id) && (G.parents[id] = [])
     if (n isa Expr)
         start = isexpr(n, :call) ? 2 : 1
-        display(n.args)
         n.args[start:end] .|> x -> addparent!(G, x.id, (n,id))
     end
     G.H[n] = id
@@ -88,25 +88,55 @@ function add!(G::EGraph, n)
     return EClass(id)
 end
 
-function mergeparents!(G::EGraph, a::Int64, b::Int64)
-    if !haskey(G.parents, a); G.parents[a] = [] end
-    if !haskey(G.parents, b); G.parents[b] = [] end
-    G.parents[a] = G.parents[b] = G.parents[a] ∪ G.parents[b]
+addexpr!(G::EGraph, e) = df_walk((x->add!(G,x)), e; skip_call=true)
+
+function mergeparents!(G::EGraph, from::Int64, to::Int64)
+    !haskey(G.parents, from) && (G.parents[from] = []; return)
+    !haskey(G.parents, to) && (G.parents[to] = [])
+    foreach(G.parents[from]) do (p_enode, p_eclass)
+        push!(G.parents[to], (p_enode, find(G, p_eclass)))
+    end
 end
 
+# TODO do the from-to space optimization with deleting stale terms
+# from G.M that happens already in phil zucker's implementation.
+# TODO may this optimization be slowing down things??
 function Base.merge!(G::EGraph, a::Int64, b::Int64)
-    fa = find(G,a)
-    if fa == find(G,b) return fa end
-    root = union!(G.U, a, b)
-    G.M[a] = G.M[b] = G.M[a] ∪ G.M[b]
-    mergeparents!(G, a, b)
-    push!(G.dirty, root)
-    return root
+    id_a = find(G,a)
+    id_b = find(G,b)
+    id_a == id_b && return id_a
+    id_u = union!(G.U, id_a, id_b)
+
+    @debug "merging" id_a id_b
+
+    if (id_u == id_a)
+        from, to = id_b, id_a
+    elseif (id_u == id_b)
+        from, to = id_a, id_b
+    else
+        error("egraph invariant maintenance error")
+    end
+
+    push!(G.dirty, id_u)
+
+    clean(t) = begin
+        delete!(G.H, t)
+        canonicalize!(G.U, t)
+        G.H[t] = to
+        t
+    end
+
+    G.M[from] = map(clean, G.M[from])
+    G.M[to] = map(clean, G.M[to])
+    G.M[to] = G.M[from] ∪ G.M[to]
+
+    mergeparents!(G, from, to)
+    delete!(G.M, from)
+    return id_u
 end
 
 find(G::EGraph, a::Int64) = find_root!(G.U, a)
 
-addexpr!(G::EGraph, e) = df_walk((x->add!(G,x)), e; skip_call=true)
 
 function EGraph(e)
     G = EGraph()
@@ -128,11 +158,13 @@ end
 function repair!(e::EGraph, id::Int64)
     @debug "repairing " id
     for (p_enode, p_eclass) ∈ e.parents[id]
+        #old_id = e.H[p_enode]
+        #delete!(e.M, old_id)
         delete!(e.H, p_enode)
-        println("deleted ", p_enode, " from H")
-        display(e.H)
+        @debug "deleted from H " p_enode
         n = canonicalize(e.U, p_enode)
-        @show e.H[n] = find(e, p_eclass)
+        n_id = find(e, p_eclass)
+        e.H[n] = n_id
     end
 
     new_parents = Dict()
@@ -141,11 +173,11 @@ function repair!(e::EGraph, id::Int64)
         canonicalize!(e.U, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
-            @debug "merging " p_eclass " and " (new_parents[p_enode])
+            @debug "merging classes" p_eclass (new_parents[p_enode])
             merge!(e, p_eclass, new_parents[p_enode])
         end
         new_parents[p_enode] = find(e, p_eclass)
     end
-    e.parents[id] = [ (n, id) for (n,id) ∈ new_parents ]
-    println(`updated parents: $(e.parents[id])`)
+    e.parents[id] = collect(new_parents) .|> Tuple
+    @debug "updated parents " id e.parents[id]
 end
