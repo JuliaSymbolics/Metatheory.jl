@@ -1,8 +1,3 @@
-include("../rule.jl")
-include("../theory.jl")
-include("../util.jl")
-include("egg.jl")
-
 # https://www.philipzucker.com/egraph-2/
 # https://github.com/philzook58/EGraphs.jl/blob/main/src/matcher.jl
 # https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
@@ -106,31 +101,29 @@ function saturate!(G::EGraph, theory::Vector{Rule}; timeout=3000)
     return G
 end
 
+## Experiments
 
-r = @rule foo(x,y) => 2*x%y
-G = EGraph(:(foo(b,c)))
-
-saturate!(G, [r])
-
-G.M |> display
-
-# OK
-
-
-comm_monoid = @theory begin
-    a * 1 => a
-    a * b => b * a
-    a * (b * c) => (a * b) * c
+# count all possible equal expressions to some eclass
+function countexprs(G::EGraph, a::Int64)
+    c = length(G.M[a])
+    for n ∈ G.M[a]
+        if n isa Expr # is enode
+            start = isexpr(n, :call) ? 2 : 1
+            println(start)
+            println(n.args[start:end])
+            subcounts = [countexprs(G, x.id) for x ∈ n.args[start:end]]
+            for i ∈ subcounts
+                println(:wooo, i)
+                c *= i
+            end
+        end
+    end
+    return c
 end
 
-G = EGraph(binarize!(:((boo * 1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1)), :*))
-@time saturate!(G, comm_monoid)
-display(G.M)
-G.U |> length
-G.M |> length
-
-
 ## Simple Extraction
+
+## TODO finish
 
 # computes the cost of a constant
 astsize(G::EGraph, n) = 1.0

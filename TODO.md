@@ -1,10 +1,11 @@
 TODO:
 * Extend regular binary operators from a theory `src/operators.jl`
 * `@judgment` for natural deduction syntax style like racket's redex
-* Abstract interface to allow interchangeable solvers .
-* FIXME allow ∀ and ∃ as symbols
-* E-Graph extractor from cost function 
-
+* Abstract interface to allow interchangeable solvers????
+* FIXME allow ∀ and ∃ as symbols: julia parser issue
+* E-Graph extractor from cost function
+* Check if matching in ematch.jl can be made concurrent
+* Try getting MatchCore to work with egraphs
 
 DONE:
 * Equational theories with e-graphs

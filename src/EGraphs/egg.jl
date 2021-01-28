@@ -87,8 +87,7 @@ end
 function add!(G::EGraph, n)
     @debug("adding ", n)
     canonicalize!(G.U, n)
-    if haskey(G.H, n); return find(G, G.H[n]) |> EClass end   # TODO change with memoization?
-
+    if haskey(G.H, n); return find(G, G.H[n]) |> EClass end
     @debug(n, " not found in H")
     id = push!(G.U)
     !haskey(G.parents, id) && (G.parents[id] = [])
@@ -106,12 +105,18 @@ addexpr!(G::EGraph, e) = df_walk((x->add!(G,x)), e; skip_call=true)
 function mergeparents!(G::EGraph, from::Int64, to::Int64)
     !haskey(G.parents, from) && (G.parents[from] = []; return)
     !haskey(G.parents, to) && (G.parents[to] = [])
-    foreach(G.parents[from]) do (p_enode, p_eclass)
-        push!(G.parents[to], (p_enode, find(G, p_eclass)))
+
+    # TODO optimize
+
+    union!(G.parents[to], G.parents[from])
+    G.parents[to] = map(G.parents[to]) do (p_enode, p_eclass)
+        (canonicalize!(G.U, p_enode), find(G, p_eclass))
     end
+    #G.parents[from] = G.parents[to]
+    #G.parents[from] = []
 end
 
-# TODO do the from-to space optimization with deleting stale terms
+# DONE do the from-to space optimization with deleting stale terms
 # from G.M that happens already in phil zucker's implementation.
 # TODO may this optimization be slowing down things??
 function Base.merge!(G::EGraph, a::Int64, b::Int64)
@@ -143,9 +148,11 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
     G.M[to] = map(clean, G.M[to])
     G.M[to] = G.M[from] ∪ G.M[to]
 
-    mergeparents!(G, from, to)
+    if from == G.root; G.root = to end
+
     delete!(G.M, from)
     delete!(G.H, from)
+    mergeparents!(G, from, to)
     return id_u
 end
 

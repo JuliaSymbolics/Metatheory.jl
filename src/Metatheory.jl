@@ -7,7 +7,10 @@ include("matchcore_compiler.jl")
 include("reduce.jl")
 include("match.jl")
 include("macros.jl")
-include("EGraphs/EGraphs.jl")
+# include("EGraphs/EGraphs.jl")
+include("EGraphs/egg.jl")
+include("EGraphs/ematch.jl")
+
 
 export EGraphs
 
@@ -28,5 +31,15 @@ export @ret_reduce
 export @compile_theory
 export @matcher
 export @reducer
+
+## E-Graphs
+
+export EClass
+export EGraph
+export merge!
+export addexpr!
+export rebuild!
+export saturate!
+export countexprs
 
 end # module
