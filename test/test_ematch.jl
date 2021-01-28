@@ -9,7 +9,7 @@ macro equals(theory, exprs...)
         ec = addexpr!(G, i)
         push!(ids, ec.id)
     end
-    saturate!(G, t; timeout=10)
+    @time saturate!(G, t; timeout=10)
 
     all(x -> in_same_set(G.U, ids[1], x), ids[2:end])
 end
@@ -24,8 +24,8 @@ end
 @test (@equals r foo(b,c) foo(d,d)) == false
 
 comm_monoid = @theory begin
-    a => a * 1
     a * b => b * a
+    a * 1 => a
     a * (b * c) => (a * b) * c
 end
 
@@ -33,8 +33,8 @@ end
 
 @equals comm_monoid x*y y*x
 
-@equals comm_monoid x*(x*x) (x*x)*(x*1)
-
+#FIXME true
+@equals comm_monoid (x*x)*(x * 1) x*(x*x)
 
 
 comm_group = @theory begin
@@ -57,3 +57,9 @@ t = comm_monoid ∪ comm_group ∪ distrib
 @equals t a+(b*(c*d)) ((d*c)*b)+a
 
 @equals t (x+y)*(a+b) ((a*(x+y)) + b*(x+y)) ((x*(a+b)) + y*(a+b))
+
+@equals t (((x*a + x*b) + y*a) + y*b) (x+y)*(a+b)
+
+@equals t a+(b*(c*d)) ((d*c)*b)+a
+
+@equals t a+inv(a) 0 (x*y)+inv(x*y) 1*0

@@ -4,7 +4,8 @@
 # TODO support destructuring and type assertions
 
 function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub)
-    Channel() do c
+    Channel(;spawn=true) do c
+    # Channel() do c
         if length(t) != length(v) || length(t) == 0 || length(v) == 0
             put!(c, sub)
         else
@@ -18,10 +19,10 @@ function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub)
 end
 
 # sub should be a map from pattern variables to Id
-function ematch(e::EGraph, t::Symbol, v::Int64, sub)
+function ematch(e::EGraph, t, v::Int64, sub)
     Channel() do c
         if haskey(sub, t)
-            find(e, sub[t]) == find(e, v) ? put!(c, sub) : pass
+            find(e, sub[t]) == find(e, v) ? put!(c, sub) : nothing
         else
             # TODO put type assertions here???
             put!(c,  Base.ImmutableDict(sub, t => EClass(find(e, v))))
@@ -29,7 +30,7 @@ function ematch(e::EGraph, t::Symbol, v::Int64, sub)
     end
 end
 
-ematch(e::EGraph, t, v::Int64, sub) = Channel() do c sub end
+# ematch(e::EGraph, t, v::Int64, sub) = Channel() do c sub end
 
 function ematch(e::EGraph, t::Expr, v::Int64, sub)
     Channel() do c
@@ -56,23 +57,34 @@ inst(p::Expr, G::EGraph, sub) = add!(G, p)
 instantiate(G::EGraph, p, sub) = df_walk(inst, p, G, sub; skip_call=true)
 
 function eqsat_step!(G::EGraph, theory::Vector{Rule})
-    matches = []
-    EMPTY_DICT2 = Base.ImmutableDict{Symbol, EClass}()
+    matches = Set()
+    EMPTY_DICT2 = Base.ImmutableDict{Any, EClass}()
 
     # read only phase
     for rule ∈ theory
         rule.mode != :rewrite && error("unsupported rule mode")
 
+        # @info "read left phase"
         for (id, cls) ∈ G.M
+            # println(rule.right)
             for sub in ematch(G, rule.left, id, EMPTY_DICT2)
                 # display(sub); println()
                 !isempty(sub) && push!(matches, (rule, sub, id))
             end
         end
+
+        # @info "read right phase"
+        # for (id, cls) ∈ G.M
+        #     for sub in ematch(G, rule.right, id, EMPTY_DICT2)
+        #         # display(sub); println()
+        #         !isempty(sub) && push!(matches, (rule, sub, id))
+        #     end
+        # end
     end
 
+    # @info "write phase"
     for (rule, sub, id) ∈ matches
-        # println("rule ", rule, " matched on ", id)
+        # @info "rule match!" rule id
         l = instantiate(G,rule.left,sub)
         r = instantiate(G,rule.right,sub)
         merge!(G,l.id,r.id)

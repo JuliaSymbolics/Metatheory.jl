@@ -157,6 +157,7 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
 end
 
 find(G::EGraph, a::Int64) = find_root!(G.U, a)
+find(G::EGraph, a::EClass) = find_root!(G.U, a.id)
 
 
 function rebuild!(e::EGraph)
