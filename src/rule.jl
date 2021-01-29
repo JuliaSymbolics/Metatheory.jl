@@ -4,17 +4,15 @@ struct Rule
     left::Any
     right::Any
     expr::Expr # original expression
-    mode::Symbol # can be :rewrite or :direct
+    mode::Symbol # can be :rewrite or :dynamic
 end
 
 # operator symbols for simple term rewriting
 const rewrite_syms = [:(=>), :(⇒), :(⟹), :(⤇), :(⟾)]
-# operator symbols for regular pattern matching rules, "direct rules"
+# operator symbols for regular pattern matching rules, "dynamic rules"
 # that eval the right side at reduction time.
 # might be used to implement big step semantics
-const direct_syms = [:(|>)]
-# TODO implement equality saturation
-const equality_syms = [:(=)]
+const dynamic_syms = [:(|>)]
 
 function Rule(e::Expr)
     mode = :undef
@@ -28,8 +26,8 @@ function Rule(e::Expr)
         r = e.args[2]
     end
 
-    if mode ∈ direct_syms # direct rule, regular pattern matching
-        mode = :direct
+    if mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
+        mode = :dynamic
     elseif mode ∈ rewrite_syms # right side is quoted, symbolic replacement
         mode = :rewrite
     else

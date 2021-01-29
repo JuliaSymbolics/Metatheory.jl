@@ -37,7 +37,7 @@ const skips = [:(::), :(...)]
 function compile_rule(rule::Rule)::Expr
     le = df_walk(c_left, rule.left, Set{Symbol}(); skip=skips, skip_call=true) |> quot
     #le = c_left(l, Set{Symbol}()) |> quot
-    if rule.mode == :direct # regular pattern matching
+    if rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
         re = rule.right
     elseif rule.mode == :rewrite # right side is quoted, symbolic replacement
