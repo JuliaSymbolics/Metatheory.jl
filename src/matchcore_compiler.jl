@@ -31,6 +31,8 @@ const add_dollar = [:(::), :(...)]
 # don't walk down on these symbols
 const skips = [:(::), :(...)]
 
+
+
 # Compile rules from Metatheory format to MatchCore format
 function compile_rule(rule::Rule)::Expr
     le = df_walk(c_left, rule.left, Set{Symbol}(); skip=skips, skip_call=true) |> quot
@@ -50,39 +52,28 @@ end
 # catch-all for symbolic reductions
 identity_axiom = :($(quot(dollar(:i))) => i)
 
+# TODO analyse theory before compiling. Identify associativity and commutativity
+# and other loop-creating problems. Generate a pattern matching block with the
+# correct rule order and expansions for associativity and distributivity
 theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 
 # Compile a theory to a closure that does the pattern matching job
 # RETURNS A QUOTED CLOSURE WITH THE GENERATED MATCHING CODE! FASTER AF! 🔥
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
     # generate an unique parameter name
+    # TODO needed? consider just calling it expr for access in right hand
     parameter = Meta.gensym(:reducing_expression)
-
     block = theory_block(theory)
 
     matching = MatchCore.gen_match(parameter, block, __source__, mod)
     matching = MatchCore.AbstractPatterns.init_cfg(matching)
 
     ex = :(($parameter, world) -> $matching)
-    #println(ex)
     @RuntimeGeneratedFunction(ex)
-    #mk_function([parameter], [], matching)
 end
 
-# TODO GG does not work. ask Taine Zhao.
-# function closurize(block, __source__, __module__)
-#     mk_function(__module__, :(
-#         param ->
-#         #matching =
-#         #matching =
-#         MatchCore.AbstractPatterns.init_cfg(MatchCore.gen_match(param, block, __source__, __module__)))
-#     )
-# end
-
-# TODO consider compiling at parse time and test.
 # Compile a theory at runtime to a closure that does the pattern matching job
-macro compile_theory(t)
-    quote
-        Metatheory.compile_theory($(esc(t)), $__module__)
-    end
+macro compile_theory(theory)
+    t = gettheory(theory, __module__)
+    Metatheory.compile_theory(t, __module__)
 end

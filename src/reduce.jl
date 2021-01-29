@@ -12,10 +12,6 @@ function sym_reduce(ex, theory::Vector{Rule};
 end
 
 
-cleanast(ex) = rmlines(ex) |>
-    x -> binarize!(x, :(+)) |>
-    x -> binarize!(x, :(*))
-
 function sym_reduce(ex, matcher::Function;
         __source__=LineNumberNode(0),
         order=:outer,                   # evaluation order
@@ -56,19 +52,14 @@ end
 
 
 macro reduce(ex, theory, order)
-    if !isdefined(__module__, theory) error(`theory $theory not found!`) end
-    t = getfield(__module__, theory)
-
-    if !(t isa Vector{Rule}) error(`$theory is a $(typeof(theory)), not a Vector\{Rule\}`) end
+	t = gettheory(theory, __module__)
     sym_reduce(ex, t; order=order, __source__=__source__, m=__module__) |> quot
 end
 macro reduce(ex, theory) :(@reduce $ex $theory outer) end
 
 # escapes the expression instead of returning it.
 macro ret_reduce(ex, theory, order)
-    if !isdefined(__module__, theory) error(`theory $theory not found!`) end
-    t = getfield(__module__, theory)
-    if !(t isa Vector{Rule}) error(`$theory is not a Vector\{Rule\}`) end
+	t = gettheory(theory, __module__)
     sym_reduce(ex, t; order=order, __source__=__source__, m=__module__) |> esc
 end
 macro ret_reduce(ex, theory) :(@ret_reduce $ex $theory outer) end

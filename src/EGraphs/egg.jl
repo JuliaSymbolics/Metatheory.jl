@@ -5,7 +5,6 @@ using DataStructures
 
 struct EClass
     id::Int64
-    # parents::Vector{EClass}
 end
 
 # check if an expr is an enode ⟺
@@ -17,10 +16,6 @@ end
 # literals are enodes
 isenode(x::EClass) = false
 isenode(x) = true
-
-
-## Step 2: from an annotated AST, build (U,M,H) (can be merged with step one)
-
 
 ### Definition 2.3: canonicalization
 iscanonical(U::IntDisjointSets, n::Expr) = n == canonicalize(U, n)
@@ -38,6 +33,7 @@ function canonicalize(U::IntDisjointSets, n::Expr)
     return ne
 end
 
+# canonicalize in place
 function canonicalize!(U::IntDisjointSets, n::Expr)
     @assert isenode(n)
     start = isexpr(n, :call) ? 2 : 1
@@ -116,8 +112,8 @@ function mergeparents!(G::EGraph, from::Int64, to::Int64)
     #G.parents[from] = []
 end
 
-# DONE do the from-to space optimization with deleting stale terms
-# from G.M that happens already in phil zucker's implementation.
+# Does a from-to space optimization by deleting stale terms
+# from G.M, taken from phil zucker's implementation.
 # TODO may this optimization be slowing down things??
 function Base.merge!(G::EGraph, a::Int64, b::Int64)
     id_a = find(G,a)
@@ -127,13 +123,10 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
 
     @debug "merging" id_a id_b
 
-    if (id_u == id_a)
-        from, to = id_b, id_a
-    elseif (id_u == id_b)
-        from, to = id_a, id_b
-    else
-        error("egraph invariant maintenance error")
-    end
+
+    from, to = if (id_u == id_a) id_b, id_a
+        elseif (id_u == id_b) id_a, id_b
+        else error("egraph invariant maintenance error") end
 
     push!(G.dirty, id_u)
 

@@ -1,6 +1,8 @@
 ## Utility functions
 
-## Remove LineNumberNode from quoted blocks of code
+## AST manipulation utility functions
+
+# Remove LineNumberNode from quoted blocks of code
 rmlines(e::Expr) = Expr(e.head, filter(!isnothing, map(rmlines, e.args))...)
 rmlines(a) = a
 rmlines(x::LineNumberNode) = nothing
@@ -13,6 +15,11 @@ amp(v) = Expr(:&, v)
 # meta shortcuts for readability
 quot = Meta.quot
 isexpr = Meta.isexpr
+
+
+cleanast(ex) = rmlines(ex) |>
+    x -> binarize!(x, :(+)) |>
+    x -> binarize!(x, :(*))
 
 ## Depth First Walk on expressions
 

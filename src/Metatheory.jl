@@ -6,11 +6,11 @@ include("theory.jl")
 include("matchcore_compiler.jl")
 include("reduce.jl")
 include("match.jl")
-include("macros.jl")
 # include("EGraphs/EGraphs.jl")
 include("EGraphs/egg.jl")
 include("EGraphs/ematch.jl")
 
+include("Library/Library.jl")
 
 export EGraphs
 

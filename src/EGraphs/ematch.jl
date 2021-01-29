@@ -20,7 +20,8 @@ end
 
 # sub should be a map from pattern variables to Id
 function ematch(e::EGraph, t, v::Int64, sub)
-    Channel() do c
+    Channel(;spawn=true) do c
+    # Channel() do c
         if haskey(sub, t)
             find(e, sub[t]) == find(e, v) ? put!(c, sub) : nothing
         else
@@ -33,7 +34,8 @@ end
 # ematch(e::EGraph, t, v::Int64, sub) = Channel() do c sub end
 
 function ematch(e::EGraph, t::Expr, v::Int64, sub)
-    Channel() do c
+    Channel(;spawn=true) do c
+    # Channel() do c
         for n in e.M[find(e,v)]
             (!(n isa Expr) || n.head != t.head) && continue
             start = 1
@@ -72,14 +74,6 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
                 !isempty(sub) && push!(matches, (rule, sub, id))
             end
         end
-
-        # @info "read right phase"
-        # for (id, cls) ∈ G.M
-        #     for sub in ematch(G, rule.right, id, EMPTY_DICT2)
-        #         # display(sub); println()
-        #         !isempty(sub) && push!(matches, (rule, sub, id))
-        #     end
-        # end
     end
 
     # @info "write phase"
@@ -93,9 +87,7 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
     # display(G.parents); println()
     # display(G.M); println()
     saturated = isempty(G.dirty)
-
     rebuild!(G)
-
     return saturated, G
 end
 
@@ -108,12 +100,13 @@ function saturate!(G::EGraph, theory::Vector{Rule}; timeout=3000)
         saturated, G = eqsat_step!(G, theory)
 
         saturated && (@info "E-GRAPH SATURATED"; break)
-        saturated && (@info "E-GRAPH TIMEOUT"; break)
+        curr_iter >= timeout && (@info "E-GRAPH TIMEOUT"; break)
     end
     return G
 end
 
 ## Experiments
+## TODO finish
 
 # count all possible equal expressions to some eclass
 function countexprs(G::EGraph, a::Int64)
@@ -135,7 +128,6 @@ end
 
 ## Simple Extraction
 
-## TODO finish
 
 # computes the cost of a constant
 astsize(G::EGraph, n) = 1.0
