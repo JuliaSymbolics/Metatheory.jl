@@ -9,6 +9,7 @@ include("match.jl")
 # include("EGraphs/EGraphs.jl")
 include("EGraphs/egg.jl")
 include("EGraphs/ematch.jl")
+include("EGraphs/saturation.jl")
 
 include("Library/Library.jl")
 

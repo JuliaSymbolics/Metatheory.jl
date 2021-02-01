@@ -105,9 +105,9 @@ function mergeparents!(G::EGraph, from::Int64, to::Int64)
     # TODO optimize
 
     union!(G.parents[to], G.parents[from])
-    G.parents[to] = map(G.parents[to]) do (p_enode, p_eclass)
-        (canonicalize!(G.U, p_enode), find(G, p_eclass))
-    end
+    # G.parents[to] = map(G.parents[to]) do (p_enode, p_eclass)
+    #     (canonicalize!(G.U, p_enode), find(G, p_eclass))
+    # end
     #G.parents[from] = G.parents[to]
     #G.parents[from] = []
 end

@@ -1,4 +1,5 @@
 macro equals(theory, exprs...)
+    @info "Checking equality for " exprs
     t = getfield(__module__, theory)
 
     if length(exprs) == 1; return true end
@@ -6,12 +7,15 @@ macro equals(theory, exprs...)
     G = EGraph()
     ids = []
     for i ∈ exprs
-        ec = addexpr!(G, i)
+        ec = addexpr!(G, cleanast(i))
         push!(ids, ec.id)
     end
-    @time saturate!(G, t; timeout=10)
 
-    all(x -> in_same_set(G.U, ids[1], x), ids[2:end])
+    alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
+
+    @time saturate!(G, t; timeout=6, stopwhen=alleq)
+
+    alleq()
 end
 
 r = @theory begin
@@ -55,3 +59,22 @@ t = comm_monoid ∪ comm_group ∪ distrib
     @test true == (@equals t a+(b*(c*d)) ((d*c)*b)+a )
     @test true == (@equals t a+inv(a) 0 (x*y)+inv(x*y) 1*0 )
 end
+
+@testset "Basic Equalities - False statements" begin
+    @test false == (@equals t (a * b) + (a * c) a*(b+a))
+    @test false == (@equals t (a * c) + (a * c) a*(b+c) )
+    @test false == (@equals t a*(c*c) c*(1*(d*a)) )
+    @test false == (@equals t c+(b*(c*d)) ((d*c)*b)+a )
+    @test false == (@equals t (x+y)*(a+c) ((a*(x+y)) + b*(x+y)) ((x*(a+b)) + y*(a+b)) )
+    @test false == (@equals t (((x*a + x*b) + y*a) + y*b) (x+y)*(a+x) )
+    @test false == (@equals t a+(b*(c*a)) ((d*c)*b)+a )
+    @test false == (@equals t a+inv(a) a (x*y)+inv(x*y) 1*0 )
+end
+
+expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))
+
+G = EGraph(expr)
+
+@time saturate!(G, comm_monoid)
+
+G.H |> display
