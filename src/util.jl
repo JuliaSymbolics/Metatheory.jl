@@ -110,6 +110,20 @@ function normalize(f, datum, fargs...; callback=()->())
     new
 end
 
+## Like above but keeps a vector of hashes
+# to detect cycles, returns expression on cycle
+function normalize_nocycle(f, datum, fargs...; callback=()->())
+    hist = UInt[]
+    push!(hist, hash(datum))
+    x = f(datum, fargs...)
+    while hash(x) ∉ hist
+        push!(hist, hash(x))
+        x = f(x, fargs...)
+        callback()
+    end
+    x
+end
+
 
 ## HARD FIX of n-arity of the (*) and (+) operators in Expr trees
 function binarize!(e, op::Symbol)

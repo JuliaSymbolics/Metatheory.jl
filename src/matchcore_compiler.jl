@@ -31,8 +31,6 @@ const add_dollar = [:(::), :(...)]
 # don't walk down on these symbols
 const skips = [:(::), :(...)]
 
-
-
 # Compile rules from Metatheory format to MatchCore format
 function compile_rule(rule::Rule)::Expr
     le = df_walk(c_left, rule.left, Set{Symbol}(); skip=skips, skip_call=true) |> quot
@@ -74,6 +72,5 @@ end
 
 # Compile a theory at runtime to a closure that does the pattern matching job
 macro compile_theory(theory)
-    t = gettheory(theory, __module__)
-    Metatheory.compile_theory(t, __module__)
+    gettheory(theory, __module__)
 end

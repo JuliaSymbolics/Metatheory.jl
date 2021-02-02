@@ -56,9 +56,6 @@ mutable struct EGraph
     root::Int64
 end
 
-const TIMEOUT = 3000
-
-
 EGraph() = EGraph(IntDisjointSets(0), Dict{Int64, Vector{Expr}}(),
     Dict{Expr, Int64}(),
     Dict{Int64, Vector{Int64}}(), Vector{Int64}(), 0)

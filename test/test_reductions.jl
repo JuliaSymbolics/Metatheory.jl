@@ -225,12 +225,12 @@ finalt = t ∪ diff
 end;
 
 ## let's loop this
-@testset "Reduction loop should error. Bound on iterations." begin
+@testset "Reduction loop should return." begin
     t = @theory begin
         a + b => b + a
     end
 
-    @test_throws Exception sym_reduce(:(a + b), t)
+    @test :(a+b) == sym_reduce(:(a + b), t)
 
 	t = @theory begin
 	    a + b => b + a
@@ -239,7 +239,7 @@ end;
 
 	# TODO trace and test for loops in computation configurations.
 
-	@test_throws Exception sym_reduce(:(a + b), t)
+	@test :(a+b) == sym_reduce(:(a + b), t)
 end
 
 

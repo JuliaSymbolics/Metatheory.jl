@@ -13,7 +13,7 @@ macro equals(theory, exprs...)
 
     alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
 
-    @time saturate!(G, t; timeout=6, stopwhen=alleq)
+    @time saturate!(G, t; timeout=6, sizeout=2^12, stopwhen=alleq)
 
     alleq()
 end
@@ -65,10 +65,12 @@ end
     @test false == (@equals t (a * c) + (a * c) a*(b+c) )
     @test false == (@equals t a*(c*c) c*(1*(d*a)) )
     @test false == (@equals t c+(b*(c*d)) ((d*c)*b)+a )
-    @test false == (@equals t (x+y)*(a+c) ((a*(x+y)) + b*(x+y)) ((x*(a+b)) + y*(a+b)) )
+    @test false == (@equals t (x+y)*(a+c) ((a*(x+y)) + b*(x+y)) )
+    @test false == (@equals t ((x*(a+b)) + y*(a+b)) (x+y)*(a+c) )
     @test false == (@equals t (((x*a + x*b) + y*a) + y*b) (x+y)*(a+x) )
     @test false == (@equals t a+(b*(c*a)) ((d*c)*b)+a )
-    @test false == (@equals t a+inv(a) a (x*y)+inv(x*y) 1*0 )
+    @test false == (@equals t a+inv(a) a )
+    @test false == (@equals t (x*y)+inv(x*y) 1 )
 end
 
 expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))

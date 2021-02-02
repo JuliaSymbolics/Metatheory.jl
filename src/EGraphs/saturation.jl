@@ -34,15 +34,16 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
 end
 
 # TODO plot how egraph shrinks and grows during saturation
-function saturate!(G::EGraph, theory::Vector{Rule}; timeout=3000, stopwhen=(()->false))
+function saturate!(G::EGraph, theory::Vector{Rule}; timeout=3000, stopwhen=(()->false), sizeout=0)
     curr_iter = 0
     while true
         # @info curr_iter
         curr_iter+=1
         saturated, G = eqsat_step!(G, theory)
 
-        saturated && (@debug "E-GRAPH SATURATED"; break)
-        curr_iter >= timeout && (@debug "E-GRAPH TIMEOUT"; break)
+        saturated && (@info "E-GRAPH SATURATED"; break)
+        curr_iter >= timeout && (@info "E-GRAPH TIMEOUT"; break)
+        sizeout > 0 && length(G.U) > sizeout && (@info "E-GRAPH SIZEOUT"; break)
         stopwhen() && (@info "Halting requirement satisfied"; break)
     end
     return G
