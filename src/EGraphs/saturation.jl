@@ -1,13 +1,17 @@
-function eqsat_step!(G::EGraph, theory::Vector{Rule})
+
+
+function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler())
     matches = Set()
     EMPTY_DICT = Base.ImmutableDict{Any, EClass}()
 
-    # read only phase
-    #Threads.@threads
+    readstep(scheduler)
+
     for rule ∈ theory
+        # don't apply banned rules
+        shouldskip(scheduler, rule) && continue
+
+
         rule.mode != :rewrite && error("unsupported rule mode")
-        # @info "read left phase"
-        #Threads.@threads
         for id ∈ collect(keys(G.M))
             # println(rule.right)
             for sub in ematch(G, rule.left, id, EMPTY_DICT)
@@ -19,8 +23,8 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
 
     # @info "write phase"
     for (rule, sub, id) ∈ matches
-        # @info sub
-        # @info "rule match!" rule id
+        writestep(scheduler, rule)
+
         l = instantiate(G,rule.left,sub)
         r = instantiate(G,rule.right,sub)
         merge!(G,l.id,r.id)
@@ -34,14 +38,20 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule})
 end
 
 # TODO plot how egraph shrinks and grows during saturation
-function saturate!(G::EGraph, theory::Vector{Rule}; timeout=3000, stopwhen=(()->false), sizeout=0)
+function saturate!(G::EGraph, theory::Vector{Rule};
+    timeout=3000, stopwhen=(()->false), sizeout=0, scheduler=BackoffScheduler)
+
     curr_iter = 0
+
+    # init scheduler
+    sched = scheduler(G, theory)
+
     while true
         # @info curr_iter
         curr_iter+=1
-        saturated, G = eqsat_step!(G, theory)
+        saturated, G = eqsat_step!(G, theory; scheduler=sched)
 
-        saturated && (@info "E-GRAPH SATURATED"; break)
+        cansaturate(sched) && saturated && (@info "E-GRAPH SATURATED"; break)
         curr_iter >= timeout && (@info "E-GRAPH TIMEOUT"; break)
         sizeout > 0 && length(G.U) > sizeout && (@info "E-GRAPH SIZEOUT"; break)
         stopwhen() && (@info "Halting requirement satisfied"; break)
