@@ -3,49 +3,8 @@
 
 using DataStructures
 
-struct EClass
-    id::Int64
-end
+abstract type AbstractAnalysis end
 
-# check if an expr is an enode ⟺
-# all args are e-classes
-function isenode(e::Expr)
-    start = isexpr(e, :call) ? 2 : 1
-    return all(x -> x isa EClass, e.args[start:end])
-end
-# literals are enodes
-isenode(x::EClass) = false
-isenode(x) = true
-
-### Definition 2.3: canonicalization
-iscanonical(U::IntDisjointSets, n::Expr) = n == canonicalize(U, n)
-iscanonical(U::IntDisjointSets, e::EClass) = find_root!(U, e.id) == e.id
-
-# canonicalize an e-term n
-# throws a KeyError from find_root! if any of the child classes
-# was not found as the representative element in a set in U
-function canonicalize(U::IntDisjointSets, n::Expr)
-    @assert isenode(n)
-    start = isexpr(n, :call) ? 2 : 1
-    ne = copy(n)
-    ne.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ ne.args[start:end]]
-    @debug("canonicalized ", n, " to ", ne)
-    return ne
-end
-
-# canonicalize in place
-function canonicalize!(U::IntDisjointSets, n::Expr)
-    @assert isenode(n)
-    start = isexpr(n, :call) ? 2 : 1
-    n.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ n.args[start:end]]
-    @debug("canonicalized ", n)
-    return n
-end
-
-
-# literals are already canonical
-canonicalize(U::IntDisjointSets, n) = n
-canonicalize!(U::IntDisjointSets, n) = n
 
 mutable struct EGraph
     U::IntDisjointSets       # equality relation over e-class ids
@@ -54,12 +13,13 @@ mutable struct EGraph
     parents::Dict{Int64, Vector{Tuple{Any, Int64}}}  # parent enodes and eclasses
     dirty::Vector{Int64}         # worklist for ammortized upwards merging
     root::Int64
+    analyses::Dict{AbstractAnalysis, Dict{Int64, Any}}
 end
 
 EGraph() = EGraph(IntDisjointSets(0), Dict{Int64, Vector{Expr}}(),
     Dict{Expr, Int64}(),
-    Dict{Int64, Vector{Int64}}(), Vector{Int64}(), 0)
-
+    Dict{Int64, Vector{Int64}}(), Vector{Int64}(), 0,
+    Dict{AbstractAnalysis, Dict{Int64, Any}}())
 
 function EGraph(e)
     G = EGraph()
@@ -69,6 +29,33 @@ function EGraph(e)
 end
 
 
+function EGraph(e, analyses::Vector{<:AbstractAnalysis})
+    G = EGraph()
+    for i ∈ analyses
+        G.analyses[i] = Dict{Int64, Any}()
+    end
+
+    rootclass = addexpr!(G, e)
+    G.root = rootclass.id
+
+    G
+end
+
+modify!(analysis::AbstractAnalysis, G::EGraph, id::Int64) = error("Analysis does not implement modify!")
+join(analysis::AbstractAnalysis, G::EGraph, a, b) = error("Analysis does not implement join")
+make(analysis::AbstractAnalysis, G::EGraph, a) = error("Analysis does not implement make")
+
+
+function addanalysis!(G::EGraph, analysis::AbstractAnalysis)
+    if haskey(G.analyses, analysis); return end
+    G.analyses[analysis] = Dict{Int64, Any}()
+    for (id, class) ∈ G.M
+        for n ∈ class
+
+        end
+        push!(G.dirty, id)
+    end
+end
 
 function addparent!(G::EGraph, a::Int64, parent::Tuple{Any,Int64})
     @assert isenode(parent[1])
@@ -82,7 +69,7 @@ function add!(G::EGraph, n)
     canonicalize!(G.U, n)
     if haskey(G.H, n); return find(G, G.H[n]) |> EClass end
     @debug(n, " not found in H")
-    id = push!(G.U)
+    id = push!(G.U) # create new singleton eclass
     !haskey(G.parents, id) && (G.parents[id] = [])
     if (n isa Expr)
         start = isexpr(n, :call) ? 2 : 1
@@ -90,6 +77,13 @@ function add!(G::EGraph, n)
     end
     G.H[n] = id
     G.M[id] = [n]
+
+    # make analyses for new enode
+    for (analysis, data) ∈ G.analyses
+        data[id] = make(analysis, G, n)
+        modify!(analysis, G, id)
+    end
+
     return EClass(id)
 end
 
@@ -143,6 +137,9 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
     delete!(G.M, from)
     delete!(G.H, from)
     mergeparents!(G, from, to)
+    for (analysis, data) ∈ G.analyses
+        data[to] = join(analysis, G, data[from], data[to])
+    end
     return id_u
 end
 
@@ -160,29 +157,41 @@ function rebuild!(e::EGraph)
     end
 end
 
-function repair!(e::EGraph, id::Int64)
+function repair!(G::EGraph, id::Int64)
     @debug "repairing " id
-    for (p_enode, p_eclass) ∈ e.parents[id]
-        #old_id = e.H[p_enode]
-        #delete!(e.M, old_id)
-        delete!(e.H, p_enode)
+    for (p_enode, p_eclass) ∈ G.parents[id]
+        #old_id = G.H[p_enode]
+        #delete!(G.M, old_id)
+        delete!(G.H, p_enode)
         @debug "deleted from H " p_enode
-        n = canonicalize(e.U, p_enode)
-        n_id = find(e, p_eclass)
-        e.H[n] = n_id
+        n = canonicalize(G.U, p_enode)
+        n_id = find(G, p_eclass)
+        G.H[n] = n_id
     end
 
     new_parents = Dict()
 
-    for (p_enode, p_eclass) ∈ e.parents[id]
-        canonicalize!(e.U, p_enode)
+    for (p_enode, p_eclass) ∈ G.parents[id]
+        canonicalize!(G.U, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
             @debug "merging classes" p_eclass (new_parents[p_enode])
-            merge!(e, p_eclass, new_parents[p_enode])
+            merge!(G, p_eclass, new_parents[p_enode])
         end
-        new_parents[p_enode] = find(e, p_eclass)
+        new_parents[p_enode] = find(G, p_eclass)
     end
-    e.parents[id] = collect(new_parents) .|> Tuple
-    @debug "updated parents " id e.parents[id]
+    G.parents[id] = collect(new_parents) .|> Tuple
+    @debug "updated parents " id G.parents[id]
+
+    # Analysis invariant maintenance
+    for (analysis, data) ∈ G.analyses
+        modify!(analysis, G, id)
+        for (p_enode, p_eclass) ∈ G.parents[id]
+            new_data = join(analysis, G, data[p_eclass], make(analysis, G, p_enode))
+            if new_data != data[p_eclass]
+                data[p_eclass] = new_data
+                push!(G.dirty, p_eclass)
+            end
+        end
+    end
 end

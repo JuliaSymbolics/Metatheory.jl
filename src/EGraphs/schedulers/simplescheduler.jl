@@ -2,7 +2,7 @@
 A simple Rewrite Scheduler that applies every rule every time
 """
 
-struct SimpleScheduler end
+struct SimpleScheduler <: AbstractScheduler end
 
 cansaturate(s::SimpleScheduler) = true
 shouldskip(s::SimpleScheduler, r::Rule) = false

@@ -39,7 +39,8 @@ end
 
 # TODO plot how egraph shrinks and grows during saturation
 function saturate!(G::EGraph, theory::Vector{Rule};
-    timeout=3000, stopwhen=(()->false), sizeout=0, scheduler=BackoffScheduler)
+    timeout=3000, stopwhen=(()->false), sizeout=0,
+    scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
     curr_iter = 0
 

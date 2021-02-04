@@ -9,7 +9,7 @@ isbanned(d::BackoffSchedulerEntry) = d.banremaining > 0
 
 
 """
-A Rewrite Scheduler that implements exponentional rule backoff.
+A Rewrite Scheduler that implements exponential rule backoff.
 For each rewrite, there exists a configurable initial match limit.
 If a rewrite search yield more than this limit, then we ban this rule
 for number of iterations, double its limit, and double the time it
@@ -18,7 +18,7 @@ will be banned next time.
 This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
-struct BackoffScheduler
+struct BackoffScheduler <: AbstractScheduler
     data::Dict{Rule, BackoffSchedulerEntry}
     G::EGraph
     theory::Vector{Rule}

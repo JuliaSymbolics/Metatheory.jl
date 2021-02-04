@@ -6,12 +6,8 @@ include("theory.jl")
 include("matchcore_compiler.jl")
 include("reduce.jl")
 include("match.jl")
-# include("EGraphs/EGraphs.jl")
-include("EGraphs/egg.jl")
-include("EGraphs/ematch.jl")
-include("EGraphs/simplescheduler.jl")
-include("EGraphs/backoffscheduler.jl")
-include("EGraphs/saturation.jl")
+include("EGraphs/EGraphs.jl")
+
 
 include("Library/Library.jl")
 
@@ -39,8 +35,10 @@ export @reducer
 
 export EClass
 export EGraph
+export AbstractAnalysis
 export merge!
 export addexpr!
+export addanalysis!
 export rebuild!
 export saturate!
 export countexprs
