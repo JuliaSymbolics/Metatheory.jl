@@ -68,12 +68,18 @@ comm_monoid = @theory begin
     a * (b * c) => (a * b) * c
 end
 
-
-
 G = EGraph(:(3 * 4), [NumberFold()])
 @testset "Basic Constant Folding Example - Commutative Monoid" begin
     # addanalysis!(G, NumberFold())
     @test (true == @postequals G comm_monoid 3 * 4 12)
 
     @test (true == @postequals G comm_monoid 3 * 4 12 4*3  6*2)
+end
+
+
+ex = :(a * 3 * b * 4)
+G = EGraph(cleanast(ex), [NumberFold()])
+@testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
+    # addanalysis!(G, NumberFold())
+    @test (true == @postequals G comm_monoid (3 * a) * (4 * b) (12*a)*b ((6*2)*b)*a)
 end
