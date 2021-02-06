@@ -1,6 +1,6 @@
 const TIMEOUT = 1000
 
-function sym_reduce(ex, theory::Theory;
+function rewrite(ex, theory::Theory;
         __source__=LineNumberNode(0),
         order=:inner,                   # evaluation order
         m::Module=@__MODULE__,
@@ -37,23 +37,23 @@ function sym_reduce(ex, theory::Theory;
 end
 
 
-macro reduce(ex, theory, order)
+macro rewrite(ex, theory, order)
 	t = gettheory(theory, __module__)
-    sym_reduce(ex, t; order=order, __source__=__source__, m=__module__) |> quot
+    rewrite(ex, t; order=order, __source__=__source__, m=__module__) |> quot
 end
-macro reduce(ex, theory) :(@reduce $ex $theory outer) end
+macro rewrite(ex, theory) :(@rewrite $ex $theory outer) end
 
 # escapes the expression instead of returning it.
-macro ret_reduce(ex, theory, order)
+macro esc_rewrite(ex, theory, order)
 	t = gettheory(theory, __module__)
-    sym_reduce(ex, t; order=order, __source__=__source__, m=__module__) |> esc
+    rewrite(ex, t; order=order, __source__=__source__, m=__module__) |> esc
 end
-macro ret_reduce(ex, theory) :(@ret_reduce $ex $theory outer) end
+macro esc_rewrite(ex, theory) :(@ret_reduce $ex $theory outer) end
 
 
-macro reducer(te, order)
+macro rewriter(te, order)
 	t = gettheory(theory, __module__)
-	quote (ex) -> sym_reduce(ex, $t;
+	quote (ex) -> rewrite(ex, $t;
 			order=$order, __source__=$__source__, m=$__module__)
 	end
 end

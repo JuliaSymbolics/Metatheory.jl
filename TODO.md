@@ -10,7 +10,7 @@ TODO:
 DONE:
 * Equational theories with e-graphs
 * Deal WITH N-ARITY OF * AND + - `binarize` hack in `src/reduce.jl`
-* FIXED runtime sym_reduce
+* FIXED runtime rewrite
 * FIXED: PARSE TIME INNER REDUCTION DOES NOT WORK
 
 COOL PROJECTS

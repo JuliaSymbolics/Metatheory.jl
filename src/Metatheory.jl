@@ -24,23 +24,11 @@ export @commutative_monoid
 export @abelian_group
 export @distrib
 
-export sym_reduce
-export @reduce
+export rewrite
+export @rewrite
 export @ret_reduce
 export @compile_theory
 export @matcher
-export @reducer
-
-## E-Graphs
-
-export EClass
-export EGraph
-export AbstractAnalysis
-export merge!
-export addexpr!
-export addanalysis!
-export rebuild!
-export saturate!
-export countexprs
+export @rewriter
 
 end # module

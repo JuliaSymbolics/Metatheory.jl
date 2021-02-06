@@ -12,7 +12,7 @@ end
 const Theory = Union{Vector{Rule}, Function}
 
 # Retrieve a theory from a module at compile time. Not exported
-function gettheory(var, mod)
+function gettheory(var, mod; compile=true)
 	t = nothing
     if Meta.isexpr(var, :block) # @matcher begine rules... end
 		t = rmlines(var).args .|> Rule
@@ -22,7 +22,7 @@ function gettheory(var, mod)
 		error(`theory $theory not found!`)
 	end
 
-	if !(t isa Function)
+	if compile && !(t isa Function)
 		t = compile_theory(t, mod)
 	end
 

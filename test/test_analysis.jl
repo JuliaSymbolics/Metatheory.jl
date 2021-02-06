@@ -1,27 +1,5 @@
 using MatchCore
 
-macro postequals(G, theory, exprs...)
-    @info "Checking equality for " exprs
-    G = getfield(__module__, G)
-    t = getfield(__module__, theory)
-
-
-    if length(exprs) == 1; return true end
-
-    ids = []
-    for i ∈ exprs
-        ec = addexpr!(G, cleanast(i))
-        push!(ids, ec.id)
-    end
-
-    alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
-
-    @time saturate!(G, t; timeout=6, sizeout=2^12, stopwhen=alleq)
-
-    alleq()
-end
-
-
 # example assuming * operation is always binary
 
 struct NumberFold <: AbstractAnalysis end
@@ -71,9 +49,9 @@ end
 G = EGraph(:(3 * 4), [NumberFold()])
 @testset "Basic Constant Folding Example - Commutative Monoid" begin
     # addanalysis!(G, NumberFold())
-    @test (true == @postequals G comm_monoid 3 * 4 12)
+    @test (true == @areequalg G comm_monoid 3 * 4 12)
 
-    @test (true == @postequals G comm_monoid 3 * 4 12 4*3  6*2)
+    @test (true == @areequalg G comm_monoid 3 * 4 12 4*3  6*2)
 end
 
 
@@ -81,5 +59,5 @@ ex = :(a * 3 * b * 4)
 G = EGraph(cleanast(ex), [NumberFold()])
 @testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
     # addanalysis!(G, NumberFold())
-    @test (true == @postequals G comm_monoid (3 * a) * (4 * b) (12*a)*b ((6*2)*b)*a)
+    @test (true == @areequalg G comm_monoid (3 * a) * (4 * b) (12*a)*b ((6*2)*b)*a)
 end
