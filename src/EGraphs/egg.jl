@@ -41,22 +41,6 @@ function EGraph(e, analyses::Vector{<:AbstractAnalysis})
     G
 end
 
-modify!(analysis::AbstractAnalysis, G::EGraph, id::Int64) = error("Analysis does not implement modify!")
-join(analysis::AbstractAnalysis, G::EGraph, a, b) = error("Analysis does not implement join")
-make(analysis::AbstractAnalysis, G::EGraph, a) = error("Analysis does not implement make")
-
-
-function addanalysis!(G::EGraph, analysis::AbstractAnalysis)
-    if haskey(G.analyses, analysis); return end
-    G.analyses[analysis] = Dict{Int64, Any}()
-    for (id, class) ∈ G.M
-        for n ∈ class
-
-        end
-        push!(G.dirty, id)
-    end
-end
-
 function addparent!(G::EGraph, a::Int64, parent::Tuple{Any,Int64})
     @assert isenode(parent[1])
     if !haskey(G.parents, a); G.parents[a] = [parent]
@@ -101,6 +85,7 @@ function mergeparents!(G::EGraph, from::Int64, to::Int64)
     # end
     #G.parents[from] = G.parents[to]
     #G.parents[from] = []
+    # delete!(G.parents, from)
 end
 
 # Does a from-to space optimization by deleting stale terms
@@ -138,7 +123,9 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
     delete!(G.H, from)
     mergeparents!(G, from, to)
     for (analysis, data) ∈ G.analyses
-        data[to] = join(analysis, G, data[from], data[to])
+        if haskey(data, from) && haskey(data, to)
+            data[to] = join(analysis, G, data[from], data[to])
+        end
     end
     return id_u
 end
@@ -185,12 +172,16 @@ function repair!(G::EGraph, id::Int64)
 
     # Analysis invariant maintenance
     for (analysis, data) ∈ G.analyses
-        modify!(analysis, G, id)
+        if haskey(data, id)
+            modify!(analysis, G, id)
+        end
         for (p_enode, p_eclass) ∈ G.parents[id]
-            new_data = join(analysis, G, data[p_eclass], make(analysis, G, p_enode))
-            if new_data != data[p_eclass]
-                data[p_eclass] = new_data
-                push!(G.dirty, p_eclass)
+            if haskey(data, p_eclass)
+                new_data = join(analysis, G, data[p_eclass], make(analysis, G, p_enode))
+                if new_data != data[p_eclass]
+                    data[p_eclass] = new_data
+                    push!(G.dirty, p_eclass)
+                end
             end
         end
     end
