@@ -134,14 +134,16 @@ find(G::EGraph, a::Int64) = find_root!(G.U, a)
 find(G::EGraph, a::EClass) = find_root!(G.U, a.id)
 
 
-function rebuild!(e::EGraph)
-    while !isempty(e.dirty)
-        todo = unique([ find(e, id) for id ∈ e.dirty ])
-        empty!(e.dirty)
+function rebuild!(G::EGraph)
+    while !isempty(G.dirty)
+        todo = unique([ find(G, id) for id ∈ G.dirty ])
+        empty!(G.dirty)
         foreach(todo) do x
-            repair!(e, x)
+            repair!(G, x)
         end
     end
+
+    G.root = find(G, G.root)
 end
 
 function repair!(G::EGraph, id::Int64)
@@ -172,10 +174,10 @@ function repair!(G::EGraph, id::Int64)
 
     # Analysis invariant maintenance
     for (analysis, data) ∈ G.analyses
-        if haskey(data, id)
-            modify!(analysis, G, id)
-        end
+        # analysisfix(analysis, G, id)
+        haskey(data, id) && modify!(analysis, G, id)
         for (p_enode, p_eclass) ∈ G.parents[id]
+            # analysisfix(analysis, G, p_eclass)
             if haskey(data, p_eclass)
                 new_data = join(analysis, G, data[p_eclass], make(analysis, G, p_enode))
                 if new_data != data[p_eclass]
@@ -186,3 +188,18 @@ function repair!(G::EGraph, id::Int64)
         end
     end
 end
+
+# TODO  is this needed? ask Max Willsey
+# function analysisfix(analysis, G, id)
+#     data = G.analyses[analysis]
+#     if !haskey(data, id)
+#         class = G.M[id]
+#         sup = make(analysis, G, class[1])
+#
+#         for i ∈ class[2:end]
+#             sup = join(analysis, G, sup, make(analysis, G, i))
+#         end
+#
+#         data[id] = sup
+#     end
+# end

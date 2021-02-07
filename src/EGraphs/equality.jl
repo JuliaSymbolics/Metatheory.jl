@@ -1,5 +1,5 @@
 function areequal(theory::Vector{Rule}, exprs...)
-    G = EGraph()
+    G = EGraph(exprs[1])
     areequal(G, theory, exprs...)
 end
 

@@ -2,7 +2,7 @@ function addanalysis!(G::EGraph, analysis::AbstractAnalysis)
     if haskey(G.analyses, analysis); return end
     data = G.analyses[analysis] = Dict{Int64, Any}()
     # for (k,v) ∈ G.M
-    #     data[k] = nothing
+    #     analysisfix(analysis, G, k)
     # end
 end
 
