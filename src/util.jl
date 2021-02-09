@@ -1,5 +1,6 @@
 ## Utility functions
 
+using Base.Meta
 ## AST manipulation utility functions
 
 # Remove LineNumberNode from quoted blocks of code
@@ -13,8 +14,8 @@ block(vs...) = Expr(:block, vs...)
 amp(v) = Expr(:&, v)
 
 # meta shortcuts for readability
-quot = Meta.quot
-isexpr = Meta.isexpr
+# quot = Meta.quot
+# isexpr = Meta.isexpr
 
 
 cleanast(ex) = rmlines(ex) |>

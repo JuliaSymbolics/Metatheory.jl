@@ -33,8 +33,7 @@ const skips = [:(::), :(...)]
 
 # Compile rules from Metatheory format to MatchCore format
 function compile_rule(rule::Rule)::Expr
-    le = df_walk(c_left, rule.left, Set{Symbol}(); skip=skips, skip_call=true) |> quot
-    #le = c_left(l, Set{Symbol}()) |> quot
+    le = df_walk(c_left, rule.left, Vector{Symbol}(); skip=skips, skip_call=true) |> quot
     if rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
         re = rule.right

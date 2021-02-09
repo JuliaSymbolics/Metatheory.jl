@@ -1,5 +1,4 @@
-MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
-
+const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
 function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler())
 
@@ -46,7 +45,7 @@ end
 
 # TODO plot how egraph shrinks and grows during saturation
 function saturate!(G::EGraph, theory::Vector{Rule};
-    timeout=6, stopwhen=(()->false), sizeout=2^12,
+    timeout=7, stopwhen=(()->false), sizeout=2^12,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
     curr_iter = 0
@@ -84,7 +83,7 @@ the subtyping mechanism during pattern matching.
 function eval_types_in_assertions(x)
     if isexpr(x, :(::))
         !(x.args[1] isa Symbol) && error("Type assertion is not on metavariable")
-        Expr(:(::), x.args[1], eval(x.args[2]))
+        Expr(:ematch_tassert, x.args[1], eval(x.args[2]))
     else x
     end
 end

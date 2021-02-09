@@ -5,11 +5,11 @@
 
 # TODO ematching seems to be faster without spawning tasks
 
-using StaticArrays
+# using StaticArrays
 
-Sub = Base.ImmutableDict{Any, EClass}
+const Sub = Base.ImmutableDict{Any, EClass}
 
-function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)
+function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)::Vector{Sub}
     # Channel(;spawn=true) do c
     # Channel() do c
     c = Vector{Sub}()
@@ -28,28 +28,28 @@ function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)
 end
 
 # sub should be a map from pattern variables to Id
-function ematch(e::EGraph, t::Symbol, v::Int64, sub::Sub)
+function ematch(e::EGraph, t::Symbol, v::Int64, sub::Sub)::Vector{Sub}
     # Channel(;spawn=true) do c
     # Channel() do c
 
     if haskey(sub, t)
-        return find(e, sub[t]) == find(e, v) ? SVector(sub) : []
+        return find(e, sub[t]) == find(e, v) ? [sub] : []
     else
-        return SVector(Base.ImmutableDict(sub, t => EClass(find(e, v))))
+        return [ Base.ImmutableDict(sub, t => EClass(find(e, v)))]
     end
     # end
 end
 
-ematch(e::EGraph, t, v::Int64, sub::Sub) = [sub]
+ematch(e::EGraph, t, v::Int64, sub::Sub)::Vector{Sub} = [sub]
 
-function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub)
+function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub)::Vector{Sub}
     # Channel(;spawn=true) do c
     # Channel() do c
 
     c = Vector{Sub}()
 
     for n in e.M[find(e,v)]
-        if t.head == :(::)
+        if isexpr(t, :ematch_tassert)
             !(typeof(n) <: t.args[2]) && continue
             # println(Symbol(typeof(n)), " is a ", t.args[2])
             union!(c, ematch(e, t.args[1], v, sub))
@@ -76,7 +76,7 @@ inst(p::Expr, G::EGraph, sub::Sub) = add!(G, p)
 function instantiate(G::EGraph, p, sub::Sub; skip_assert=false)
     # remove type assertions
     if skip_assert
-        p = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), p; skip_call=true )
+        p = df_walk( x -> (isexpr(x, :ematch_tassert) ? x.args[1] : x), p; skip_call=true )
     end
 
     df_walk(inst, p, G, sub; skip_call=true)

@@ -59,6 +59,7 @@ end
 
 extran = ExtractionAnalysis(astsize)
 
+
 @testset "Extraction 1 - Commutative Monoid" begin
     G = EGraph(:(3 * 4), [NumberFold(), extran])
     saturate!(G, comm_monoid)
@@ -68,7 +69,8 @@ extran = ExtractionAnalysis(astsize)
     G = EGraph(cleanast(ex), [NumberFold(), extran])
     saturate!(G, comm_monoid)
     extr = extract(G, extran)
-    @test extr == :((12a) * b) || extr == :(b * (12a))
+    @test extr == :((12a) * b) || extr == :(b * (12a)) ||
+        extr == :((a*12) * b) || extr == :(b * (a*12))
 end
 
 
@@ -88,7 +90,9 @@ end
     ex = cleanast(:((x*(a+b)) + (y*(a+b))))
     G = EGraph(ex, [NumberFold(), extran])
     saturate!(G, t)
-    @show extract(G, extran)
+    @test extract(G, extran) ∈ [:((a + b) * (x + y)), :((b + a) * (x + y)),
+        :((x + y) * (a + b)), :((x + y) * (b + a)),
+        :((y + x) * (b + a)), :((y + x) * (a + b))]
 end
 
 # TODO broken
