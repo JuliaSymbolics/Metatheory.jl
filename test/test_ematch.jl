@@ -53,10 +53,10 @@ end
     @test false == (@areequal t (x*y)+inv(x*y) 1 )
 end
 
-expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))
-
-G = EGraph(expr)
-
-@time saturate!(G, comm_monoid)
-
-G.H |> display
+# expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))
+#
+# G = EGraph(expr)
+#
+# @time saturate!(G, comm_monoid)
+#
+# G.H |> display

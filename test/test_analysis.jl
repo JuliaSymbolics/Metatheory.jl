@@ -19,6 +19,14 @@ function Metatheory.make(analysis::NumberFold, G::EGraph, n)
                 data[id_l] isa Number && data[id_r] isa Number
                 return data[id_l] * data[id_r]
             end
+        elseif n.args[1] == :+
+            id_l = n.args[2].id
+            id_r = n.args[3].id
+
+            if haskey(data, id_l) && haskey(data, id_r) &&
+                data[id_l] isa Number && data[id_r] isa Number
+                return data[id_l] + data[id_r]
+            end
         end
     end
     return nothing

@@ -20,14 +20,13 @@ function Metatheory.make(analysis::ExtractionAnalysis, G::EGraph, n::Expr)
     start = Meta.isexpr(n, :call) ? 2 : 1
     ncost = analysis.costfun(n)
 
-    expr = copy(n)
-    expr.args[start:end] = map(expr.args[start:end]) do cn
-        (ce, ck) = data[cn.id]
-        ncost += ck
-        return ce
+    for cn ∈ n.args[start:end]
+        if haskey(data, cn.id)
+            ncost += last(data[cn.id])
+        end
     end
 
-    return (expr, ncost)
+    return (n, ncost)
 end
 
 function Metatheory.join(analysis::ExtractionAnalysis, G::EGraph, from, to)
@@ -36,9 +35,20 @@ end
 
 Metatheory.modify!(analysis::ExtractionAnalysis, G::EGraph, id::Int64) = nothing
 
+function rec_extract(G::EGraph, data, id::Int64)
+    (cn, ck) = data[id]
+    !(cn isa Expr) && return cn
+
+    expr = copy(cn)
+    start = Meta.isexpr(cn, :call) ? 2 : 1
+    expr.args[start:end] = map(expr.args[start:end]) do a
+        rec_extract(G, data, a.id)
+    end
+    return expr
+end
+
 extract(G::EGraph, extran) = begin
-    # Metatheory.analysisfix(extran, G, G.root)
-    G.analyses[extran][G.root] |> first
+    rec_extract(G, G.analyses[extran], G.root)
 end
 
 comm_monoid = @theory begin
@@ -58,13 +68,30 @@ extran = ExtractionAnalysis(astsize)
     G = EGraph(cleanast(ex), [NumberFold(), extran])
     saturate!(G, comm_monoid)
     extr = extract(G, extran)
-    # TODO wtf why is this not always the same result
-    @test areequal(comm_monoid, extr, :(b*12a))
+    @test extr == :((12a) * b) || extr == :(b * (12a))
 end
 
 
-# TODO broken
+@testset "Extraction 2" begin
+    comm_group = @theory begin
+        a + 0 => a
+        a + b => b + a
+        a + inv(a) => 0 # inverse
+        a + (b + c) => (a + b) + c
+    end
+    distrib = @theory begin
+        a * (b + c) => (a * b) + (a * c)
+        (a * b) + (a * c) => a * (b + c)
+    end
+    t = comm_monoid ∪ comm_group ∪ distrib
 
+    ex = cleanast(:((x*(a+b)) + (y*(a+b))))
+    G = EGraph(ex, [NumberFold(), extran])
+    saturate!(G, t)
+    @show extract(G, extran)
+end
+
+# TODO broken
 # @testset "Extraction - Adding analysis after saturation" begin
 #     G = EGraph(:(3 * 4))
 #     addexpr!(G, 12)

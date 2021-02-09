@@ -125,8 +125,11 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
     for (analysis, data) ∈ G.analyses
         if haskey(data, from) && haskey(data, to)
             data[to] = join(analysis, G, data[from], data[to])
+            delete!(data, from)
         end
     end
+    delete!(G.parents, from)
+
     return id_u
 end
 
@@ -147,7 +150,9 @@ function rebuild!(G::EGraph)
 end
 
 function repair!(G::EGraph, id::Int64)
+    id = find(G, id)
     @debug "repairing " id
+
     for (p_enode, p_eclass) ∈ G.parents[id]
         #old_id = G.H[p_enode]
         #delete!(G.M, old_id)

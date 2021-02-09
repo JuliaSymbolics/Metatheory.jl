@@ -1,7 +1,7 @@
 
 
 function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler())
-    matches = Set()
+    matches = Vector{Tuple{Rule, Sub, Int64}}()
     EMPTY_DICT = Base.ImmutableDict{Any, EClass}()
 
     readstep(scheduler)
@@ -12,12 +12,16 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler(
 
 
         rule.mode != :rewrite && error("unsupported rule mode")
-        for id ∈ collect(keys(G.M))
+        for id ∈ keys(G.M)
             # println(rule.right)
             for sub in ematch(G, rule.left, id, EMPTY_DICT)
                 # display(sub); println()
                 !isempty(sub) && push!(matches, (rule, sub, id))
             end
+            # for sub in ematch(G, rule.right, id, EMPTY_DICT)
+            #     # display(sub); println()
+            #     !isempty(sub) && push!(matches, (rule, sub, id))
+            # end
         end
     end
 
@@ -25,7 +29,7 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler(
     for (rule, sub, id) ∈ matches
         writestep(scheduler, rule)
 
-        l = instantiate(G,rule.left,sub)
+        l = instantiate(G,rule.left,sub; skip_assert=true)
         r = instantiate(G,rule.right,sub)
         merge!(G,l.id,r.id)
     end
@@ -39,10 +43,16 @@ end
 
 # TODO plot how egraph shrinks and grows during saturation
 function saturate!(G::EGraph, theory::Vector{Rule};
-    timeout=3000, stopwhen=(()->false), sizeout=0,
+    timeout=6, stopwhen=(()->false), sizeout=2^12,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
     curr_iter = 0
+
+    theory = map(theory) do rule
+        r = deepcopy(rule)
+        r.left = df_walk(eval_types_in_assertions, r.left; skip_call=true)
+        r
+    end
 
     # init scheduler
     sched = scheduler(G, theory)
@@ -60,57 +70,18 @@ function saturate!(G::EGraph, theory::Vector{Rule};
     return G
 end
 
-## Experiments
-## TODO finish
 
-# count all possible equal expressions to some eclass
-function countexprs(G::EGraph, a::Int64)
-    c = length(G.M[a])
-    for n ∈ G.M[a]
-        if n isa Expr # is enode
-            start = isexpr(n, :call) ? 2 : 1
-            println(start)
-            println(n.args[start:end])
-            subcounts = [countexprs(G, x.id) for x ∈ n.args[start:end]]
-            for i ∈ subcounts
-                println(:wooo, i)
-                c *= i
-            end
-        end
+
+# TODO is there anything better than eval to use here?
+"""
+When creating a theory, type assertions in the left hand contain symbols.
+We want to replace the type symbols with the real type values, to fully support
+the subtyping mechanism during pattern matching.
+"""
+function eval_types_in_assertions(x)
+    if isexpr(x, :(::))
+        !(x.args[1] isa Symbol) && error("Type assertion is not on metavariable")
+        Expr(:(::), x.args[1], eval(x.args[2]))
+    else x
     end
-    return c
-end
-
-## Simple Extraction
-
-
-# computes the cost of a constant
-astsize(G::EGraph, n) = 1.0
-
-# computes the weight of a function call
-function astsize(G::EGraph, n::Expr)
-    @assert isenode(n)
-    start = isexpr(n, :call) ? 2 : 1
-    # if statements about the called function can go here
-    length(e.args[start:end])
-end
-
-function getbest(G::EGraph, costs::Dict{Int64, Vector{Tuple{Any, Float64}}}, root::Int64)
-    # computed costs of equivalent nodes, weighted sum
-    ccosts = []
-    for n ∈ G.M[root]
-
-    end
-end
-
-function extract(G::EGraph, cost::Function)
-    costs = Dict{Int64, Vector{Float64}}()
-
-    # compute costs with weights
-    for (id, cls) ∈ G.M
-        costs[id] = cls .|> cost
-    end
-
-    # extract best
-    getbest(G, costs, root)
 end

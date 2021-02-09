@@ -1,6 +1,6 @@
 ## Rules
 
-struct Rule
+mutable struct Rule
     left::Any
     right::Any
     expr::Expr # original expression
