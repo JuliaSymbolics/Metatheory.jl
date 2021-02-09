@@ -52,7 +52,7 @@ macro esc_rewrite(ex, theory) :(@ret_reduce $ex $theory outer) end
 
 
 macro rewriter(te, order)
-	t = gettheory(theory, __module__)
+	t = gettheory(te, __module__)
 	quote (ex) -> rewrite(ex, $t;
 			order=$order, __source__=$__source__, m=$__module__)
 	end

@@ -4,7 +4,7 @@ include("util.jl")
 include("rule.jl")
 include("theory.jl")
 include("matchcore_compiler.jl")
-include("reduce.jl")
+include("rewrite.jl")
 include("match.jl")
 include("EGraphs/EGraphs.jl")
 

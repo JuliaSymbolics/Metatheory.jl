@@ -1,7 +1,10 @@
+MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
 
 function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler())
-    matches = Vector{Tuple{Rule, Sub, Int64}}()
+
+    matches=MatchesBuf()
+
     EMPTY_DICT = Base.ImmutableDict{Any, EClass}()
 
     readstep(scheduler)

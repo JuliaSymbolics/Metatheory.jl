@@ -77,15 +77,8 @@ function mergeparents!(G::EGraph, from::Int64, to::Int64)
     !haskey(G.parents, from) && (G.parents[from] = []; return)
     !haskey(G.parents, to) && (G.parents[to] = [])
 
-    # TODO optimize
-
     union!(G.parents[to], G.parents[from])
-    # G.parents[to] = map(G.parents[to]) do (p_enode, p_eclass)
-    #     (canonicalize!(G.U, p_enode), find(G, p_eclass))
-    # end
-    #G.parents[from] = G.parents[to]
-    #G.parents[from] = []
-    # delete!(G.parents, from)
+    delete!(G.parents, from)
 end
 
 # Does a from-to space optimization by deleting stale terms
@@ -98,7 +91,6 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
     id_u = union!(G.U, id_a, id_b)
 
     @debug "merging" id_a id_b
-
 
     from, to = if (id_u == id_a) id_b, id_a
         elseif (id_u == id_b) id_a, id_b
@@ -128,7 +120,6 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)
             delete!(data, from)
         end
     end
-    delete!(G.parents, from)
 
     return id_u
 end

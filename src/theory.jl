@@ -16,10 +16,8 @@ function gettheory(var, mod; compile=true)
 	t = nothing
     if Meta.isexpr(var, :block) # @matcher begine rules... end
 		t = rmlines(var).args .|> Rule
-	elseif isdefined(mod, var)
-		t = getfield(mod, var)
 	else
-		error(`theory $theory not found!`)
+		t = mod.eval(var)
 	end
 
 	if compile && !(t isa Function)
