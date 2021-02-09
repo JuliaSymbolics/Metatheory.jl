@@ -90,7 +90,9 @@ end
     ex = cleanast(:((x*(a+b)) + (y*(a+b))))
     G = EGraph(ex, [NumberFold(), extran])
     saturate!(G, t)
-    @test extract(G, extran) ∈ [:((a + b) * (x + y)), :((b + a) * (x + y)),
+    @test extract(G, extran) ∈ [
+        :((a + b) * (x + y)), :((a + b) * (y + x)),
+        :((b + a) * (x + y)), :((b + a) * (y + x)),
         :((x + y) * (a + b)), :((x + y) * (b + a)),
         :((y + x) * (b + a)), :((y + x) * (a + b))]
 end
