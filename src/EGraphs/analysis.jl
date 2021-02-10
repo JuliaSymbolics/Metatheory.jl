@@ -13,6 +13,7 @@ function addanalysis!(G::EGraph, analysis::AbstractAnalysis)
                 data[id] = pass
                 did_something = true
             end
+            # push!(G.dirty, id)
             modify!(analysis, G, id)
         end
     end

@@ -190,13 +190,13 @@ function repair!(G::EGraph, id::Int64)
     G.parents[id] = collect(new_parents) .|> Tuple
     @debug "updated parents " id G.parents[id]
 
-    id = find(G, id)
+
     # Analysis invariant maintenance
     for (analysis, data) ∈ G.analyses
-        # analysisfix(analysis, G, id)
         haskey(data, id) && modify!(analysis, G, id)
+
+        id = find(G, id)
         for (p_enode, p_eclass) ∈ G.parents[id]
-            # analysisfix(analysis, G, p_eclass)
             if haskey(data, p_eclass)
                 new_data = join(
                     analysis,
@@ -212,18 +212,3 @@ function repair!(G::EGraph, id::Int64)
         end
     end
 end
-
-# TODO  is this needed? ask Max Willsey
-# function analysisfix(analysis, G, id)
-#     data = G.analyses[analysis]
-#     if !haskey(data, id)
-#         class = G.M[id]
-#         sup = make(analysis, G, class[1])
-#
-#         for i ∈ class[2:end]
-#             sup = join(analysis, G, sup, make(analysis, G, i))
-#         end
-#
-#         data[id] = sup
-#     end
-# end

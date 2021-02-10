@@ -76,6 +76,11 @@ end
     @test extr == :(12 * (a * b))
 end
 
+comm_monoid = @theory begin
+    a * b => b * a
+    a * 1 => a
+    a * (b * c) => (a * b) * c
+end
 comm_group = @theory begin
 	a + 0 => a
 	a + b => b + a
@@ -88,6 +93,8 @@ distrib = @theory begin
 end
 powers = @theory begin
 	a * a => a^2
+	a => a^1
+	a^n * a^m => a^(n+m)
 end
 logids = @theory begin
 	log(a^n) => n * log(a)
@@ -103,4 +110,29 @@ t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids
 	G = EGraph(:(log(e) * log(e)))
 	saturate!(G, t)
 	@test extract!(G, astsize) == 1
+
+	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))
+	saturate!(G, t)
+	@test extract!(G, astsize) == 3
+
+	@time begin
+		G = EGraph(:(a^3 * a^2), [NumberFold()])
+		saturate!(G, t)
+		ex = extract!(G, astsize)
+	end
+	@test ex == :(a^5)
+
+	@time begin
+		G = EGraph(:(a^3 * a^2), [NumberFold()])
+		saturate!(G, t)
+		ex = extract!(G, astsize)
+	end
+	@test ex == :(a^5)
+
+	@time begin
+		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))), [NumberFold()])
+		saturate!(G, t)
+		ex = extract!(G, astsize)
+	end
+	@test ex == :(log(a) * 5)
 end
