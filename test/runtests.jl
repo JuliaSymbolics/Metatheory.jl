@@ -12,3 +12,8 @@ include("test_ematch_assertions.jl")
 include("test_analysis.jl")
 include("test_extraction.jl")
 include("test_while_interpreter.jl")
+
+# exported consistency test
+for i ∈ propertynames(Metatheory)
+   x = getproperty(Metatheory, i)
+end

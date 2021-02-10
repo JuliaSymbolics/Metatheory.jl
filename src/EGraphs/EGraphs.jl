@@ -10,8 +10,6 @@ include("schedulers/backoffscheduler.jl")
 include("saturation.jl")
 include("equality.jl")
 
-
-
 export EClass
 export EGraph
 export AbstractAnalysis
@@ -32,5 +30,6 @@ export join
 export modify!
 export astsize
 
+include("dynamic_rules.jl")
 
 # end
