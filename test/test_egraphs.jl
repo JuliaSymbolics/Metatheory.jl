@@ -21,9 +21,6 @@ end
     # DOES NOT UPWARD MERGE
 end
 
-
-## TODO Test UPWARD merging
-
 #testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))
 
 @testset "Simple congruence - rebuilding" begin

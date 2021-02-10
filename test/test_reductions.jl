@@ -27,8 +27,6 @@ end
 	@test t isa Vector{Rule} # Vector{Rule} == Theory
 	@test ct isa Function  # Callable Function
 
-	# TODO test cattura ambiente by reference con parametro "world"
-
     # basic theory to check that everything works
     @test @time rewrite(:(a + a), ct) == :(2a)
     @test @time rewrite(:(a + a), ct) == :(2a)
@@ -219,7 +217,6 @@ diff = @theory begin
 end
 finalt = t ∪ diff
 @testset "Symbolic Differentiation, Accessing Outer Variables" begin
-	#TODO move null element
 	@test rewrite(:(∂( log(x^2 * ℯ^(log(x))) )/∂(x)), finalt; order=:inner, m=@__MODULE__) == :(3/x)
 	@test (@rewrite ∂( log(x^2 * ℯ^(log(x))) )/∂(x) finalt inner) == :(3/x)
 end;
@@ -236,8 +233,6 @@ end;
 	    a + b => b + a
 	    b + a => a + b
 	end
-
-	# TODO trace and test for loops in computation configurations.
 
 	@test :(a+b) == rewrite(:(a + b), t)
 end

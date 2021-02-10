@@ -20,8 +20,9 @@ extran = ExtractionAnalysis(astsize)
     G = EGraph(cleanast(ex), [NumberFold(), extran])
     saturate!(G, comm_monoid)
     extr = extract!(G, extran)
-    @test extr == :((12a) * b) || extr == :(b * (12a)) ||
-        extr == :((a*12) * b) || extr == :(b * (a*12))
+	# println(extr)
+
+    @test extr == :(12 * (a * b))
 end
 
 
@@ -46,11 +47,6 @@ end
     # end
 
     extract!(G, extran) == :((x+y) * (b+a))
-    # @test extract!(G, extran) ∈ [
-    #     :((a + b) * (x + y)), :((a + b) * (y + x)),
-    #     :((b + a) * (x + y)), :((b + a) * (y + x)),
-    #     :((x + y) * (a + b)), :((x + y) * (b + a)),
-    #     :((y + x) * (b + a)), :((y + x) * (a + b))]
 end
 
 @testset "Extraction - Adding analysis after saturation" begin
@@ -77,5 +73,34 @@ end
     extr = extract!(G, extran)
     # end
 
-    @test extr == :((12a) * b)
+    @test extr == :(12 * (a * b))
+end
+
+comm_group = @theory begin
+	a + 0 => a
+	a + b => b + a
+	a + inv(a) => 0 # inverse
+	a + (b + c) => (a + b) + c
+end
+distrib = @theory begin
+	a * (b + c) => (a * b) + (a * c)
+	(a * b) + (a * c) => a * (b + c)
+end
+powers = @theory begin
+	a * a => a^2
+end
+logids = @theory begin
+	log(a^n) => n * log(a)
+	log(x * y) => log(x) * log(y)
+	log(1) => 0
+	log(:e) => 1
+	:e^(log(x)) => x
+end
+
+t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids
+
+@testset "Complex Extraction" begin
+	G = EGraph(:(log(e) * log(e)))
+	saturate!(G, t)
+	@test extract!(G, astsize) == 1
 end

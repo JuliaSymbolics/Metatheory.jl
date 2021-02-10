@@ -8,6 +8,25 @@ end
 end
 
 
+r = @theory begin
+    a * 1 => foo
+    a * 2 => bar
+    1 * a => baz
+    2 * a => mag
+end
+@testset "Matching Literals" begin
+    @test (@areequal r a * 1 foo) == true
+    @test (@areequal r a * 2 foo) == false
+    @test (@areequal r a * 1 bar) == false
+    @test (@areequal r a * 2 bar) == true
+
+    @test (@areequal r 1 * a baz) == true
+    @test (@areequal r 2 * a baz) == false
+    @test (@areequal r 1 * a mag) == false
+    @test (@areequal r 2 * a mag) == true
+end
+
+
 comm_monoid = @theory begin
     a * b => b * a
     a * 1 => a

@@ -5,7 +5,7 @@ using DataStructures
 
 abstract type AbstractAnalysis end
 
-const ClassMem = OrderedDict{Int64,Vector{Any}}
+const ClassMem = Dict{Int64,Vector{Any}}
 const HashCons = Dict{Any,Int64}
 const Parent = Tuple{Any,Int64} # parent enodes and eclasses
 const ParentMem = Dict{Int64,Vector{Parent}}
@@ -190,6 +190,7 @@ function repair!(G::EGraph, id::Int64)
     G.parents[id] = collect(new_parents) .|> Tuple
     @debug "updated parents " id G.parents[id]
 
+    id = find(G, id)
     # Analysis invariant maintenance
     for (analysis, data) ∈ G.analyses
         # analysisfix(analysis, G, id)

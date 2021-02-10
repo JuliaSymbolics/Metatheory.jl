@@ -15,18 +15,18 @@ function Metatheory.make(analysis::NumberFold, G::EGraph, n)
             id_l = n.args[2].id
             id_r = n.args[3].id
 
-            # if haskey(data, id_l) && haskey(data, id_r) &&
-                data[id_l] isa Number && data[id_r] isa Number &&
+            if haskey(data, id_l) && haskey(data, id_r) &&
+                data[id_l] isa Number && data[id_r] isa Number
                 return data[id_l] * data[id_r]
-            # end
+            end
         elseif n.args[1] == :+
             id_l = n.args[2].id
             id_r = n.args[3].id
 
-            # if haskey(data, id_l) && haskey(data, id_r) &&
-                data[id_l] isa Number && data[id_r] isa Number &&
+            if haskey(data, id_l) && haskey(data, id_r) &&
+                data[id_l] isa Number && data[id_r] isa Number
                 return data[id_l] + data[id_r]
-            # end
+            end
         end
     end
     return nothing
@@ -45,6 +45,7 @@ end
 function Metatheory.modify!(analysis::NumberFold, G::EGraph, id::Int64)
     data = G.analyses[analysis]
     if data[id] isa Number
+        # println("adding ", data[id])
         newclass = Metatheory.add!(G, data[id])
         merge!(G, newclass.id, id)
     end
@@ -74,12 +75,16 @@ end
 
 @testset "Basic Constant Folding Example - Adding analysis after saturation" begin
     G = EGraph(:(3 * 4))
-    addexpr!(G, 12)
+    # addexpr!(G, 12)
     saturate!(G, comm_monoid)
     addexpr!(G, :(a * 2))
-    addanalysis!(G, NumberFold())
+    an = NumberFold()
+    addanalysis!(G, an)
     saturate!(G, comm_monoid)
+
     # display(G.M); println()
+    # println(G.root)
+    # display(G.analyses[an]); println()
 
     @test (true == areequal(G, comm_monoid, :(3 * 4), 12, :(4*3), :(6*2)))
 

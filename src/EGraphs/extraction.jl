@@ -50,6 +50,7 @@ extract!(G::EGraph, extran::ExtractionAnalysis) = begin
 end
 
 extract!(G::EGraph, costfun::Function) = begin
-    addanalysis!(G, ExtractionAnalysis(costfun))
+    extran = ExtractionAnalysis(costfun)
+    addanalysis!(G, extran)
     rec_extract(G, G.analyses[extran], G.root)
 end

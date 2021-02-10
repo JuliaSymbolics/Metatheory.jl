@@ -40,7 +40,45 @@ function ematch(e::EGraph, t::Symbol, v::Int64, sub::Sub)::Vector{Sub}
     # end
 end
 
-ematch(e::EGraph, t, v::Int64, sub::Sub)::Vector{Sub} = [sub]
+# function ematch(e::EGraph, t::QuoteNode, v::Int64, sub::Sub)::Vector{Sub}
+#     c = Vector{Sub}()
+#     for n in e.M[find(e,v)]
+#         union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
+#     end
+#     return c
+# # end
+#
+function ematch(e::EGraph, t, v::Int64, sub::Sub)::Vector{Sub}
+    c = Vector{Sub}()
+    id = find(e,v)
+    for n in e.M[id]
+        if t == n
+            if haskey(sub, t)
+                union!(c, find(e, sub[t]) == id ? [sub] : [])
+            else
+                union!(c, [ Base.ImmutableDict(sub, t => EClass(id))])
+            end
+            # union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
+        end
+    end
+    return c
+end
+
+function ematch(e::EGraph, t::QuoteNode, v::Int64, sub::Sub)::Vector{Sub}
+    c = Vector{Sub}()
+    id = find(e,v)
+    for n in e.M[id]
+        if t.value == n
+            if haskey(sub, t)
+                union!(c, find(e, sub[t]) == id ? [sub] : [])
+            else
+                union!(c, [ Base.ImmutableDict(sub, t => EClass(id))])
+            end
+            # union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
+        end
+    end
+    return c
+end
 
 function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub)::Vector{Sub}
     # Channel(;spawn=true) do c
