@@ -210,7 +210,7 @@ end
 
 using Calculus: differentiate
 diff = @theory begin
-	∂(y)/∂(x) |> world.differentiate(y, x)
+	∂(y)/∂(x) |> differentiate(y, x)
 	a * (1/x) => a/x
 	a * 0 => 0
 	0 * a => 0
@@ -245,3 +245,26 @@ end
 end
 
 @test_skip @rewrite a ∈ b ∈ c t
+
+
+safe_var = 0
+ref_var = Ref{Real}(0)
+
+reft = @theory begin
+	:safe |> (safe_var = π)
+	:ref |> (ref_var[] = π)
+end
+
+@testset "Evil Assignment" begin
+	rewrite(:(safe), reft; order=:inner, m=@__MODULE__)
+	rewrite(:(ref), reft; order=:inner, m=@__MODULE__)
+
+	@test safe_var == 0
+	@test ref_var[] == π
+
+	@rewrite ref reft inner
+	@rewrite safe reft inner
+
+	@test safe_var == 0
+	@test ref_var[] == π
+end;

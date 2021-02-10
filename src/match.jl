@@ -11,5 +11,6 @@ macro matcher(te)
         if !t isa Function error(`$te is not a valid theory`) end
     end
 
-	quote (x) -> ($t)(x, $__module__) end
+	t
+	# quote (x) -> ($t)(x) end
 end

@@ -39,8 +39,8 @@ bool_rules = @theory begin
 	(a::Int < b::Int) 	|> (a < b)
 	¬a::Bool 			|> !a
 	(bv::Bool, σ) 		|> bv
-	(a < b, mem1) |> (world.eval_arithm(a, mem1) < world.eval_arithm(b, mem1))
-	(¬b, σ) |> !world.eval_bool(b, σ)
+	(a < b, mem1) |> (eval_arithm(a, mem1) < eval_arithm(b, mem1))
+	(¬b, σ) |> !eval_bool(b, σ)
 	(a ∨ b, σ) => (a, σ) ∨ (b, σ)
 	(a ∧ b, σ) => (a, σ) ∧ (b, σ)
 end
@@ -58,7 +58,7 @@ end
 if_rules = @theory begin
 	(if guard; t end, σ) => (if guard; t else skip end, σ)
 	(if guard; t else f end, σ) |>
-		(world.eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
+		(eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
 end
 
 eval_if(ex::Expr, mem::Mem) = (@rewriter(read_mem ∪ arithm_rules ∪ if_rules, :inner))(:($ex, $mem))
@@ -74,8 +74,8 @@ while_rules = @theory begin
 	(:skip, σ) => σ
 	((:skip; c2), σ) => (c2, σ)
 	((c1; c2), σ) |> begin
-		r = world.eval_while(c1, σ);
-		(r isa world.Mem) ? :($c2, $r) : :($c2, $σ)
+		r = eval_while(c1, σ);
+		(r isa Mem) ? :($c2, $r) : :($c2, $σ)
 	end
 	(while guard body end, σ) =>
 		(if guard; (body; while guard body end) else skip end, σ)
@@ -84,7 +84,7 @@ end
 
 write_mem = @theory begin
 	(sym::Symbol = val, memory) |>
-		(memory[sym] = world.eval_arithm(val, memory); memory)
+		(memory[sym] = eval_arithm(val, memory); memory)
 end
 
 while_language = @compile_theory write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_rules;

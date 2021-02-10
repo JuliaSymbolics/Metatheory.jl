@@ -57,6 +57,7 @@ theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 # Compile a theory to a closure that does the pattern matching job
 # RETURNS A QUOTED CLOSURE WITH THE GENERATED MATCHING CODE! FASTER AF! 🔥
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
+    RuntimeGeneratedFunctions.init(mod)
     # generate an unique parameter name
     # TODO needed? consider just calling it expr for access in right hand
     parameter = Meta.gensym(:reducing_expression)
@@ -65,8 +66,8 @@ function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumber
     matching = MatchCore.gen_match(parameter, block, __source__, mod)
     matching = MatchCore.AbstractPatterns.init_cfg(matching)
 
-    ex = :(($parameter, world) -> $matching)
-    @RuntimeGeneratedFunction(ex)
+    ex = :(($parameter) -> $matching)
+    RuntimeGeneratedFunction(mod, mod, ex)
 end
 
 # Compile a theory at runtime to a closure that does the pattern matching job
