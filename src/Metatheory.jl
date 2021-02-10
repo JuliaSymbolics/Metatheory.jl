@@ -11,8 +11,6 @@ include("EGraphs/EGraphs.jl")
 
 include("Library/Library.jl")
 
-export EGraphs
-
 export @rule
 export @theory
 
@@ -26,7 +24,7 @@ export @distrib
 
 export rewrite
 export @rewrite
-export @ret_reduce
+export @esc_rewrite
 export @compile_theory
 export @matcher
 export @rewriter

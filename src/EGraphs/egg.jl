@@ -13,11 +13,11 @@ const AnalysisData = Dict{Int64,Any}
 const Analyses = Dict{AbstractAnalysis,AnalysisData}
 
 mutable struct EGraph
-    U::IntDisjointSets       # equality relation over e-class ids
-    M::ClassMem           # id => sets of e-nodes
-    H::HashCons         # hashcons
+    U::IntDisjointSets      # equality relation over e-class ids
+    M::ClassMem             # id => sets of e-nodes
+    H::HashCons             # hashcons
     parents::ParentMem
-    dirty::Vector{Int64}         # worklist for ammortized upwards merging
+    dirty::Vector{Int64}    # worklist for ammortized upwards merging
     root::Int64
     analyses::Analyses
 end

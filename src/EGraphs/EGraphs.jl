@@ -20,7 +20,6 @@ export addexpr!
 export addanalysis!
 export rebuild!
 export saturate!
-export countexprs
 export areequal
 export @areequal
 export @areequalg
