@@ -77,5 +77,5 @@ end
     extr = extract!(G, extran)
     # end
 
-    @test extr == :(b*12a)
+    @test extr == :((12a) * b)
 end

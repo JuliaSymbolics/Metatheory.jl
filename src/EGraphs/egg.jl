@@ -176,7 +176,7 @@ function repair!(G::EGraph, id::Int64)
         G.H[n] = n_id
     end
 
-    new_parents = Dict{Any,Int64}()
+    new_parents = OrderedDict{Any,Int64}()
 
     for (p_enode, p_eclass) ∈ G.parents[id]
         canonicalize!(G.U, p_enode)
