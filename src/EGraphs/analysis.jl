@@ -9,7 +9,7 @@ function addanalysis!(G::EGraph, analysis::AbstractAnalysis)
         for (id, class) ∈ G.M
             pass = make_pass(G, id, data, analysis)
 
-            if !haskey(data, id) || (haskey(data, id) && pass != data[id]) #&& pass != nothing # && ???
+            if !haskey(data, id) || (haskey(data, id) && pass != data[id]) && pass != nothing # && ???
                 data[id] = pass
                 did_something = true
             end

@@ -34,6 +34,8 @@ end
 modify!(analysis::ExtractionAnalysis, G::EGraph, id::Int64) = nothing
 
 function rec_extract(G::EGraph, data, id::Int64)
+    # println(data[id])
+    # TODO in Julia 1.5 this is sometimes nothing. WTF.
     (cn, ck) = data[id]
     !(cn isa Expr) && return cn
 
