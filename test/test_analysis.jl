@@ -15,18 +15,18 @@ function Metatheory.make(analysis::NumberFold, G::EGraph, n)
             id_l = n.args[2].id
             id_r = n.args[3].id
 
-            if haskey(data, id_l) && haskey(data, id_r) &&
-                data[id_l] isa Number && data[id_r] isa Number
+            # if haskey(data, id_l) && haskey(data, id_r) &&
+                data[id_l] isa Number && data[id_r] isa Number &&
                 return data[id_l] * data[id_r]
-            end
+            # end
         elseif n.args[1] == :+
             id_l = n.args[2].id
             id_r = n.args[3].id
 
-            if haskey(data, id_l) && haskey(data, id_r) &&
-                data[id_l] isa Number && data[id_r] isa Number
+            # if haskey(data, id_l) && haskey(data, id_r) &&
+                data[id_l] isa Number && data[id_r] isa Number &&
                 return data[id_l] + data[id_r]
-            end
+            # end
         end
     end
     return nothing
@@ -79,12 +79,13 @@ end
     addexpr!(G, :(a * 2))
     addanalysis!(G, NumberFold())
     saturate!(G, comm_monoid)
-    display(G.M); println()
+    # display(G.M); println()
 
-    @test (true == @areequalg G comm_monoid 3 * 4 12 4*3  6*2)
+    @test (true == areequal(G, comm_monoid, :(3 * 4), 12, :(4*3), :(6*2)))
 
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
     addanalysis!(G, NumberFold())
-    @test (true == @areequalg G comm_monoid (3 * a) * (4 * b) (12*a)*b ((6*2)*b)*a)
+    @test (true == areequal(G, comm_monoid, :((3 * a) * (4 * b)), :((12*a)*b),
+        :(((6*2)*b)*a)))
 end

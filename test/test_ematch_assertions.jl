@@ -8,9 +8,9 @@
 
 
     G = EGraph(:(2*3))
-    display(G.M); println()
+    # display(G.M); println()
 
     @test true == areequal(G, some_theory, :(2 * 3), :(matched(2,3)))
-    display(G.M); println()
+    # display(G.M); println()
     @test true == areequal(G, some_theory, :(matched(2,3)), :(specific(3,2)))
 end

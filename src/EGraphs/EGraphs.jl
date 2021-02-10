@@ -11,6 +11,7 @@ include("saturation.jl")
 include("equality.jl")
 
 
+
 export EClass
 export EGraph
 export AbstractAnalysis
@@ -23,6 +24,14 @@ export countexprs
 export areequal
 export @areequal
 export @areequalg
+
+include("extraction.jl")
+export extract!
+export ExtractionAnalysis
+export make
+export join
+export modify!
+export astsize
 
 
 # end

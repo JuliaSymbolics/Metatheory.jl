@@ -30,18 +30,18 @@ end
     testexpr = :(f(a,b) + f(a,c))
     G = EGraph(testexpr)
     t2 = addexpr!(G, :c)
-    display(G.M); println()
+    # display(G.M); println()
 
     c_id = merge!(G, t2.id, 2)
     in_same_set(G.U, c_id, 2)
     in_same_set(G.U, t2.id, 2)
     @test find_root!(G.U, t2.id) == 4
-    display(G.parents); println()
+    # display(G.parents); println()
     rebuild!(G)
     # f(a,b) = f(a,c)
-    display(G.M); println()
-    display(G.H); println()
-    display(G.parents); println()
+    # display(G.M); println()
+    # display(G.H); println()
+    # display(G.parents); println()
 
 
     @test in_same_set(G.U, 5, 3)
@@ -60,11 +60,11 @@ end
     c_id = merge!(G, t1.id, 1) # a == apply(6,f,a)
     c2_id = merge!(G, t2.id, 1) # a == apply(9,f,a)
 
-    display(G.M); println()
+    # display(G.M); println()
 
     rebuild!(G)
 
-    display(G.M); println()
+    # display(G.M); println()
 
     t3 = addexpr!(G, apply(3, f, :a))
     t4 = addexpr!(G, apply(7, f, :a))
