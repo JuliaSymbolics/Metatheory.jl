@@ -1,7 +1,5 @@
 using MatchCore
 
-
-
 comm_monoid = @theory begin
     a * b => b * a
     a * 1 => a

@@ -6,14 +6,14 @@ example_theory = @theory begin
 end
 
 
-"""
-Generate an Analysis
-"""
-function compile_analysis(t::Theory)
+# """
+# Generate an Analysis
+# """
+# function compile_analysis(t::Theory)
 
-end
+# end
 
-filter(r -> r.mode == :dynamic, t)
+# filter(r -> r.mode == :dynamic, t)
 
 abstract type Vehicle end
 drive(v::Vehicle) = println("driving")
