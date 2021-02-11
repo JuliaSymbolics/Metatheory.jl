@@ -3,7 +3,7 @@
 # commutative monoid (or, less commonly, an abelian monoid).
 # TODO test
 
-# TODO split everything up. Use auto ACD compiler for matchcore
+# TODO split everything up. Use auto ACD compiler for matchcore backend
 macro commutative_monoid(t, op, id, func)
 	zop = Meta.quot(op)
    quote

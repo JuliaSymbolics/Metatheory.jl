@@ -46,7 +46,7 @@ function compile_rule(rule::Rule)::Expr
     return :($le => $re)
 end
 
-# catch-all for symbolic reductions
+# catch-all for reductions
 identity_axiom = :($(quot(dollar(:i))) => i)
 
 # TODO analyse theory before compiling. Identify associativity and commutativity
@@ -55,7 +55,7 @@ identity_axiom = :($(quot(dollar(:i))) => i)
 theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 
 # Compile a theory to a closure that does the pattern matching job
-# RETURNS A QUOTED CLOSURE WITH THE GENERATED MATCHING CODE! FASTER AF! 🔥
+# RETURNS A RuntimeGeneratedFunction 🔥
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
     RuntimeGeneratedFunctions.init(mod)
     # generate an unique parameter name
