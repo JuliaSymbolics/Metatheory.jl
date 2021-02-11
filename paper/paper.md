@@ -23,7 +23,7 @@ bibliography: paper.bib
 
 # Summary
 
-![The Ouroboros Wyvern.\label{fig:dragon}](dragon.png)
+![The Ouroboros Wyvern.\label{fig:dragon}](dragon.jpg)
 
 
 The forces on stars, galaxies, and dark matter under external gravitational
