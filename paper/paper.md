@@ -30,7 +30,7 @@ a programming language property colloquially referred to as *homoiconicity*.
 
 We introduce Metatheory.jl: a powerful,
 general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics,
-static analysis, abstract interpretation, equational reasoning, compiler optimization, superoptimization and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions, and can do so at both compile and run time.
+abstract interpretation, equational reasoning, optimization, composable compiler transforms and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions, and can do so at both compile and run time.
 Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about equational and formal systems, by defining rewriting rules and equational theories.
 
 Rewrite rules are defined as regular Julia expressions, manipulating syntactically valid Julia expressions: since Julia supports LaTeX-like abbreviations of UTF8 mathematical symbols as valid operators and symbols,
@@ -45,7 +45,7 @@ This is where the other back-end for Metatheory.jl comes into play. As the core 
 Given a theory of rewriting and equational rules, e-graphs compactly represents many equivalent programs. Saturation iteratively applies an e-graph specific pattern matcher to efficiently compute (and analyze) all possible equivalent expressions contained in the e-graph congruence closure. The latter back-end is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers.
 
 The original egg library [@egg] is
-known to be the first implementation of generic and extensible e-graphs (TODO cita), the contributions of [@egg] also include novel amortized algorithms for fast and efficient equivalence saturation and analysis.
+known to be the first implementation of generic and extensible e-graphs [@nelson1980fast], the contributions of [@egg] also include novel amortized algorithms for fast and efficient equivalence saturation and analysis.
 Differently from the original rust implementation of *egg*, which handles expressions defined as rust strings and `enum`, our system manipulates homoiconic Julia expressions, and can therefore fully leverage on the Julia subtyping mechanism [@zappa2018julia], allowing programmers to build expressions containing not only symbols, but all kinds of literal values.
 This permits rewriting and analyses to be efficiently based on runtime data contained in expressions. Most importantly, users can and are encouraged to include type assertions in the left hand of rewriting rules.
 
@@ -96,8 +96,11 @@ using regular Julia expressions and manipulate other Julia expressions.
 This allows for extreme conciseness of code and opens up for
 many possible applications of rewriting and analysis of Julia code.
 
+# Conclusion
+
 Recently, many applications of equality saturation have proven useful
-and promising for optimization tasks. (TODO cita herbie e tensat) We are confident that with an equality saturation engine fully integrated in an homoiconic language such as Julia, many new frontiers of metaprogramming could be explored in future works, in an elegant, performant and concise way.    
+and promising for optimization tasks. Herbie [@panchekha2015automatically]
+is a tool for automatically improving the precision of floating point expressions, which recently switched to using egg as the rewriting backend. TENSAT [@yang2021equality] employs egg to superoptimize neural networks' tensor graphs. However, Herbie requires interoperation between different languages. Re-implementing those case studies in pure homoiconic Julia with Metatheory.jl would probably be valid research contributions on their own. We are confident that a well integrated homoiconic equality saturation engine in pure Julia will permit exploration of many new metaprogramming applications, and allow them to be implemented in an elegant, performant and concise way.    
 
 # Acknowledgements
 
