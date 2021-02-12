@@ -27,8 +27,7 @@ The Julia programming language is a fresh approach to technical computing [@beza
 a programming language property colloquially referred to as *homoiconicity*.
 
 We introduce Metatheory.jl: a general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics,
-abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions and can achieve such at both compile and run time. This intuitively allows Metatheory.jl users to perform customized and composable compiler optimization specifically tailored to single, arbitrary Julia packages.   
-Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about semantics and all kinds of formal systems, by defining concise rewriting rules in pure, syntactically valid Julia on a high level of abstraction.
+abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions and can achieve such at both compile and run time. This allows Metatheory.jl users to perform customized and composable compiler optimization specifically tailored to single, arbitrary Julia packages. Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about semantics and all kinds of formal systems, by defining concise rewriting rules in pure, syntactically valid Julia on a high level of abstraction.
 
 Rewrite rules are defined as regular Julia expressions, manipulating other syntactically valid Julia expressions: since Julia supports LaTeX-like abbreviations of UTF8 mathematical symbols as valid operators and symbols,
 rewrite theories in Metatheory.jl can bear a strong structural and visual resemblance to mathematical formalisms encountered in paper literature.
@@ -41,11 +40,11 @@ Theories can then be executed through two, highly composable, rewriting backends
 This is where the other back-end for Metatheory.jl comes into play. As the core of our contribution, the equality saturation back-end allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over *e-graphs* adapted from the `egg` rust library [@egg].
 Provided with a theory of equational rewriting rules, *e-graphs* compactly represent many equivalent programs. Saturation iteratively executes an e-graph specific pattern matcher to efficiently compute (and analyze) all possible equivalent expressions contained in the e-graph congruence closure. This latter back-end is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers.
 
-![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $(a \times 2) / 2$ after each iteration. Credits to Max Willsey (@egg).\label{fig:egggg}](egraphs.svg){ width=30% }
+![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $(a \times 2) / 2$ after each iteration. Credits to Max Willsey (@egg).\label{fig:egggg}](egraphs.svg)
 
 
 The original `egg` library [@egg] is
-known to be the first implementation of generic and extensible e-graphs [@nelson1980fast], the contributions of [@egg] also include novel amortized algorithms for fast and efficient equivalence saturation and analysis.
+known to be the first implementation of generic and extensible e-graphs [@nelson1980fast], the contributions of `egg` include novel amortized algorithms for fast and efficient equivalence saturation and analysis.
 Differently from the original rust implementation of `egg`, which handles expressions defined as rust strings and data structures, our system directly manipulates homoiconic Julia expressions, and can therefore fully leverage the Julia subtyping mechanism [@zappa2018julia], allowing programmers to build expressions containing not only symbols but all kinds of Julia values.
 This permits rewriting and analyses to be efficiently based on runtime data contained in expressions. Most importantly, users can and are encouraged to include type assertions in the left hand of rewriting rules in theories.
 
