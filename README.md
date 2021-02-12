@@ -18,6 +18,14 @@ menting and reasoning about semantics and all kinds of formal systems, by defini
 
 If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/CITATION.bib) our works.
 
+## Installation
+
+**NOTE**: Metatheory.jl requires a Julia version >= 1.6.0 [why?](https://github.com/0x0f0f0f/Metatheory.jl/issues/11)
+
+```julia
+julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
+```
+
 ## Examples
 
 Here are some of examples of the basic workflow of using Metatheory.jl. Theories are composable and reusable!
