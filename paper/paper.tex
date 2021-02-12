@@ -1,0 +1,214 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Metatheory.jl: Fast and Elegant Algebraic Computation in Julia with Extensible Equality Saturation},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{Metatheory.jl: Fast and Elegant Algebraic Computation in Julia
+with Extensible Equality Saturation}
+\author{}
+\date{11 February 2021}
+
+\begin{document}
+\maketitle
+
+\hypertarget{summary}{%
+\section{Summary}\label{summary}}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.3\textwidth,height=\textheight]{dragon.jpg}
+\caption{The Ouroboros Wyvern. Public Domain Illustration by Lucas
+Jennis, 1625.\label{fig:dragon}}
+\end{figure}
+
+The Julia programming language is a fresh approach to technical
+computing {[}@bezanson2017julia{]}, disrupting the popular conviction
+that a programming language cannot be very high level, easy to learn and
+performant at the same time. One of the most practical features of Julia
+is the excellent metaprogramming and macro system, allowing for
+programmatic generation and manipulation of Julia expressions as first
+class values in the core language, with a well known paradigm similar to
+LISP idioms such as Scheme, a programming language property colloquially
+referred to as \emph{homoiconicity}.
+
+We introduce Metatheory.jl: a general purpose metaprogramming and
+algebraic computation library for the Julia programming language,
+designed to take advantage of the powerful reflection capabilities to
+bridge the gap between symbolic mathematics, abstract interpretation,
+equational reasoning, optimization, composable compiler transforms and
+advanced homoiconic pattern matching features. Intuitively,
+Metatheory.jl transforms Julia expressions in other Julia expressions,
+and can do so at both compile and run time. Our library provides a
+simple, algebraically composable interface to help scientists in
+implementing and reasoning about semantics and all kinds of formal
+systems, by defining concise rewriting rules in pure, syntactically
+valid Julia on a high level of abstraction.
+
+Rewrite rules are defined as regular Julia expressions, manipulating
+other syntactically valid Julia expressions: since Julia supports
+LaTeX-like abbreviations of UTF8 mathematical symbols as valid operators
+and symbols, rewrite theories in Metatheory.jl can bear a strong
+structural and visual resemblance to mathematical formalisms encountered
+in paper literature.
+
+Theories can then be executed through two, highly composable, rewriting
+backends. The first backend relies on a \emph{classic} recursive AST
+pattern match-and-replace algorithm, built on top of the
+{[}@matchcore{]} pattern matcher, this approach may be familiar to
+programmers used to languages in the ML family. This backend is suitable
+for deterministic recursive algorithms that intensively use pattern
+matching on syntax trees, for example, defining programming language
+interpreters from operational or denotational semantics. Nevertheless,
+when using this classical approach, even trivial equational rules such
+as commutativity and associativity may cause the rewriting algorithm to
+loop indefinitely, or to return unexpected results. This has been
+historically known as \emph{rewrite order}, and is well known for
+requiring extensive user reasoning for ordering and structuring rules to
+ensure confluence of a rewriting system.
+
+\hypertarget{e-graphs-and-equality-saturation}{%
+\subsection{E-Graphs and Equality
+Saturation}\label{e-graphs-and-equality-saturation}}
+
+This is where the other back-end for Metatheory.jl comes into play. As
+the core of our contribution, the equality saturation back-end allows
+programmers to define equational theories in pure Julia without worrying
+about rule ordering and structuring, by relying on state-of-the-art
+techniques for equality saturation over e-graphs {[}@egg{]}. Given a
+theory of rewriting and equational rules, e-graphs compactly represents
+many equivalent programs. Saturation iteratively applies an e-graph
+specific pattern matcher to efficiently compute (and analyze) all
+possible equivalent expressions contained in the e-graph congruence
+closure. The latter back-end is suitable for partial evaluators,
+symbolic mathematics, static analysis, theorem proving and
+superoptimizers.
+
+The original egg library {[}@egg{]} is known to be the first
+implementation of generic and extensible e-graphs {[}@nelson1980fast{]},
+the contributions of {[}@egg{]} also include novel amortized algorithms
+for fast and efficient equivalence saturation and analysis. Differently
+from the original rust implementation of \emph{egg}, which handles
+expressions defined as rust strings and \texttt{enum}, our system
+manipulates homoiconic Julia expressions, and can therefore fully
+leverage on the Julia subtyping mechanism {[}@zappa2018julia{]},
+allowing programmers to build expressions containing not only symbols,
+but all kinds of literal values. This permits rewriting and analyses to
+be efficiently based on runtime data contained in expressions. Most
+importantly, users can and are encouraged to include type assertions in
+the left hand of rewriting rules.
+
+A project goal of Metatheory, other than being to be easy to use and
+composable, is to be fast and efficient: the first-class pattern
+matching system and the generation of e-graph analyses from theories
+both rely on RuntimeGeneratedFunctions.jl {[}@rgf{]}, generating
+callable functions at runtime that efficiently bypass Julia's world age
+problem {[}@belyakova2020world{]} with the full performance of a
+standard Julia anonymous function.
+
+\hypertarget{analyses-and-extraction}{%
+\subsection{Analyses and Extraction}\label{analyses-and-extraction}}
+
+With Metatheory.jl, modeling analyses and conditional/dynamic rewrites
+is easy and straightforward: it is possible to check conditions on
+runtime values or to read and write from external data structures during
+rewriting. The analysis mechanism described in egg and re-implemented in
+our contribution lets users define ways to compute additional analysis
+metadata from an arbitrary semi-lattice domain, such as costs of nodes
+or logical statements attached to terms. Other than for inspection,
+analysis data can be used to modify expressions in the e-graph both
+during rewriting steps or after e-graph saturation.
+
+Therefore using the equality saturation (e-graph) backend, extraction
+can be performed as an on-the-fly e-graph analysis or after saturation.
+Users can define their own, or choose between a variety of predefined
+cost functions for automatically extracting the most fitting expressions
+from the congruence closure represented by an e-graph.
+
+\hypertarget{conclusion}{%
+\section{Conclusion}\label{conclusion}}
+
+Recently, many applications of equality saturation have proven useful
+and promising for optimization tasks. Herbie
+{[}@panchekha2015automatically{]} is a tool for automatically improving
+the precision of floating point expressions, which recently switched to
+using egg as the rewriting backend. TENSAT {[}@yang2021equality{]}
+employs egg to superoptimize neural networks' tensor graphs. However,
+Herbie requires interoperation between different languages.
+Re-implementing those case studies in pure homoiconic Julia with
+Metatheory.jl would probably be valid research contributions on their
+own. We are confident that a well integrated homoiconic equality
+saturation engine in pure Julia will permit exploration of many new
+metaprogramming applications, and allow them to be implemented in an
+elegant, performant and concise way.
+
+\hypertarget{acknowledgements}{%
+\section{Acknowledgements}\label{acknowledgements}}
+
+We acknowledge Christopher Rackauckas and Christopher Foster for their
+efforts in developing RuntimeGeneratedFunctions {[}@rgf{]}, Taine Zhao
+for developing MLStyle {[}@mlstyle{]} and MatchCore {[}@matchcore{]} and
+support from Philip Zucker during the development of the project and his
+original idea of implementing E-Graphs in Julia.
+
+\hypertarget{references}{%
+\section{References}\label{references}}
+
+\end{document}
