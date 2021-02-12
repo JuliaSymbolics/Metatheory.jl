@@ -37,7 +37,7 @@ Theories can then be executed through two, highly composable, rewriting backends
 
 ## E-Graphs and Equality Saturation
 
-This is where the other back-end for Metatheory.jl comes into play. As the core of our contribution, the equality saturation back-end allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over *e-graphs* adapted from the `egg` rust library [@egg].
+This is what the other back-end for Metatheory.jl is designed to solve. As the core of our contribution, the equality saturation back-end allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over *e-graphs* adapted from the `egg` rust library [@egg].
 Provided with a theory of equational rewriting rules, *e-graphs* compactly represent many equivalent programs. Saturation iteratively executes an e-graph specific pattern matcher to efficiently compute (and analyze) all possible equivalent expressions contained in the e-graph congruence closure. This latter back-end is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers.
 
 ![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $(a \times 2) / 2$ after each iteration. Credits to Max Willsey (@egg).\label{fig:egggg}](egraphs.png)
@@ -65,6 +65,6 @@ is a tool for automatically improving the precision of floating point expression
 
 # Acknowledgements
 
-We acknowledge Max Willsey and contributors for their work on the original `egg` library [@egg], Christopher Rackauckas and Christopher Foster for their efforts in developing RuntimeGeneratedFunctions [@rgf], Taine Zhao for developing MLStyle [@mlstyle] and MatchCore [@matchcore], and Philip Zucker for his original idea of implementing E-Graphs in Julia and support during the development of the project.
+We acknowledge Max Willsey and contributors for their work on the original `egg` library [@egg], Christopher Rackauckas and Christopher Foster for their efforts in developing RuntimeGeneratedFunctions [@rgf], Taine Zhao for developing MLStyle [@mlstyle] and MatchCore [@matchcore], and Philip Zucker for his original idea of implementing E-Graphs in Julia [@philzuck1, @philzuck2] and support during the development of the project.
 
 # References
