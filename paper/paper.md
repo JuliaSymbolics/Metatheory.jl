@@ -25,37 +25,49 @@ bibliography: paper.bib
 
 ![The Ouroboros Wyvern. Public Domain Illustration by Lucas Jennis, 1625.\label{fig:dragon}](dragon.jpg){ width=30% }
 
-The Julia programming language brought a fresh and new approach for technical computing, disrupting the popular conviction that a programming language cannot be very high level and performant at the same time. One of the most pragmatic features of Julia is the metaprogramming and macro interface, allowing to generate and manipulate reflective Julia expressions programmatically similarly to LISP idioms such as R5RS Scheme.
+The Julia programming is a fresh approach to technical computing [@bezanson2017julia], disrupting the popular conviction that a programming language cannot be very high level and performant at the same time. Some of the most practical features of Julia are metaprogramming support and an excellent macro system, allowing for programmatic generation and manipulation of Julia expressions as first class values in the core language, with a well known paradigm similar to LISP idioms such as Scheme,
+a programming language property colloquially referred to as *homoiconicity*.
 
-We introduce Metatheory.jl: a lightweight,
-general purpose metaprogramming and algebraic (symbolic) computation library for the Julia programming language, designed for taking advantage of the powerful Julia reflection capabilities (often referred to as homoiconicity) to bridge the gap between symbolic mathematics, abstract interpretation, equational reasoning, compiler optimization, superoptimization and advanced homoiconic pattern matching features.
+We introduce Metatheory.jl: a powerful,
+general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics,
+static analysis, abstract interpretation, equational reasoning, compiler optimization, superoptimization and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions, and can do so at both compile and run time.
+Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about equational and formal systems, by defining rewriting rules and equational theories.
 
-Metatheory.jl provides a simple, algebraically composable interface for defining rewriting rules and equational theories. Theories can then be executed with two composable rewriting backends. The first backend relies on a *classic* pattern matcher [@matchcore] that may be familiar to users of languages in the ML family. It is suitable for regular, deterministic recursive algorithms that intensively use pattern matching on syntax trees, for example, defining programming language interpreters from operational or denotational semantics. When using this classical approach, commonly encountered equational rewriting rules, even just commutative and associative properties of basic algebraic structures, may cause the recursive rewriting algorithms to loop indefinitely, and have historically required extensive reasoning for ordering and arranging rules in rewriting system.
+Rewrite rules are defined as regular Julia expressions, manipulating syntactically valid Julia expressions: since Julia supports LaTeX-like abbreviations of UTF8 mathematical symbols as valid operators and symbols,
+rules and theories in Metatheory.jl bear a strong structural and visual resemblance with mathematical formalisms encountered in paper literature.
 
-This is where the other backend for Metatheory.jl comes into play. As the core of our contribution, the equality saturation backend allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art equality saturation techniques [@egg] for efficiently computing and analyzing all possible equivalent expressions. The latter backend is suitable for partial evaluators, symbolic mathematics, theorem proving and superoptimizers. The egg library [@egg] is the first ever implementation of generic and extensible e-graphs (TODO cita), which also provides novel
-amortized algorithms for performant equivalence saturation and expression analysis.
 
-Differently from the original rust implementation of *egg*, which handles languages defined as rust strings, our system manipulates homoiconic Julia expressions, and therefore fully leverages the Julia subtyping mechanism (TODO cita benchung) to allow programmers to include type assertions in the left hand of rewriting rules, and to build expressions containing all possible values, types and data structures supported by Julia.
+Theories can then be executed through two, highly composable, rewriting backends. The first backend relies on a *classic* recursive AST pattern match-and-replace algorithm, built on top of the [@matchcore] pattern matcher, this approach may be familiar to programmers used to languages in the ML family. This backend is suitable for deterministic recursive algorithms that intensively use pattern matching on syntax trees, for example, defining programming language interpreters from operational or denotational semantics. Nevertheless, when using this classical approach, even trivial equational rules such as commutativity and associativity may cause the rewriting algorithm to loop indefinitely, or to return unexpected results. This has been historically known as *rewrite order*, and is well known for requiring extensive user reasoning for ordering and structuring rules to ensure confluence of a rewriting system.
 
-Thanks to the built-in support for LaTeX-like abbreviations for mathematical symbols in many editors and the Julia REPL, parsed as regular unary and binary operators by the language, our system is meant to help scientists in the task of implementing and reasoning about formal systems, by defining rewriting rules and equational theories that bear a strong
-resemblance with mathematical formalisms encountered in literature.
+## E-Graphs and Equality Saturation
 
-Systems modeled with natural deduction rules often need to maintain additional information, such as the types of variables or logical statements, in additional data structures. With Metatheory.jl, modeling such information and conditional rules is easy: it is possible to check conditions on runtime values or to read and write from external data structures during rewriting. The analysis mechanism borrowed from egg [@egg] even allows to attach additional analysis metadata such as logical statements to expressions on-the-fly during e-graph saturation.
+This is where the other back-end for Metatheory.jl comes into play. As the core of our contribution, the equality saturation back-end allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over e-graphs [@egg].
+Given a theory of rewriting and equational rules, e-graphs compactly represents many equivalent programs. Saturation iteratively applies an e-graph specific pattern matcher to efficiently compute (and analyze) all possible equivalent expressions contained in the e-graph congruence closure. The latter back-end is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers.
 
-When using the equality saturation (e-graph) backend, extraction can be performed as an on-the-fly e-graph analysis or after saturation. Users
-can define their own, or choose between a variety of predefined cost functions for automatically choosing the most fitting expression from the congruence closure represented by an e-graph.
+The original egg library [@egg] is
+known to be the first implementation of generic and extensible e-graphs (TODO cita), the contributions of [@egg] also include novel amortized algorithms for fast and efficient equivalence saturation and analysis.
+Differently from the original rust implementation of *egg*, which handles expressions defined as rust strings and `enum`, our system manipulates homoiconic Julia expressions, and can therefore fully leverage on the Julia subtyping mechanism [@zappa2018julia], allowing programmers to build expressions containing not only symbols, but all kinds of literal values.
+This permits rewriting and analyses to be efficiently based on runtime data contained in expressions. Most importantly, users can and are encouraged to include type assertions in the left hand of rewriting rules.
 
-A goal of Metatheory is to be easy to use, highly composable and fast: the first-class pattern matching system generates callable functions by bypassing Julia's world age problem (TODO cita benchung) thanks to the small
-RuntimeGeneratedFunctions.jl utility library [@rgf].
+A project goal of Metatheory, other than being to be easy to use and composable, is to be fast and efficient: the first-class pattern matching system and the generation of e-graph analyses from theories both rely on RuntimeGeneratedFunctions.jl [@rgf], generating callable functions at runtime that efficiently bypass Julia's world age problem [@belyakova2020world] with the full performance of a standard Julia anonymous function.
 
-Metatheory.jl can run and transform expressions at both
-compile and run time. Most importantly, our solution strives for *simplicity*. The general workflow for using Metatheory.jl is:
+
+## Analyses and Extraction
+
+With Metatheory.jl, modeling analyses and conditional/dynamic rewrites is easy and straightforward: it is possible to check conditions on runtime values or to read and write from external data structures during rewriting. The analysis mechanism described in egg and re-implemented in our contribution lets users define ways to compute additional analysis metadata from an arbitrary semi-lattice domain, such as costs of nodes or logical statements attached to terms. Other than for inspection, analysis data can be used to modify expressions in the e-graph both during rewriting steps or after e-graph saturation.
+
+Therefore using the equality saturation (e-graph) backend, extraction can be performed as an on-the-fly e-graph analysis or after saturation. Users
+can define their own, or choose between a variety of predefined cost functions for automatically extracting the most fitting expressions from the congruence closure represented by an e-graph.
+
+
+# Examples
+
+Most importantly, our solution strives for *simplicity*. The general workflow for using Metatheory.jl is:
+
 * Define rewrite and equational theories with the `@theory` macro.
 * Recursively rewrite expressions or saturate and analyze e-graphs.
 * Compose those steps as regular Julia functions to build optimizers, interpreters, compilers, symbolic engines, theorem provers and all sorts of
 metaprogramming systems.
-
-## A Concise Example of a Mathematical Theory
 
 ```
 using Calculus: differentiate
