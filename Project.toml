@@ -8,6 +8,10 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 MatchCore = "5dd3f0b1-72a9-48ad-ae6e-79f673da005f"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 
+[compat]
+RuntimeGeneratedFunctions = "0.5.1"
+julia = "1.6"
+
 [extras]
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
