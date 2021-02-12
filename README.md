@@ -52,10 +52,54 @@ t = comm_monoid ∪ comm_group ∪ distrib
 # very efficiently. The `@areequal` macro takes a theory and some
 # expressions and returns true iff the expressions are equal
 # according to the theory. The following example returns true.
-@areequal t (x+y)*(a+b) ((a*(x+y)) + b*(x+y)) ((x*(a+b)) + y*(a+b))
+@areequal t (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))
 
-#
+# We can use type assertions and dynamic rules, defined with the `|>`
+# operator, to dynamically compute values in the right hand of expressions
+fold_mul = @theory begin
+    a::Number * b::Number |> a*b
+end
+t = comm_monoid ∪ fold_mul
+@areequal t (3*4) 12
 
+# Let's see a more complex example: extracting the
+# smallest equivalent expression, basing from a
+# trivial mathematics theory
+distrib = @theory begin
+	a * (b + c) => (a * b) + (a * c)
+	(a * b) + (a * c) => a * (b + c)
+end
+powers = @theory begin
+	a * a => a^2
+	a => a^1
+	a^n * a^m => a^(n+m)
+end
+logids = @theory begin
+	log(a^n) => n * log(a)
+	log(x * y) => log(x) * log(y)
+	log(1) => 0
+	log(:e) => 1
+	:e^(log(x)) => x
+end
+fold_add = @theory begin
+	a::Number + b::Number |> a + b
+end
+t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
+
+# We can programmatically build and saturate an e-graph.
+G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
+saturate!(G, t)
+ex = extract!(G, astsize)
+
+ex == :(5log(a))
 ```
 
 ### A Tiny Imperative Programming Language Interpreter
+
+This example does not use the e-graphs backend. A recursive
+algorithm is sufficient for interpreting expressions.
+Note how we are representing semantics for a different programming language
+by reusing the Julia AST data structure, and therefore efficiently reusing
+the Julia parser for our new toy language.
+
+See this [test file](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/test/test_while_interpreter.jl).

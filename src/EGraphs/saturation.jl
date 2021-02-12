@@ -1,10 +1,34 @@
 const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
+
+inst(var, G::EGraph, sub::Sub) = haskey(sub, var) ? first(sub[var]) : add!(G, var)
+inst(p::Expr, G::EGraph, sub::Sub) = add!(G, p)
+
+function instantiate(G::EGraph, p, sub::Sub; skip_assert=false)
+    # remove type assertions
+    if skip_assert
+        p = df_walk( x -> (isexpr(x, :ematch_tassert) ? x.args[1] : x), p; skip_call=true )
+    end
+
+    df_walk(inst, p, G, sub; skip_call=true)
+end
+
+"""
+inst for dynamic rules
+"""
+function dyninst(var, G::EGraph, sub::Sub)
+     if haskey(sub, var)
+         (eclass, literal) = sub[var]
+         literal != nothing ? literal : eclass
+     else var
+     end
+end
+dyninst(p::Expr, G::EGraph, sub::Sub) = p
+
+
 function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler())
-
     matches=MatchesBuf()
-
-    EMPTY_DICT = Base.ImmutableDict{Any, EClass}()
+    EMPTY_DICT = Sub()
 
     readstep(scheduler)
 
@@ -12,18 +36,20 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler(
         # don't apply banned rules
         shouldskip(scheduler, rule) && continue
 
-
-        rule.mode != :rewrite && error("unsupported rule mode")
-        for id ∈ keys(G.M)
-            # println(rule.right)
-            for sub in ematch(G, rule.left, id, EMPTY_DICT)
-                # display(sub); println()
-                !isempty(sub) && push!(matches, (rule, sub, id))
+        if rule.mode == :rewrite || rule.mode == :dynamic
+            for id ∈ keys(G.M)
+                # println(rule.right)
+                for sub in ematch(G, rule.left, id, EMPTY_DICT)
+                    # display(sub); println()
+                    !isempty(sub) && push!(matches, (rule, sub, id))
+                end
+                # for sub in ematch(G, rule.right, id, EMPTY_DICT)
+                #     # display(sub); println()
+                #     !isempty(sub) && push!(matches, (rule, sub, id))
+                # end
             end
-            # for sub in ematch(G, rule.right, id, EMPTY_DICT)
-            #     # display(sub); println()
-            #     !isempty(sub) && push!(matches, (rule, sub, id))
-            # end
+        else
+            error("unsupported rule mode")
         end
     end
 
@@ -31,9 +57,20 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler(
     for (rule, sub, id) ∈ matches
         writestep(scheduler, rule)
 
-        l = instantiate(G,rule.left,sub; skip_assert=true)
-        r = instantiate(G,rule.right,sub)
-        merge!(G,l.id,r.id)
+        if rule.mode == :rewrite # symbolic replacement
+            l = instantiate(G,rule.left,sub; skip_assert=true)
+            r = instantiate(G,rule.right,sub)
+            merge!(G,l.id,r.id)
+        elseif rule.mode == :dynamic # execute the right hand!
+            l = instantiate(G,rule.left,sub; skip_assert=true)
+
+            # TODO FIXME important: use a RGF!
+            r = df_walk(dyninst, rule.right, G, sub; skip_call=true)
+            r = addexpr!(G, eval(r))
+            merge!(G,l.id,r.id)
+        else
+            error("unsupported rule mode")
+        end
     end
 
     # display(G.parents); println()

@@ -6,17 +6,23 @@ comm_monoid = @theory begin
     a * (b * c) => (a * b) * c
 end
 
+fold_mul = @theory begin
+	a::Number * b::Number |> a * b
+end
+
+t = comm_monoid ∪ fold_mul
+
 extran = ExtractionAnalysis(astsize)
 
 
 @testset "Extraction 1 - Commutative Monoid" begin
-    G = EGraph(:(3 * 4), [NumberFold(), extran])
-    saturate!(G, comm_monoid)
+    G = EGraph(:(3 * 4), [extran])
+    saturate!(G, t)
     @test (12 == extract!(G, extran))
 
     ex = :(a * 3 * b * 4)
-    G = EGraph(cleanast(ex), [NumberFold(), extran])
-    saturate!(G, comm_monoid)
+    G = EGraph(cleanast(ex), [extran])
+    saturate!(G, t)
     extr = extract!(G, extran)
 	# println(extr)
 
@@ -35,12 +41,15 @@ end
         a * (b + c) => (a * b) + (a * c)
         (a * b) + (a * c) => a * (b + c)
     end
-    t = comm_monoid ∪ comm_group ∪ distrib
+	fold_add = @theory begin
+		a::Number + b::Number |> a + b
+	end
+    t = comm_monoid ∪ comm_group ∪ distrib ∪ fold_mul ∪ fold_add
 
     # for i ∈ 1:20
     # sleep(0.3)
     ex = cleanast(:((x*(a+b)) + (y*(a+b))))
-    G = EGraph(ex, [NumberFold(), extran])
+    G = EGraph(ex, [extran])
     saturate!(G, t)
     # end
 
@@ -50,13 +59,12 @@ end
 @testset "Extraction - Adding analysis after saturation" begin
     G = EGraph(:(3 * 4))
     addexpr!(G, 12)
-    saturate!(G, comm_monoid)
+    saturate!(G, t)
     addexpr!(G, :(a * 2))
-    addanalysis!(G, NumberFold())
-    saturate!(G, comm_monoid)
+    saturate!(G, t)
 
     addanalysis!(G, extran)
-    saturate!(G, comm_monoid)
+    saturate!(G, t)
 
     @test (12 == extract!(G, extran))
 
@@ -101,8 +109,12 @@ logids = @theory begin
 	log(:e) => 1
 	:e^(log(x)) => x
 end
+fold_add = @theory begin
+	a::Number + b::Number |> a + b
+end
 
-t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids
+
+t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
 
 @testset "Complex Extraction" begin
 	G = EGraph(:(log(e) * log(e)))
@@ -114,23 +126,23 @@ t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids
 	@test extract!(G, astsize) == 3
 
 	@time begin
-		G = EGraph(:(a^3 * a^2), [NumberFold()])
+		G = EGraph(:(a^3 * a^2))
 		saturate!(G, t)
 		ex = extract!(G, astsize)
 	end
 	@test ex == :(a^5)
 
 	@time begin
-		G = EGraph(:(a^3 * a^2), [NumberFold()])
+		G = EGraph(:(a^3 * a^2))
 		saturate!(G, t)
 		ex = extract!(G, astsize)
 	end
 	@test ex == :(a^5)
 
 	@time begin
-		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))), [NumberFold()])
+		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
 		saturate!(G, t)
 		ex = extract!(G, astsize)
 	end
-	@test ex == :(log(a) * 5)
+	@test ex == :(5log(a))
 end
