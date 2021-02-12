@@ -5,6 +5,7 @@
 # Metatheory.jl
 
 ![CI](https://github.com/0x0f0f0f/Metatheory.jl/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/0x0f0f0f/Metatheory.jl/branch/master/graph/badge.svg?token=EWNYPD7ASX)](https://codecov.io/gh/0x0f0f0f/Metatheory.jl)
 
 **Metatheory.jl** is a general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics, abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced
 homoiconic pattern matching features.
@@ -63,7 +64,7 @@ t = comm_monoid ∪ fold_mul
 @areequal t (3*4) 12
 
 # Let's see a more complex example: extracting the
-# smallest equivalent expression, basing from a
+# smallest equivalent expression, from a
 # trivial mathematics theory
 distrib = @theory begin
 	a * (b + c) => (a * b) + (a * c)
