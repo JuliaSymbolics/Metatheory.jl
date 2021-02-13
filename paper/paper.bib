@@ -36,14 +36,22 @@
 }
 
 @article{egg,
-  title={egg: fast and extensible equality saturation},
-  author={Willsey, Max and Nandi, Chandrakana and Wang, Yisu Remy and Flatt, Oliver and Tatlock, Zachary and Panchekha, Pavel},
-  journal={Proceedings of the ACM on Programming Languages},
-  volume={5},
-  number={POPL},
-  pages={1--29},
-  year={2021},
-  publisher={ACM New York, NY, USA}
+author = {Willsey, Max and Nandi, Chandrakana and Wang, Yisu Remy and Flatt, Oliver and Tatlock, Zachary and Panchekha, Pavel},
+title = {Egg: Fast and Extensible Equality Saturation},
+year = {2021},
+issue_date = {January 2021},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {5},
+number = {POPL},
+url = {https://doi.org/10.1145/3434304},
+doi = {10.1145/3434304},
+abstract = {An e-graph efficiently represents a congruence relation over many expressions. Although they were originally developed in the late 1970s for use in automated theorem provers, a more recent technique known as equality saturation repurposes e-graphs to implement state-of-the-art, rewrite-driven compiler optimizations and program synthesizers. However, e-graphs remain unspecialized for this newer use case. Equality saturation workloads exhibit distinct characteristics and often require ad-hoc e-graph extensions to incorporate transformations beyond purely syntactic rewrites.  This work contributes two techniques that make e-graphs fast and extensible, specializing them to equality saturation. A new amortized invariant restoration technique called rebuilding takes advantage of equality saturation's distinct workload, providing asymptotic speedups over current techniques in practice. A general mechanism called e-class analyses integrates domain-specific analyses into the e-graph, reducing the need for ad hoc manipulation.  We implemented these techniques in a new open-source library called egg. Our case studies on three previously published applications of equality saturation highlight how egg's performance and flexibility enable state-of-the-art results across diverse domains.},
+journal = {Proc. ACM Program. Lang.},
+month = jan,
+articleno = {23},
+numpages = {29},
+keywords = {e-graphs, equality saturation}
 }
 
 @article{bezanson2017julia,
@@ -54,8 +62,12 @@
   number={1},
   pages={65--98},
   year={2017},
+  doi = {10.1137/141000671},
   publisher={SIAM}
 }
+
+
+
 
 @article{belyakova2020world,
   title={World Age in Julia},
@@ -75,15 +87,44 @@
 }
 
 @article{panchekha2015automatically,
-  title={Automatically improving accuracy for floating point expressions},
-  author={Panchekha, Pavel and Sanchez-Stern, Alex and Wilcox, James R and Tatlock, Zachary},
-  journal={ACM SIGPLAN Notices},
-  volume={50},
-  number={6},
-  pages={1--11},
-  year={2015},
-  publisher={ACM New York, NY, USA}
+author = {Panchekha, Pavel and Sanchez-Stern, Alex and Wilcox, James R. and Tatlock, Zachary},
+title = {Automatically Improving Accuracy for Floating Point Expressions},
+year = {2015},
+issue_date = {June 2015},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {50},
+number = {6},
+issn = {0362-1340},
+url = {https://doi.org/10.1145/2813885.2737959},
+doi = {10.1145/2813885.2737959},
+abstract = { Scientific and engineering applications depend on floating point arithmetic to approximate real arithmetic. This approximation introduces rounding error, which can accumulate to produce unacceptable results. While the numerical methods literature provides techniques to mitigate rounding error, applying these techniques requires manually rearranging expressions and understanding the finer details of floating point arithmetic. We introduce Herbie, a tool which automatically discovers the rewrites experts perform to improve accuracy. Herbie's heuristic search estimates and localizes rounding error using sampled points (rather than static error analysis), applies a database of rules to generate improvements, takes series expansions, and combines improvements for different input regions. We evaluated Herbie on examples from a classic numerical methods textbook, and found that Herbie was able to improve accuracy on each example, some by up to 60 bits, while imposing a median performance overhead of 40%. Colleagues in machine learning have used Herbie to significantly improve the results of a clustering algorithm, and a mathematical library has accepted two patches generated using Herbie. },
+journal = {SIGPLAN Not.},
+month = jun,
+pages = {1–11},
+numpages = {11},
+keywords = {program rewriting, numerical accuracy, Floating point}
 }
+
+@inproceedings{10.1145/2737924.2737959,
+author = {Panchekha, Pavel and Sanchez-Stern, Alex and Wilcox, James R. and Tatlock, Zachary},
+title = {Automatically Improving Accuracy for Floating Point Expressions},
+year = {2015},
+isbn = {9781450334686},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/2737924.2737959},
+doi = {10.1145/2737924.2737959},
+abstract = { Scientific and engineering applications depend on floating point arithmetic to approximate real arithmetic. This approximation introduces rounding error, which can accumulate to produce unacceptable results. While the numerical methods literature provides techniques to mitigate rounding error, applying these techniques requires manually rearranging expressions and understanding the finer details of floating point arithmetic. We introduce Herbie, a tool which automatically discovers the rewrites experts perform to improve accuracy. Herbie's heuristic search estimates and localizes rounding error using sampled points (rather than static error analysis), applies a database of rules to generate improvements, takes series expansions, and combines improvements for different input regions. We evaluated Herbie on examples from a classic numerical methods textbook, and found that Herbie was able to improve accuracy on each example, some by up to 60 bits, while imposing a median performance overhead of 40%. Colleagues in machine learning have used Herbie to significantly improve the results of a clustering algorithm, and a mathematical library has accepted two patches generated using Herbie. },
+booktitle = {Proceedings of the 36th ACM SIGPLAN Conference on Programming Language Design and Implementation},
+pages = {1–11},
+numpages = {11},
+keywords = {numerical accuracy, program rewriting, Floating point},
+location = {Portland, OR, USA},
+series = {PLDI '15}
+}
+
+
 
 @article{yang2021equality,
   title={Equality Saturation for Tensor Graph Superoptimization},
@@ -92,14 +133,22 @@
 }
 
 @article{nelson1980fast,
-  title={Fast decision procedures based on congruence closure},
-  author={Nelson, Greg and Oppen, Derek C},
-  journal={Journal of the ACM (JACM)},
-  volume={27},
-  number={2},
-  pages={356--364},
-  year={1980},
-  publisher={ACM New York, NY, USA}
+author = {Nelson, Greg and Oppen, Derek C.},
+title = {Fast Decision Procedures Based on Congruence Closure},
+year = {1980},
+issue_date = {April 1980},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {27},
+number = {2},
+issn = {0004-5411},
+url = {https://doi.org/10.1145/322186.322198},
+doi = {10.1145/322186.322198},
+abstract = {The notion of the congruence closure of a relation on a graph is defined and several algorithms for computing it are surveyed. A simple proof is given that the congruence closure algorithm provides a decision procedure for the quantifier-free theory of equality. A decision procedure is then given for the quantifier-free theory of LISP list structure based on the congruence closure algorithm. Both decision procedures determine the satisfiability of a conjunction of literals of length n in average time O(n log n) using the fastest known congruence closure algorithm. It is also shown that if the axiomatization of the theory of list structure is changed slightly, the problem of determining the satisfiability of a conjunction of literals becomes NP-complete. The decision procedures have been implemented in the authors' simplifier for the Stanford Pascal Verifier.},
+journal = {J. ACM},
+month = apr,
+pages = {356–364},
+numpages = {9}
 }
 
 @article{philzuck1,
