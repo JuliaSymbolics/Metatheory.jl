@@ -10,6 +10,8 @@ RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 
 [compat]
 RuntimeGeneratedFunctions = "0.5.1"
+DataStructures = "0.18.9"
+MatchCore = "0.1.0"
 julia = "1.6"
 
 [extras]
