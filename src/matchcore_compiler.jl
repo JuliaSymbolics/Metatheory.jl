@@ -3,7 +3,9 @@
 using MatchCore
 #using GeneralizedGenerated
 using RuntimeGeneratedFunctions
-RuntimeGeneratedFunctions.init(@__MODULE__)
+const RGF = RuntimeGeneratedFunctions
+
+RGF.init(@__MODULE__)
 
 ## compile (quote) left and right hands of a rule
 # escape symbols to create MLStyle compatible patterns
@@ -57,7 +59,7 @@ theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 # Compile a theory to a closure that does the pattern matching job
 # RETURNS A RuntimeGeneratedFunction 🔥
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
-    RuntimeGeneratedFunctions.init(mod)
+    (mod != @__MODULE__) && !isdefined(mod, RGF._tagname) && RGF.init(mod)
     # generate an unique parameter name
     # TODO needed? consider just calling it expr for access in right hand
     parameter = Meta.gensym(:reducing_expression)

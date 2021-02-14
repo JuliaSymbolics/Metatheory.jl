@@ -1,5 +1,11 @@
 const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
+using RuntimeGeneratedFunctions
+const RGF = RuntimeGeneratedFunctions
+
+"Type representing a cache of [`RuntimeGeneratedFunctions`](@ref) corresponding
+to right hand sides of dynamic rules"
+const RhsFunCache = Dict{Rule, Tuple{Vector{Symbol}, Function}}
 
 inst(var, G::EGraph, sub::Sub) = haskey(sub, var) ? first(sub[var]) : add!(G, var)
 inst(p::Expr, G::EGraph, sub::Sub) = add!(G, p)
@@ -13,20 +19,36 @@ function instantiate(G::EGraph, p, sub::Sub; skip_assert=false)
     df_walk(inst, p, G, sub; skip_call=true)
 end
 
-"""
-inst for dynamic rules
-"""
-function dyninst(var, G::EGraph, sub::Sub)
+function get_actual_param(var, sub::Sub)
      if haskey(sub, var)
          (eclass, literal) = sub[var]
          literal != nothing ? literal : eclass
-     else var
+     else
+         error("internal error in dynamic rule application")
      end
 end
-dyninst(p::Expr, G::EGraph, sub::Sub) = p
 
+"""
+Generates a tuple containing the list of formal parameters (`Symbol`s)
+and the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
+side of a `:dynamic` [`Rule`](@ref).
+"""
+function genrhsfun(rule::Rule, mod::Module)
+    (mod != @__MODULE__) && !isdefined(mod, RGF._tagname) && RGF.init(mod)
+    # remove type assertions in left hand
+    lhs = df_walk( x -> (isexpr(x, :ematch_tassert) ? x.args[1] : x), rule.left; skip_call=true )
 
-function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler())
+    # collect variable symbols in left hand
+    lhs_vars = Set{Symbol}()
+    df_walk( x -> (if x isa Symbol; push!(lhs_vars, x); end; x), rule.left; skip_call=true )
+    params = Expr(:tuple, lhs_vars...)
+
+    ex = :($params -> $(rule.right))
+    (collect(lhs_vars), RuntimeGeneratedFunction(mod, mod, ex))
+end
+
+function eqsat_step!(G::EGraph, theory::Vector{Rule};
+        scheduler=SimpleScheduler(), rhs_funs=RhsFunCache())
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
 
@@ -65,8 +87,9 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule}; scheduler=SimpleScheduler(
             l = instantiate(G,rule.left,sub; skip_assert=true)
 
             # TODO FIXME important: use a RGF!
-            r = df_walk(dyninst, rule.right, G, sub; skip_call=true)
-            r = addexpr!(G, eval(r))
+            (params, f) = rhs_funs[rule]
+            actual_params = params .|> x -> get_actual_param(x, sub)
+            r = addexpr!(G, f(actual_params...))
             merge!(G,l.id,r.id)
         else
             error("unsupported rule mode")
@@ -82,24 +105,31 @@ end
 
 # TODO plot how egraph shrinks and grows during saturation
 function saturate!(G::EGraph, theory::Vector{Rule};
+    mod=@__MODULE__,
     timeout=7, stopwhen=(()->false), sizeout=2^12,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
     curr_iter = 0
 
+    # evaluate types in type assertions and generate the
+    # dynamic rule right hand side function cache
+    rhs_funs = RhsFunCache()
     theory = map(theory) do rule
         r = deepcopy(rule)
         r.left = df_walk(eval_types_in_assertions, r.left; skip_call=true)
+        if r.mode == :dynamic && !haskey(rhs_funs, r)
+            rhs_funs[r] = genrhsfun(r, mod)
+        end
         r
     end
 
-    # init scheduler
+    # init the scheduler
     sched = scheduler(G, theory)
 
     while true
         # @info curr_iter
         curr_iter+=1
-        saturated, G = eqsat_step!(G, theory; scheduler=sched)
+        saturated, G = eqsat_step!(G, theory; scheduler=sched, rhs_funs=rhs_funs)
 
         cansaturate(sched) && saturated && (@info "E-GRAPH SATURATED"; break)
         curr_iter >= timeout && (@info "E-GRAPH TIMEOUT"; break)
