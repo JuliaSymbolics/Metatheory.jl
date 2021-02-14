@@ -1,7 +1,3 @@
-# Example
+# Metatheory.jl
 
-Example Julia package repo.
-
-```@autodocs
-Modules = [Metatheory]
-```
+Docs will appear here some time in the near future.
