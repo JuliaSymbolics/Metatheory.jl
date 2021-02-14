@@ -148,7 +148,33 @@ end
 
 ## Multiplicative Monoid
 
-mult_monoid = @commutative_monoid Int (*) 1 (*)
+# TODO consider autocompiling from src/Library. This is very ugly.
+
+macro red_commutative_monoid(t, op, id, func)
+	zop = Meta.quot(op)
+   quote
+	   @theory begin
+			($op)($id, a) => a
+			($op)(a, $id) => a
+			# closure
+			($op)(a::$t, b::$t) |> ($func)(a,b)
+			# associativity reductions implying commutativity
+			($op)(a::$t, ($op)(b::$t, c)) |>
+				(z = ($func)(a, b); Expr(:call, ($zop), z, c))
+
+			($op)(($op)(a::$t, c), b::$t) |>
+				(z = ($func)(a, b); Expr(:call, ($zop), z, c))
+
+			($op)(a::$t, ($op)(c, b::$t)) |>
+				(z = ($func)(a, b); Expr(:call, ($zop), z, c))
+
+			($op)(($op)(c, a::$t), b::$t) |>
+				(z = ($func)(a, b); Expr(:call, ($zop), z, c))
+	   end
+   end
+end
+
+mult_monoid = @red_commutative_monoid Int (*) 1 (*)
 
 @testset "Multiplication Monoid" begin
 	res_macro = @rewrite (3 * (1 * 2)) mult_monoid
@@ -162,13 +188,53 @@ mult_monoid = @commutative_monoid Int (*) 1 (*)
 	@test res_macro_3 == :(12a)
 end
 
-addition_group = @abelian_group Int (+) 0 (-) (+) ;
+# constructs a semantic theory about a an abelian group
+# The definition of a group does not require that a ⋅ b = b ⋅ a
+# for all elements a and b in G. If this additional condition holds,
+# then the operation is said to be commutative, and the group is called an abelian group.
+macro red_abelian_group(t, op, id, invop, func)
+	zop = Meta.quot(op)
+   quote
+	   @theory begin
+			# identity element
+			($op)($id, a) => a
+			($op)(a, $id) => a
+			# inversibility
+			($op)(a, ($invop)(a)) => $id
+			($op)(($invop)(a), a) => $id
+			# closure
+			($op)(a::$t, b::$t) |> ($func)(a,b)
+			# inverse
+			# associativity reductions
+			($op)(a::$t, ($op)(b::$t, c)) |> (z = ($func)(a, b); Expr(:call, ($zop), z, c))
+			($op)(($op)(a::$t, c), b::$t) |> (z = ($func)(a, b); Expr(:call, ($zop), z, c))
+			($op)(a::$t, ($op)(c, b::$t)) |> (z = ($func)(a, b); Expr(:call, ($zop), z, c))
+			($op)(($op)(c, a::$t), b::$t) |> (z = ($func)(a, b); Expr(:call, ($zop), z, c))
+	   end
+   end
+end
+
+addition_group = @red_abelian_group Int (+) 0 (-) (+) ;
 @testset "Addition Abelian Group" begin
 	zero = @rewrite ((x+y) +  -(x+y)) addition_group
 	@test zero == 0
 end
 
-distr = @distrib (*) (+)
+
+
+# distributivity of two operations
+# example: `@distrib (⋅) (⊕)`
+macro red_distrib(outop, inop)
+	@assert Base.isbinaryoperator(outop)
+	@assert Base.isbinaryoperator(inop)
+	quote
+		@theory begin
+			($outop)(a, ($inop)(b,c)) => ($inop)(($outop)(a,b),($outop)(a,c))
+			($outop)(($inop)(a,b), c) => ($inop)(($outop)(a,c),($outop)(b,c))
+		end
+	end
+end
+distr = @red_distrib (*) (+)
 Z = mult_monoid ∪ addition_group ∪ distr;
 @testset "Composing Theories, distributivity" begin
 	res_1 = @rewrite ((2 + (b + -b)) * 3) * (a + b) Z inner

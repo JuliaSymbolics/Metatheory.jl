@@ -1,5 +1,9 @@
 module Metatheory
 
+using RuntimeGeneratedFunctions
+RuntimeGeneratedFunctions.init(@__MODULE__)
+
+
 include("util.jl")
 include("rule.jl")
 include("theory.jl")
@@ -17,10 +21,6 @@ export @theory
 export Theory
 export Rule
 
-# theory generation macros
-export @commutative_monoid
-export @abelian_group
-export @distrib
 
 export rewrite
 export @rewrite

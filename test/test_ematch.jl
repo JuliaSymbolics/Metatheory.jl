@@ -27,11 +27,7 @@ end
 end
 
 
-comm_monoid = @theory begin
-    a * b => b * a
-    a * 1 => a
-    a * (b * c) => (a * b) * c
-end
+comm_monoid = @commutative_monoid (*) 1
 @testset "Basic Equalities - Commutative Monoid" begin
     @test true == (@areequal comm_monoid a*(c*(1*d)) c*(1*(d*a)) )
     @test true == (@areequal comm_monoid x*y y*x )
@@ -39,16 +35,8 @@ end
 end
 
 
-comm_group = @theory begin
-    a + 0 => a
-    a + b => b + a
-    a + inv(a) => 0 # inverse
-    a + (b + c) => (a + b) + c
-end
-distrib = @theory begin
-    a * (b + c) => (a * b) + (a * c)
-end
-t = comm_monoid ∪ comm_group ∪ distrib
+comm_group = @abelian_group (+) 0 inv
+t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+))
 @testset "Basic Equalities - Comm. Monoid, Abelian Group, Distributivity" begin
     @test true == (@areequal t (a * b) + (a * c) a*(b+c) )
     @test true == (@areequal t a*(c*(1*d)) c*(1*(d*a)) )

@@ -15,6 +15,7 @@ const rewrite_syms = [:(=>), :(⇒), :(⟹), :(⤇), :(⟾)]
 const dynamic_syms = [:(|>)]
 
 function Rule(e::Expr)
+    e = rmlines(e)
     mode = :undef
     if isexpr(e, :call)
         mode = e.args[1]

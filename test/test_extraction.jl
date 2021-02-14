@@ -1,10 +1,6 @@
 using MatchCore
 
-comm_monoid = @theory begin
-    a * b => b * a
-    a * 1 => a
-    a * (b * c) => (a * b) * c
-end
+comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin
 	a::Number * b::Number |> a * b
@@ -31,20 +27,12 @@ end
 
 
 @testset "Extraction 2" begin
-    comm_group = @theory begin
-        a + 0 => a
-        a + b => b + a
-        a + inv(a) => 0 # inverse
-        a + (b + c) => (a + b) + c
-    end
-    distrib = @theory begin
-        a * (b + c) => (a * b) + (a * c)
-        (a * b) + (a * c) => a * (b + c)
-    end
+	comm_group = @abelian_group (+) 0 inv
+
 	fold_add = @theory begin
 		a::Number + b::Number |> a + b
 	end
-    t = comm_monoid ∪ comm_group ∪ distrib ∪ fold_mul ∪ fold_add
+    t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ fold_mul ∪ fold_add
 
     # for i ∈ 1:20
     # sleep(0.3)
@@ -82,21 +70,10 @@ end
     @test extr == :(12 * (a * b))
 end
 
-comm_monoid = @theory begin
-    a * b => b * a
-    a * 1 => a
-    a * (b * c) => (a * b) * c
-end
-comm_group = @theory begin
-	a + 0 => a
-	a + b => b + a
-	a + inv(a) => 0 # inverse
-	a + (b + c) => (a + b) + c
-end
-distrib = @theory begin
-	a * (b + c) => (a * b) + (a * c)
-	(a * b) + (a * c) => a * (b + c)
-end
+comm_monoid = @commutative_monoid (*) 1
+
+comm_group = @abelian_group (+) 0 inv
+
 powers = @theory begin
 	a * a => a^2
 	a => a^1
@@ -114,7 +91,7 @@ fold_add = @theory begin
 end
 
 
-t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
+t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
 
 @testset "Complex Extraction" begin
 	G = EGraph(:(log(e) * log(e)))
