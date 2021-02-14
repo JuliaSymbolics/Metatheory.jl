@@ -4,6 +4,7 @@
 
 # Metatheory.jl
 
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://0x0f0f0f.github.io/Metatheory.jl/dev)
 ![CI](https://github.com/0x0f0f0f/Metatheory.jl/workflows/CI/badge.svg)
 [![codecov](https://codecov.io/gh/0x0f0f0f/Metatheory.jl/branch/master/graph/badge.svg?token=EWNYPD7ASX)](https://codecov.io/gh/0x0f0f0f/Metatheory.jl)
 
