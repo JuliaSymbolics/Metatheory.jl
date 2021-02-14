@@ -3,21 +3,20 @@
 using Base.Meta
 ## AST manipulation utility functions
 
-# Remove LineNumberNode from quoted blocks of code
+"Remove LineNumberNode from quoted blocks of code"
 rmlines(e::Expr) = Expr(e.head, filter(!isnothing, map(rmlines, e.args))...)
 rmlines(a) = a
 rmlines(x::LineNumberNode) = nothing
 
 # useful shortcuts for nested macros
+"Add a dollar expression"
 dollar(v) = Expr(:$, v)
+"Make a block expression from an array of exprs"
 block(vs...) = Expr(:block, vs...)
+"Add a & expression"
 amp(v) = Expr(:&, v)
 
-# meta shortcuts for readability
-# quot = Meta.quot
-# isexpr = Meta.isexpr
-
-
+"Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)"
 cleanast(ex) = rmlines(ex) |>
     x -> binarize!(x, :(+)) |>
     x -> binarize!(x, :(*))
