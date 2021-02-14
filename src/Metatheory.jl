@@ -14,6 +14,7 @@ include("EGraphs/EGraphs.jl")
 
 
 include("Library/Library.jl")
+export Library
 
 export @rule
 export @theory

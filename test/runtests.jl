@@ -1,4 +1,6 @@
 using Metatheory
+using Metatheory.Library
+
 using DataStructures
 using Test
 
