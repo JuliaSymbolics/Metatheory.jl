@@ -1,11 +1,11 @@
-"Definitions of various utility functions for metaprogramming"
+"""Definitions of various utility functions for metaprogramming"""
 module Util
 
 using Base.Meta
 ## AST manipulation utility functions
 
 # useful shortcuts for nested macros
-"Add a dollar expression"
+"""Add a dollar expression"""
 dollar(v) = Expr(:$, v)
 "Make a block expression from an array of exprs"
 block(vs...) = Expr(:block, vs...)

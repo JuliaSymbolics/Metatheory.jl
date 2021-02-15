@@ -1,0 +1,6 @@
+# Metatheory
+
+
+```@autodocs
+Modules = [Metatheory]
+```
