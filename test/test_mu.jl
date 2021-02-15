@@ -2,6 +2,8 @@
 #
 
 miu = @theory begin
+    # Composition of the string monoid is associative
+    x ⋅ (y ⋅ z) => (x ⋅ y) ⋅ z
     # Add a U to the end of any string ending in I
     x ⋅ :I =>  x ⋅ :I ⋅ :U
     # Double the string after the M

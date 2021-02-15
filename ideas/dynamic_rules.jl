@@ -15,6 +15,8 @@ end
 
 # filter(r -> r.mode == :dynamic, t)
 
+# generate an analysis from dynamic ruless
+
 abstract type Vehicle end
 drive(v::Vehicle) = println("driving")
 

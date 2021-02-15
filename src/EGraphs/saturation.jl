@@ -1,7 +1,6 @@
 const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
-using RuntimeGeneratedFunctions
-const RGF = RuntimeGeneratedFunctions
+using .Schedulers
 
 "Type representing a cache of [`RuntimeGeneratedFunctions`](@ref) corresponding
 to right hand sides of dynamic rules"
@@ -51,7 +50,7 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule};
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
 
-    readstep(scheduler)
+    readstep!(scheduler)
 
     for rule ∈ theory
         # don't apply banned rules
@@ -76,7 +75,7 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule};
 
     # @info "write phase"
     for (rule, sub, id) ∈ matches
-        writestep(scheduler, rule)
+        writestep!(scheduler, rule)
 
         if rule.mode == :rewrite # symbolic replacement
             l = instantiate(G,rule.left,sub; skip_assert=true)
@@ -85,7 +84,6 @@ function eqsat_step!(G::EGraph, theory::Vector{Rule};
         elseif rule.mode == :dynamic # execute the right hand!
             l = instantiate(G,rule.left,sub; skip_assert=true)
 
-            # TODO FIXME important: use a RGF!
             (params, f) = rhs_funs[rule]
             actual_params = params .|> x -> get_actual_param(x, sub)
             r = addexpr!(G, f(actual_params...))

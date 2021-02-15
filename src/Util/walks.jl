@@ -1,29 +1,6 @@
-## Utility functions
 
-using Base.Meta
-## AST manipulation utility functions
 
-"Remove LineNumberNode from quoted blocks of code"
-rmlines(e::Expr) = Expr(e.head, filter(!isnothing, map(rmlines, e.args))...)
-rmlines(a) = a
-rmlines(x::LineNumberNode) = nothing
-
-# useful shortcuts for nested macros
-"Add a dollar expression"
-dollar(v) = Expr(:$, v)
-"Make a block expression from an array of exprs"
-block(vs...) = Expr(:block, vs...)
-"Add a & expression"
-amp(v) = Expr(:&, v)
-
-"Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)"
-cleanast(ex) = rmlines(ex) |>
-    x -> binarize!(x, :(+)) |>
-    x -> binarize!(x, :(*))
-
-## Depth First Walk on expressions
-
-# mutates expression in-place !
+"Depth First Walk (Tree Postwalk) on expressions, mutates expression in-place."
 function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -39,7 +16,7 @@ function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     return f(e, f_args...)
 end
 
-# returns a new expression
+"Depth First Walk (Tree Postwalk) on expressions. Does not mutate expressions."
 function df_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -60,7 +37,7 @@ end
 
 ## Breadth First Walk on expressions
 
-# mutates expression in-place !
+"Breadth First Walk (Tree Prewalk) on expressions mutates expression in-place."
 function bf_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -78,7 +55,7 @@ function bf_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
 end
 
 
-# returns a new expression
+"Breadth First Walk (Tree Prewalk) on expressions. Does not mutate expressions."
 function bf_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -94,42 +71,4 @@ function bf_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     ne.args[start:end] = ne.args[start:end] .|> x ->
         bf_walk(f, x, f_args...; skip=skip, skip_call=skip_call)
     return ne
-end
-
-##
-
-## Iterate a function on a datum until a fixed point is reached where f(x) = x
-function normalize(f, datum, fargs...; callback=()->())
-    old = datum
-    new = f(old, fargs...)
-    while new != old
-        old = new
-        new = f(old, fargs...)
-        callback()
-    end
-    new
-end
-
-## Like above but keeps a vector of hashes
-# to detect cycles, returns expression on cycle
-function normalize_nocycle(f, datum, fargs...; callback=()->())
-    hist = UInt[]
-    push!(hist, hash(datum))
-    x = f(datum, fargs...)
-    while hash(x) ∉ hist
-        push!(hist, hash(x))
-        x = f(x, fargs...)
-        callback()
-    end
-    x
-end
-
-
-## HARD FIX of n-arity of the (*) and (+) operators in Expr trees
-function binarize!(e, op::Symbol)
-    f(e) = if (isexpr(e, :call) && e.args[1] == op && length(e.args) > 3)
-        foldl((x,y) -> Expr(:call, op, x, y), e.args[2:end])
-    else e end
-
-    df_walk!(f, e)
 end

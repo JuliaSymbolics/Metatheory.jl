@@ -1,12 +1,11 @@
 using Metatheory
 using Metatheory.Library
+using Metatheory.Util
 
 using DataStructures
 using Test
 
-include("../src/util.jl")
-
-Metatheory.init(@__MODULE__)
+@metatheory_init
 
 include("test_theories.jl")
 include("test_reductions.jl")

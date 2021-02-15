@@ -64,6 +64,10 @@ end
 # TODO ugly initialization hack?
 init(mod) = closure_generator(mod, :(x -> x))
 
+macro metatheory_init()
+    quote Metatheory.init($__module__) end
+end
+
 # Compile a theory to a closure that does the pattern matching job
 # RETURNS A RuntimeGeneratedFunction 🔥
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))

@@ -1,12 +1,13 @@
 # module EGraphs
 
+import ..Rule
+
 include("enode.jl")
 include("egg.jl")
 include("analysis.jl")
 include("ematch.jl")
-include("schedulers/abstractscheduler.jl")
-include("schedulers/simplescheduler.jl")
-include("schedulers/backoffscheduler.jl")
+include("Schedulers/Schedulers.jl")
+
 include("saturation.jl")
 include("equality.jl")
 
@@ -29,7 +30,5 @@ export make
 export join
 export modify!
 export astsize
-
-include("dynamic_rules.jl")
 
 # end

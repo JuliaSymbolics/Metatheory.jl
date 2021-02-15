@@ -42,7 +42,7 @@ end
 # can saturate if there's no banned rule
 cansaturate(s::BackoffScheduler) = all(kv -> !isbanned(last(kv)), s.data)
 
-function readstep(s::BackoffScheduler)
+function readstep!(s::BackoffScheduler)
     for rule ∈ s.theory
         rd = s.data[rule]
         if rd.banremaining > 0
@@ -58,7 +58,7 @@ function readstep(s::BackoffScheduler)
     end
 end
 
-function writestep(s::BackoffScheduler, rule::Rule)
+function writestep!(s::BackoffScheduler, rule::Rule)
     rd = s.data[rule]
 
     # decrement fuel, ban rule if fuel is empty

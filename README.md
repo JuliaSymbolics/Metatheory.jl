@@ -26,14 +26,18 @@ julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
 ## Examples
 
 Here are some of examples of the basic workflow of using Metatheory.jl. Theories are composable and reusable!
+Since Metatheory.jl relies on [RuntimeGeneratedFunctions.jl](https://github.com/SciML/RuntimeGeneratedFunctions.jl/), you have to call `@metatheory_init` in the module where you are going to use Metatheory.
+
+```julia
+using Metatheory
+
+@metatheory_init
 
 ### Basic Symbolic Mathematics
 The e-graphs backend can directly handle associativity,
 commutativity and distributivity, rules that are
 otherwise known of causing loops in symbolic computations.
 
-```julia
-using Metatheory
 
 comm_monoid = @theory begin
     a * b => b * a
