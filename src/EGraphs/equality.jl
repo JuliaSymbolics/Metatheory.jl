@@ -1,9 +1,12 @@
-function areequal(theory::Vector{Rule}, exprs...)
+function areequal(theory::Vector{Rule}, exprs...;
+    timeout=6, sizeout=2^12)
     G = EGraph(exprs[1])
-    areequal(G, theory, exprs...)
+    areequal(G, theory, exprs...;
+        timeout=timeout, sizeout=sizeout)
 end
 
-function areequal(G::EGraph, t::Vector{Rule}, exprs...)
+function areequal(G::EGraph, t::Vector{Rule}, exprs...;
+    timeout=6, sizeout=2^12)
     @info "Checking equality for " exprs
     if length(exprs) == 1; return true end
 
@@ -15,7 +18,7 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...)
 
     alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
 
-    @time saturate!(G, t; timeout=6, sizeout=2^12, stopwhen=alleq)
+    @time saturate!(G, t; timeout=timeout, sizeout=sizeout, stopwhen=alleq)
 
     alleq()
 end

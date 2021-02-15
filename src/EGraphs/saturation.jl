@@ -34,7 +34,6 @@ and the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
 side of a `:dynamic` [`Rule`](@ref).
 """
 function genrhsfun(rule::Rule, mod::Module)
-    (mod != @__MODULE__) && !isdefined(mod, RGF._tagname) && RGF.init(mod)
     # remove type assertions in left hand
     lhs = df_walk( x -> (isexpr(x, :ematch_tassert) ? x.args[1] : x), rule.left; skip_call=true )
 
@@ -44,7 +43,7 @@ function genrhsfun(rule::Rule, mod::Module)
     params = Expr(:tuple, lhs_vars...)
 
     ex = :($params -> $(rule.right))
-    (collect(lhs_vars), RuntimeGeneratedFunction(mod, mod, ex))
+    (collect(lhs_vars), closure_generator(mod, ex))
 end
 
 function eqsat_step!(G::EGraph, theory::Vector{Rule};

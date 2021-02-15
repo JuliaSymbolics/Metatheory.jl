@@ -117,6 +117,8 @@ t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids ∪ fold_mul �
 ```
 
 We can programmatically build and saturate an e-graph.
+`saturate!` is configurable, customizable parameters include
+a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the e-graph, a `stopwhen` functions that stops saturation when it evaluates to true,
 ```julia
 G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
 saturate!(G, t)

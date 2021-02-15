@@ -5,7 +5,6 @@ using MatchCore
 using RuntimeGeneratedFunctions
 const RGF = RuntimeGeneratedFunctions
 
-RGF.init(@__MODULE__)
 
 ## compile (quote) left and right hands of a rule
 # escape symbols to create MLStyle compatible patterns
@@ -56,10 +55,18 @@ identity_axiom = :($(quot(dollar(:i))) => i)
 # correct rule order and expansions for associativity and distributivity
 theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 
+# see https://github.com/SciML/RuntimeGeneratedFunctions.jl/issues/28
+function closure_generator(mod::Module, expr)
+    (mod != @__MODULE__) && !isdefined(mod, RGF._tagname) && RGF.init(mod)
+    RuntimeGeneratedFunction(mod, mod, expr)
+end
+
+# TODO ugly initialization hack?
+init(mod) = closure_generator(mod, :(x -> x))
+
 # Compile a theory to a closure that does the pattern matching job
 # RETURNS A RuntimeGeneratedFunction 🔥
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
-    (mod != @__MODULE__) && !isdefined(mod, RGF._tagname) && RGF.init(mod)
     # generate an unique parameter name
     # TODO needed? consider just calling it expr for access in right hand
     parameter = Meta.gensym(:reducing_expression)
@@ -69,7 +76,7 @@ function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumber
     matching = MatchCore.AbstractPatterns.init_cfg(matching)
 
     ex = :(($parameter) -> $matching)
-    RuntimeGeneratedFunction(mod, mod, ex)
+    closure_generator(mod, ex)
 end
 
 # Compile a theory at runtime to a closure that does the pattern matching job
