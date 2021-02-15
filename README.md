@@ -19,8 +19,6 @@ If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f
 
 ## Installation
 
-**NOTE**: Metatheory.jl requires a Julia version >= 1.6.0 [why?](https://github.com/0x0f0f0f/Metatheory.jl/issues/11)
-
 ```julia
 julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
 ```
@@ -122,8 +120,15 @@ We can programmatically build and saturate an e-graph.
 ```julia
 G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
 saturate!(G, t)
-ex = extract!(G, astsize)
+```
 
+Extraction can be formulated as an [e-graph analysis](https://dl.acm.org/doi/pdf/10.1145/3434304),
+or after saturation. A cost function can be provided.
+Metatheory.jl already provides some simple cost functions,
+such as `astsize`, which expresses preference for the smallest expressions.
+
+```julia
+ex = extract!(G, astsize)
 ex == :(5log(a))
 ```
 
