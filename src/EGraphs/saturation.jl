@@ -108,6 +108,7 @@ function saturate!(G::EGraph, theory::Vector{Rule};
     timeout=7, stopwhen=(()->false), sizeout=2^12,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
+    println(mod)
     curr_iter = 0
 
     # evaluate types in type assertions and generate the
@@ -115,7 +116,7 @@ function saturate!(G::EGraph, theory::Vector{Rule};
     rhs_funs = RhsFunCache()
     theory = map(theory) do rule
         r = deepcopy(rule)
-        r.left = df_walk(eval_types_in_assertions, r.left; skip_call=true)
+        r.left = df_walk(x -> eval_types_in_assertions(x, mod), r.left; skip_call=true)
         if r.mode == :dynamic && !haskey(rhs_funs, r)
             rhs_funs[r] = genrhsfun(r, mod)
         end
@@ -146,10 +147,10 @@ When creating a theory, type assertions in the left hand contain symbols.
 We want to replace the type symbols with the real type values, to fully support
 the subtyping mechanism during pattern matching.
 """
-function eval_types_in_assertions(x)
+function eval_types_in_assertions(x, mod::Module)
     if isexpr(x, :(::))
         !(x.args[1] isa Symbol) && error("Type assertion is not on metavariable")
-        Expr(:ematch_tassert, x.args[1], eval(x.args[2]))
+        Expr(:ematch_tassert, x.args[1], mod.eval(x.args[2]))
     else x
     end
 end
