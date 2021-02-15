@@ -12,7 +12,7 @@ RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 RuntimeGeneratedFunctions = "0.5.1"
 DataStructures = "0.18.9"
 MatchCore = "0.1.0"
-julia = "1.6"
+#julia = "1.6"
 
 [extras]
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
