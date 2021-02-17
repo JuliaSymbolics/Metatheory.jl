@@ -1,5 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
+MatchCore = "5dd3f0b1-72a9-48ad-ae6e-79f673da005f"
 Metatheory = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
