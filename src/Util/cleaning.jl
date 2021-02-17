@@ -11,11 +11,8 @@ function binarize!(e, op::Symbol)
 
     df_walk!(f, e)
 end
-export binarize
-
 
 "Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)"
 cleanast(ex) = rmlines(ex) |>
     x -> binarize!(x, :(+)) |>
     x -> binarize!(x, :(*))
-export cleanast
