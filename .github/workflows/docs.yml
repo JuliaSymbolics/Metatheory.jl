@@ -2,7 +2,7 @@ name: Docs
 on:
   pull_request:
     paths:
-      - "docs/"
+      - "docs/*"
     branches:
       - master
   push:
@@ -10,7 +10,7 @@ on:
       - master
     tags: '*'
     paths:
-      - "docs/"
+      - "docs/*"
 jobs:
   docs:
     name: Documentation
