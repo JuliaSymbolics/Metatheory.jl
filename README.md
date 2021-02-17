@@ -8,6 +8,7 @@
 ![CI](https://github.com/0x0f0f0f/Metatheory.jl/workflows/CI/badge.svg)
 [![codecov](https://codecov.io/gh/0x0f0f0f/Metatheory.jl/branch/master/graph/badge.svg?token=EWNYPD7ASX)](https://codecov.io/gh/0x0f0f0f/Metatheory.jl)
 [![arXiv](https://img.shields.io/badge/arXiv-2102.07888-b31b1b.svg)](https://arxiv.org/abs/2102.07888)
+[![Zulip](https://img.shields.io/badge/Chat-Zulip-blue)](https://julialang.zulipchat.com/#narrow/stream/277860-metatheory.2Ejl)
 
 **Metatheory.jl** is a general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics, abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced
 homoiconic pattern matching features.
