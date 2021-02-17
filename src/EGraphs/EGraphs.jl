@@ -1,15 +1,25 @@
-# module EGraphs
+module EGraphs
+
+using RuntimeGeneratedFunctions
+RuntimeGeneratedFunctions.init(@__MODULE__)
 
 import ..Rule
+using ..Util
 
 include("enode.jl")
+export isenode
+
 include("egg.jl")
 include("analysis.jl")
+
+
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
-
+include("theory_compiler.jl")
 include("saturation.jl")
 include("equality.jl")
+
+include("extraction.jl")
 
 export EClass
 export EGraph
@@ -23,12 +33,9 @@ export areequal
 export @areequal
 export @areequalg
 
-include("extraction.jl")
 export extract!
 export ExtractionAnalysis
-export make
-export join
-export modify!
+
 export astsize
 
-# end
+end

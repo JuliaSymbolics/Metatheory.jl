@@ -1,9 +1,6 @@
 # core mechanism of extending Taine Zhao's @thautwarm 's MatchCore pattern matching.
 
 using MatchCore
-#using GeneralizedGenerated
-using RuntimeGeneratedFunctions
-const RGF = RuntimeGeneratedFunctions
 
 
 ## compile (quote) left and right hands of a rule
@@ -48,28 +45,19 @@ function compile_rule(rule::Rule)::Expr
 end
 
 # catch-all for reductions
-identity_axiom = :($(quot(dollar(:i))) => i)
+const identity_axiom = :($(quot(dollar(:i))) => i)
 
 # TODO analyse theory before compiling. Identify associativity and commutativity
 # and other loop-creating problems. Generate a pattern matching block with the
 # correct rule order and expansions for associativity and distributivity
 theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
 
-# see https://github.com/SciML/RuntimeGeneratedFunctions.jl/issues/28
-function closure_generator(mod::Module, expr)
-    (mod != @__MODULE__) && !isdefined(mod, RGF._tagname) && RGF.init(mod)
-    RuntimeGeneratedFunction(mod, mod, expr)
-end
 
-# TODO ugly initialization hack?
-init(mod) = closure_generator(mod, :(x -> x))
-
-macro metatheory_init()
-    quote Metatheory.init($__module__) end
-end
-
-# Compile a theory to a closure that does the pattern matching job
-# RETURNS A RuntimeGeneratedFunction 🔥
+"""
+Compile a theory to a closure that does the pattern matching job
+Returns a RuntimeGeneratedFunction, which does not use eval and
+is as fast as a regular Julia anonymous function 🔥
+"""
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
     # generate an unique parameter name
     # TODO needed? consider just calling it expr for access in right hand
@@ -83,7 +71,25 @@ function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumber
     closure_generator(mod, ex)
 end
 
-# Compile a theory at runtime to a closure that does the pattern matching job
+"""
+Compile a theory at runtime to a closure that does the pattern matching job
+"""
 macro compile_theory(theory)
     gettheory(theory, __module__)
+end
+
+# Retrieve a theory from a module at compile time. Not exported
+function gettheory(var, mod; compile=true)
+	t = nothing
+    if Meta.isexpr(var, :block) # @matcher begine rules... end
+		t = rmlines(var).args .|> Rule
+	else
+		t = mod.eval(var)
+	end
+
+	if compile && !(t isa Function)
+		t = compile_theory(t, mod)
+	end
+
+	return t
 end

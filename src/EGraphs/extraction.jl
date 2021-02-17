@@ -1,7 +1,5 @@
 # example assuming * operation is always binary
 
-# ENV["JULIA_DEBUG"] = Metatheory
-
 struct ExtractionAnalysis <: AbstractAnalysis
         costfun::Function
 end

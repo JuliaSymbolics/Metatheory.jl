@@ -6,7 +6,7 @@ using MatchCore
 
 struct NumberFold <: AbstractAnalysis end
 
-function Metatheory.make(analysis::NumberFold, G::EGraph, n)
+function EGraphs.make(analysis::NumberFold, G::EGraph, n)
     data = G.analyses[analysis]
     n isa Number && return n
 
@@ -32,7 +32,7 @@ function Metatheory.make(analysis::NumberFold, G::EGraph, n)
     return nothing
 end
 
-function Metatheory.join(analysis::NumberFold, G::EGraph, from, to)
+function EGraphs.join(analysis::NumberFold, G::EGraph, from, to)
     if from isa Number
         if to isa Number
             @assert from == to
@@ -42,11 +42,11 @@ function Metatheory.join(analysis::NumberFold, G::EGraph, from, to)
     return to
 end
 
-function Metatheory.modify!(analysis::NumberFold, G::EGraph, id::Int64)
+function EGraphs.modify!(analysis::NumberFold, G::EGraph, id::Int64)
     data = G.analyses[analysis]
     if data[id] isa Number
         # println("adding ", data[id])
-        newclass = Metatheory.add!(G, data[id])
+        newclass = EGraphs.add!(G, data[id])
         merge!(G, newclass.id, id)
     end
 end

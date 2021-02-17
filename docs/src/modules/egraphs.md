@@ -1,4 +1,4 @@
-# Metatheory.Util
+# Metatheory.EGraphs
 
 ```@meta
 CurrentModule = Metatheory
@@ -9,5 +9,5 @@ end
 
 
 ```@autodocs
-Modules = [Util]
+Modules = [EGraphs]
 ```

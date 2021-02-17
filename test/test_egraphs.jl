@@ -2,11 +2,11 @@
 # ENV["JULIA_DEBUG"] = Metatheory
 
 @testset "e-node validation" begin
-    @test Metatheory.isenode(2) == true
-    @test Metatheory.isenode( :(2 + 3)  ) == false
-    @test Metatheory.isenode( EClass(2) ) == false
-    @test Metatheory.isenode( Expr(:call, :foo, EClass(2)) ) == true
-    @test Metatheory.isenode( Expr(:call, :foo, 3, EClass(2)) ) == false
+    @test EGraphs.isenode(2) == true
+    @test EGraphs.isenode( :(2 + 3)  ) == false
+    @test EGraphs.isenode( EClass(2) ) == false
+    @test EGraphs.isenode( Expr(:call, :foo, EClass(2)) ) == true
+    @test EGraphs.isenode( Expr(:call, :foo, 3, EClass(2)) ) == false
 end
 
 ## SPAZZATURA
@@ -77,7 +77,7 @@ end
     t6 = addexpr!(G, apply(1, f, :a))
     c5_id = merge!(G, t5.id, 1) # a == apply(11,f,a)
 
-    Metatheory.rebuild!(G)
+    rebuild!(G)
 
     @test in_same_set(G.U, t5.id, 1) == true
     @test in_same_set(G.U, t6.id, 1) == true

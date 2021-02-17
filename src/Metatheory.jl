@@ -7,9 +7,12 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Util/Util.jl")
 using .Util
+
+println(Util)
 export Util
 
 
+include("rgf.jl")
 include("rule.jl")
 include("theory.jl")
 include("matchcore_compiler.jl")

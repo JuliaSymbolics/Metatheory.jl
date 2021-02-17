@@ -24,6 +24,8 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...;
     alleq()
 end
 
+import ..gettheory
+
 macro areequal(theory, exprs...)
     t = gettheory(theory, __module__; compile=false)
     areequal(t, exprs...; mod=__module__)

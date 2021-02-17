@@ -1,4 +1,5 @@
 using DataStructures
+using Base.Meta
 
 struct EClass
     id::Int64
