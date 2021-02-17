@@ -7,3 +7,5 @@
 
 **Metatheory.jl** is a general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics, abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced
 homoiconic pattern matching features.
+
+Read the [preprint on arXiv](https://arxiv.org/abs/2102.07888).
