@@ -1,5 +1,6 @@
-## Rules
-
+"""
+Structure representing rewrite rules.
+"""
 mutable struct Rule
     left::Any
     right::Any
@@ -8,7 +9,7 @@ mutable struct Rule
 end
 
 # operator symbols for simple term rewriting
-const rewrite_syms = [:(=>), :(⇒), :(⟹), :(⤇), :(⟾)]
+const rewrite_syms = [:(=>)]
 # operator symbols for regular pattern matching rules, "dynamic rules"
 # that eval the right side at reduction time.
 # might be used to implement big step semantics

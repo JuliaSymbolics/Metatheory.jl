@@ -19,6 +19,7 @@ include("matchcore_compiler.jl")
 include("rewrite.jl")
 include("match.jl")
 include("EGraphs/EGraphs.jl")
+export EGraphs
 
 export @metatheory_init
 

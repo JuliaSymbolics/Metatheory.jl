@@ -1,4 +1,6 @@
-using Documenter, Metatheory
+using Documenter
+
+include("../src/Metatheory.jl")
 
 makedocs(modules = [Metatheory], sitename = "Metatheory.jl")
 
