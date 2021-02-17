@@ -1,5 +1,5 @@
 <p align="center">
-<img width="400px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/docs/dragon.jpg"/>
+<img width="400px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/docs/src/assets/dragon.jpg"/>
 </p>
 
 # Metatheory.jl
