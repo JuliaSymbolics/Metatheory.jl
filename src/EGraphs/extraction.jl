@@ -1,55 +1,62 @@
-# example assuming * operation is always binary
-
-struct ExtractionAnalysis <: AbstractAnalysis
-        costfun::Function
-end
-
-# can additionally weigh the function symbol
+"""
+A basic cost function, where the computed cost is the size
+(number of children) of the current expression.
+"""
 astsize(n) = 1
 astsize(n::Expr) = 1 + length(n.args) - (Meta.isexpr(n, :call) ? 1 : 0)
 
-make(a::ExtractionAnalysis, G::EGraph, n) = (n, a.costfun(n))
+const CostData = Dict{Int64, Tuple{Any, Number}}
 
-function make(analysis::ExtractionAnalysis, G::EGraph, n::Expr)
-    data = G.analyses[analysis]
+struct ExtractionAnalysis <: AbstractAnalysis
+    egraph::EGraph
+    costfun::Function
+    data::CostData
+end
 
+ExtractionAnalysis(g::EGraph, costfun::Function) =
+    ExtractionAnalysis(g, costfun, CostData())
+
+make(a::ExtractionAnalysis, n) = (n, a.costfun(n))
+
+function make(an::ExtractionAnalysis, n::Expr)
     start = Meta.isexpr(n, :call) ? 2 : 1
-    ncost = analysis.costfun(n)
+    ncost = an.costfun(n)
 
-    for cn ∈ n.args[start:end]
-        if haskey(data, cn.id) && data[cn.id] != nothing
-            ncost += last(data[cn.id])
+    for child_eclass ∈ n.args[start:end]
+        if haskey(an, child_eclass) && an[child_eclass] != nothing
+            ncost += last(an[child_eclass])
         end
     end
 
     return (n, ncost)
 end
 
-function join(analysis::ExtractionAnalysis, G::EGraph, from, to)
+function join(analysis::ExtractionAnalysis, from, to)
     last(from) <= last(to) ? from : to
 end
 
-modify!(analysis::ExtractionAnalysis, G::EGraph, id::Int64) = nothing
+modify!(analysis::ExtractionAnalysis, id::Int64) = nothing
 
-function rec_extract(G::EGraph, data, id::Int64)
-    # println(data[id])
-    (cn, ck) = data[id]
+Base.setindex!(an::ExtractionAnalysis, value, id::Int64) =
+    setindex!(an.data, value, id)
+Base.getindex(an::ExtractionAnalysis, id::Int64) = an.data[id]
+Base.haskey(an::ExtractionAnalysis, id::Int64) = haskey(an.data, id)
+Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
+
+
+function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
+    println(an[id])
+    (cn, ck) = an[id]
     !(cn isa Expr) && return cn
 
     expr = copy(cn)
     start = Meta.isexpr(cn, :call) ? 2 : 1
     expr.args[start:end] = map(expr.args[start:end]) do a
-        rec_extract(G, data, a.id)
+        rec_extract(G, an, a.id)
     end
     return expr
 end
 
 extract!(G::EGraph, extran::ExtractionAnalysis) = begin
-    rec_extract(G, G.analyses[extran], G.root)
-end
-
-extract!(G::EGraph, costfun::Function) = begin
-    extran = ExtractionAnalysis(costfun)
-    addanalysis!(G, extran)
-    rec_extract(G, G.analyses[extran], G.root)
+    rec_extract(G, extran, G.root)
 end

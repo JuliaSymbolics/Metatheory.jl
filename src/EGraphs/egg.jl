@@ -3,6 +3,9 @@
 
 using DataStructures
 
+"""
+TODO document abstract analysis.
+"""
 abstract type AbstractAnalysis end
 
 const ClassMem = Dict{Int64,Vector{Any}}
@@ -10,7 +13,7 @@ const HashCons = Dict{Any,Int64}
 const Parent = Tuple{Any,Int64} # parent enodes and eclasses
 const ParentMem = Dict{Int64,Vector{Parent}}
 const AnalysisData = Dict{Int64,Any}
-const Analyses = Dict{AbstractAnalysis,AnalysisData}
+const Analyses = Vector{AbstractAnalysis}
 
 mutable struct EGraph
     U::IntDisjointSets      # equality relation over e-class ids
@@ -37,19 +40,6 @@ function EGraph(e)
     rootclass = addexpr!(G, e)
     G.root = rootclass.id
     G
-end
-
-
-function EGraph(e, analyses::Vector{<:AbstractAnalysis})
-    G = EGraph()
-    for i ∈ analyses
-        G.analyses[i] = Dict{Int64,Any}()
-    end
-
-    rootclass = addexpr!(G, e)
-    G.root = rootclass.id
-
-    return G
 end
 
 function addparent!(G::EGraph, a::Int64, parent::Parent)
@@ -79,9 +69,10 @@ function add!(G::EGraph, n)::EClass
     G.M[id] = [n]
 
     # make analyses for new enode
-    for (analysis, data) ∈ G.analyses
-        data[id] = make(analysis, G, n)
-        modify!(analysis, G, id)
+    for analysis ∈ G.analyses
+        #data[id] = make(analysis, G, n)
+        analysis[id] = make(analysis, n)
+        modify!(analysis, id)
     end
 
     return EClass(id)
@@ -136,10 +127,11 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     delete!(G.M, from)
     delete!(G.H, from)
     mergeparents!(G, from, to)
-    for (analysis, data) ∈ G.analyses
-        if haskey(data, from) && haskey(data, to)
-            data[to] = join(analysis, G, data[from], data[to])
-            delete!(data, from)
+    for analysis ∈ G.analyses
+        if haskey(analysis, from) && haskey(analysis, to)
+            #data[to] = join(analysis, G, data[from], data[to])
+            analysis[to] = join(analysis, analysis[from], analysis[to])
+            delete!(analysis, from)
         end
     end
 
@@ -192,20 +184,15 @@ function repair!(G::EGraph, id::Int64)
 
 
     # Analysis invariant maintenance
-    for (analysis, data) ∈ G.analyses
-        haskey(data, id) && modify!(analysis, G, id)
+    for an ∈ G.analyses
+        haskey(an, id) && modify!(an, id)
 
         id = find(G, id)
         for (p_enode, p_eclass) ∈ G.parents[id]
-            if haskey(data, p_eclass)
-                new_data = join(
-                    analysis,
-                    G,
-                    data[p_eclass],
-                    make(analysis, G, p_enode),
-                )
-                if new_data != data[p_eclass]
-                    data[p_eclass] = new_data
+            if haskey(an, p_eclass)
+                new_data = join(an, an[p_eclass], make(an, p_enode))
+                if new_data != an[p_eclass]
+                    an[p_eclass] = new_data
                     push!(G.dirty, p_eclass)
                 end
             end

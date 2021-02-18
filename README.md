@@ -51,6 +51,8 @@ using Metatheory.EGraphs
 ```
 
 ### Basic Symbolic Mathematics
+
+#### Theories and Algebraic Structures
 The e-graphs backend can directly handle associativity,
 commutativity and distributivity, rules that are
 otherwise known of causing loops in symbolic computations.
@@ -63,7 +65,10 @@ comm_monoid = @theory begin
 end
 ```
 
-The Metatheory library contains utility functions for creating
+#### The Metatheory Library
+
+
+The `Metatheory.Library` module contains utility functions and macros for creating
 rules and theories from commonly used algebraic structures and
 properties. This is equivalent to the previous theory definition.
 ```julia
@@ -74,10 +79,15 @@ comm_monoid = commutative_monoid(:(*), 1)
 comm_monoid = @commutative_monoid (*) 1
 ```
 
-Theories are just collections, precisely vectors of rules, and can
-be composed as regular julia collections. The most
+#### Theories are Collections and Composable
+
+Theories are just collections, precisely *vectors of the `Rule` object*, and can
+be composed as regular Julia collections. The most
 useful way of composing theories is unioning
 them with the '∪' operator.
+You are not limited to composing theories, you can
+manipulate and create them at both runtime and compile time
+as regular vectors.
 
 ```julia
 comm_group = @theory begin
@@ -92,7 +102,9 @@ end
 t = comm_monoid ∪ comm_group ∪ distrib
 ```
 
-With the e-graph backend, Metatheory.jl can prove simple equalities
+#### E-Graphs and Equality Saturation.
+
+With the e-graph equality saturation backend, Metatheory.jl can prove simple equalities
 very efficiently. The `@areequal` macro takes a theory and some
 expressions and returns true iff the expressions are equal
 according to the theory. The following example returns true.
@@ -100,8 +112,18 @@ according to the theory. The following example returns true.
 @areequal t (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))
 ```
 
-We can use type assertions and dynamic rules, defined with the `|>`
-operator, to dynamically compute values in the right hand of expressions
+#### Type Assertions and Dynamic Rules
+
+You can use type assertions in the left hand of rules
+to match and access literal values both when using
+classic rewriting and EGraph based rewriting.
+
+You can also use dynamic rules, defined with the `|>`
+operator, to dynamically compute values in the right hand of expressions.
+Dynamic rules, are similar to anonymous functions. Instead of a symbolic
+substitution, the right hand of a dynamic `|>` rule is evaluated during
+rewriting: the values that produced a match are bound to the pattern variables.
+
 ```julia
 fold_mul = @theory begin
     a::Number * b::Number |> a*b
@@ -137,13 +159,17 @@ end
 t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
 ```
 
+#### E-Graphs and Equality Saturation in Detail
+
 We can programmatically build and saturate an e-graph.
 `saturate!` is configurable, customizable parameters include
-a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the e-graph, a `stopwhen` functions that stops saturation when it evaluates to true,
+a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the e-graph, a `stopwhen` functions that stops saturation when it evaluates to true.
 ```julia
 G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
 saturate!(G, t)
 ```
+
+#### Extracting from an E-Graph
 
 Extraction can be formulated as an [e-graph analysis](https://dl.acm.org/doi/pdf/10.1145/3434304),
 or after saturation. A cost function can be provided.
@@ -151,14 +177,15 @@ Metatheory.jl already provides some simple cost functions,
 such as `astsize`, which expresses preference for the smallest expressions.
 
 ```julia
-ex = extract!(G, astsize)
-ex == :(5log(a))
+extractor = addanalysis!(G, ExtractionAnalysis, astsize)
+ex = extract!(G, extractor)
+ex == :(log(a) * 5)
 ```
 
 ### A Tiny Imperative Programming Language Interpreter
 
-This example does not use the e-graphs backend. A recursive
-algorithm is sufficient for interpreting expressions.
+This example **does not** use the e-graphs backend. A recursive
+algorithm is sufficient for interpreting expressions!
 Note how we are representing semantics for a different programming language
 by reusing the Julia AST data structure, and therefore efficiently reusing
 the Julia parser for our new toy language.

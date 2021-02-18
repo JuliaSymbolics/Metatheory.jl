@@ -31,7 +31,7 @@ function BackoffScheduler(G::EGraph, theory::Vector{Rule})
     gsize = length(G.U)
     data = Dict{Rule, BackoffSchedulerEntry}()
 
-    # TODO check what numbers fit
+    # These numbers seem to fit
     for rule ∈ theory
         data[rule] = BackoffSchedulerEntry(gsize, gsize, 2, 0)
     end

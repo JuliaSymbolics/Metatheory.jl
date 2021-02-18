@@ -11,6 +11,8 @@
 # what was the value of a matched literal
 const Sub = Base.ImmutableDict{Any, Tuple{EClass, Any}}
 
+# https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
+# page 48
 function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)::Vector{Sub}
     # Channel(;spawn=true) do c
     # Channel() do c
@@ -60,9 +62,6 @@ end
 
 
 function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub)::Vector{Sub}
-    # Channel(;spawn=true) do c
-    # Channel() do c
-
     c = Vector{Sub}()
 
     for n in e.M[find(e,v)]

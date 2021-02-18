@@ -10,6 +10,15 @@ include("enode.jl")
 export isenode
 
 include("egg.jl")
+export find
+export EClass
+export EGraph
+export AbstractAnalysis
+export merge!
+export addexpr!
+export addanalysis!
+export rebuild!
+
 include("analysis.jl")
 
 
@@ -21,13 +30,7 @@ include("equality.jl")
 
 include("extraction.jl")
 
-export EClass
-export EGraph
-export AbstractAnalysis
-export merge!
-export addexpr!
-export addanalysis!
-export rebuild!
+
 export saturate!
 export areequal
 export @areequal
