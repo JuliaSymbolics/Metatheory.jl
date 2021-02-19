@@ -4,6 +4,8 @@
 
 # TODO THIS WORKS CORRECTLY ONLY IN E-GRAPHS
 
+include("../docstrings.jl")
+
 module Library
 
 include("algebra.jl")

@@ -1,6 +1,6 @@
-
-
-"Depth First Walk (Tree Postwalk) on expressions, mutates expression in-place."
+"""
+Depth First Walk (Tree Postwalk) on expressions, mutates expression in-place.
+"""
 function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -16,7 +16,9 @@ function df_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     return f(e, f_args...)
 end
 
-"Depth First Walk (Tree Postwalk) on expressions. Does not mutate expressions."
+"""
+Depth First Walk (Tree Postwalk) on expressions. Does not mutate expressions.
+"""
 function df_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -37,7 +39,9 @@ end
 
 ## Breadth First Walk on expressions
 
-"Breadth First Walk (Tree Prewalk) on expressions mutates expression in-place."
+"""
+Breadth First Walk (Tree Prewalk) on expressions mutates expression in-place.
+"""
 function bf_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
@@ -55,7 +59,9 @@ function bf_walk!(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
 end
 
 
-"Breadth First Walk (Tree Prewalk) on expressions. Does not mutate expressions."
+"""
+Breadth First Walk (Tree Prewalk) on expressions. Does not mutate expressions.
+"""
 function bf_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)

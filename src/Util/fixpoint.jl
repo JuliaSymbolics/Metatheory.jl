@@ -1,5 +1,6 @@
-
-"Iterates a function `f` on `datum` until a fixed point is reached where `f(x) == x`"
+"""
+Iterates a function `f` on `datum` until a fixed point is reached where `f(x) == x`
+"""
 function normalize(f, datum, fargs...; callback=()->())
     old = datum
     new = f(old, fargs...)

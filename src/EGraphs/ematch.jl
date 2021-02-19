@@ -13,9 +13,16 @@ const Sub = Base.ImmutableDict{Any, Tuple{EClass, Any}}
 
 # https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
 # page 48
+"""
+From [https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf](https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf)
+The iterator `ematchlist` matches a list of terms `t` to a list of E-nodes by first finding
+all substitutions that match the first term to the first E-node, and then extending
+each such substitution in all possible ways that match the remaining terms to
+the remaining E-nodes. The base case of this recursion is the empty list, which
+requires no extension to the substitution; the other case relies on Match to find the
+substitutions that match the first term to the first E-node.
+"""
 function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)::Vector{Sub}
-    # Channel(;spawn=true) do c
-    # Channel() do c
     c = Vector{Sub}()
 
     if length(t) != length(v) || length(t) == 0 || length(v) == 0
@@ -28,7 +35,6 @@ function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)::Vect
         end
     end
     return c
-    # end
 end
 
 # sub should be a map from pattern variables to Id

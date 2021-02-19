@@ -1,6 +1,8 @@
 """Definitions of various utility functions for metaprogramming"""
 module Util
 
+include("../docstrings.jl")
+
 using Base.Meta
 ## AST manipulation utility functions
 

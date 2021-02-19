@@ -4,7 +4,6 @@
 using DataStructures
 
 """
-TODO document abstract analysis.
 """
 abstract type AbstractAnalysis end
 
@@ -15,8 +14,11 @@ const ParentMem = Dict{Int64,Vector{Parent}}
 const AnalysisData = Dict{Int64,Any}
 const Analyses = Vector{AbstractAnalysis}
 
+"""
+"""
 mutable struct EGraph
-    U::IntDisjointSets      # equality relation over e-class ids
+    """equality relation over e-class ids"""
+    U::IntDisjointSets
     M::ClassMem             # id => sets of e-nodes
     H::HashCons             # hashcons
     parents::ParentMem

@@ -15,6 +15,10 @@ astsize_inv(n::Expr) = -1 * astsize(n)
 
 const CostData = Dict{Int64, Tuple{Any, Number}}
 
+"""
+An [`AbstractAnalysis`](@ref) that computes the cost of expression nodes
+and chooses the node with the smallest cost for each E-Class.
+"""
 struct ExtractionAnalysis <: AbstractAnalysis
     egraph::EGraph
     costfun::Function
@@ -64,6 +68,10 @@ function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     return expr
 end
 
+"""
+Given an [`ExtractionAnalysis`](@ref), extract the expression
+with the smallest computed cost from an [`EGraph`](@ref)
+"""
 extract!(G::EGraph, extran::ExtractionAnalysis) = begin
     rec_extract(G, extran, G.root)
 end

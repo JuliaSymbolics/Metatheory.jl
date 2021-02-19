@@ -3,6 +3,8 @@ module Metatheory
 using RuntimeGeneratedFunctions
 using Base.Meta
 
+include("docstrings.jl")
+
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("Util/Util.jl")

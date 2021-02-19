@@ -5,8 +5,9 @@ struct EClass
     id::Int64
 end
 
-# check if an expr is an enode ⟺
-# all args are e-classes
+"""
+Check if an expr is an enode ⟺ all args are e-classes
+"""
 function isenode(e::Expr)
     start = isexpr(e, :call) ? 2 : 1
     return all(x -> x isa EClass, e.args[start:end])

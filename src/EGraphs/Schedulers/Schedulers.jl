@@ -1,5 +1,7 @@
 module Schedulers
 
+include("../../docstrings.jl")
+
 import ..Rule
 import ..EGraph
 

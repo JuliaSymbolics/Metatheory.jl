@@ -5,14 +5,15 @@ version = "0.1.1"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 MatchCore = "5dd3f0b1-72a9-48ad-ae6e-79f673da005f"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 
 [compat]
-julia = "1"
 DataStructures = "0.18.9"
 MatchCore = "0.1.0"
 RuntimeGeneratedFunctions = "0.5.1"
+julia = "1"
 
 [extras]
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
