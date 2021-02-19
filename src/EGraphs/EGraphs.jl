@@ -30,7 +30,6 @@ include("equality.jl")
 
 include("extraction.jl")
 
-
 export saturate!
 export areequal
 export @areequal
@@ -40,5 +39,6 @@ export extract!
 export ExtractionAnalysis
 
 export astsize
+export astsize_inv
 
 end

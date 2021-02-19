@@ -5,6 +5,14 @@ A basic cost function, where the computed cost is the size
 astsize(n) = 1
 astsize(n::Expr) = 1 + length(n.args) - (Meta.isexpr(n, :call) ? 1 : 0)
 
+"""
+A basic cost function, where the computed cost is the size
+(number of children) of the current expression, times -1.
+Strives to get the largest expression
+"""
+astsize_inv(n) = -astsize(n)
+astsize_inv(n::Expr) = -1 * astsize(n)
+
 const CostData = Dict{Int64, Tuple{Any, Number}}
 
 struct ExtractionAnalysis <: AbstractAnalysis
