@@ -24,8 +24,7 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...)
         end
     end
 
-
-
+    # FIXME bug! It fails when the e-graph is already saturated!!
     for (id, class) ∈ G.M
         id = find(G, id)
         if !haskey(analysis, id)

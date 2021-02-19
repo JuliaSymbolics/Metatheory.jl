@@ -15,7 +15,7 @@ function genrhsfun(rule::Rule, mod::Module)
     # collect variable symbols in left hand
     lhs_vars = Set{Symbol}()
     df_walk( x -> (if x isa Symbol; push!(lhs_vars, x); end; x), rule.left; skip_call=true )
-    params = Expr(:tuple, lhs_vars...)
+    params = Expr(:tuple, :_egraph, lhs_vars...)
 
     ex = :($params -> $(rule.right))
     (collect(lhs_vars), closure_generator(mod, ex))

@@ -38,6 +38,8 @@ If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f
 julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
 ```
 
+## Please note that Metatheory.jl is in an experimental stage and THINGS ARE GOING TO CHANGE, A LOT
+
 ## Examples
 
 Here are some of examples of the basic workflow of using Metatheory.jl. Theories are composable and reusable!
@@ -102,10 +104,39 @@ end
 t = comm_monoid ∪ comm_group ∪ distrib
 ```
 
-#### E-Graphs and Equality Saturation.
+#### EGraphs
 
-With the e-graph equality saturation backend, Metatheory.jl can prove simple equalities
-very efficiently. The `@areequal` macro takes a theory and some
+An EGraph is an efficient data structure for representing congruence relations.
+Over the past decade, several projects have repurposed EGraphs to implement state-of-the-art, rewrite-driven compiler optimizations and program synthesizers using a technique known as equality saturation.
+Metatheory.jl provides a general purpose, customizable implementation of EGraphs and equality saturation, inspired from the [egg](https://egraphs-good.github.io/) library for Rust. You can read more about the design
+of the EGraph data structure and equality saturation algorithm in the
+[egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304).
+
+#### What can I do with EGraphs in Metatheory.jl?
+
+Most importantly, the EGraph backend for Metatheory.jl allows
+you to create an EGraph from a starting expression, to add more expressions to the EGraph with `addexpr!`, and then to effectively fill the EGraph with all possible equivalent expressions resulting from applying rewrite rules from a theory, by using the `saturate!` function. You can then easily
+extract expressions with a cost function and an `ExtractionAnalysis`.
+
+A killer feature of [egg](https://egraphs-good.github.io/) and Metatheory.jl
+are **EGraph Analyses**. They allow you to annotate expressions and equivalence classes in an EGraph with values from a semilattice domain, and then to:
+* Extract expressions from an EGraph basing from analysis data.
+* Have conditional rules that are executed if some criteria is met on analysis data
+* Have dynamic rules that compute the right hand side based on analysis data.
+
+#### Equality Saturation
+
+We can programmatically build and saturate an EGraph.
+The function `saturate!` takes an `EGraph` and a theory, and executes
+equality saturation. `saturate!` returns two values. The first returned value is boolean
+`saturate!` is configurable, customizable parameters include
+a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the EGraph, a `stopwhen` functions that stops saturation when it evaluates to true.
+```julia
+G = EGraph(:((a * b) * (1 * (b + c))))
+saturated, G = saturate!(G, t)
+```
+
+With the EGraph equality saturation backend, Metatheory.jl can prove simple equalities very efficiently. The `@areequal` macro takes a theory and some
 expressions and returns true iff the expressions are equal
 according to the theory. The following example returns true.
 ```julia
@@ -118,7 +149,7 @@ You can use type assertions in the left hand of rules
 to match and access literal values both when using
 classic rewriting and EGraph based rewriting.
 
-You can also use dynamic rules, defined with the `|>`
+You can also use **dynamic rules**, defined with the `|>`
 operator, to dynamically compute values in the right hand of expressions.
 Dynamic rules, are similar to anonymous functions. Instead of a symbolic
 substitution, the right hand of a dynamic `|>` rule is evaluated during
@@ -159,28 +190,59 @@ end
 t = comm_monoid ∪ comm_group ∪ distrib ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
 ```
 
-#### E-Graphs and Equality Saturation in Detail
-
-We can programmatically build and saturate an e-graph.
-`saturate!` is configurable, customizable parameters include
-a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the e-graph, a `stopwhen` functions that stops saturation when it evaluates to true.
-```julia
-G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
-saturate!(G, t)
-```
 
 #### Extracting from an E-Graph
 
-Extraction can be formulated as an [e-graph analysis](https://dl.acm.org/doi/pdf/10.1145/3434304),
+Extraction can be formulated as an [EGraph analysis](https://dl.acm.org/doi/pdf/10.1145/3434304),
 or after saturation. A cost function can be provided.
 Metatheory.jl already provides some simple cost functions,
 such as `astsize`, which expresses preference for the smallest expressions.
 
 ```julia
+G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
+saturate!(G, t)
 extractor = addanalysis!(G, ExtractionAnalysis, astsize)
 ex = extract!(G, extractor)
 ex == :(log(a) * 5)
 ```
+
+### Classical Rewriting
+
+There are some use cases where EGraphs and equality saturation are not
+required. The **classical rewriting backend** is suited for **simple tasks**
+when
+computing the whole equivalence class is overkill. Metatheory.jl is meant for
+composability: you can always compose and interleave rewriting steps that use
+the classical rewriting backend or the more advanced EGraph backend.
+For example, let's simplify an expression in the `comm_monoid` theory we
+defined earlier, by using the EGraph backend. After simplification,
+we may want to move all the `σ` symbols to the right of multiplications,
+we can do this simple task with a *classical rewriting* step, by using
+the `rewrite` function.
+
+##### Step 1: Simplification with EGraphs
+```julia
+start_expr = :( (a * (1 * (2σ)) * (b * σ + (c * 1)) ) )
+g = EGraph(start_expr);
+extractor = addanalysis!(g, ExtractionAnalysis, astsize)
+saturate!(g, comm_monoid);
+simplified = extract!(g, extractor)
+```
+
+`simplified` will be `:(a * (σ * 2) * (σ * b + c))`
+
+##### Step 2: Moving σ to the right
+```julia
+moveright = @theory begin
+	:σ * a 				=> a*:σ
+	(a * :σ) * b 	=> (a * b) * :σ
+	(:σ * a) * b 	=> (a * b) * :σ
+end
+
+simplified = rewrite(simplified, moveright)
+```
+
+`simplified` is now `:((a * (2 * :σ)) * (b * :σ + c))`
 
 ### A Tiny Imperative Programming Language Interpreter
 
