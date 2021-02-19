@@ -8,7 +8,6 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 include("Util/Util.jl")
 using .Util
 
-println(Util)
 export Util
 
 
@@ -31,7 +30,6 @@ export @theory
 
 export Theory
 export Rule
-
 
 export rewrite
 export @rewrite

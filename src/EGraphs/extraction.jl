@@ -53,7 +53,6 @@ Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
 
 
 function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
-    println(an[id])
     (cn, ck) = an[id]
     !(cn isa Expr) && return cn
 
