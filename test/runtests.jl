@@ -18,6 +18,8 @@ include("test_dynamic_ematch.jl")
 include("test_extraction.jl")
 include("test_mu.jl")
 include("test_while_interpreter.jl")
+include("test_symbolbug.jl")
+
 # include("test_while_superinterpreter.jl")
 
 # exported consistency test

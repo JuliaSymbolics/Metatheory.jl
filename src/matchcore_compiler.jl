@@ -22,6 +22,7 @@ c_right(v::Symbol) = Base.isbinaryoperator(v) ? v : dollar(v)
 function c_right(v::Expr)
     v.head ∈ add_dollar ? dollar(v) : v
 end
+c_right(v::QuoteNode) = v.value isa Symbol ? v.value : v
 c_right(v) = v #ignore other types
 
 # add dollar in front of the expressions with those symbols as head
