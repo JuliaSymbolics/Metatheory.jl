@@ -87,7 +87,6 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     timeout=7, stopwhen=(()->false), sizeout=2^12,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
-    println(mod)
     curr_iter = 0
 
     # evaluate types in type assertions and generate the
