@@ -1,18 +1,12 @@
 name: Docs
 on:
   pull_request:
-    paths:
-      - "docs/**"
-      - "src/**"
     branches:
       - master
   push:
     branches:
       - master
     tags: '*'
-    paths:
-      - "docs/**"
-      - "src/**"
 jobs:
   docs:
     name: Documentation
