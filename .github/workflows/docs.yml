@@ -12,6 +12,7 @@ on:
     tags: '*'
     paths:
       - "docs/**"
+      - "src/**"
 jobs:
   docs:
     name: Documentation
