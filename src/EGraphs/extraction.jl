@@ -35,6 +35,7 @@ function make(an::ExtractionAnalysis, n::Expr)
     ncost = an.costfun(n)
 
     for child_eclass ∈ n.args[start:end]
+        !haskey(an, child_eclass) && return (n, Inf)
         if haskey(an, child_eclass) && an[child_eclass] != nothing
             ncost += last(an[child_eclass])
         end
@@ -58,7 +59,7 @@ Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
 
 function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     (cn, ck) = an[id]
-    !(cn isa Expr) && return cn
+    (!(cn isa Expr) || ck == Inf) && return cn
 
     expr = copy(cn)
     start = Meta.isexpr(cn, :call) ? 2 : 1

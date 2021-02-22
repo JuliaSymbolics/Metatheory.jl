@@ -48,6 +48,7 @@ end
 
 function EGraphs.modify!(an::NumberFold, id::Int64)
     g = an.egraph
+    # !haskey(an, id) && return nothing
     if an[id] isa Number
         newclass = EGraphs.add!(g, an[id])
         merge!(g, newclass.id, id)
@@ -92,9 +93,9 @@ end
     addanalysis!(G, NumberFold)
     saturate!(G, comm_monoid)
 
-    # display(G.M); println()
-    # println(G.root)
-    # display(G.analyses[an]); println()
+    display(G.M); println()
+    println(G.root)
+    display(G.analyses[1].data); println()
 
     @test (true == areequal(G, comm_monoid, :(3 * 4), 12, :(4*3), :(6*2)))
 
@@ -103,4 +104,37 @@ end
     addanalysis!(G, NumberFold)
     @test (true == areequal(G, comm_monoid, :((3 * a) * (4 * b)), :((12*a)*b),
         :(((6*2)*b)*a)))
+end
+
+@testset "Infinite Loops analysis" begin
+    boson = @theory begin
+        1 * x => x
+    end
+
+    G = EGraph(Util.cleanast( :(1 * x) ))
+    saturate!(G,boson, timeout=100)
+    extractor = addanalysis!(G, ExtractionAnalysis, astsize)
+    ex = extract!(G, extractor)
+
+    display(G.M); println()
+    display(G.analyses[1].data); println()
+
+    println(ex)
+
+    using Metatheory.EGraphs
+    boson = @theory begin
+        (:c * :cdag) => :cdag * :c + 1
+        a * (b + c) => (a * b) + (a * c)
+        (b + c) * a => (b * a) + (c * a)
+        # 1 * x => x
+        (a * b) * c => a * (b * c)
+        a * (b * c) => (a * b) * c
+    end
+
+    G = EGraph(Util.cleanast( :(c * c * cdag * cdag) ))
+    saturate!(G,boson)
+    extractor = addanalysis!(G, ExtractionAnalysis, astsize_inv)
+    ex = extract!(G, extractor)
+
+    println(ex)
 end

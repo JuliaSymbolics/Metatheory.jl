@@ -188,9 +188,13 @@ function repair!(G::EGraph, id::Int64)
     # Analysis invariant maintenance
     for an ∈ G.analyses
         haskey(an, id) && modify!(an, id)
-
+        # modify!(an, id)
         id = find(G, id)
         for (p_enode, p_eclass) ∈ G.parents[id]
+            # p_eclass = find(G, p_eclass)
+            if !haskey(an, p_eclass)
+                an[p_eclass] = make(an, p_enode)
+            end
             if haskey(an, p_eclass)
                 new_data = join(an, an[p_eclass], make(an, p_enode))
                 if new_data != an[p_eclass]

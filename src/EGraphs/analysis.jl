@@ -18,15 +18,17 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...)
                 if pass !== get(analysis, id, missing)
                     analysis[id] = pass
                     did_something = true
+                    # modify!(analysis, id)
+                    push!(G.dirty, id)
                 end
-                modify!(analysis, id)
             end
         end
     end
 
-    # FIXME bug! It fails when the e-graph is already saturated!!
+    rebuild!(G)
+
     for (id, class) ∈ G.M
-        id = find(G, id)
+        # id = find(G, id)
         if !haskey(analysis, id)
             display(G.M); println()
             display(analysis.data); println()
@@ -34,7 +36,6 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...)
         end
     end
 
-    rebuild!(G)
 
     return analysis
 end
@@ -44,7 +45,10 @@ function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64)
     for n ∈ class
         if n isa Expr
             start = Meta.isexpr(n, :call) ? 2 : 1
-            if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
+            # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
+            # any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
+            #     continue
+            if !all(x -> haskey(analysis, x.id), n.args[start:end])
                 return missing
             end
         end
@@ -54,6 +58,7 @@ function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64)
 
     for n ∈ class
         datum = make(analysis, n)
+        # println(datum)
         joined = join(analysis, joined, datum)
     end
     return joined
