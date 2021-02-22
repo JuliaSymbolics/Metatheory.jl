@@ -82,6 +82,9 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
 end
 
 # TODO plot how egraph shrinks and grows during saturation
+"""
+Given an [`EGraph`](@ref) and a 
+"""
 function saturate!(egraph::EGraph, theory::Vector{Rule};
     mod=@__MODULE__,
     timeout=7, stopwhen=(()->false), sizeout=2^12,

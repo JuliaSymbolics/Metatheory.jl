@@ -9,4 +9,8 @@ macro theory(e)
     end
 end
 
+"""
+A Theory is either a vector of [`Rule`](@ref) or
+a compiled, callable function.
+"""
 const Theory = Union{Vector{Rule}, Function}

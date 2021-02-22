@@ -4,6 +4,9 @@
 using DataStructures
 
 """
+Abstract type representing an [`EGraph`](@ref) analysis,
+attaching values from a join semi-lattice domain to
+an EGraph
 """
 abstract type AbstractAnalysis end
 
@@ -15,6 +18,9 @@ const AnalysisData = Dict{Int64,Any}
 const Analyses = Vector{AbstractAnalysis}
 
 """
+A concrete type representing an [`EGraph`].
+See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
+for implementation details
 """
 mutable struct EGraph
     """stores the equality relations over e-class ids"""
@@ -59,7 +65,9 @@ function addparent!(G::EGraph, a::Int64, parent::Parent)
     end
 end
 
-
+"""
+Inserts an e-node in an [`EGraph`](@ref)
+"""
 function add!(G::EGraph, n)::EClass
     @debug("adding ", n)
     canonicalize!(G.U, n)
@@ -86,7 +94,15 @@ function add!(G::EGraph, n)::EClass
     return EClass(id)
 end
 
-addexpr!(G::EGraph, e)::EClass = df_walk((x -> add!(G, x)), e; skip_call = true)
+"""
+Recursively traverse an [`Expr`](@ref) and insert terms into an
+[`EGraph`](@ref). If `e` is not an [`Expr`](@ref), then directly
+insert the literal into the [`EGraph`](@ref).
+"""
+function addexpr!(G::EGraph, e)::EClass
+    e = cleanast(e)
+    df_walk((x -> add!(G, x)), e; skip_call = true)
+end
 
 function mergeparents!(G::EGraph, from::Int64, to::Int64)
     !haskey(G.parents, from) && (G.parents[from] = []; return)
@@ -99,6 +115,10 @@ end
 # Does a from-to space optimization by deleting stale terms
 # from G.M, taken from phil zucker's implementation.
 # TODO may this optimization be slowing down things??
+"""
+Given an [`EGraph`](@ref) and two e-class ids, set
+the two e-classes as equal.
+"""
 function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     id_a = find(G, a)
     id_b = find(G, b)
@@ -146,10 +166,18 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     return id_u
 end
 
+"""
+Returns the canonical e-class id for a given e-class.
+"""
 find(G::EGraph, a::Int64)::Int64 = find_root!(G.U, a)
 find(G::EGraph, a::EClass)::Int64 = find_root!(G.U, a.id)
 
-
+"""
+This function restores invariants and executes
+upwards merging in an [`EGraph`](@ref). See
+the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
+for more details.
+"""
 function rebuild!(G::EGraph)
     while !isempty(G.dirty)
         todo = unique([find(G, id) for id ∈ G.dirty])

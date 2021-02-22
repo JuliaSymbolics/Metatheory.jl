@@ -47,6 +47,7 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy
 end
 
 function addlazyanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
+    @warn "LAZY ANALYSES ARE AN UNSTABLE FEATURE!"
     for i ∈ G.lazy_analyses
         if typeof(i) isa AnType
             return nothing
@@ -58,6 +59,9 @@ function addlazyanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; 
 end
 
 # FIXME doesnt work on cycles.
+"""
+**WARNING**. This function is unstable.
+"""
 function lazy_analyze!(g::EGraph, analysis::AbstractAnalysis, id::Int64; hist=Int64[])
     id = find(g, id)
     hist = hist ∪ [id]
