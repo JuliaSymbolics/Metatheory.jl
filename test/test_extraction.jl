@@ -24,6 +24,22 @@ t = comm_monoid ∪ fold_mul
     @test extr == :(12 * (a * b))
 end
 
+@testset "Lazy Extraction 1 - Commutative Monoid" begin
+    G = EGraph(:(3 * 4))
+    saturate!(G, t)
+	extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+    @test (12 == extract!(G, extran))
+
+    ex = :(a * 3 * b * 4)
+    G = EGraph(cleanast(ex))
+	extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+    saturate!(G, t)
+    extr = extract!(G, extran)
+	# println(extr)
+
+    @test extr == :(12 * (a * b))
+end
+
 
 @testset "Extraction 2" begin
 	comm_group = @abelian_group (+) 0 inv
@@ -38,6 +54,25 @@ end
     ex = cleanast(:((x*(a+b)) + (y*(a+b))))
     G = EGraph(ex)
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
+    saturate!(G, t)
+    # end
+
+    extract!(G, extran) == :((x+y) * (b+a))
+end
+
+@testset "Lazy Extraction 2" begin
+	comm_group = @abelian_group (+) 0 inv
+
+	fold_add = @theory begin
+		a::Number + b::Number |> a + b
+	end
+    t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ fold_mul ∪ fold_add
+
+    # for i ∈ 1:20
+    # sleep(0.3)
+    ex = cleanast(:((x*(a+b)) + (y*(a+b))))
+    G = EGraph(ex)
+	extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t)
     # end
 
@@ -61,6 +96,31 @@ end
     G = EGraph(cleanast(ex))
     addanalysis!(G, NumberFold)
     extran = addanalysis!(G, ExtractionAnalysis, astsize)
+    saturate!(G, comm_monoid)
+
+    extr = extract!(G, extran)
+    # end
+
+    @test extr == :(12 * (a * b))
+end
+
+@testset "Lazy Extraction - Adding analysis after saturation" begin
+    G = EGraph(:(3 * 4))
+    addexpr!(G, 12)
+    saturate!(G, t)
+    addexpr!(G, :(a * 2))
+    saturate!(G, t)
+
+    extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+    saturate!(G, t)
+
+    @test (12 == extract!(G, extran))
+
+    # for i ∈ 1:100
+    ex = :(a * 3 * b * 4)
+    G = EGraph(cleanast(ex))
+    addanalysis!(G, NumberFold)
+    extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, comm_monoid)
 
     extr = extract!(G, extran)
@@ -127,3 +187,39 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids ∪
 	end
 	@test ex == :(log(a) * 5)
 end
+
+# @testset "Complex Lazy Extraction" begin
+# 	G = EGraph(:(log(e) * log(e)))
+# 	extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+# 	saturate!(G, t)
+# 	@test_broken extract!(G, extran) == 1
+#
+# 	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))
+# 	extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+# 	saturate!(G, t)
+# 	@test_broken extract!(G, extran) == 3
+#
+# 	@time begin
+# 		G = EGraph(:(a^3 * a^2))
+# 		extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+# 		saturate!(G, t)
+# 		ex = extract!(G, extran)
+# 	end
+# 	@test_broken ex == :(a^5)
+#
+# 	@time begin
+# 		G = EGraph(:(a^3 * a^2))
+# 		extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+# 		saturate!(G, t)
+# 		ex = extract!(G, extran)
+# 	end
+# 	@test_broken ex == :(a^5)
+#
+# 	@time begin
+# 		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
+# 		extran = addlazyanalysis!(G, ExtractionAnalysis, astsize)
+# 		saturate!(G, t)
+# 		ex = extract!(G, extran)
+# 	end
+# 	@test_broken ex == :(log(a) * 5)
+# end

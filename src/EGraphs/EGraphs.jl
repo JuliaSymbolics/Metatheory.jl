@@ -19,6 +19,7 @@ export AbstractAnalysis
 export merge!
 export addexpr!
 export addanalysis!
+export addlazyanalysis!
 export rebuild!
 
 include("analysis.jl")

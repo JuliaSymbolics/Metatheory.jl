@@ -17,14 +17,19 @@ const Analyses = Vector{AbstractAnalysis}
 """
 """
 mutable struct EGraph
-    """equality relation over e-class ids"""
+    """stores the equality relations over e-class ids"""
     U::IntDisjointSets
-    M::ClassMem             # id => sets of e-nodes
+    """map from eclass id to eclasses"""
+    M::ClassMem             #
     H::HashCons             # hashcons
     parents::ParentMem
-    dirty::Vector{Int64}    # worklist for ammortized upwards merging
+    """worklist for ammortized upwards merging"""
+    dirty::Vector{Int64}
     root::Int64
+    """A vector of analyses associated to the EGraph"""
     analyses::Analyses
+    """Same as above, but the analyses values are computed lazily"""
+    lazy_analyses::Analyses
 end
 
 EGraph() = EGraph(
@@ -35,6 +40,7 @@ EGraph() = EGraph(
     Vector{Int64}(),
     0,
     Analyses(),
+    Analyses()
 )
 
 function EGraph(e)
@@ -129,7 +135,7 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     delete!(G.M, from)
     delete!(G.H, from)
     mergeparents!(G, from, to)
-    for analysis ∈ G.analyses
+    for analysis ∈ (G.analyses ∪ G.lazy_analyses)
         if haskey(analysis, from) && haskey(analysis, to)
             #data[to] = join(analysis, G, data[from], data[to])
             analysis[to] = join(analysis, analysis[from], analysis[to])
@@ -195,6 +201,21 @@ function repair!(G::EGraph, id::Int64)
             if !haskey(an, p_eclass)
                 an[p_eclass] = make(an, p_enode)
             end
+            if haskey(an, p_eclass)
+                new_data = join(an, an[p_eclass], make(an, p_enode))
+                if new_data != an[p_eclass]
+                    an[p_eclass] = new_data
+                    push!(G.dirty, p_eclass)
+                end
+            end
+        end
+    end
+
+    for an ∈ G.lazy_analyses
+        haskey(an, id) && modify!(an, id)
+        # modify!(an, id)
+        id = find(G, id)
+        for (p_enode, p_eclass) ∈ G.parents[id]
             if haskey(an, p_eclass)
                 new_data = join(an, an[p_eclass], make(an, p_enode))
                 if new_data != an[p_eclass]

@@ -1,4 +1,11 @@
-function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...)
+"""
+Adds an [`AbstractAnalysis`](@ref) to an [`EGraph`](@ref).
+An [`EGraph`](@ref) can only contain one analysis of type
+`AnType`.
+The Analysis is computed for the whole EGraph. This
+may be very slow for large EGraphs
+"""
+function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
     for i ∈ G.analyses
         typeof(i) isa AnType && return nothing
     end
@@ -36,18 +43,63 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...)
         end
     end
 
-
     return analysis
 end
 
-function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64)
+function addlazyanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
+    for i ∈ G.lazy_analyses
+        if typeof(i) isa AnType
+            return nothing
+        end
+    end
+    analysis = AnType(G, args...)
+    push!(G.lazy_analyses, analysis)
+    return analysis
+end
+
+# FIXME doesnt work on cycles.
+function lazy_analyze!(g::EGraph, analysis::AbstractAnalysis, id::Int64; hist=Int64[])
+    id = find(g, id)
+    hist = hist ∪ [id]
+    did_something = true
+
+    for n ∈ g.M[id]
+        if n isa Expr
+            start = Meta.isexpr(n, :call) ? 2 : 1
+            for child_eclass ∈ n.args[start:end]
+                c_id = child_eclass.id
+                if !(c_id ∈ hist) && !haskey(analysis, c_id)
+                    lazy_analyze!(g, analysis, c_id; hist)
+                end
+            end
+        end
+    end
+
+    while did_something;
+        did_something = false
+        pass = make_pass(g, analysis, id)
+
+        if pass !== missing;
+            if pass !== get(analysis, id, missing)
+                analysis[id] = pass
+                did_something = true
+                push!(g.dirty, id)
+            end
+        end
+    end
+
+    rebuild!(g)
+    return get(analysis, id, missing)
+end
+
+function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64; flexible=false)
     class = g.M[id]
     for n ∈ class
         if n isa Expr
             start = Meta.isexpr(n, :call) ? 2 : 1
             # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
-            # any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
-            #     continue
+            flexible && any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
+                continue
             if !all(x -> haskey(analysis, x.id), n.args[start:end])
                 return missing
             end
