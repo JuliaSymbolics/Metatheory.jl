@@ -18,6 +18,7 @@ julia = "1"
 [extras]
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Julog = "5d8bcb5e-2b2c-4a96-a2b1-d40b3d3c344f"
 
 [targets]
-test = ["Test", "Calculus"]
+test = ["Test", "Calculus", "Julog"]

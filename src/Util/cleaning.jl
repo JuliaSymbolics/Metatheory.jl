@@ -1,3 +1,4 @@
+# FIXME this thing eats up macro calls!
 """
 Remove LineNumberNode from quoted blocks of code
 """

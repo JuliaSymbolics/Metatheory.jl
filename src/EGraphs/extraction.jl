@@ -75,9 +75,7 @@ with the smallest computed cost from an [`EGraph`](@ref)
 """
 function extract!(G::EGraph, extran::ExtractionAnalysis)
     if extran ∈ G.lazy_analyses
-        lazy_analyze!(G, extran, G.root)
-        display(G.M); println()
-        display(G.lazy_analyses[1].data); println()
+        analyze!(G, extran, G.root)
     elseif !(extran ∈ G.analyses)
         error("Extraction analysis is not associated to EGraph")
     end

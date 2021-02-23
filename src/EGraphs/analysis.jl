@@ -5,20 +5,46 @@ An [`EGraph`](@ref) can only contain one analysis of type
 The Analysis is computed for the whole EGraph. This
 may be very slow for large EGraphs
 """
-function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
-    for i ∈ G.analyses
+function addanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
+    for i ∈ g.analyses
         typeof(i) isa AnType && return nothing
     end
-    analysis = AnType(G, args...)
-    push!(G.analyses, analysis)
+    analysis = AnType(g, args...)
+    push!(g.analyses, analysis)
+
+    analyze!(g, analysis, collect(keys(g.M)))
+
+    return analysis
+end
+
+function addlazyanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
+    @warn "LAZY ANALYSES ARE AN UNSTABLE FEATURE!"
+    for i ∈ g.lazy_analyses
+        if typeof(i) isa AnType
+            return nothing
+        end
+    end
+    analysis = AnType(g, args...)
+    push!(g.lazy_analyses, analysis)
+
+    return analysis
+end
+
+
+# FIXME doesnt work on cycles.
+"""
+**WARNING**. This function is unstable.
+"""
+function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
+    ids = sort(ids)
 
     did_something = true
     while did_something
         did_something = false
 
-        for (id, class) ∈ G.M
-            id = find(G, id)
-            pass = make_pass(G, analysis, id)
+        for id ∈ ids
+            id = find(g, id)
+            pass = make_pass(g, analysis, id)
             # pass = make_pass(G, analysis, find(G,id))
 
             if pass !== missing
@@ -26,18 +52,18 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy
                     analysis[id] = pass
                     did_something = true
                     # modify!(analysis, id)
-                    push!(G.dirty, id)
+                    push!(g.dirty, id)
                 end
             end
         end
     end
 
-    rebuild!(G)
+    rebuild!(g)
 
-    for (id, class) ∈ G.M
-        # id = find(G, id)
+    for id ∈ ids
+        id = find(g, id)
         if !haskey(analysis, id)
-            display(G.M); println()
+            display(g.M); println()
             display(analysis.data); println()
             error("failed to compute analysis for eclass ", id)
         end
@@ -46,69 +72,23 @@ function addanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy
     return analysis
 end
 
-function addlazyanalysis!(G::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
-    @warn "LAZY ANALYSES ARE AN UNSTABLE FEATURE!"
-    for i ∈ G.lazy_analyses
-        if typeof(i) isa AnType
-            return nothing
-        end
-    end
-    analysis = AnType(G, args...)
-    push!(G.lazy_analyses, analysis)
-    return analysis
-end
+analyze!(g::EGraph, an::AbstractAnalysis, id::Int64) =
+    analyze!(g, an, reachable(g, id))
 
-# FIXME doesnt work on cycles.
-"""
-**WARNING**. This function is unstable.
-"""
-function lazy_analyze!(g::EGraph, analysis::AbstractAnalysis, id::Int64; hist=Int64[])
-    id = find(g, id)
-    hist = hist ∪ [id]
-    did_something = true
-
-    for n ∈ g.M[id]
-        if n isa Expr
-            start = Meta.isexpr(n, :call) ? 2 : 1
-            for child_eclass ∈ n.args[start:end]
-                c_id = child_eclass.id
-                if !(c_id ∈ hist) && !haskey(analysis, c_id)
-                    lazy_analyze!(g, analysis, c_id; hist)
-                end
-            end
-        end
-    end
-
-    while did_something;
-        did_something = false
-        pass = make_pass(g, analysis, id)
-
-        if pass !== missing;
-            if pass !== get(analysis, id, missing)
-                analysis[id] = pass
-                did_something = true
-                push!(g.dirty, id)
-            end
-        end
-    end
-
-    rebuild!(g)
-    return get(analysis, id, missing)
-end
-
-function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64; flexible=false)
+function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64)
     class = g.M[id]
-    for n ∈ class
-        if n isa Expr
-            start = Meta.isexpr(n, :call) ? 2 : 1
-            # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
-            flexible && any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
-                continue
-            if !all(x -> haskey(analysis, x.id), n.args[start:end])
-                return missing
-            end
-        end
-    end
+    # FIXME this check breaks things. wtf
+    # for n ∈ class
+    #     if n isa Expr
+    #         start = Meta.isexpr(n, :call) ? 2 : 1
+    #         # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
+    #         # any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
+    #         #     continue
+    #         if !all(x -> haskey(analysis, x.id), n.args[start:end])
+    #             return missing
+    #         end
+    #     end
+    # end
 
     joined = make(analysis, class[1])
 

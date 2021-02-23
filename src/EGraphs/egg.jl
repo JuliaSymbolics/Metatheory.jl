@@ -93,6 +93,7 @@ function add!(G::EGraph, n)::EClass
 
     return EClass(id)
 end
+add!(g::EGraph, c::EClass)::EClass = EClass(find(g, c))
 
 """
 Recursively traverse an [`Expr`](@ref) and insert terms into an
@@ -253,4 +254,27 @@ function repair!(G::EGraph, id::Int64)
             end
         end
     end
+end
+
+
+"""
+Recursive function that traverses an [`EGraph`](@ref) and
+returns a vector of all reachable e-classes from a given e-class id.
+"""
+function reachable(g::EGraph, id::Int64; hist=Int64[])
+    id = find(g, id)
+    hist = hist ∪ [id]
+    for n ∈ g.M[id]
+        if n isa Expr
+            start = Meta.isexpr(n, :call) ? 2 : 1
+            for child_eclass ∈ n.args[start:end]
+                c_id = child_eclass.id
+                if c_id ∉ hist
+                    hist = hist ∪ reachable(g, c_id; hist=hist)
+                end
+            end
+        end
+    end
+
+    return hist
 end
