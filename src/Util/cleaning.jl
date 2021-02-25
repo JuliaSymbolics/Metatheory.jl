@@ -2,9 +2,8 @@
 """
 Remove LineNumberNode from quoted blocks of code
 """
-rmlines(e::Expr) = Expr(e.head, filter(!isnothing, map(rmlines, e.args))...)
+rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
 rmlines(a) = a
-rmlines(x::LineNumberNode) = nothing
 
 """
 HARD FIX of n-arity of operators in `Expr` trees

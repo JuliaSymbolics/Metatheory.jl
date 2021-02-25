@@ -7,9 +7,16 @@ include("docstrings.jl")
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+# TODO document this interface
+include("expr_abstraction.jl")
+export iscall
+export getfunsym
+export getfunargs
+export setfunsym!
+export setfunargs!
+
 include("Util/Util.jl")
 using .Util
-
 export Util
 
 
@@ -20,11 +27,7 @@ include("matchcore_compiler.jl")
 include("rewrite.jl")
 include("match.jl")
 
-include("expr_abstraction.jl")
-export iscall
-export get_funsym
-export get_funarg
-export set_funarg
+
 
 include("EGraphs/EGraphs.jl")
 export EGraphs

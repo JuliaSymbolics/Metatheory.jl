@@ -6,6 +6,13 @@ using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 import ..Rule
+import ..iscall
+import ..getfunsym
+import ..getfunargs
+import ..setfunsym!
+import ..setfunargs!
+
+
 using ..Util
 
 include("enode.jl")

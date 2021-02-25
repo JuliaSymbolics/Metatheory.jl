@@ -39,15 +39,11 @@ end
 
 # sub should be a map from pattern variables to Id
 function ematch(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
-    # Channel(;spawn=true) do c
-    # Channel() do c
-
     if haskey(sub, t)
         return find(e, first(sub[t])) == find(e, v) ? [sub] : []
     else
         return [ Base.ImmutableDict(sub, t => (EClass(find(e, v)), lit)) ]
     end
-    # end
 end
 
 function ematch(e::EGraph, t, v::Int64, sub::Sub)::Vector{Sub}
@@ -78,14 +74,8 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub)::Vector{Sub}
             continue
         end
 
-        (!(n isa Expr) || n.head != t.head) && continue
-        start = 1
-        if n.head == :call
-            n.args[1] != t.args[1] && continue
-            start = 2
-        end
-
-        union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
+        (!(n isa Expr) || getfunsym(n) != getfunsym(t)) && continue
+        union!(c, ematchlist(e, getfunargs(t), getfunargs(n) .|> x -> x.id, sub))
     end
     return c
 end

@@ -77,10 +77,8 @@ function add!(G::EGraph, n)::EClass
     @debug(n, " not found in H")
     id = push!(G.U) # create new singleton eclass
     !haskey(G.parents, id) && (G.parents[id] = [])
-    if (n isa Expr)
-        start = isexpr(n, :call) ? 2 : 1
-        n.args[start:end] .|> x -> addparent!(G, x.id, (n, id))
-    end
+    getfunargs(n) .|> x -> addparent!(G, x.id, (n, id))
+
     G.H[n] = id
     G.M[id] = [n]
 
@@ -158,7 +156,6 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     mergeparents!(G, from, to)
     for analysis ∈ (G.analyses ∪ G.lazy_analyses)
         if haskey(analysis, from) && haskey(analysis, to)
-            #data[to] = join(analysis, G, data[from], data[to])
             analysis[to] = join(analysis, analysis[from], analysis[to])
             delete!(analysis, from)
         end
@@ -266,8 +263,7 @@ function reachable(g::EGraph, id::Int64; hist=Int64[])
     hist = hist ∪ [id]
     for n ∈ g.M[id]
         if n isa Expr
-            start = Meta.isexpr(n, :call) ? 2 : 1
-            for child_eclass ∈ n.args[start:end]
+            for child_eclass ∈ getfunargs(n)
                 c_id = child_eclass.id
                 if c_id ∉ hist
                     hist = hist ∪ reachable(g, c_id; hist=hist)

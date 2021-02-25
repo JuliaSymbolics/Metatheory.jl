@@ -8,8 +8,6 @@ using Test
 
 @metatheory_init
 
-include("test_theories.jl")
-include("test_reductions.jl")
 include("test_egraphs.jl")
 include("test_ematch.jl")
 include("test_ematch_assertions.jl")
@@ -20,7 +18,9 @@ include("test_mu.jl")
 include("test_while_interpreter.jl")
 include("test_symbolbug.jl")
 include("test_julog.jl")
-
+include("test_boson.jl")
+include("test_theories.jl")
+include("test_reductions.jl")
 
 # include("test_while_superinterpreter.jl")
 

@@ -9,8 +9,7 @@ end
 Check if an expr is an enode ⟺ all args are e-classes
 """
 function isenode(e::Expr)
-    start = isexpr(e, :call) ? 2 : 1
-    return all(x -> x isa EClass, e.args[start:end])
+    return all(x -> x isa EClass, getfunargs(e))
 end
 # literals are enodes
 isenode(x::EClass) = false
@@ -25,9 +24,8 @@ iscanonical(U::IntDisjointSets, e::EClass) = find_root!(U, e.id) == e.id
 # was not found as the representative element in a set in U
 function canonicalize(U::IntDisjointSets, n::Expr)
     @assert isenode(n)
-    start = isexpr(n, :call) ? 2 : 1
     ne = copy(n)
-    ne.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ ne.args[start:end]]
+    setfunargs!(ne, [EClass(find_root!(U, x.id)) for x ∈ getfunargs(ne)])
     @debug("canonicalized ", n, " to ", ne)
     return ne
 end
@@ -35,8 +33,7 @@ end
 # canonicalize in place
 function canonicalize!(U::IntDisjointSets, n::Expr)
     @assert isenode(n)
-    start = isexpr(n, :call) ? 2 : 1
-    n.args[start:end] = [EClass(find_root!(U, x.id)) for x ∈ n.args[start:end]]
+    setfunargs!(n, [EClass(find_root!(U, x.id)) for x ∈ getfunargs(n)])
     @debug("canonicalized ", n)
     return n
 end

@@ -3,15 +3,17 @@ using Base.Meta
 iscall(e) = false
 iscall(e::Expr) = isexpr(e, :call)
 
-get_funsym(e::Expr) = isexpr(e, :call) ? e.args[1] : e.head
-get_funsym(e) = e
+getfunsym(e::Expr) = iscall(e) ? e.args[1] : e.head
+getfunsym(e) = e
 
-get_funarg(e::Expr) = let start = (isexpr(e, :call) ? 2 : 1)
-    e.args[start:end]
-end
-get_funarg(e) = []
+setfunsym!(e::Expr, s) = iscall(e) ? (e.args[1] = s) : (e.head = s)
+setfunsym!(e, s) = s
 
-set_funarg(e::Expr, args::Vector{Any}) = let start = (isexpr(e, :call) ? 2 : 1)
-    e.args[start:end] = args
+getfunargs(e::Expr) = e.args[(iscall(e) ? 2 : 1):end]
+
+getfunargs(e) = []
+
+function setfunargs!(e::Expr, args::Vector)
+    e.args[(iscall(e) ? 2 : 1):end] = args
 end
-set_funarg(e) = []
+setfunargs!(e, args) = []

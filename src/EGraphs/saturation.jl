@@ -83,7 +83,8 @@ end
 
 # TODO plot how egraph shrinks and grows during saturation
 """
-Given an [`EGraph`](@ref) and a 
+Given an [`EGraph`](@ref) and a collection of rewrite rules,
+execute the equality saturation algorithm.
 """
 function saturate!(egraph::EGraph, theory::Vector{Rule};
     mod=@__MODULE__,

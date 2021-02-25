@@ -65,15 +65,8 @@ Rule(:(a::Number * b::Number |> a*b))
 function Rule(e::Expr)
     e = rmlines(e)
     mode = :undef
-    if isexpr(e, :call)
-        mode = e.args[1]
-        l = e.args[2]
-        r = e.args[3]
-    else
-        mode = e.head
-        l = e.args[1]
-        r = e.args[2]
-    end
+    mode = getfunsym(e)
+    l, r = e.args[iscall(e) ? (2:3) : (1:2)]
 
     if mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
         mode = :dynamic

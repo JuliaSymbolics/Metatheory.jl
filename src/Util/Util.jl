@@ -3,6 +3,13 @@ module Util
 
 include("../docstrings.jl")
 
+import ..iscall
+import ..getfunsym
+import ..getfunargs
+import ..setfunsym!
+import ..setfunargs!
+
+
 using Base.Meta
 ## AST manipulation utility functions
 
