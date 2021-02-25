@@ -21,7 +21,7 @@ t = comm_monoid ∪ fold_mul
     extr = extract!(G, extran)
 	# println(extr)
 
-    @test extr == :(12 * (a * b))
+    @test extr == :(12*(a * b))
 end
 
 @testset "Lazy Extraction 1 - Commutative Monoid" begin
@@ -37,7 +37,7 @@ end
     extr = extract!(G, extran)
 	# println(extr)
 
-    @test extr == :(12 * (a * b))
+    @test extr == :(12*(a * b))
 end
 
 

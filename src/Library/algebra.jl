@@ -1,5 +1,8 @@
 commutativity(op) = :( ($op)(a, b) => ($op)(b, a) ) |> Rule
-associativity(op) = :( ($op)(a, $(op)(b,c)) => ($op)($(op)(a,b), c) ) |> Rule
+right_associative(op) = :( ($op)(a, $(op)(b,c)) => ($op)($(op)(a,b), c) ) |> Rule
+left_associative(op) = :( ($op)($(op)(a,b), c) => ($op)(a, $(op)(b,c)) ) |> Rule
+
+associativity(op) = [right_associative(op), left_associative(op)]
 
 identity_left(op, id) = :( ($op)($id, a) => a ) |> Rule
 identity_right(op, id) = :( ($op)(a, $id) => a ) |> Rule
@@ -9,7 +12,7 @@ inverse_right(op, id, invop) = :( ($op)(a, ($invop)(a)) => $id ) |> Rule
 
 function commutative_monoid(op, id)
 	@assert Base.isbinaryoperator(op)
-	[commutativity(op), associativity(op), identity_left(op, id)]
+	[commutativity(op), right_associative(op), identity_left(op, id)]
 end
 macro commutative_monoid(op, id) commutative_monoid(op, id) end
 

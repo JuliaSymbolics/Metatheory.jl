@@ -34,6 +34,12 @@ If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f
 
 ## Installation
 
+You can install the stable version:
+```julia
+julia> using Pkg; Pkg.add("Metatheory")
+```
+
+Or you can install the developer version (recommended by now for latest bugfixes)
 ```julia
 julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
 ```
