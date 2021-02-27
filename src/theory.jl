@@ -4,7 +4,7 @@ macro theory(e)
     e = macroexpand(__module__, e)
     e = rmlines(e)
     if isexpr(e, :block)
-        Vector{Rule}(e.args .|> Rule)
+        Vector{Rule}(e.args .|> x -> Rule(x; mod=__module__))
     else
         error("theory is not in form begin a => b; ... end")
     end

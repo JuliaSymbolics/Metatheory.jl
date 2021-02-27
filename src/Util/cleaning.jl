@@ -22,3 +22,12 @@ Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)
 cleanast(ex) = rmlines(ex) |>
     x -> binarize!(x, :(+)) |>
     x -> binarize!(x, :(*))
+
+
+interp_dol(ex::Expr, mod::Module) =
+    Meta.isexpr(ex, :$) ? mod.eval(ex.args[1]) : ex
+interp_dol(any, mod::Module) = any
+
+function interpolate_dollar(ex, mod::Module)
+    df_walk(interp_dol, ex, mod)
+end

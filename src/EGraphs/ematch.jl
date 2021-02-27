@@ -46,7 +46,7 @@ function ematch(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing)::Vector{S
     end
 end
 
-function ematch(e::EGraph, t, v::Int64, sub::Sub)::Vector{Sub}
+function ematch(e::EGraph, t, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
     c = Vector{Sub}()
     id = find(e,v)
     for n in e.M[id]
@@ -63,17 +63,41 @@ function ematch(e::EGraph, t, v::Int64, sub::Sub)::Vector{Sub}
 end
 
 
-function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub)::Vector{Sub}
+function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
     c = Vector{Sub}()
 
     for n in e.M[find(e,v)]
-        if isexpr(t, :ematch_tassert)
-            !(typeof(n) <: t.args[2]) && continue
-            # println(Symbol(typeof(n)), " is a ", t.args[2])
+        if isexpr(t, :(::))
+            # TODO allow for parametric type variables
+            # see https://dl.acm.org/doi/pdf/10.1145/3276483
+
+
+            if t.args[2] isa Type
+                typ = t.args[2]
+                # println("already a type: ", typ)
+            elseif t.args[2] isa Symbol
+                if haskey(sub, t.args[2])
+                    typ = sub[t.args[2]][2]
+                    # println("already in sub: ", sub[t.args[2]])
+                else
+                    # println("not already in sub", t.args[2])
+                    # add the type to the egraph?
+                    type_id = add!(e, typeof(n))
+                    sub =  Base.ImmutableDict(sub, t.args[2] => (type_id, typeof(n)))
+                    typ = typeof(n)
+                    # union!(c, ematch(e, t, v, sub))
+                    # continue
+                end
+            else
+                error("Unsupported type assertion '", t, "'")
+            end
+
+            !(typeof(n) <: typ) && continue
             union!(c, ematch(e, t.args[1], v, sub; lit=n))
             continue
         end
 
+        # otherwise ematch on an expr
         (!(n isa Expr) || getfunsym(n) != getfunsym(t)) && continue
         union!(c, ematchlist(e, getfunargs(t), getfunargs(n) .|> x -> x.id, sub))
     end

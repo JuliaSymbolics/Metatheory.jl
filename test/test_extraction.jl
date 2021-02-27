@@ -3,7 +3,7 @@ using MatchCore
 comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin
-	a::Number * b::Number |> a * b
+	a::$Number * b::$Number |> a * b
 end
 
 t = comm_monoid ∪ fold_mul
@@ -39,14 +39,14 @@ end
 
     @test extr == :(12*(a * b))
 end
-
+fold_add = @theory begin
+	a::$Number + b::$Number |> a + b
+end
 
 @testset "Extraction 2" begin
 	comm_group = @abelian_group (+) 0 inv
 
-	fold_add = @theory begin
-		a::Number + b::Number |> a + b
-	end
+
     t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ fold_mul ∪ fold_add
 
     # for i ∈ 1:20
@@ -63,9 +63,6 @@ end
 @testset "Lazy Extraction 2" begin
 	comm_group = @abelian_group (+) 0 inv
 
-	fold_add = @theory begin
-		a::Number + b::Number |> a + b
-	end
     t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ fold_mul ∪ fold_add
 
     # for i ∈ 1:20
@@ -145,10 +142,6 @@ logids = @theory begin
 	log(:e) => 1
 	:e^(log(x)) => x
 end
-fold_add = @theory begin
-	a::Number + b::Number |> a + b
-end
-
 
 t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
 
@@ -214,4 +207,27 @@ end
 		ex = extract!(G, extran)
 	end
 	@test ex == :(5log(a))
+end
+
+# EXTRACTION BUG!
+
+costfun(n) = 1
+costfun(n::Expr) = n.args[2] == :a ? 1 : 100
+
+moveright = @theory begin
+    (:b * (:a * c)) => (:a * (:b * c))
+end
+
+expr = :(a * (a * (b * (a * b))))
+res = rewrite( expr , moveright)
+println(res)
+
+g = EGraph(expr)
+saturate!(g, moveright)
+extractor = addanalysis!(g, ExtractionAnalysis, costfun)
+resg = extract!(g, extractor)
+println(resg)
+
+@testset "Symbols in Right hand" begin
+    @test resg == res == :(a * (a * (a * (b * b))))
 end

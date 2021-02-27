@@ -313,6 +313,7 @@ end
 @test_skip @rewrite a ∈ b ∈ c t
 
 
+#TODO put in docs
 safe_var = 0
 ref_var = Ref{Real}(0)
 
@@ -333,4 +334,20 @@ end
 
 	@test safe_var == 0
 	@test ref_var[] == π
+end;
+
+dollart = @theory begin
+	# dollars are interpolated at rule creation time?
+	$(Expr(:call, :foo, :bar)) => :match
+	:x + $(3+2) => :weeee
+end
+
+println(dollart)
+
+@testset "Dollar Escapes" begin
+	r1 = rewrite(:(foo(bar)), dollart; m=@__MODULE__)
+	r2 = rewrite(:(x + 5), dollart; m=@__MODULE__)
+
+	@test r1 == :match
+	@test r2 == :weeee
 end;

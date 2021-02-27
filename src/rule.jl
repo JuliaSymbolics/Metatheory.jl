@@ -57,32 +57,36 @@ Rule(:(a * b => b * a))
 ```
 
 Dynamic rules computing the actual multiplication of two numbers on
-a match
+a match. **Note**: you have to escape types with `\$`!
 ```julia
-Rule(:(a::Number * b::Number |> a*b))
+Rule(:(a::\$Number * b::\$Number |> a*b))
 ```
 """
-function Rule(e::Expr)
-    e = rmlines(e)
+function Rule(e::Expr; mod::Module=@__MODULE__)
+    e = rmlines(copy(e))
     mode = :undef
     mode = getfunsym(e)
     l, r = e.args[iscall(e) ? (2:3) : (1:2)]
 
-    if mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
+    if mode ∈ raw_syms
+        mode = :raw
+        l = mod.eval(l, mod)
+    elseif mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
         mode = :dynamic
+        l = interpolate_dollar(l, mod)
     elseif mode ∈ rewrite_syms # right side is quoted, symbolic replacement
         mode = :rewrite
-    elseif mode ∈ raw_syms
-        mode = :raw
+        l = interpolate_dollar(l, mod)
     else
         error(`rule "$e" is not in valid form.\n`)
     end
 
-    Rule(l, r, e, mode)
+    e.args[iscall(e) ? 2 : 1] = l
+    return Rule(l, r, e, mode)
 end
 
 macro rule(e)
-    Rule(e)
+    Rule(e; mod=__module__)
 end
 
 # string representation of the rule

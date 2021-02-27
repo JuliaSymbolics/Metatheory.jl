@@ -10,7 +10,7 @@ inst(p::Expr, egraph::EGraph, sub::Sub) = add!(egraph, p)
 function instantiate(egraph::EGraph, p, sub::Sub; skip_assert=false)
     # remove type assertions
     if skip_assert
-        p = df_walk( x -> (isexpr(x, :ematch_tassert) ? x.args[1] : x), p; skip_call=true )
+        p = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), p; skip_call=true )
     end
 
     df_walk(inst, p, egraph, sub; skip_call=true)
@@ -96,9 +96,8 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     # evaluate types in type assertions and generate the
     # dynamic rule right hand side function cache
     rhs_funs = RhsFunCache()
-    theory = map(theory) do rule
-        r = deepcopy(rule)
-        r.left = df_walk(x -> eval_types_in_assertions(x, mod), r.left; skip_call=true)
+    theory = map(theory) do r
+        # r = deepcopy(rule)
         if r.mode == :dynamic && !haskey(rhs_funs, r)
             rhs_funs[r] = genrhsfun(r, mod)
         end
