@@ -34,20 +34,17 @@ include("analysis.jl")
 
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
-include("theory_compiler.jl")
+
 include("saturation.jl")
-include("equality.jl")
-
-include("extraction.jl")
-
 export saturate!
+include("equality.jl")
 export areequal
 export @areequal
 export @areequalg
 
+include("extraction.jl")
 export extract!
 export ExtractionAnalysis
-
 export astsize
 export astsize_inv
 

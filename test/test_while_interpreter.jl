@@ -18,10 +18,10 @@ arithm_rules = @theory begin
 	(a + b, σ) 		  => (a, σ) + (b, σ)
 	(a * b, σ) 		  => (a, σ) * (b, σ)
 	(a - b, σ) 		  => (a, σ) - (b, σ)
-	(a::Int + b::Int) |> a + b
-	(a::Int * b::Int) |> a * b
-	(a::Int - b::Int) |> a - b
-	(n::Int, σ) |> n
+	(a::$Int + b::$Int) |> a + b
+	(a::$Int * b::$Int) |> a * b
+	(a::$Int - b::$Int) |> a - b
+	(n::$Int, σ) |> n
 end
 
 eval_arithm(ex, mem) = (@rewriter(read_mem ∪ arithm_rules, :inner))(:($ex, $mem))
@@ -34,11 +34,11 @@ end
 
 # don't need to access memory
 bool_rules = @theory begin
-	(a::Bool ∨ b::Bool) |> (a || b)
-	(a::Bool ∧ b::Bool) |> (a && b)
-	(a::Int < b::Int) 	|> (a < b)
-	¬a::Bool 			|> !a
-	(bv::Bool, σ) 		|> bv
+	(a::$Bool ∨ b::$Bool) |> (a || b)
+	(a::$Bool ∧ b::$Bool) |> (a && b)
+	(a::$Int < b::$Int) 	|> (a < b)
+	¬a::$Bool 			|> !a
+	(bv::$Bool, σ) 		|> bv
 	(a < b, mem1) |> (eval_arithm(a, mem1) < eval_arithm(b, mem1))
 	(¬b, σ) |> !eval_bool(b, σ)
 	(a ∨ b, σ) => (a, σ) ∨ (b, σ)

@@ -1,4 +1,3 @@
-
 @testset "Reduction Basics" begin
 	t = @theory begin
 	    a + a => 2a
@@ -57,8 +56,8 @@ end
 	symbol_monoid = @theory begin
 		a ⋅ :ε => a
 		:ε ⋅ a => a
-		a::Symbol => a
-		a::Symbol ⋅ b::Symbol |> Symbol(String(a) * String(b))
+		a::$Symbol => a
+		a::$Symbol ⋅ b::$Symbol |> Symbol(String(a) * String(b))
 		i |> error("unsupported ", i)
 	end;
 
@@ -71,11 +70,11 @@ end
 
 @testset "Calculator" begin
 	calculator = @theory begin
-		x::Number ⊕ y::Number |> x + y
-		x::Number ⊗ y::Number |> x * y
-		x::Number ⊖ y::Number |> x ÷ y
-		x::Symbol => x
-		x::Number => x
+		x::$Number ⊕ y::$Number |> x + y
+		x::$Number ⊗ y::$Number |> x * y
+		x::$Number ⊖ y::$Number |> x ÷ y
+		x::$Symbol => x
+		x::$Number => x
 	end;
 	a = 10
 
@@ -86,7 +85,7 @@ end
 @testset "Type assertions and destructuring" begin
     # let's try type assertions and destructuring
     t = @theory begin
-        f(a::Number) => a
+        f(a::$Number) => a
         f(a...) => a
     end
 
@@ -112,7 +111,7 @@ end
 
     t = @theory begin
         # maps
-        a::Number * b::Number |> a * b
+        a::$Number * b::$Number |> a * b
     end
     @test rewrite(:(3 * 1), t) == 3
 end
@@ -134,8 +133,8 @@ car = Car()
 
 @testset "Subtyping" begin
 	t = @theory begin
-		a::AirVehicle * b => "flies"
-		a::GroundVehicle * b => "doesnt_fly"
+		a::$AirVehicle * b => "flies"
+		a::$GroundVehicle * b => "doesnt_fly"
 	end
 
 	sf = rewrite(:($airpl * c), t; m=@__MODULE__)
@@ -150,6 +149,7 @@ end
 
 # TODO consider autocompiling from src/Library. This is very ugly.
 
+# FIXME TYPE VARIABLES IN CLASSICAL MATCHCORE ALGORITHM
 macro red_commutative_monoid(t, op, id, func)
 	zop = Meta.quot(op)
    quote
@@ -175,6 +175,8 @@ macro red_commutative_monoid(t, op, id, func)
 end
 
 mult_monoid = @red_commutative_monoid Int (*) 1 (*)
+
+println(mult_monoid)
 
 @testset "Multiplication Monoid" begin
 	res_macro = @rewrite (3 * (1 * 2)) mult_monoid
@@ -312,8 +314,6 @@ end
 
 @test_skip @rewrite a ∈ b ∈ c t
 
-
-#TODO put in docs
 safe_var = 0
 ref_var = Ref{Real}(0)
 

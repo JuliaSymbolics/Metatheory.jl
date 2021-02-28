@@ -68,26 +68,25 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub
 
     for n in e.M[find(e,v)]
         if isexpr(t, :(::))
-            # TODO allow for parametric type variables
-            # see https://dl.acm.org/doi/pdf/10.1145/3276483
+            # right hand of type assertion
+            tr = t.args[2]
 
-
-            if t.args[2] isa Type
-                typ = t.args[2]
-                # println("already a type: ", typ)
-            elseif t.args[2] isa Symbol
-                if haskey(sub, t.args[2])
-                    typ = sub[t.args[2]][2]
-                    # println("already in sub: ", sub[t.args[2]])
+            if tr isa Type
+                typ = tr
+            elseif tr isa Symbol
+                if haskey(sub, tr)
+                    typ = sub[tr][2]
                 else
-                    # println("not already in sub", t.args[2])
-                    # add the type to the egraph?
+                    # add the type to the egraph
                     type_id = add!(e, typeof(n))
                     sub =  Base.ImmutableDict(sub, t.args[2] => (type_id, typeof(n)))
                     typ = typeof(n)
                     # union!(c, ematch(e, t, v, sub))
                     # continue
                 end
+            # elseif isexpr(tr, :curly)
+            # TODO allow for parametric type variables
+            # see https://dl.acm.org/doi/pdf/10.1145/3276483
             else
                 error("Unsupported type assertion '", t, "'")
             end

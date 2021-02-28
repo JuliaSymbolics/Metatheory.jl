@@ -3,6 +3,7 @@ mutable struct Rule
     right::Any
     expr::Expr # original expression
     mode::Symbol # can be :rewrite or :dynamic
+    right_fun::Union{Nothing, Tuple{Vector{Symbol}, Function}}
 end
 
 # operator symbols for simple term rewriting
@@ -67,6 +68,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     mode = :undef
     mode = getfunsym(e)
     l, r = e.args[iscall(e) ? (2:3) : (1:2)]
+    right_fun = nothing
 
     if mode ∈ raw_syms
         mode = :raw
@@ -74,6 +76,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     elseif mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
         mode = :dynamic
         l = interpolate_dollar(l, mod)
+        right_fun = genrhsfun(l, r, mod)
     elseif mode ∈ rewrite_syms # right side is quoted, symbolic replacement
         mode = :rewrite
         l = interpolate_dollar(l, mod)
@@ -82,7 +85,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     end
 
     e.args[iscall(e) ? 2 : 1] = l
-    return Rule(l, r, e, mode)
+    return Rule(l, r, e, mode, right_fun)
 end
 
 macro rule(e)
@@ -92,4 +95,22 @@ end
 # string representation of the rule
 function Base.show(io::IO, x::Rule)
     println(io, "Rule(:(", x.expr, "))")
+end
+
+"""
+Generates a tuple containing the list of formal parameters (`Symbol`s)
+and the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
+side of a `:dynamic` [`Rule`](@ref).
+"""
+function genrhsfun(left, right, mod::Module)
+    # remove type assertions in left hand
+    lhs = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), left; skip_call=true )
+
+    # collect variable symbols in left hand
+    lhs_vars = Set{Symbol}()
+    df_walk( x -> (if x isa Symbol; push!(lhs_vars, x); end; x), left; skip_call=true )
+    params = Expr(:tuple, :_egraph, lhs_vars...)
+
+    ex = :($params -> $right)
+    (collect(lhs_vars), closure_generator(mod, ex))
 end

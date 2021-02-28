@@ -1,7 +1,7 @@
 const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
+import ..genrhsfun
 using .Schedulers
-
 
 inst(var, egraph::EGraph, sub::Sub) =
     haskey(sub, var) ? first(sub[var]) : add!(egraph, var)
@@ -27,7 +27,7 @@ end
 
 
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
-        scheduler=SimpleScheduler(), rhs_funs=RhsFunCache())
+        scheduler=SimpleScheduler())
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
 
@@ -64,8 +64,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
             merge!(egraph,l.id,r.id)
         elseif rule.mode == :dynamic # execute the right hand!
             l = instantiate(egraph,rule.left,sub; skip_assert=true)
-
-            (params, f) = rhs_funs[rule]
+            (params, f) = rule.right_fun
             actual_params = params .|> x -> get_actual_param(x, sub)
             r = addexpr!(egraph, f(egraph, actual_params...))
             merge!(egraph,l.id,r.id)
@@ -93,17 +92,6 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
 
     curr_iter = 0
 
-    # evaluate types in type assertions and generate the
-    # dynamic rule right hand side function cache
-    rhs_funs = RhsFunCache()
-    theory = map(theory) do r
-        # r = deepcopy(rule)
-        if r.mode == :dynamic && !haskey(rhs_funs, r)
-            rhs_funs[r] = genrhsfun(r, mod)
-        end
-        r
-    end
-
     # init the scheduler
     sched = scheduler(egraph, theory)
     saturated = false
@@ -111,7 +99,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     while true
         # @info curr_iter
         curr_iter+=1
-        saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched, rhs_funs=rhs_funs)
+        saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched)
 
         cansaturate(sched) && saturated && (@info "E-GRAPH SATURATED"; break)
         curr_iter >= timeout && (@info "E-GRAPH TIMEOUT"; break)

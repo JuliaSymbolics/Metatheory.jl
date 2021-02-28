@@ -149,11 +149,32 @@ according to the theory. The following example returns true.
 @areequal t (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))
 ```
 
+#### Escaping
+
+You can escape values in the left hand side of rules using `$` just
+as you would do with the regular [quoting/unquoting]() mechanism.
+
+
+```julia
+example = @theory begin
+    a + $(3+2) |> :something
+end
+```
+
+Becomes
+```
+1-element Vector{Rule}:
+ Rule(:(a + 5 |> :something))
+```
+
 #### Type Assertions and Dynamic Rules
 
 You can use type assertions in the left hand of rules
 to match and access literal values both when using
 classic rewriting and EGraph based rewriting.
+
+**Note**: To match on existing types you have to escape them with `$`!
+This is needed to treat **types as types** and not as **type variables**!
 
 You can also use **dynamic rules**, defined with the `|>`
 operator, to dynamically compute values in the right hand of expressions.
@@ -163,11 +184,31 @@ rewriting: the values that produced a match are bound to the pattern variables.
 
 ```julia
 fold_mul = @theory begin
-    a::Number * b::Number |> a*b
+    a::$Number * b::$Number |> a*b
 end
 t = comm_monoid ∪ fold_mul
 @areequal t (3*4) 12
 ```
+
+#### Type Variables
+
+Instead of asserting on regular Julia types, you can do type assertions with
+type variables. **NOTE:** Parametric types with type variables are not yet
+supported.
+
+```julia
+some_theory = @theory begin
+    a * b => b * a
+    a::T * b::T => sametype(T)
+    a * (b * c) => (a * b) * c
+end
+
+G = EGraph(:(2*3))
+true == areequal(G, some_theory, :(2 * 3), :(sametype($Int64)))
+```
+
+
+#### Complex Example
 
 Let's see a more complex example: extracting the
 smallest equivalent expression, from a
@@ -249,6 +290,35 @@ simplified = rewrite(simplified, moveright)
 ```
 
 `simplified` is now `:((a * (2 * :σ)) * (b * :σ + c))`
+
+#### Assignment to variables during rewriting.
+
+Using the *classical rewriting* backend, you may want
+to assign a value to an externally defined variable.
+Because of the nature of modules and the [`RuntimeGeneratedFunction`](https://github.com/SciML/RuntimeGeneratedFunctions.jl)
+compilation pipeline, it is not possible to assign
+values to variables in other modules.
+You can achieve such behaviour by using Julia `References` [(docs)](https://docs.julialang.org/en/v1/base/c/#Core.Ref),
+which behave similarly to pointers in other languages such as C or OCaml.
+
+**Note**: due to nondeterminism, it is unrecommended to assign values to
+`Ref`s when using the **EGraph** backend!
+
+```julia
+safe_var = 0
+ref_var = Ref{Real}(0)
+
+reft = @theory begin
+	:safe |> (safe_var = π)
+	:ref |> (ref_var[] = π)
+end
+
+rewrite(:(safe), reft; order=:inner, m=@__MODULE__)
+rewrite(:(ref), reft; order=:inner, m=@__MODULE__)
+
+safe_var == 0
+ref_var[] == π
+```
 
 ### A Tiny Imperative Programming Language Interpreter
 

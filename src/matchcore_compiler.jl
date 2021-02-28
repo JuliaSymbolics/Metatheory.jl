@@ -61,7 +61,6 @@ is as fast as a regular Julia anonymous function 🔥
 """
 function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
     # generate an unique parameter name
-    # TODO needed? consider just calling it expr for access in right hand
     parameter = Meta.gensym(:reducing_expression)
     block = theory_block(theory)
 
