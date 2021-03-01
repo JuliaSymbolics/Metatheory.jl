@@ -16,14 +16,6 @@ function instantiate(egraph::EGraph, p, sub::Sub; skip_assert=false)
     df_walk(inst, p, egraph, sub; skip_call=true)
 end
 
-function get_actual_param(var, sub::Sub)
-     if haskey(sub, var)
-         (eclass, literal) = sub[var]
-         literal != nothing ? literal : eclass
-     else
-         error("internal error in dynamic rule application")
-     end
-end
 
 
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
@@ -65,8 +57,12 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         elseif rule.mode == :dynamic # execute the right hand!
             l = instantiate(egraph,rule.left,sub; skip_assert=true)
             (params, f) = rule.right_fun
-            actual_params = params .|> x -> get_actual_param(x, sub)
-            r = addexpr!(egraph, f(egraph, actual_params...))
+            actual_params = map(params) do x
+                (eclass, literal) = sub[x]
+                literal != nothing ? literal : eclass
+            end
+            new = f(egraph, actual_params...)
+            r = addexpr!(egraph, new)
             merge!(egraph,l.id,r.id)
         else
             error("unsupported rule mode")
@@ -87,8 +83,12 @@ execute the equality saturation algorithm.
 """
 function saturate!(egraph::EGraph, theory::Vector{Rule};
     mod=@__MODULE__,
-    timeout=7, stopwhen=(()->false), sizeout=2^12,
+    timeout=0, stopwhen=(()->false), sizeout=2^12,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
+
+    if timeout == 0
+        timeout = length(theory)
+    end
 
     curr_iter = 0
 

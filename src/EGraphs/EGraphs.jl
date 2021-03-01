@@ -47,5 +47,6 @@ export extract!
 export ExtractionAnalysis
 export astsize
 export astsize_inv
+export @extract
 
 end

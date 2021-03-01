@@ -77,3 +77,14 @@ function extract!(G::EGraph, extran::ExtractionAnalysis)
     end
     rec_extract(G, extran, G.root)
 end
+
+macro extract(expr, theory, costfun)
+    quote
+        let g = EGraph($expr)
+            saturate!(g, $theory)
+            extran = addanalysis!(g, ExtractionAnalysis, $costfun)
+            ex = extract!(g, extran)
+            (g, ex)
+        end
+    end |> esc
+end

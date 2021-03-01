@@ -1,20 +1,24 @@
 function areequal(theory::Vector{Rule}, exprs...;
-    timeout=6, sizeout=2^12, mod=@__MODULE__)
+    timeout=0, sizeout=2^12, mod=@__MODULE__)
     G = EGraph(exprs[1])
     areequal(G, theory, exprs...;
         timeout=timeout, sizeout=sizeout, mod=mod)
 end
 
 function areequal(G::EGraph, t::Vector{Rule}, exprs...;
-    timeout=6, sizeout=2^12, mod=@__MODULE__)
-    @info "Checking equality for " exprs
+    timeout=0, sizeout=2^12, mod=@__MODULE__)
+    @debug "Checking equality for " exprs
     if length(exprs) == 1; return true end
 
     ids = []
     for i ∈ exprs
-        ec = addexpr!(G, cleanast(i))
+        ec = addexpr!(G, i)
         push!(ids, ec.id)
     end
+
+    # rebuild!(G)
+
+    @info "starting saturation"
 
     alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
 
