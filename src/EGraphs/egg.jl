@@ -152,7 +152,6 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     end
 
     delete!(G.M, from)
-    delete!(G.H, from)
     mergeparents!(G, from, to)
     for analysis ∈ (G.analyses ∪ G.lazy_analyses)
         if haskey(analysis, from) && haskey(analysis, to)
@@ -185,7 +184,9 @@ function rebuild!(G::EGraph)
         end
     end
 
-    G.root = find(G, G.root)
+    if G.root != 0
+        G.root = find(G, G.root)
+    end
 end
 
 function repair!(G::EGraph, id::Int64)
