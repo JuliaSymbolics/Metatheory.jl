@@ -21,6 +21,7 @@ include("test_boson.jl")
 include("test_theories.jl")
 include("test_reductions.jl")
 include("test_while_superinterpreter.jl")
+include("test_fibonacci.jl")
 
 # exported consistency test
 for m ∈ [Metatheory, Metatheory.Util, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]

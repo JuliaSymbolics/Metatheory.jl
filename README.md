@@ -173,9 +173,6 @@ You can use type assertions in the left hand of rules
 to match and access literal values both when using
 classic rewriting and EGraph based rewriting.
 
-**Note**: To match on existing types you have to escape them with `$`!
-This is needed to treat **types as types** and not as **type variables**!
-
 You can also use **dynamic rules**, defined with the `|>`
 operator, to dynamically compute values in the right hand of expressions.
 Dynamic rules, are similar to anonymous functions. Instead of a symbolic
@@ -184,29 +181,11 @@ rewriting: the values that produced a match are bound to the pattern variables.
 
 ```julia
 fold_mul = @theory begin
-    a::$Number * b::$Number |> a*b
+    a::Number * b::Number |> a*b
 end
 t = comm_monoid ∪ fold_mul
 @areequal t (3*4) 12
 ```
-
-#### Type Variables
-
-Instead of asserting on regular Julia types, you can do type assertions with
-type variables. **NOTE:** Parametric types with type variables are not yet
-supported.
-
-```julia
-some_theory = @theory begin
-    a * b => b * a
-    a::T * b::T => sametype(T)
-    a * (b * c) => (a * b) * c
-end
-
-G = EGraph(:(2*3))
-true == areequal(G, some_theory, :(2 * 3), :(sametype($Int64)))
-```
-
 
 #### Complex Example
 

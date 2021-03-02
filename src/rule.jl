@@ -57,10 +57,8 @@ Symbolic rule
 Rule(:(a * b => b * a))
 ```
 
-Dynamic rules computing the actual multiplication of two numbers on
-a match. **Note**: you have to escape types with `\$`!
 ```julia
-Rule(:(a::\$Number * b::\$Number |> a*b))
+Rule(:(a::Number * b::Number |> a*b))
 ```
 """
 function Rule(e::Expr; mod::Module=@__MODULE__)
@@ -68,6 +66,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     mode = :undef
     mode = getfunsym(e)
     l, r = e.args[iscall(e) ? (2:3) : (1:2)]
+
     right_fun = nothing
 
     if mode ∈ raw_syms
@@ -76,10 +75,12 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     elseif mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
         mode = :dynamic
         l = interpolate_dollar(l, mod)
+        l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
         right_fun = genrhsfun(l, r, mod)
     elseif mode ∈ rewrite_syms # right side is quoted, symbolic replacement
         mode = :rewrite
         l = interpolate_dollar(l, mod)
+        l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
     else
         error(`rule "$e" is not in valid form.\n`)
     end
@@ -113,4 +114,19 @@ function genrhsfun(left, right, mod::Module)
 
     ex = :($params -> $right)
     (collect(lhs_vars), closure_generator(mod, ex))
+end
+
+
+# TODO is there anything better than eval to use here?
+"""
+When creating a theory, type assertions in the left hand contain symbols.
+We want to replace the type symbols with the real type values, to fully support
+the subtyping mechanism during pattern matching.
+"""
+function eval_types_in_assertions(x, mod::Module)
+    if isexpr(x, :(::))
+        !(x.args[1] isa Symbol) && error("Type assertion is not on metavariable")
+        Expr(:(::), x.args[1], mod.eval(x.args[2]))
+    else x
+    end
 end

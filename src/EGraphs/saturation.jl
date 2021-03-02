@@ -16,8 +16,6 @@ function instantiate(egraph::EGraph, p, sub::Sub; skip_assert=false)
     df_walk(inst, p, egraph, sub; skip_call=true)
 end
 
-
-
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         scheduler=SimpleScheduler())
     matches=MatchesBuf()
