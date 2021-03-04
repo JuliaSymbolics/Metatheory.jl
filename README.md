@@ -17,20 +17,7 @@ Intuitively, Metatheory.jl transforms Julia expressions
 in other Julia expressions and can achieve such at both compile and run time. This allows Metatheory.jl users to perform customized and composable compiler optimization specifically tailored to single, arbitrary Julia packages.
 Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about semantics and all kinds of formal systems, by defining concise rewriting rules in pure, syntactically valid Julia on a high level of abstraction. Our implementation of equality saturation on e-graphs is based on the excellent, state-of-the-art technique implemented in the [egg](https://egraphs-good.github.io/) library, reimplemented in pure Julia.
 
-## Citing
-
-If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/CITATION.bib) our works.
-
-```
-@misc{cheli2021metatheoryjl,
-      title={Metatheory.jl: Fast and Elegant Algebraic Computation in Julia with Extensible Equality Saturation},
-      author={Alessandro Cheli},
-      year={2021},
-      eprint={2102.07888},
-      archivePrefix={arXiv},
-      primaryClass={cs.PL}
-}
-```
+## Please note that Metatheory.jl is in an experimental stage and THINGS ARE GOING TO CHANGE, A LOT
 
 ## Installation
 
@@ -58,4 +45,17 @@ using Metatheory.EGraphs
 
 Narrative and API documentation for Metatheory.jl is available [here](https://0x0f0f0f.github.io/Metatheory.jl/dev)
 
-## Please note that Metatheory.jl is in an experimental stage and THINGS ARE GOING TO CHANGE, A LOT
+## Citing
+
+If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/CITATION.bib) our works.
+
+```
+@misc{cheli2021metatheoryjl,
+      title={Metatheory.jl: Fast and Elegant Algebraic Computation in Julia with Extensible Equality Saturation},
+      author={Alessandro Cheli},
+      year={2021},
+      eprint={2102.07888},
+      archivePrefix={arXiv},
+      primaryClass={cs.PL}
+}
+```
