@@ -49,7 +49,7 @@ Provided with a theory of equational rewriting rules, defined in pure Julia, *e-
 <!-- The other back-end for Metatheory.jl, the core of our contribution, is designed to not require the user to reason about rewriting order by employing equality saturation on e-graphs. This backend allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over *e-graphs* adapted from the `egg` rust library [@egg].
 Provided with a theory of equational rewriting rules, *e-graphs* compactly represent many equivalent programs. Saturation iteratively executes an e-graph specific pattern matcher to efficiently compute (and analyze) all possible equivalent expressions contained in the e-graph congruence closure. This latter back-end is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers. -->
 
-![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $(a \times (2 * 3) / 6$ after each iteration. \label{fig:egraph}](egraphs.png)
+![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $a \times (2 * 3) / 6$ after each iteration. \label{fig:egraph}](egraphs.png)
 
 
 The original `egg` library [@egg] is
