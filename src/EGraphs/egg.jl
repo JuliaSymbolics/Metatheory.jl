@@ -34,8 +34,6 @@ mutable struct EGraph
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
-    """Same as above, but the analyses values are computed lazily"""
-    lazy_analyses::Analyses
 end
 
 EGraph() = EGraph(
@@ -46,7 +44,6 @@ EGraph() = EGraph(
     Vector{Int64}(),
     0,
     Analyses(),
-    Analyses()
 )
 
 function EGraph(e)
@@ -84,9 +81,10 @@ function add!(G::EGraph, n)::EClass
 
     # make analyses for new enode
     for analysis ∈ G.analyses
-        #data[id] = make(analysis, G, n)
-        analysis[id] = make(analysis, n)
-        modify!(analysis, id)
+        if !islazy(analysis)
+            analysis[id] = make(analysis, n)
+            modify!(analysis, id)
+        end
     end
 
     return EClass(id)
@@ -111,9 +109,7 @@ function mergeparents!(G::EGraph, from::Int64, to::Int64)
     delete!(G.parents, from)
 end
 
-# Does a from-to space optimization by deleting stale terms
-# from G.M, taken from phil zucker's implementation.
-# TODO may this optimization be slowing down things??
+
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
@@ -153,7 +149,7 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
 
     delete!(G.M, from)
     mergeparents!(G, from, to)
-    for analysis ∈ (G.analyses ∪ G.lazy_analyses)
+    for analysis ∈ G.analyses
         if haskey(analysis, from) && haskey(analysis, to)
             analysis[to] = join(analysis, analysis[from], analysis[to])
             delete!(analysis, from)
@@ -225,24 +221,9 @@ function repair!(G::EGraph, id::Int64)
         id = find(G, id)
         for (p_enode, p_eclass) ∈ G.parents[id]
             # p_eclass = find(G, p_eclass)
-            if !haskey(an, p_eclass)
+            if !islazy(an) && !haskey(an, p_eclass)
                 an[p_eclass] = make(an, p_enode)
             end
-            if haskey(an, p_eclass)
-                new_data = join(an, an[p_eclass], make(an, p_enode))
-                if new_data != an[p_eclass]
-                    an[p_eclass] = new_data
-                    push!(G.dirty, p_eclass)
-                end
-            end
-        end
-    end
-
-    for an ∈ G.lazy_analyses
-        haskey(an, id) && modify!(an, id)
-        # modify!(an, id)
-        id = find(G, id)
-        for (p_enode, p_eclass) ∈ G.parents[id]
             if haskey(an, p_eclass)
                 new_data = join(an, an[p_eclass], make(an, p_enode))
                 if new_data != an[p_eclass]

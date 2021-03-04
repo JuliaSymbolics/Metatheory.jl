@@ -54,7 +54,7 @@ Base.setindex!(an::ExtractionAnalysis, value, id::Int64) =
 Base.getindex(an::ExtractionAnalysis, id::Int64) = an.data[id]
 Base.haskey(an::ExtractionAnalysis, id::Int64) = haskey(an.data, id)
 Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
-
+islazy(an::ExtractionAnalysis) = true
 
 function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     (cn, ck) = an[id]
@@ -70,11 +70,8 @@ Given an [`ExtractionAnalysis`](@ref), extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
 function extract!(G::EGraph, extran::ExtractionAnalysis)
-    if extran ∈ G.lazy_analyses
-        analyze!(G, extran, G.root)
-    elseif !(extran ∈ G.analyses)
-        error("Extraction analysis is not associated to EGraph")
-    end
+    islazy(extran) && analyze!(G, extran, G.root)
+    !(extran ∈ G.analyses) && error("Extraction analysis is not associated to EGraph")
     rec_extract(G, extran, G.root)
 end
 

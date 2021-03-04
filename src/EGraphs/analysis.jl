@@ -2,8 +2,6 @@
 Adds an [`AbstractAnalysis`](@ref) to an [`EGraph`](@ref).
 An [`EGraph`](@ref) can only contain one analysis of type
 `AnType`.
-The Analysis is computed for the whole EGraph. This
-may be very slow for large EGraphs
 """
 function addanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
     for i ∈ g.analyses
@@ -12,24 +10,10 @@ function addanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy
     analysis = AnType(g, args...)
     push!(g.analyses, analysis)
 
-    analyze!(g, analysis, collect(keys(g.M)))
+    !islazy(analysis) && analyze!(g, analysis, collect(keys(g.M)))
 
     return analysis
 end
-
-function addlazyanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
-    @warn "LAZY ANALYSES ARE AN UNSTABLE FEATURE!"
-    for i ∈ g.lazy_analyses
-        if typeof(i) isa AnType
-            return nothing
-        end
-    end
-    analysis = AnType(g, args...)
-    push!(g.lazy_analyses, analysis)
-
-    return analysis
-end
-
 
 # FIXME doesnt work on cycles.
 """
@@ -131,3 +115,5 @@ Base.delete!(analysis::AbstractAnalysis, ec::EClass) =
 
 Base.get(an::AbstractAnalysis, id::Int64, default) = haskey(an, id) ? an[id] : default
 Base.get(an::AbstractAnalysis, ec::EClass, default) = get(an, ec.id, default)
+
+islazy(an::AbstractAnalysis)::Bool = false
