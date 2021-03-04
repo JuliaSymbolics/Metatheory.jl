@@ -75,7 +75,7 @@ the `theories` together with a *constant folding* theory. The pattern matcher fo
 allows us to use the existing Julia type hierarchy for integers and floating point numbers with an high level
 of abstraction. We finally add two simple rules for simplifying fractions, that
 for the sake of simplicity, do not check any additional analysis data.
-Figure \autoref{fig:egraph} contains a friendly visualization of (a fragment of) the equality saturation process in this
+\autoref{fig:egraph} contains a friendly visualization of (a fragment of) the equality saturation process in this
 example.
 You can see how loops evidently appear in the definition of the rewriting rules.
 While the classic rewriting backend would loop indefinitely or stop early when repeatedly matching these rules,
