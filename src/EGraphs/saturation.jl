@@ -1,6 +1,9 @@
 const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
 
 import ..genrhsfun
+import ..options
+import ..@log
+
 using .Schedulers
 
 inst(var, egraph::EGraph, sub::Sub) =
@@ -44,7 +47,6 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         end
     end
 
-    # @info "write phase"
     for (rule, sub, id) ∈ matches
         writestep!(scheduler, rule)
 
@@ -95,14 +97,13 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     saturated = false
 
     while true
-        # @info curr_iter
         curr_iter+=1
         saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched)
 
-        cansaturate(sched) && saturated && (@info "E-GRAPH SATURATED"; break)
-        curr_iter >= timeout && (@info "E-GRAPH TIMEOUT"; break)
-        sizeout > 0 && length(egraph.U) > sizeout && (@info "E-GRAPH SIZEOUT"; break)
-        stopwhen() && (@info "Halting requirement satisfied"; break)
+        cansaturate(sched) && saturated && (@log "E-GRAPH SATURATED"; break)
+        curr_iter >= timeout && (@log "E-GRAPH TIMEOUT"; break)
+        sizeout > 0 && length(egraph.U) > sizeout && (@log "E-GRAPH SIZEOUT"; break)
+        stopwhen() && (@log "Halting requirement satisfied"; break)
     end
     return saturated, egraph
 end

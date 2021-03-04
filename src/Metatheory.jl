@@ -7,6 +7,20 @@ include("docstrings.jl")
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
+# TODO document options
+# Options
+options = Dict{Symbol, Any}(
+    :verbose => false,
+)
+
+macro log(args...)
+    quote options[:verbose] && @info($(args...)) end
+end
+
+export options
+
+
+
 # TODO document this interface
 include("expr_abstraction.jl")
 export iscall
@@ -22,11 +36,12 @@ export Util
 
 include("rgf.jl")
 include("rule.jl")
+export Rule
+
 include("theory.jl")
 include("matchcore_compiler.jl")
 include("rewrite.jl")
 include("match.jl")
-
 
 
 include("EGraphs/EGraphs.jl")
@@ -41,7 +56,7 @@ export @rule
 export @theory
 
 export Theory
-export Rule
+
 
 export rewrite
 export @rewrite

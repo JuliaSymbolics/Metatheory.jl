@@ -6,6 +6,8 @@ using Metatheory.Util
 using DataStructures
 using Test
 
+Metatheory.options[:verbose] = true
+
 @metatheory_init
 
 include("test_egraphs.jl")

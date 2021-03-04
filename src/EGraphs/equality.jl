@@ -18,7 +18,7 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...;
 
     # rebuild!(G)
 
-    @info "starting saturation"
+    @log "starting saturation"
 
     alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
 
