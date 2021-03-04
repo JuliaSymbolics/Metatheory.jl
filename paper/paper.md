@@ -72,11 +72,12 @@ can define their own, or choose between a variety of predefined cost functions f
 In this example, we build rewrite systems, called `theories` in Metatheory.jl, for simplifying expressions
 in the usual commutative monoid of multiplication and the commutative group of addition, and we compose
 the `theories` together with a *constant folding* theory. The pattern matcher for the *e-graphs* backend
-allows us to use the existing Julia type hierarchy for integers and floating point numbers with an high level
-of abstraction. We finally add two simple rules for simplifying fractions, that
+allows us to use the existing Julia type hierarchy for integers and floating point numbers with a high level
+of abstraction. As a contribution over the original egg [@egg] implementation, left hand sides of rules in Metatheory.jl can contain type assertions on pattern variables, to have rules that depend on consistent type hierarchies and  to seamlessly access literal Julia values in the right hand side of dynamic rules.
+
+We finally introduce two simple rules for simplifying fractions, that
 for the sake of simplicity, do not check any additional analysis data.
-\autoref{fig:egraph} contains a friendly visualization of (a fragment of) the equality saturation process in this
-example.
+\autoref{fig:egraph} contains a friendly visualization of a consistent fragment of the equality saturation process in this example.
 You can see how loops evidently appear in the definition of the rewriting rules.
 While the classic rewriting backend would loop indefinitely or stop early when repeatedly matching these rules,
 the *e-graph* backend natively support this level of abstraction and allows the
