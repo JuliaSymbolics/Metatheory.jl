@@ -48,7 +48,7 @@ Provided with a theory of equational rewriting rules, defined in pure Julia, *e-
 <!-- The other back-end for Metatheory.jl, the core of our contribution, is designed to not require the user to reason about rewriting order by employing equality saturation on e-graphs. This backend allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over *e-graphs* adapted from the `egg` rust library [@egg].
 Provided with a theory of equational rewriting rules, *e-graphs* compactly represent many equivalent programs. Saturation iteratively executes an e-graph specific pattern matcher to efficiently compute (and analyze) all possible equivalent expressions contained in the e-graph congruence closure. This latter back-end is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers. -->
 
-![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $(a \times 2) / 2$ after each iteration. Credits to Max Willsey (@egg).\label{fig:egggg}](egraphs.png)
+![These four e-graphs represent the process of equality saturation, adding many equivalent ways to write $(a \times (2 * 3) / 6$ after each iteration. \label{fig:egraph}](egraphs.png)
 
 
 The original `egg` library [@egg] is
@@ -65,6 +65,71 @@ With Metatheory.jl, modeling analyses and conditional/dynamic rewrites is straig
 
 Therefore using the equality saturation (e-graph) backend, extraction can be performed as an on-the-fly e-graph analysis or after saturation. Users
 can define their own, or choose between a variety of predefined cost functions for automatically extracting the most fitting expressions from the congruence closure represented by an e-graph.
+
+# Examples
+
+In this example, we build rewrite systems, called `theories` in Metatheory.jl, for simplifying expressions
+in the usual commutative monoid of multiplication and the commutative group of addition, and we compose
+the `theories` together with a *constant folding* theory. The pattern matcher for the *e-graphs* backend
+allows us to use the existing Julia type hierarchy for integers and floating point numbers with an high level
+of abstraction. We finally add two simple rules for simplifying fractions, that
+for the sake of simplicity, do not check any additional analysis data.
+Figure \autoref{fig:egraph} contains a friendly visualization of (a fragment of) the equality saturation process in this
+example.
+You can see how loops easily appear in the definition of the rewriting rules.
+While the classic rewriting backend would loop indefinitely or stop when repeatedly matching these rules,
+the *e-graph* backend natively support this level of abstraction and allows the
+programmer to completely forget about the ordering and looping of rules.
+Efficient scheduling heuristics are applied automatically to prevent instantaneous
+combinatorial explosion of the e-graph, thus preventing substantial slowdown of the equality saturation
+algorithm.
+
+```julia
+using Metatheory
+using Metatheory.EGraphs
+
+comm_monoid = @theory begin
+  # commutativity
+  a * b => b * a
+  # identity
+  a * 1 => a
+  # associativity
+  a * (b * c) => (a * b) * c
+  (a * b) * c => a * (b * c)
+end;
+
+comm_group = @theory begin
+  # commutativity
+  a + b => b + a
+  # identity
+  a + 0 => a
+  # associativity
+  a + (b + c) => (a + b) + c
+  (a + b) + c => a + (b + c)
+  # inverse
+  a + (-a) => 0
+end;
+
+# dynamic rules are defined with the `|>` operator
+folder = @theory begin
+  a::Real + b::Real |> a+b
+  a::Real * b::Real |> a*b
+end;
+
+div_sim = @theory begin
+  (a * b) / c => a * (b / c)
+  a::Real / a::Real => 1
+end;
+
+t = comm_monoid ∪ comm_group ∪ folder ∪ div_sim ;
+
+g = EGraph(:(a * (2*3) / 6)) ;
+saturate!(g, t) ;
+extran = addanalysis!(g, ExtractionAnalysis, astsize) ;
+ex = extract!(g, extran)
+# :a 
+
+```
 
 # Conclusion
 
