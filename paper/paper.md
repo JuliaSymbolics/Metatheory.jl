@@ -29,7 +29,8 @@ a programming language property colloquially referred to as *homoiconicity*. -->
 The Julia programming language is a fresh approach to technical computing [@bezanson2017julia], disrupting the popular conviction that a programming language cannot be high level, easy to learn, and performant at the same time. One of the most practical features of Julia is the excellent metaprogramming and macro system, allowing for *homoiconicity*: programmatic generation and manipulation of expressions as first-class values, a well-known paradigm similar to several LISP idioms such as Scheme.
 
 We introduce Metatheory.jl: a general purpose metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics,
-abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions at both compile and run time. This allows Metatheory.jl users to perform customized and composable compiler optimization specifically tailored to single, arbitrary Julia packages. Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about all kinds of formal systems, by defining concise rewriting rules as syntactically valid Julia code.
+abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced homoiconic pattern matching features. Intuitively, Metatheory.jl transforms Julia expressions in other Julia expressions at both compile and run time. This allows Metatheory.jl users to perform customized and composable compiler optimization specifically tailored to single, arbitrary Julia packages. Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about all kinds of formal systems, by defining concise rewriting rules as syntactically valid Julia code. The primary benefit of using Metatheory is the algebraic nature of the specification of rewriting system. Composable blocks of rewrite rules bear a strong resemblance with algebraic
+structures encountered in everyday scientific literature.
 
 <!-- Rewrite rules are defined as regular Julia expressions, manipulating other syntactically valid Julia expressions: since Julia supports LaTeX-like abbreviations of UTF8 mathematical symbols as valid operators and symbols,
 rewrite theories in Metatheory.jl can bear a strong structural and visual resemblance to mathematical formalisms encountered in paper literature. -->
@@ -66,7 +67,7 @@ With Metatheory.jl, modeling analyses and conditional/dynamic rewrites is straig
 Therefore using the equality saturation (e-graph) backend, extraction can be performed as an on-the-fly e-graph analysis or after saturation. Users
 can define their own, or choose between a variety of predefined cost functions for automatically extracting the most fitting expressions from the congruence closure represented by an e-graph.
 
-# Examples
+# Example Usage
 
 In this example, we build rewrite systems, called `theories` in Metatheory.jl, for simplifying expressions
 in the usual commutative monoid of multiplication and the commutative group of addition, and we compose
@@ -76,13 +77,13 @@ of abstraction. We finally add two simple rules for simplifying fractions, that
 for the sake of simplicity, do not check any additional analysis data.
 Figure \autoref{fig:egraph} contains a friendly visualization of (a fragment of) the equality saturation process in this
 example.
-You can see how loops easily appear in the definition of the rewriting rules.
-While the classic rewriting backend would loop indefinitely or stop when repeatedly matching these rules,
+You can see how loops evidently appear in the definition of the rewriting rules.
+While the classic rewriting backend would loop indefinitely or stop early when repeatedly matching these rules,
 the *e-graph* backend natively support this level of abstraction and allows the
 programmer to completely forget about the ordering and looping of rules.
 Efficient scheduling heuristics are applied automatically to prevent instantaneous
 combinatorial explosion of the e-graph, thus preventing substantial slowdown of the equality saturation
-algorithm.
+process.
 
 ```julia
 using Metatheory
@@ -118,7 +119,7 @@ end;
 
 div_sim = @theory begin
   (a * b) / c => a * (b / c)
-  a::Real / a::Real => 1
+  a::Real / a::Real  |>  (a != 0 ? 1 : error("division by 0"))
 end;
 
 t = comm_monoid ∪ comm_group ∪ folder ∪ div_sim ;
@@ -127,7 +128,7 @@ g = EGraph(:(a * (2*3) / 6)) ;
 saturate!(g, t) ;
 extran = addanalysis!(g, ExtractionAnalysis, astsize) ;
 ex = extract!(g, extran)
-# :a 
+# :a
 
 ```
 
