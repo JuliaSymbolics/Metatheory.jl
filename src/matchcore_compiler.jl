@@ -33,12 +33,14 @@ const skips = [:(::), :(...)]
 # Compile rules from Metatheory format to MatchCore format
 function compile_rule(rule::Rule)::Expr
     le = df_walk(c_left, rule.left, Vector{Symbol}(); skip=skips, skip_call=true) |> quot
+
     if rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
         re = rule.right
-    elseif rule.mode == :rewrite # right side is quoted, symbolic replacement
+    elseif rule.mode == :rewrite || rule.mode == :equational
+		# right side is quoted, symbolic replacement
         re = df_walk(c_right, rule.right; skip=skips, skip_call=true) |> quot
-    else
+	else
         error(`rule "$e" is not in valid form.\n`)
     end
 
@@ -51,8 +53,21 @@ const identity_axiom = :($(quot(dollar(:i))) => i)
 # TODO analyse theory before compiling. Identify associativity and commutativity
 # and other loop-creating problems. Generate a pattern matching block with the
 # correct rule order and expansions for associativity and distributivity
-theory_block(t::Vector{Rule}) = block(map(compile_rule, t)..., identity_axiom)
+# import Iterators: flatten
 
+function theory_block(t::Vector{Rule})
+	tn = Vector{Expr}()
+
+	for r ∈ t
+		push!(tn, compile_rule(r))
+		if r.mode == :equational
+			mirrored = Rule(r.right, r.left, r.expr, r.mode, nothing)
+			push!(tn, compile_rule(mirrored))
+		end
+	end
+
+	block(tn..., identity_axiom)
+end
 
 """
 Compile a theory to a closure that does the pattern matching job

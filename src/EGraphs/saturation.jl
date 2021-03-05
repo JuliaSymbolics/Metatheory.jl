@@ -30,21 +30,24 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         # don't apply banned rules
         shouldskip(scheduler, rule) && continue
 
-        if rule.mode == :rewrite || rule.mode == :dynamic
-            for id ∈ keys(egraph.M)
-                # println(rule.right)
-                for sub in ematch(egraph, rule.left, id, EMPTY_DICT)
+        if rule.mode ∉ [:rewrite, :dynamic, :equational]
+            error("unsupported rule mode")
+        end
+
+        for id ∈ keys(egraph.M)
+            # println(rule.right)
+            for sub in ematch(egraph, rule.left, id, EMPTY_DICT)
+                # display(sub); println()
+                !isempty(sub) && push!(matches, (rule, sub, id))
+            end
+            if rule.mode == :equational
+                for sub in ematch(egraph, rule.right, id, EMPTY_DICT)
                     # display(sub); println()
                     !isempty(sub) && push!(matches, (rule, sub, id))
                 end
-                # for sub in ematch(egraph, rule.right, id, EMPTY_DICT)
-                #     # display(sub); println()
-                #     !isempty(sub) && push!(matches, (rule, sub, id))
-                # end
             end
-        else
-            error("unsupported rule mode")
         end
+
     end
 
     for (rule, sub, id) ∈ matches
