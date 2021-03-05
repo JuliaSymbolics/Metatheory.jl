@@ -103,7 +103,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
         curr_iter+=1
         # FIXME log
         # @log "iteration " curr_iter
-        options[:verbose] && @info("iteration ", curr_iter)
+        options[:printiter] && @info("iteration ", curr_iter)
 
         saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched)
 
