@@ -11,6 +11,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 # Options
 options = Dict{Symbol, Any}(
     :verbose => false,
+    :printiter => false,
 )
 
 macro log(args...)
