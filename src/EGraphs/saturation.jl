@@ -101,6 +101,10 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
 
     while true
         curr_iter+=1
+        # FIXME log
+        # @log "iteration " curr_iter
+        options[:verbose] && @info("iteration ", curr_iter)
+
         saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched)
 
         cansaturate(sched) && saturated && (@log "E-GRAPH SATURATED"; break)
