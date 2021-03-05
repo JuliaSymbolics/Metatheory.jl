@@ -31,7 +31,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         shouldskip(scheduler, rule) && continue
 
         if rule.mode ∉ [:rewrite, :dynamic, :equational]
-            error("unsupported rule mode")
+            error("unsupported mode in rule ", rule)
         end
 
         for id ∈ keys(egraph.M)
@@ -53,7 +53,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     for (rule, sub, id) ∈ matches
         writestep!(scheduler, rule)
 
-        if rule.mode == :rewrite # symbolic replacement
+        if rule.mode == :rewrite || rule.mode == :equational # symbolic replacement
             l = instantiate(egraph,rule.left,sub; skip_assert=true)
             r = instantiate(egraph,rule.right,sub)
             merge!(egraph,l.id,r.id)
