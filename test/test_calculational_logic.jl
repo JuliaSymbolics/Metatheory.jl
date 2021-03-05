@@ -29,27 +29,45 @@ calc = @theory begin
     ((p == q) == r)     ==  (p == (q == r))
     (p == q)            ==  (q == p)
     (q == q)            ==  true
-    ¬(true)             ==  false
+
     ¬(p == q)           ==  (¬(p) == q)
     (p != q)            ==  ¬(p == q)
 
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
     (p ∨ q)             ==  (q ∨ p)
-    (p ∨ p)             ==  p
+    (p ∨ p)             =>  p
     (p ∨ (q == r))      ==  (p ∨ q == p ∨ r)
     (p ∨ ¬(p))          ==  true
 
-    (p && q)            ==  ((p == q) == p ∨ q)
+    (p ∧ q)             ==  ((p == q) == p ∨ q)
 
-    (p => q)            ==  ((p ∨ q) == q)
-    (p <= q)            ==  (q => p)
+    (p => q)            =>  ((p ∨ q) == q)
+    # (p <= q)            =>  (q => p)
+
 end
 
-# g = EGraph(:(~p == p == false))
-# saturate!(g, calc)
+fold = @theory begin
+    (p::Bool == q::Bool)    |>     (p == q)
+    (p::Bool ∨ q::Bool)     |>     (p || q)
+    (p::Bool => q::Bool)    |>     ((p || q) == q)
+    (p::Bool ∧ q::Bool)     |>     (p && q)
+    ¬(p::Bool)              |>     (!p)
+end
 
-@test @areequal calc true ((¬p == p) == false)
+t = calc ∪ fold
 
-g = EGraph(:((p ∨ q) ∧ (p => r) ∧ (q => r) => r))
-saturate!(g, calc; timeout=5)
-display(g.M); println()
+@test @areequal t true ((¬p == p) == false)
+@test @areequal t true ((¬p == ¬p) == true)
+@test @areequal t true ((¬p ∨ ¬p) == ¬p) (¬p ∨ p) ¬(¬p ∧ p)
+@test @areequal t true ((p => (p ∨ p)) == true)
+@test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
+
+# g = EGraph(:((p => (p ∨ p)) == true))
+# saturate!(g, t; timeout=5)
+# display(g.M); println()
+# in_same_set(g.U, g.root, addexpr!(g, true).id) |> println
+#
+# struct LogicAnalysis <: AbstractAnalysis
+#     egraph::EGraph
+#     logic_egraph::EGraph
+# end
