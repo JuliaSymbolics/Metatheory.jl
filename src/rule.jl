@@ -13,7 +13,9 @@ const rewrite_syms = [:(=>)]
 # might be used to implement big step semantics
 const dynamic_syms = [:(|>)]
 
-const raw_syms = [:(↦)]
+# symbols for bidirectional equality
+const equational_syms = [:(==)]
+
 
 """
 Construct a `Rule` from a quoted expression.
@@ -69,21 +71,19 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
 
     right_fun = nothing
 
-    if mode ∈ raw_syms
-        mode = :raw
-        l = mod.eval(l, mod)
-    elseif mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
+    if mode ∈ dynamic_syms # right hand execution, dynamic rules in egg
         mode = :dynamic
-        l = interpolate_dollar(l, mod)
-        l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
-        right_fun = genrhsfun(l, r, mod)
     elseif mode ∈ rewrite_syms # right side is quoted, symbolic replacement
         mode = :rewrite
-        l = interpolate_dollar(l, mod)
-        l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
+    elseif mode ∈ equational_syms # right side is quoted, symbolic replacement
+        mode = :equational
     else
         error(`rule "$e" is not in valid form.\n`)
     end
+
+    l = interpolate_dollar(l, mod)
+    l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
+    mode == :dynamic && (right_fun = genrhsfun(l, r, mod))
 
     e.args[iscall(e) ? 2 : 1] = l
     return Rule(l, r, e, mode, right_fun)
