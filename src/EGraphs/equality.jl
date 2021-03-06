@@ -7,7 +7,7 @@ end
 
 function areequal(G::EGraph, t::Vector{Rule}, exprs...;
     timeout=0, sizeout=2^12, mod=@__MODULE__)
-    @debug "Checking equality for " exprs
+    @log "Checking equality for " exprs
     if length(exprs) == 1; return true end
 
     ids = []

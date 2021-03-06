@@ -15,7 +15,7 @@ options = Dict{Symbol, Any}(
 )
 
 macro log(args...)
-    quote options[:verbose] && @info($(args...)) end
+    quote options[:verbose] && @info($(args...)) end |> esc
 end
 
 export options

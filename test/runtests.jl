@@ -27,7 +27,7 @@ include("test_while_superinterpreter.jl")
 include("test_fibonacci.jl")
 include("test_cat.jl")
 include("test_calculational_logic.jl")
-
+include("test_logic.jl")
 
 # exported consistency test
 for m ∈ [Metatheory, Metatheory.Util, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
