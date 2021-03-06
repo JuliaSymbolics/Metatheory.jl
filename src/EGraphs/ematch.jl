@@ -101,7 +101,9 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub
 
         # otherwise ematch on an expr
         (!(n isa Expr) || getfunsym(n) != getfunsym(t)) && continue
-        union!(c, ematchlist(e, getfunargs(t), getfunargs(n) .|> x -> x.id, sub))
+        ids = getfunargs(n) .|> x -> x.id
+        ids = length(ids) == 0 ? Int64[] : ids
+        union!(c, ematchlist(e, getfunargs(t), ids, sub))
     end
     return c
 end
