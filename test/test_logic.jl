@@ -27,29 +27,45 @@
 
 Metatheory.options[:printiter] = true
 
-calc = @theory begin
-    ((p == q) == r)     ==  (p == (q == r))
-    (p == q)            ==  (q == p)
-    (q == q)            =>  true
-
-    ¬(p == q)           ==  (¬(p) == q)
-    (p != q)            ==  ¬(p == q)
-
+or_alg = @theory begin
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
     (p ∨ q)             ==  (q ∨ p)
     (p ∨ p)             =>  p
-    (p ∨ (q == r))      ==  (p ∨ q == p ∨ r)
-    (p ∨ ¬(p))          =>  true
+    (p ∨ true)          =>  true
+    (p ∨ false)         =>  p
+end
 
+and_alg = @theory begin
+    ((p ∧ q) ∧ r)       ==  (p ∧ (q ∧ r))
+    (p ∧ q)             ==  (q ∧ p)
+    (p ∧ p)             =>  p
+    (p ∧ true)          =>  p
+    (p ∧ false)         =>  false
+end
+
+comb = @theory begin
     # DeMorgan
     ¬(p ∨ q)            ==  (¬p ∧ ¬q)
     ¬(p ∧ q)            ==  (¬p ∨ ¬q)
+    # distrib
+    (p ∧ (q ∨ r))       ==  ((p ∧ q) ∨ (p ∧ r))
+    (p ∨ (q ∧ r))       ==  ((p ∨ q) ∧ (p ∨ r))
+    # absorb
+    (p ∧ (p ∨ q))       =>  p
+    (p ∨ (p ∧ q))       =>  p
+end
 
-    (p ∧ q)             ==  ((p == q) == p ∨ q)
+negt = @theory begin
+    (p ∧ ¬p)            =>  false
+    (p ∨ ¬(p))          =>  true
+    ¬(¬p)               ==  p
+end
 
-    (p => q)            ==  ((p ∨ q) == q)
-    # (p <= q)            =>  (q => p)
-
+impl = @theory begin
+    (p == ¬p)           =>  false
+    (p == p)            =>  true
+    (p == q)            =>  (¬p ∨ q) ∧ (¬q ∨ p)
+    (p => q)            =>  (¬p ∨ q)
 end
 
 fold = @theory begin
@@ -63,7 +79,7 @@ end
 # t = or_alg ∪ and_alg ∪ neg_alg ∪ demorgan ∪ and_or_distrib ∪
 #     absorption ∪ calc
 
-t = calc ∪ fold
+t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 
 @test @areequal t true ((¬p == p) == false)
 @test @areequal t true ((¬p == ¬p) == true)
@@ -78,16 +94,16 @@ t = calc ∪ fold
 @test @areequal t true (¬(p ∨ q) == (¬p ∧ ¬q))
 
 # Consensus theorem
-@test_skip @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z))   ((x ∧ y) ∨ (¬x ∧ z))
+@test @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z))   ((x ∧ y) ∨ (¬x ∧ z))
 
 
 # TODO proof strategies?
-
+# FIXME
 # Constructive Dilemma
 
-# @test @areequal (t ∪ [@rule :p => true]) true ((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)
+@test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
 
-#
+
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
 # @time saturate!(g, t; timeout=30, sizeout=Inf)
 #

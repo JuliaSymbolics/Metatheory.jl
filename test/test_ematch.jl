@@ -60,6 +60,14 @@ end
     @test false == (@areequal t (x*y)+inv(x*y) 1 )
 end
 
+# Issue 21
+simp_theory = @theory begin
+    munit() => :foo
+end
+G = EGraph( :(munit()) )
+saturate!(G, simp_theory, timeout=1)
+
+
 # expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))
 #
 # G = EGraph(expr)
