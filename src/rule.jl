@@ -3,7 +3,7 @@ mutable struct Rule
     right::Any
     expr::Expr # original expression
     mode::Symbol # can be :rewrite or :dynamic
-    right_fun::Union{Nothing, Tuple{Vector{Symbol}, Function}}
+    right_fun::Union{Nothing, Dict{Module, Tuple{Vector{Symbol}, Function}}}
 end
 
 # operator symbols for simple term rewriting
@@ -83,7 +83,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
 
     l = interpolate_dollar(l, mod)
     l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
-    mode == :dynamic && (right_fun = genrhsfun(l, r, mod))
+    mode == :dynamic && (right_fun = Dict(mod => genrhsfun(l, r, mod)))
 
     e.args[iscall(e) ? 2 : 1] = l
     return Rule(l, r, e, mode, right_fun)

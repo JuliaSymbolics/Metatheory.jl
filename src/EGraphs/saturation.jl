@@ -20,7 +20,7 @@ function instantiate(egraph::EGraph, p, sub::Sub; skip_assert=false)
 end
 
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
-        scheduler=SimpleScheduler())
+        scheduler=SimpleScheduler(), mod=@__MODULE__)
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
 
@@ -59,7 +59,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
             merge!(egraph,l.id,r.id)
         elseif rule.mode == :dynamic # execute the right hand!
             l = instantiate(egraph,rule.left,sub; skip_assert=true)
-            (params, f) = rule.right_fun
+            (params, f) = rule.right_fun[mod]
             actual_params = map(params) do x
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
@@ -95,6 +95,13 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
 
     curr_iter = 0
 
+    # prepare the dynamic rules in this module
+    for rule ∈ theory
+        if rule.mode == :dynamic && !haskey(rule.right_fun, mod)
+            rule.right_fun[mod] = genrhsfun(rule.left, rule.right, mod)
+        end
+    end
+
     # init the scheduler
     sched = scheduler(egraph, theory)
     saturated = false
@@ -105,7 +112,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
         # @log "iteration " curr_iter
         options[:printiter] && @info("iteration ", curr_iter)
 
-        saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched)
+        saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched, mod=mod)
 
         cansaturate(sched) && saturated && (@log "E-GRAPH SATURATED"; break)
         curr_iter >= timeout && (@log "E-GRAPH TIMEOUT"; break)
