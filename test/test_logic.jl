@@ -53,6 +53,9 @@ comb = @theory begin
     # absorb
     (p ∧ (p ∨ q))       =>  p
     (p ∨ (p ∧ q))       =>  p
+    # complement
+    (p ∧ (¬p ∨ q))      =>  p ∧ q
+    (p ∨ (¬p ∧ q))      =>  p ∨ q
 end
 
 negt = @theory begin
@@ -102,6 +105,22 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # Constructive Dilemma
 
 @test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
+
+ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
+println(ex)
+g = EGraph(ex)
+@time saturate!(g, t; timeout=10, sizeout=2^13)
+extran = addanalysis!(g, ExtractionAnalysis, astsize)
+
+ex = extract!(g, extran)
+println(ex)
+
+g = EGraph(ex)
+@time saturate!(g, t; timeout=5, sizeout=2^12)
+extran = addanalysis!(g, ExtractionAnalysis, astsize)
+
+ex = extract!(g, extran)
+println(ex)
 
 
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))

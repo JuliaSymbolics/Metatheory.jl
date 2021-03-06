@@ -25,7 +25,7 @@
 # Implication: p => q == p | q == q
 # Consequence: p <= q == q => p
 
-Metatheory.options[:printiter] = true
+# Metatheory.options[:printiter] = true
 
 calc = @theory begin
     ((p == q) == r)     ==  (p == (q == r))
@@ -48,6 +48,7 @@ calc = @theory begin
     (p ∧ q)             ==  ((p == q) == p ∨ q)
 
     (p => q)            ==  ((p ∨ q) == q)
+    (p => q)            ==  (¬p ∨ q)
     # (p <= q)            =>  (q => p)
 
 end
@@ -88,8 +89,12 @@ t = calc ∪ fold
 # @test @areequal (t ∪ [@rule :p => true]) true ((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)
 
 #
-# g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
-# @time saturate!(g, t; timeout=30, sizeout=Inf)
+g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
+@time saturate!(g, t; timeout=10, sizeout=2^12)
+extran = addanalysis!(g, ExtractionAnalysis, astsize)
+
+println(extract!(g, extran))
+
 #
 # in_same_set(g.U, g.root, addexpr!(g, true).id) |> println
 #
