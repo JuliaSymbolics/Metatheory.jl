@@ -6,21 +6,28 @@ import ..@log
 
 using .Schedulers
 
-inst(var, egraph::EGraph, sub::Sub) =
-    haskey(sub, var) ? first(sub[var]) : add!(egraph, var)
-inst(p::Expr, egraph::EGraph, sub::Sub) = add!(egraph, p)
+function inst(pat, sub::Sub)
+    # TODO interface istree
+    if haskey(sub, pat)
+        (eclass, lit) = sub[pat]
+        lit != nothing ? lit : eclass
+    else
+        pat
+    end
+end
 
-function instantiate(egraph::EGraph, p, sub::Sub; skip_assert=false)
+function instantiate(p, sub::Sub; skip_assert=false)
     # remove type assertions
     if skip_assert
         p = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), p; skip_call=true )
     end
 
-    df_walk(inst, p, egraph, sub; skip_call=true)
+    df_walk(inst, p, sub; skip_call=true)
 end
 
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
-        scheduler=SimpleScheduler(), mod=@__MODULE__)
+        scheduler=SimpleScheduler(), mod=@__MODULE__,
+        match_hist=MatchesBuf(), sizeout=0)
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
 
@@ -58,31 +65,50 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
                 end
             end
         end
-
-
     end
 
-    for (rule, sub, id) ∈ matches
+    # println("============ WRITE PHASE ============")
+    # println("\n $(length(matches)) $(length(unique(matches)))")
+    # println(" diff length $(length(symdiff(match_hist, matches)))")
+
+    # mmm = unique(matches)
+    mmm = symdiff(match_hist, matches)
+    for i ∈ 1:length(mmm)
+        (rule, sub, id) = mmm[i]
+
+        if (mmm[i] ∈ match_hist)
+            println("already matched")
+            continue
+        end
+
+        sizeout > 0 && length(egraph.U) > sizeout && (@log "E-GRAPH SIZEOUT"; break)
+
         writestep!(scheduler, rule)
 
         if rule.mode == :rewrite || rule.mode == :equational # symbolic replacement
-            l = instantiate(egraph,rule.left,sub; skip_assert=true)
-            r = instantiate(egraph,rule.right,sub)
-            merge!(egraph,l.id,r.id)
+            l = instantiate(rule.left, sub; skip_assert=true)
+            r = instantiate(rule.right, sub)
+            lc = addexpr!(egraph, l)
+            rc = addexpr!(egraph, r)
+            merge!(egraph, lc.id, rc.id)
         elseif rule.mode == :dynamic # execute the right hand!
-            l = instantiate(egraph,rule.left,sub; skip_assert=true)
+            l = instantiate(rule.left,sub; skip_assert=true)
+            lc = addexpr!(egraph, l)
+
             (params, f) = rule.right_fun[mod]
             actual_params = map(params) do x
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
             end
             new = f(egraph, actual_params...)
-            r = addexpr!(egraph, new)
-            merge!(egraph,l.id,r.id)
+            rc = addexpr!(egraph, new)
+            merge!(egraph,lc.id,rc.id)
         else
             error("unsupported rule mode")
         end
     end
+
+    match_hist = match_hist ∪ matches
 
     # display(egraph.parents); println()
     # display(egraph.M); println()
@@ -118,13 +144,17 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     sched = scheduler(egraph, theory)
     saturated = false
 
+    match_hist = MatchesBuf()
+
     while true
         curr_iter+=1
         # FIXME log
         # @log "iteration " curr_iter
         options[:printiter] && @info("iteration ", curr_iter)
 
-        saturated, egraph = eqsat_step!(egraph, theory; scheduler=sched, mod=mod)
+        saturated, egraph = eqsat_step!(egraph, theory;
+            scheduler=sched, mod=mod,
+            match_hist=match_hist, sizeout=sizeout)
 
         cansaturate(sched) && saturated && (@log "E-GRAPH SATURATED"; break)
         curr_iter >= timeout && (@log "E-GRAPH TIMEOUT"; break)
