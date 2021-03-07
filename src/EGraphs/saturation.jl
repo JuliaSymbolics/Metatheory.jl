@@ -48,7 +48,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         for id ∈ ids
         # for id ∈ get(egraph.symcache, sym, keys(egraph.M))
         # for id ∈ keys(egraph.M)
-            id = find(egraph, id)
+            # id = find(egraph, id)
             # println(rule.right)
             for sub in ematch(egraph, rule.left, id, EMPTY_DICT)
                 # display(sub); println()
