@@ -18,6 +18,12 @@ const AnalysisData = Dict{Int64,Any}
 const Analyses = Vector{AbstractAnalysis}
 
 """
+a cache mapping function symbols to e-classes that
+contain e-nodes with that function symbol.
+"""
+const SymbolCache = Dict{Any, Vector{Int64}}
+
+"""
 A concrete type representing an [`EGraph`].
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details
@@ -34,6 +40,7 @@ mutable struct EGraph
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
+    symcache::SymbolCache
 end
 
 EGraph() = EGraph(
@@ -44,6 +51,7 @@ EGraph() = EGraph(
     Vector{Int64}(),
     0,
     Analyses(),
+    SymbolCache()
 )
 
 function EGraph(e)
@@ -78,6 +86,13 @@ function add!(G::EGraph, n)::EClass
 
     G.H[n] = id
     G.M[id] = [n]
+
+    # cache the eclass for the symbol for faster matching
+    sym = getfunsym(n)
+    if !haskey(G.symcache, sym)
+        G.symcache[sym] = []
+    end
+    push!(G.symcache[sym], id)
 
     # make analyses for new enode
     for analysis ∈ G.analyses
@@ -142,13 +157,14 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     G.M[from] = map(clean, G.M[from])
     G.M[to] = map(clean, G.M[to])
     G.M[to] = G.M[from] ∪ G.M[to]
+    delete!(G.M, from)
+    mergeparents!(G, from, to)
 
+    # canonicalize the root if needed
     if from == G.root
         G.root = to
     end
 
-    delete!(G.M, from)
-    mergeparents!(G, from, to)
     for analysis ∈ G.analyses
         if haskey(analysis, from) && haskey(analysis, to)
             analysis[to] = join(analysis, analysis[from], analysis[to])
@@ -171,17 +187,21 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(G::EGraph)
-    while !isempty(G.dirty)
-        todo = unique([find(G, id) for id ∈ G.dirty])
-        empty!(G.dirty)
+function rebuild!(egraph::EGraph)
+    while !isempty(egraph.dirty)
+        todo = unique([find(egraph, id) for id ∈ egraph.dirty])
+        empty!(egraph.dirty)
         foreach(todo) do x
-            repair!(G, x)
+            repair!(egraph, x)
         end
     end
 
-    if G.root != 0
-        G.root = find(G, G.root)
+    for (sym, ids) ∈ egraph.symcache
+        egraph.symcache[sym] = unique(ids .|> x -> find(egraph, x))
+    end
+
+    if egraph.root != 0
+        egraph.root = find(egraph, egraph.root)
     end
 end
 

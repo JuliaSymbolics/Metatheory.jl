@@ -34,7 +34,21 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
             error("unsupported mode in rule ", rule)
         end
 
-        for id ∈ keys(egraph.M)
+        # TODO this entire loop is not needed. Only access
+        # the eclasses where the outermost funcall appears!
+
+        # outermost symbol in lhs
+        sym = getfunsym(rule.left)
+        ids = get(egraph.symcache, sym, [])
+        if rule.mode == :equational
+            symr = getfunsym(rule.right)
+            union!(ids, get(egraph.symcache, symr, []))
+        end
+
+        for id ∈ ids
+        # for id ∈ get(egraph.symcache, sym, keys(egraph.M))
+        # for id ∈ keys(egraph.M)
+            id = find(egraph, id)
             # println(rule.right)
             for sub in ematch(egraph, rule.left, id, EMPTY_DICT)
                 # display(sub); println()
