@@ -139,7 +139,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 		saturate!(G, t; timeout=7)
 		ex = extract!(G, extran)
 	end
-	@test ex == :(5*log(a))
+	@test ex == :(5*log(a)) || ex == :(log(a)*5)
 end
 
 # EXTRACTION BUG!
