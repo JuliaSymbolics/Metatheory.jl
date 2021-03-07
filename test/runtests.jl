@@ -10,7 +10,6 @@ Metatheory.options[:verbose] = true
 
 @metatheory_init
 
-
 include("test_egraphs.jl")
 include("test_ematch.jl")
 include("test_ematch_assertions.jl")
@@ -28,6 +27,7 @@ include("test_fibonacci.jl")
 include("test_cat.jl")
 include("test_calculational_logic.jl")
 include("test_logic.jl")
+# include("test_contexts.jl")
 
 # exported consistency test
 for m ∈ [Metatheory, Metatheory.Util, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]

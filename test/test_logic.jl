@@ -1,31 +1,5 @@
-# https://www.cs.cornell.edu/gries/Logic/Axioms.html
-# The axioms of calculational propositional logic C are listed in the order in
-# which they are usually presented and taught. Note that equivalence comes
-# first. Note also that, after the first axiom, we take advantage of
-# associativity of equivalence and write sequences of equivalences without
-# parentheses. We use == for equivalence, | for disjunction, & for conjunction,
-# ~ for negation (not), => for implication, and <= for consequence.
-#
-# Associativity of ==: ((p == q) == r) == (p == (q == r))
-# Symmetry of ==: p == q == q == p
-# Identity of ==: true == q == q
-#
-# Definition of false: false == ~true
-# Distributivity of not: ~(p == q) == ~p == q
-# Definition of =/=: (p =/= q) == ~(p == q)
-#
-# Associativity of |: (p | q) & r == p | (q | r)
-# Symmetry of |: p | q == q | p
-# Idempotency of |: p | p == p
-# Distributivity of |: p |(q == r) == p | q == p | r
-# Excluded Middle: p | ~p
-#
-# Golden rule: p & q == p == q == p | q
-#
-# Implication: p => q == p | q == q
-# Consequence: p <= q == q => p
 
-Metatheory.options[:printiter] = true
+# Metatheory.options[:printiter] = true
 
 or_alg = @theory begin
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
@@ -104,12 +78,14 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # FIXME
 # Constructive Dilemma
 
-@test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
+# @test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
 
 ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 println(ex)
 g = EGraph(ex)
-@time saturate!(g, t; timeout=10, sizeout=2^13)
+@timev saturate!(g, t; timeout=8, sizeout=2^15)
+# exit(0)
+
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
 
 ex = extract!(g, extran)
@@ -120,7 +96,8 @@ g = EGraph(ex)
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
 
 ex = extract!(g, extran)
-println(ex)
+
+@test ex == true
 
 
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
