@@ -74,6 +74,10 @@ end
 Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(G::EGraph, n)::EClass
+    if n isa EClass
+        return EClass(find(G, n))
+    end
+
     @debug("adding ", n)
     canonicalize!(G.U, n)
     if haskey(G.H, n)
@@ -104,7 +108,6 @@ function add!(G::EGraph, n)::EClass
 
     return EClass(id)
 end
-add!(g::EGraph, c::EClass)::EClass = EClass(find(g, c))
 
 """
 Recursively traverse an [`Expr`](@ref) and insert terms into an

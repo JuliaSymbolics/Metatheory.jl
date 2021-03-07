@@ -17,11 +17,11 @@ t = comm_monoid ∪ fold_mul
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
-    saturate!(G, t)
+    saturate!(G, t; timeout=15)
     extr = extract!(G, extran)
-	# println(extr)
+	println(extr)
 
-    @test extr == :(b * (a * 12))
+    @test extr == :(b * (a * 12)) || extr == :((b * 12) * a) || extr == :(a * (b * 12))
 end
 
 fold_add = @theory begin
@@ -78,12 +78,12 @@ end
     G = EGraph(cleanast(ex))
     addanalysis!(G, NumberFold)
     extran = addanalysis!(G, ExtractionAnalysis, astsize)
-    saturate!(G, comm_monoid)
+    saturate!(G, comm_monoid; timeout=15)
 
     extr = extract!(G, extran)
-    # end
+	println(extr)
 
-    @test extr == :((12 * a) * b)
+    @test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12))
 end
 
 
