@@ -5,6 +5,8 @@ A basic cost function, where the computed cost is the size
 astsize(n) = 1
 astsize(n::Expr) = 1 + length(n.args) - (iscall(n) ? 1 : 0)
 
+# TODO FIXME important, accept ExtractionAnalysis as other parameter!!
+
 """
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.

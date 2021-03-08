@@ -1,12 +1,12 @@
 function areequal(theory::Vector{Rule}, exprs...;
-    timeout=0, sizeout=2^12, mod=@__MODULE__)
+    timeout=0, sizeout=2^14, matchlimit=5000, mod=@__MODULE__)
     G = EGraph(exprs[1])
     areequal(G, theory, exprs...;
-        timeout=timeout, sizeout=sizeout, mod=mod)
+        timeout=timeout, matchlimit=matchlimit, sizeout=sizeout, mod=mod)
 end
 
 function areequal(G::EGraph, t::Vector{Rule}, exprs...;
-    timeout=0, sizeout=2^12, mod=@__MODULE__)
+    timeout=0, sizeout=2^14, matchlimit=5000, mod=@__MODULE__)
     @log "Checking equality for " exprs
     if length(exprs) == 1; return true end
 
@@ -22,7 +22,7 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...;
 
     alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
 
-    @time saturate!(G, t; timeout=timeout,
+    report = saturate!(G, t; timeout=timeout, matchlimit=matchlimit,
         sizeout=sizeout, stopwhen=alleq, mod=mod)
 
     alleq()
