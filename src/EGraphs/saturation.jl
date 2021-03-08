@@ -8,7 +8,7 @@ import ..@log
 using .Schedulers
 
 function inst(pat, sub::Sub)
-    # TODO interface istree
+    # TODO interface istree (?)
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
         lit != nothing ? lit : eclass
@@ -85,6 +85,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
 
     if length(mmm) > matchlimit
         mmm = mmm[1:matchlimit]
+        # mmm = Set(collect(mmm)[1:matchlimit])
         #
         # report.reason = :matchlimit
         # @goto quit_rebuild
@@ -101,8 +102,6 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         (rule, sub, id) = match
 
         if i % 300 == 0
-            # println("rebuilding")
-
             if sizeout > 0 && length(egraph.U) > sizeout
                 @log "E-GRAPH SIZEOUT"
                 report.reason = :sizeout

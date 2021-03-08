@@ -10,6 +10,13 @@ identity_right(op, id) = :( ($op)(a, $id) => a ) |> Rule
 inverse_left(op, id, invop) = :( ($op)(($invop)(a), a) => $id ) |> Rule
 inverse_right(op, id, invop) = :( ($op)(a, ($invop)(a)) => $id ) |> Rule
 
+function monoid(op, id)
+	@assert Base.isbinaryoperator(op)
+	[right_associative(op), left_associative(op), identity_left(op, id), identity_right(op,id)]
+end
+macro monoid(op, id) monoid(op, id) end
+
+
 function commutative_monoid(op, id)
 	@assert Base.isbinaryoperator(op)
 	[commutativity(op), right_associative(op), identity_left(op, id)]

@@ -21,7 +21,8 @@ t = comm_monoid ∪ fold_mul
     extr = extract!(G, extran)
 	println(extr)
 
-    @test extr == :(b * (a * 12)) || extr == :((b * 12) * a) || extr == :(a * (b * 12))
+    @test extr == :(b * (a * 12)) || extr == :((b * 12) * a) || extr == :(a * (b * 12)) ||
+		extr == :((a * b) * 12)
 end
 
 fold_add = @theory begin
@@ -83,7 +84,8 @@ end
     extr = extract!(G, extran)
 	println(extr)
 
-    @test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12))
+    @test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
+		extr == :((a * b) * 12)
 end
 
 
