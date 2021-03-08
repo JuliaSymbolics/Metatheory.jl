@@ -17,3 +17,6 @@ function setfunargs!(e::Expr, args::Vector)
     e.args[(iscall(e) ? 2 : 1):end] = args
 end
 setfunargs!(e, args) = []
+
+istree(e::Expr) = true
+istree(a) = false

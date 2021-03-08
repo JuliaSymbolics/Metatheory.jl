@@ -7,6 +7,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 import ..Rule
 import ..iscall
+import ..istree
 import ..getfunsym
 import ..getfunargs
 import ..setfunsym!

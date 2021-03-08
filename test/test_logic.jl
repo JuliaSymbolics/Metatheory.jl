@@ -46,12 +46,29 @@ impl = @theory begin
 end
 
 fold = @theory begin
-    (p::Bool == q::Bool)    |>     (p == q)
-    (p::Bool ∨ q::Bool)     |>     (p || q)
-    (p::Bool => q::Bool)    |>     ((p || q) == q)
-    (p::Bool ∧ q::Bool)     |>     (p && q)
-    ¬(p::Bool)              |>     (!p)
+    (true == false)     =>   false
+    (false == true)     =>   false
+    (true == true)      =>   true
+    (false == false)    =>   true
+    (true ∨ false)      =>   true
+    (false ∨ true)      =>   true
+    (true ∨ true)       =>   true
+    (false ∨ false)     =>   false
+    (true ∧ true)       =>   true
+    (false ∧ true)      =>   false
+    (true ∧ false)      =>   false
+    (false ∧ false)     =>   false
+    ¬(true)             =>   false
+    ¬(false)            =>   true
 end
+
+# fold = @theory begin
+#     (p::Bool == q::Bool)    |>     (p == q)
+#     (p::Bool ∨ q::Bool)     |>     (p || q)
+#     (p::Bool => q::Bool)    |>     ((p || q) == q)
+#     (p::Bool ∧ q::Bool)     |>     (p && q)
+#     ¬(p::Bool)              |>     (!p)
+# end
 
 # t = or_alg ∪ and_alg ∪ neg_alg ∪ demorgan ∪ and_or_distrib ∪
 #     absorption ∪ calc
