@@ -107,13 +107,13 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 @testset "While Semantics" begin
 	exx = :((x = 3), $(Mem(:x => 2)))
 	(g, ex) = @extract exx while_language astsize
-	display(g.M); println()
+	# display(g.M); println()
 	println(ex)
 	@test areequal(while_language, Mem(:x => 3), exx; mod=@__MODULE__)
 
 	exx = :((x = 4; x = x + 1), $(Mem(:x => 3)))
 	(g, ex) = @extract exx while_language astsize
-	display(g.M); println()
+	# display(g.M); println()
 	println(ex)
 	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__)
 
@@ -122,7 +122,7 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 
 	exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
 	(g, ex) = @extract exx while_language astsize
-	display(g.M); println()
+	# display(g.M); println()
 	println(ex)
 	@test_broken areequal(while_language, Mem(:x => 4), exx; mod=@__MODULE__, timeout=100)
 	# exit(0)

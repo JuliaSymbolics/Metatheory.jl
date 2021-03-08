@@ -37,12 +37,19 @@ end
 
 We can programmatically build and saturate an EGraph.
 The function `saturate!` takes an `EGraph` and a theory, and executes
-equality saturation. `saturate!` returns two values. The first returned value is boolean
+equality saturation. Returns a report
+of the equality saturation process.
 `saturate!` is configurable, customizable parameters include
 a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the EGraph, a `stopwhen` functions that stops saturation when it evaluates to true.
 ```julia
-G = EGraph(:((a * b) * (1 * (b + c))))
-saturated, G = saturate!(G, t)
+G = EGraph(:((a * b) * (1 * (b + c))));
+report = saturate!(G, t);
+# access the saturated EGraph
+report.egraph
+
+# show some fancy stats
+println(report);
+
 ```
 
 With the EGraph equality saturation backend, Metatheory.jl can prove simple equalities very efficiently. The `@areequal` macro takes a theory and some

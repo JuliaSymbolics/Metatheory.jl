@@ -45,30 +45,30 @@ impl = @theory begin
     (p => q)            =>  (¬p ∨ q)
 end
 
-fold = @theory begin
-    (true == false)     =>   false
-    (false == true)     =>   false
-    (true == true)      =>   true
-    (false == false)    =>   true
-    (true ∨ false)      =>   true
-    (false ∨ true)      =>   true
-    (true ∨ true)       =>   true
-    (false ∨ false)     =>   false
-    (true ∧ true)       =>   true
-    (false ∧ true)      =>   false
-    (true ∧ false)      =>   false
-    (false ∧ false)     =>   false
-    ¬(true)             =>   false
-    ¬(false)            =>   true
-end
-
 # fold = @theory begin
-#     (p::Bool == q::Bool)    |>     (p == q)
-#     (p::Bool ∨ q::Bool)     |>     (p || q)
-#     (p::Bool => q::Bool)    |>     ((p || q) == q)
-#     (p::Bool ∧ q::Bool)     |>     (p && q)
-#     ¬(p::Bool)              |>     (!p)
+#     (true == false)     =>   false
+#     (false == true)     =>   false
+#     (true == true)      =>   true
+#     (false == false)    =>   true
+#     (true ∨ false)      =>   true
+#     (false ∨ true)      =>   true
+#     (true ∨ true)       =>   true
+#     (false ∨ false)     =>   false
+#     (true ∧ true)       =>   true
+#     (false ∧ true)      =>   false
+#     (true ∧ false)      =>   false
+#     (false ∧ false)     =>   false
+#     ¬(true)             =>   false
+#     ¬(false)            =>   true
 # end
+
+fold = @theory begin
+    (p::Bool == q::Bool)    |>     (p == q)
+    (p::Bool ∨ q::Bool)     |>     (p || q)
+    (p::Bool => q::Bool)    |>     ((p || q) == q)
+    (p::Bool ∧ q::Bool)     |>     (p && q)
+    ¬(p::Bool)              |>     (!p)
+end
 
 # t = or_alg ∪ and_alg ∪ neg_alg ∪ demorgan ∪ and_or_distrib ∪
 #     absorption ∪ calc
@@ -97,10 +97,14 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 
 # @test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
 
+# @test areequal(t, true, :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s)))
+
 ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 println(ex)
 g = EGraph(ex)
 @timev saturate!(g, t; timeout=8, sizeout=2^15)
+
+# @profiler saturate!(g, t; timeout=8, sizeout=2^15)
 # exit(0)
 
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
@@ -109,7 +113,7 @@ ex = extract!(g, extran)
 println(ex)
 
 g = EGraph(ex)
-@time saturate!(g, t; timeout=5, sizeout=2^12)
+@time saturate!(g, t; timeout=8, sizeout=2^12)
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
 
 ex = extract!(g, extran)

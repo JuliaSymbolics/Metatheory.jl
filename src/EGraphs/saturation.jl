@@ -1,4 +1,5 @@
-const MatchesBuf = Vector{Tuple{Rule, Sub, Int64}}
+const Match = Tuple{Rule, Sub, Int64}
+const MatchesBuf = Vector{Match}
 
 import ..genrhsfun
 import ..options
@@ -25,24 +26,28 @@ function instantiate(p, sub::Sub; skip_assert=false)
     df_walk(inst, p, sub; skip_call=true)
 end
 
+"""
+Core algorithm of the library: the equality saturation step.
+"""
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         scheduler=SimpleScheduler(), mod=@__MODULE__,
-        match_hist=MatchesBuf(), sizeout=0)
+        match_hist=MatchesBuf(), sizeout=0, stopwhen=()->false,
+        matchlimit=5000 # max number of matches
+        )
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
 
     readstep!(scheduler)
 
-    for rule ∈ theory
+    report = Report(egraph)
+
+    search_stats = @timed for rule ∈ theory
         # don't apply banned rules
         shouldskip(scheduler, rule) && continue
 
         if rule.mode ∉ [:rewrite, :dynamic, :equational]
             error("unsupported mode in rule ", rule)
         end
-
-        # TODO this entire loop is not needed. Only access
-        # the eclasses where the outermost funcall appears!
 
         # outermost symbol in lhs
         sym = getfunsym(rule.left)
@@ -70,29 +75,46 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
             end
         end
     end
+    report.search_stats = report.search_stats + discard_value(search_stats)
+
 
     # mmm = unique(matches)
     # mmm = symdiff(match_hist, matches)
 
     mmm = setdiff(matches, match_hist)
 
-    println("============ WRITE PHASE ============")
-    println("\n $(length(matches)) $(length(unique(matches))) $(length(match_hist))")
-    println(" diff length $(length(mmm))")
+    if length(mmm) > matchlimit
+        mmm = mmm[1:matchlimit]
+        #
+        # report.reason = :matchlimit
+        # @goto quit_rebuild
+    end
 
-    skipped = 0
+    # println("============ WRITE PHASE ============")
+    # println("\n $(length(matches)) $(length(match_hist))")
+    # println(" diff length $(length(mmm))")
 
+    i = 0
 
-    for match ∈ mmm
+    apply_stats = @timed for match ∈ mmm
+        i += 1
         (rule, sub, id) = match
 
-        # if (match ∈ match_hist)
-        #     skipped += 1
-        #     # println("already matched")
-        #     continue
-        # end
+        if i % 300 == 0
+            # println("rebuilding")
 
-        sizeout > 0 && length(egraph.U) > sizeout && (@log "E-GRAPH SIZEOUT"; break)
+            if sizeout > 0 && length(egraph.U) > sizeout
+                @log "E-GRAPH SIZEOUT"
+                report.reason = :sizeout
+                @goto quit_rebuild
+            end
+
+            if stopwhen()
+                @log "Halting requirement satisfied"
+                report.reason = :condition
+                @goto quit_rebuild
+            end
+        end
 
         writestep!(scheduler, rule)
 
@@ -118,16 +140,21 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
             error("unsupported rule mode")
         end
     end
+    report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
-    union!(match_hist, matches)
-    println("skipped ", skipped)
-    # match_hist = match_hist ∪ matches
+    union!(match_hist, mmm)
 
     # display(egraph.parents); println()
     # display(egraph.M); println()
-    saturated = isempty(egraph.dirty)
-    rebuild!(egraph)
-    return saturated, egraph
+    @label quit_rebuild
+    report.saturated = isempty(egraph.dirty) && report.reason == nothing
+    rebuild_stats = @timed rebuild!(egraph)
+    report.rebuild_stats = report.rebuild_stats + discard_value(rebuild_stats)
+
+
+    total_time!(report)
+
+    return report, egraph
 end
 
 # TODO plot how egraph shrinks and grows during saturation
@@ -138,6 +165,7 @@ execute the equality saturation algorithm.
 function saturate!(egraph::EGraph, theory::Vector{Rule};
     mod=@__MODULE__,
     timeout=0, stopwhen=(()->false), sizeout=2^12,
+    matchlimit=5000,
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
 
     if timeout == 0
@@ -155,25 +183,34 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
 
     # init the scheduler
     sched = scheduler(egraph, theory)
-    saturated = false
 
     match_hist = MatchesBuf()
 
+    tot_report = Report()
+
     while true
         curr_iter+=1
-        # FIXME log
-        # @log "iteration " curr_iter
+
         options[:printiter] && @info("iteration ", curr_iter)
 
-        saturated, egraph = eqsat_step!(egraph, theory;
+        report, egraph = eqsat_step!(egraph, theory;
             scheduler=sched, mod=mod,
-            match_hist=match_hist, sizeout=sizeout)
+            match_hist=match_hist, sizeout=sizeout,
+            matchlimit=matchlimit,
+            stopwhen=stopwhen)
 
-        cansaturate(sched) && saturated && (@log "E-GRAPH SATURATED"; break)
-        curr_iter >= timeout && (@log "E-GRAPH TIMEOUT"; break)
-        sizeout > 0 && length(egraph.U) > sizeout && (@log "E-GRAPH SIZEOUT"; break)
-        stopwhen() && (@log "Halting requirement satisfied"; break)
+        tot_report = tot_report + report
+
+        report.reason == :matchlimit && break
+        cansaturate(sched) && report.saturated && (tot_report.saturated = true; break)
+        curr_iter >= timeout && (tot_report.reason = :timeout; break)
+        sizeout > 0 && length(egraph.U) > sizeout && (tot_report.reason = :sizeout; break)
+        stopwhen() && (tot_report.reason = :condition; break)
     end
     # println(match_hist)
-    return saturated, egraph
+    tot_report.iterations = curr_iter
+    @log tot_report
+
+
+    return tot_report
 end
