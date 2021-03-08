@@ -25,6 +25,7 @@ export options
 # TODO document this interface
 include("expr_abstraction.jl")
 export iscall
+export istree
 export getfunsym
 export getfunargs
 export setfunsym!

@@ -68,6 +68,34 @@ G = EGraph( :(munit()) )
 saturate!(G, simp_theory, timeout=1)
 
 
+module Bar
+   foo = 42
+   using Metatheory
+   @metatheory_init
+   export foo
+end
+
+module Foo
+   foo = 12
+   using Metatheory
+   @metatheory_init
+end
+
+t = @theory begin
+   :woo |> foo
+end
+
+
+g = EGraph(:woo);
+saturate!(g, t; mod=Bar);
+saturate!(g, t; mod=Foo);
+foo = 12
+
+@testset "Different modules" begin
+    @test @areequalg g t 42 12
+end
+
+
 # expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))
 #
 # G = EGraph(expr)

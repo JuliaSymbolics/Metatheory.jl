@@ -46,7 +46,11 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
 
         # outermost symbol in lhs
         sym = getfunsym(rule.left)
-        ids = get(egraph.symcache, sym, [])
+        if istree(rule.left)
+            ids = get(egraph.symcache, sym, [])
+        else
+            ids = keys(egraph.M)
+        end
 
         for id ∈ ids
             for sub in ematch(egraph, rule.left, id, EMPTY_DICT)
@@ -67,19 +71,26 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         end
     end
 
-    # println("============ WRITE PHASE ============")
-    # println("\n $(length(matches)) $(length(unique(matches)))")
-    # println(" diff length $(length(symdiff(match_hist, matches)))")
-
     # mmm = unique(matches)
-    mmm = symdiff(match_hist, matches)
-    for i ∈ 1:length(mmm)
-        (rule, sub, id) = mmm[i]
+    # mmm = symdiff(match_hist, matches)
 
-        if (mmm[i] ∈ match_hist)
-            println("already matched")
-            continue
-        end
+    mmm = setdiff(matches, match_hist)
+
+    println("============ WRITE PHASE ============")
+    println("\n $(length(matches)) $(length(unique(matches))) $(length(match_hist))")
+    println(" diff length $(length(mmm))")
+
+    skipped = 0
+
+
+    for match ∈ mmm
+        (rule, sub, id) = match
+
+        # if (match ∈ match_hist)
+        #     skipped += 1
+        #     # println("already matched")
+        #     continue
+        # end
 
         sizeout > 0 && length(egraph.U) > sizeout && (@log "E-GRAPH SIZEOUT"; break)
 
@@ -108,7 +119,9 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         end
     end
 
-    match_hist = match_hist ∪ matches
+    union!(match_hist, matches)
+    println("skipped ", skipped)
+    # match_hist = match_hist ∪ matches
 
     # display(egraph.parents); println()
     # display(egraph.M); println()
@@ -161,5 +174,6 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
         sizeout > 0 && length(egraph.U) > sizeout && (@log "E-GRAPH SIZEOUT"; break)
         stopwhen() && (@log "Halting requirement satisfied"; break)
     end
+    # println(match_hist)
     return saturated, egraph
 end
