@@ -4,9 +4,7 @@ taylor = @theory begin
    Σ(a) + Σ(b) => Σ(a + b)
 end
 
-expand(iters) = quote @theory begin
-   Σ(a) => sum(:n -> a, 0:$iters)
-end end |> eval
+expand(iters) = [Rule(:(Σ(a) => sum(:n -> a, 0:$iters)))]
 
 a = rewrite(:(exp(x) + cos(x)), taylor)
 
