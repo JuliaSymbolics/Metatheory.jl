@@ -6,6 +6,9 @@ mutable struct Rule
     right_fun::Union{Nothing, Dict{Module, Tuple{Vector{Symbol}, Function}}}
 end
 
+import Base.==
+==(a::Rule, b::Rule) = (a.expr == b.expr) && (a.mode == b.mode)
+
 # operator symbols for simple term rewriting
 const rewrite_syms = [:(=>)]
 # operator symbols for regular pattern matching rules, "dynamic rules"
