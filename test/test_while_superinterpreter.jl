@@ -11,7 +11,8 @@ read_mem = @theory begin
 end
 
 @testset "Reading Memory" begin
-	@test true == areequal(read_mem, :((x), $(Mem(:x => 2))), 2, mod=@__MODULE__)
+	ex = :((x), $(Mem(:x => 2)))
+	@test true == areequal(read_mem, ex, 2, mod=@__MODULE__)
 end
 
 arithm_rules = @theory begin
@@ -115,7 +116,7 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 	(g, ex) = @extract exx while_language astsize
 	# display(g.M); println()
 	println(ex)
-	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__)
+	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__, timeout=10)
 
 	# FIXME bug!
 	# exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))

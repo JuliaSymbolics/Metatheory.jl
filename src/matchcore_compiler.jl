@@ -18,12 +18,12 @@ c_left(v::Expr, s) = v.head ∈ add_dollar ? dollar(v) : v
 c_left(v::QuoteNode, s) = v.value isa Symbol ? dollar(v) : v
 c_left(v, s) = v # ignore other types
 
-c_right(v::Symbol) = Base.isbinaryoperator(v) ? v : dollar(v)
-function c_right(v::Expr)
+c_right(v::Symbol, s) = Base.isbinaryoperator(v) ? v : dollar(v) #(v ∈ s ? dollar(v) : v)
+function c_right(v::Expr, s)
     v.head ∈ add_dollar ? dollar(v) : v
 end
-c_right(v::QuoteNode) = v.value isa Symbol ? v.value : v
-c_right(v) = v #ignore other types
+c_right(v::QuoteNode, s) = v.value isa Symbol ? v.value : v
+c_right(v, s) = v #ignore other types
 
 # add dollar in front of the expressions with those symbols as head
 const add_dollar = [:(::), :(...)]
@@ -32,14 +32,15 @@ const skips = [:(::), :(...)]
 
 # Compile rules from Metatheory format to MatchCore format
 function compile_rule(rule::Rule)::Expr
-    le = df_walk(c_left, rule.left, Vector{Symbol}(); skip=skips, skip_call=true) |> quot
+	patvars = Vector{Symbol}()
+    le = df_walk(c_left, rule.left, patvars; skip=skips, skip_call=true) |> quot
 
     if rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
         re = rule.right
     elseif rule.mode == :rewrite || rule.mode == :equational
 		# right side is quoted, symbolic replacement
-        re = df_walk(c_right, rule.right; skip=skips, skip_call=true) |> quot
+        re = df_walk(c_right, rule.right, patvars; skip=skips, skip_call=true) |> quot
 	else
         error(`rule "$e" is not in valid form.\n`)
     end

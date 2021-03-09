@@ -7,32 +7,42 @@ import ..@log
 
 using .Schedulers
 
-function inst(pat, sub::Sub)
+function inst_step(pat, sub::Sub, side::Symbol)
     # TODO interface istree (?)
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
         lit != nothing ? lit : eclass
+        # if lit isa Symbol &&
+        #     QuoteNode(lit)
+        # end
+    elseif pat isa Symbol
+        error("unbound pattern variable $pat")
+    elseif side == :right && pat isa QuoteNode && pat.value isa Symbol
+        pat.value
     else
         pat
     end
 end
 
-function instantiate(p, sub::Sub; skip_assert=false)
+function inst(pat, sub::Sub, side::Symbol)
     # remove type assertions
-    if skip_assert
-        p = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), p; skip_call=true )
+    if side == :left
+        pat = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), pat; skip_call=true )
     end
 
-    df_walk(inst, p, sub; skip_call=true)
+    f = df_walk(inst_step, pat, sub, side; skip_call=true)
+    # println(f, " $side")
+    f
 end
+
 
 """
 Core algorithm of the library: the equality saturation step.
 """
 function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         scheduler=SimpleScheduler(), mod=@__MODULE__,
-        match_hist=MatchesBuf(), sizeout=0, stopwhen=()->false,
-        matchlimit=5000 # max number of matches
+        match_hist=MatchesBuf(), sizeout=options[:sizeout], stopwhen=()->false,
+        matchlimit=options[:matchlimit] # max number of matches
         )
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
@@ -118,13 +128,24 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         writestep!(scheduler, rule)
 
         if rule.mode == :rewrite || rule.mode == :equational # symbolic replacement
-            l = instantiate(rule.left, sub; skip_assert=true)
-            r = instantiate(rule.right, sub)
+            l = inst(rule.left, sub, :left)
+            r = inst(rule.right, sub, :right)
             lc = addexpr!(egraph, l)
             rc = addexpr!(egraph, r)
             merge!(egraph, lc.id, rc.id)
+
+            if rule.mode == :equational
+                # swap
+                r = inst(rule.left, sub, :right)
+                l = inst(rule.right, sub, :left)
+                lc = addexpr!(egraph, l)
+                rc = addexpr!(egraph, r)
+                merge!(egraph, lc.id, rc.id)
+            end
+
         elseif rule.mode == :dynamic # execute the right hand!
-            l = instantiate(rule.left,sub; skip_assert=true)
+            l = inst(rule.left, sub, :left)
+
             lc = addexpr!(egraph, l)
 
             (params, f) = rule.right_fun[mod]
@@ -132,12 +153,17 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
             end
-            new = f(egraph, actual_params...)
-            rc = addexpr!(egraph, new)
+            r = f(egraph, actual_params...)
+            rc = addexpr!(egraph, r)
             merge!(egraph,lc.id,rc.id)
         else
             error("unsupported rule mode")
         end
+
+        # println(rule)
+        # println(sub)
+        # println(l); println(r)
+        # display(egraph.M); println()
     end
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
@@ -163,13 +189,9 @@ execute the equality saturation algorithm.
 """
 function saturate!(egraph::EGraph, theory::Vector{Rule};
     mod=@__MODULE__,
-    timeout=0, stopwhen=(()->false), sizeout=2^12,
-    matchlimit=5000,
+    timeout=options[:timeout], stopwhen=(()->false), sizeout=options[:sizeout],
+    matchlimit=options[:matchlimit],
     scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
-
-    if timeout == 0
-        timeout = length(theory)
-    end
 
     curr_iter = 0
 

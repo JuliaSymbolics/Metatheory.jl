@@ -12,6 +12,9 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 options = Dict{Symbol, Any}(
     :verbose => false,
     :printiter => false,
+    :sizeout => 2^14, # default sizeout
+    :timeout => 7,
+    :matchlimit => 5000
 )
 
 macro log(args...)
