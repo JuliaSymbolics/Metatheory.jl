@@ -166,3 +166,20 @@ println(resg)
 @testset "Symbols in Right hand" begin
     @test resg == res == :(a * (a * (a * (b * b))))
 end
+
+co = @theory begin
+	foo(x ⋅ :bazoo ⋅ :woo) => Σ(:n * x)
+end
+@testset "Consistency with Matchcore backend" begin
+	ex = :(foo(wa(rio) ⋅ bazoo ⋅ woo))
+	g = EGraph(ex)
+	saturate!(g, co)
+	extran = addanalysis!(g, ExtractionAnalysis, astsize)
+
+	display(g.M); println()
+	res = extract!(g, extran)
+
+	resclassic = rewrite(ex, co)
+
+	@test res == resclassic
+end

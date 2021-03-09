@@ -1,12 +1,14 @@
 function areequal(theory::Vector{Rule}, exprs...;
-    timeout=0, sizeout=2^14, matchlimit=5000, mod=@__MODULE__)
+    timeout=options[:timeout], sizeout=options[:sizeout],
+    matchlimit=options[:matchlimit], mod=@__MODULE__)
     G = EGraph(exprs[1])
     areequal(G, theory, exprs...;
         timeout=timeout, matchlimit=matchlimit, sizeout=sizeout, mod=mod)
 end
 
 function areequal(G::EGraph, t::Vector{Rule}, exprs...;
-    timeout=0, sizeout=2^14, matchlimit=5000, mod=@__MODULE__)
+    timeout=options[:timeout], sizeout=options[:sizeout],
+    matchlimit=options[:matchlimit], mod=@__MODULE__)
     @log "Checking equality for " exprs
     if length(exprs) == 1; return true end
 

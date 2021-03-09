@@ -9,10 +9,10 @@ end
 
 
 r = @theory begin
-    a * 1 => foo
-    a * 2 => bar
-    1 * a => baz
-    2 * a => mag
+    a * 1 => :foo
+    a * 2 => :bar
+    1 * a => :baz
+    2 * a => :mag
 end
 @testset "Matching Literals" begin
     @test (@areequal r a * 1 foo) == true

@@ -113,8 +113,8 @@ ex = extract!(g, extran)
 println(ex)
 
 g = EGraph(ex)
-@time saturate!(g, t; timeout=8, sizeout=2^12)
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
+@time saturate!(g, t; timeout=8, sizeout=2^12)
 
 ex = extract!(g, extran)
 
