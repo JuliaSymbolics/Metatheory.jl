@@ -1,0 +1,78 @@
+using Pkg
+Pkg.activate("metatheory")
+Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl.git")
+using Metatheory
+using Metatheory.EGraphs
+
+to_sexpr_pattern(e::QuoteNode) = e.value
+to_sexpr_pattern(e::Symbol) = "?$e" 
+function to_sexpr_pattern(e::Expr)
+    @assert e.head == :call
+    e1 = join([e.args[1] ;  to_sexpr_pattern.(e.args[2:end])], ' ')
+    "($e1)"
+end
+
+to_sexpr(e::Symbol) = e
+to_sexpr(e::Expr) = "($(join(to_sexpr.(e.args),' ')))"
+
+function eggify(rules)
+    egg_rules = []
+    for rule in rules
+        l = to_sexpr_pattern(rule.left)
+        r = to_sexpr_pattern(rule.right)
+        if rule.mode == :rewrite
+            push!(egg_rules,"\tvec![rw!( \"$(rule.expr)\" ; \"$l\" => \"$r\" )]")
+        elseif rule.mode == :equational
+            push!(egg_rules,"\trw!( \"$(rule.expr)\" ; \"$l\" <=> \"$r\" )")
+        else
+            println("Unsupported Rewrite Mode")
+            @assert false
+        end
+        
+    end
+    return join(egg_rules, ",\n")
+end
+##########################################
+# REPLACE WITH YOUR THEORY AND QUERY HERE
+
+theory = @theory begin
+    :a * b => :a
+    a * b == b * a
+end
+
+query = :(a * (b * c))
+
+###########################################
+
+G = EGraph( query )
+@time saturate!(G, theory)
+extractor = addanalysis!(G, ExtractionAnalysis, astsize)
+ex = extract!(G, extractor)
+println( "Best found: $ex")
+
+rust_code = 
+"""
+use egg::{*, rewrite as rw};
+//use std::time::Duration;
+
+fn main() {
+    let rules : &[Rewrite<SymbolLang, ()>] = &vec![
+    $(eggify(theory))
+    ].concat();
+    
+    let start = "$(to_sexpr(query))".parse().unwrap();
+    let runner = Runner::default().with_expr(&start)
+        // More options here https://docs.rs/egg/0.6.0/egg/struct.Runner.html
+        //.with_iter_limit(10)
+        //.with_node_limit(1_000_000)
+        //.with_time_limit(Duration::new(30,0))
+        .run(rules);
+    runner.print_report();
+    let mut extractor = Extractor::new(&runner.egraph, AstSize);
+    let (best_cost, best_expr) = extractor.find_best(runner.roots[0]);
+    println!("best cost: {}, best expr {}", best_cost, best_expr);
+}
+"""
+open("src/main.rs", "w") do f
+    write(f, rust_code)
+end
