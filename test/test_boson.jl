@@ -24,4 +24,4 @@ end
 e1 = :(c * c * cdag * cdag)
 println(boson_expand(e1))
 
-println(normalize(boson_expand, e1))
+println(normalize_nocycle(boson_expand, e1))
