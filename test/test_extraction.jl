@@ -146,8 +146,8 @@ end
 
 # EXTRACTION BUG!
 
-costfun(n) = 1
-costfun(n::Expr) = n.args[2] == :a ? 1 : 100
+costfun(n, an) = 1
+costfun(n::Expr, an) = n.args[2] == :a ? 1 : 100
 
 moveright = @theory begin
     (:b * (:a * c)) => (:a * (:b * c))

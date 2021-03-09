@@ -2,18 +2,27 @@
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-astsize(n) = 1
-astsize(n::Expr) = 1 + length(n.args) - (iscall(n) ? 1 : 0)
+astsize(n, an::AbstractAnalysis) = 1
+function astsize(n::Expr, an::AbstractAnalysis)
+    args = getfunargs(n)
+    cost = 1 + length(args)
 
-# TODO FIXME important, accept ExtractionAnalysis as other parameter!!
+    for child_eclass ∈ args
+        !haskey(an, child_eclass) && return Inf
+        if haskey(an, child_eclass) && an[child_eclass] != nothing
+            cost += last(an[child_eclass])
+        end
+    end
+    return cost
+end
 
 """
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-astsize_inv(n) = -astsize(n)
-astsize_inv(n::Expr) = -1 * astsize(n)
+astsize_inv(n, an::AbstractAnalysis) = -astsize(n, an)
+astsize_inv(n::Expr, an::AbstractAnalysis) = -1 * astsize(n, an)
 
 const CostData = Dict{Int64, Tuple{Any, Number}}
 
@@ -30,20 +39,7 @@ end
 ExtractionAnalysis(g::EGraph, costfun::Function) =
     ExtractionAnalysis(g, costfun, CostData())
 
-make(a::ExtractionAnalysis, n) = (n, a.costfun(n))
-
-function make(an::ExtractionAnalysis, n::Expr)
-    ncost = an.costfun(n)
-
-    for child_eclass ∈ getfunargs(n)
-        !haskey(an, child_eclass) && return (n, Inf)
-        if haskey(an, child_eclass) && an[child_eclass] != nothing
-            ncost += last(an[child_eclass])
-        end
-    end
-
-    return (n, ncost)
-end
+make(a::ExtractionAnalysis, n) = (n, a.costfun(n, a))
 
 function join(analysis::ExtractionAnalysis, from, to)
     last(from) <= last(to) ? from : to
