@@ -110,7 +110,7 @@ insert the literal into the [`EGraph`](@ref).
 """
 function addexpr!(G::EGraph, e)::EClass
     e = cleanast(e)
-    println("========== $e ===========")
+    # println("========== $e ===========")
     df_walk((x -> begin
         x isa EClass ? (return x) : nothing
         # println("x = ", x)
@@ -201,6 +201,10 @@ function rebuild!(egraph::EGraph)
     if egraph.root != 0
         egraph.root = find(egraph, egraph.root)
     end
+
+    for (id, ecdata) ∈  egraph.M
+        ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
+    end
 end
 
 function repair!(G::EGraph, id::Int64)
@@ -216,7 +220,7 @@ function repair!(G::EGraph, id::Int64)
         n = canonicalize(G.U, p_enode)
         n_id = find(G, p_eclass)
         G.H[n] = n_id
-        (n, n_id)
+        (p_enode, p_eclass)
     end
 
     new_parents = OrderedDict{ENode,Int64}()
@@ -233,12 +237,13 @@ function repair!(G::EGraph, id::Int64)
     ecdata.parents = collect(new_parents) .|> Tuple
     @debug "updated parents " id G.parents[id]
 
+    # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)
 
     # Analysis invariant maintenance
     for an ∈ G.analyses
         haskey(an, id) && modify!(an, id)
         # modify!(an, id)
-        id = find(G, id)
+        # id = find(G, id)
         for (p_enode, p_eclass) ∈ ecdata.parents
             # p_eclass = find(G, p_eclass)
             if !islazy(an) && !haskey(an, p_eclass)
@@ -253,6 +258,9 @@ function repair!(G::EGraph, id::Int64)
             end
         end
     end
+
+    # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)
+
 end
 
 
@@ -261,10 +269,12 @@ Recursive function that traverses an [`EGraph`](@ref) and
 returns a vector of all reachable e-classes from a given e-class id.
 """
 function reachable(g::EGraph, id::Int64; hist=Int64[])
-    id = find(g, id)
+    # id = find(g, id)
     hist = hist ∪ [id]
-    for n ∈ g.M[id]
+    for n ∈ g.M[find(g,id)]
+        println("node in reachability is ", n)
         for c_id ∈ n.args
+            # c_id = find(g, c_id)
             if c_id ∉ hist
                 hist = hist ∪ reachable(g, c_id; hist=hist)
             end
