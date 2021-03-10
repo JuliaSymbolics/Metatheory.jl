@@ -16,6 +16,7 @@ import ..setfunargs!
 
 using ..Util
 
+include("eclass.jl")
 include("enode.jl")
 export isenode
 
