@@ -33,7 +33,6 @@ function EGraphs.make(an::NumberFold, n::ENode)
             end
         end
     end
-    println("res = ", res)
     return res
 end
 
@@ -105,37 +104,4 @@ end
     addanalysis!(G, NumberFold)
     @test areequal(G, comm_monoid, :((3 * a) * (4 * b)), :((12*a)*b),
         :(((6*2)*b)*a); timeout=15)
-end
-
-@testset "Infinite Loops analysis" begin
-    boson = @theory begin
-        1 * x => x
-    end
-
-    G = EGraph(Util.cleanast( :(1 * x) ))
-    saturate!(G,boson, timeout=100)
-    extractor = addanalysis!(G, ExtractionAnalysis, astsize)
-    ex = extract!(G, extractor)
-
-    display(G.M); println()
-    display(G.analyses[1].data); println()
-
-    println(ex)
-
-    using Metatheory.EGraphs
-    boson = @theory begin
-        (:c * :cdag) => :cdag * :c + 1
-        a * (b + c) => (a * b) + (a * c)
-        (b + c) * a => (b * a) + (c * a)
-        # 1 * x => x
-        (a * b) * c => a * (b * c)
-        a * (b * c) => (a * b) * c
-    end
-
-    G = EGraph(Util.cleanast( :(c * c * cdag * cdag) ))
-    saturate!(G,boson)
-    extractor = addanalysis!(G, ExtractionAnalysis, astsize_inv)
-    ex = extract!(G, extractor)
-
-    println(ex)
 end

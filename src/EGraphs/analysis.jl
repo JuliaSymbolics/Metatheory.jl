@@ -22,6 +22,8 @@ end
 function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
     ids = sort(ids)
 
+    println(ids)
+
     did_something = true
     while did_something
         did_something = false

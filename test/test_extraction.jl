@@ -18,6 +18,7 @@ t = comm_monoid ∪ fold_mul
     G = EGraph(cleanast(ex))
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t; timeout=15)
+	display(G.M); println()
     extr = extract!(G, extran)
 	println(extr)
 
