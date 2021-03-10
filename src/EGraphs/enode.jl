@@ -1,6 +1,9 @@
 using DataStructures
 using Base.Meta
 
+struct EClass
+    id::Int64
+end
 
 """
 Check if an expr is an enode ⟺ all args are e-classes
