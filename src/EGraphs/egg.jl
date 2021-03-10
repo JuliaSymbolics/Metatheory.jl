@@ -2,6 +2,7 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 using DataStructures
+using StaticArrays
 
 """
 Abstract type representing an [`EGraph`](@ref) analysis,
@@ -10,18 +11,15 @@ an EGraph
 """
 abstract type AbstractAnalysis end
 
-const ClassMem = Dict{Int64,Vector{Any}}
+
+const ClassMem = Dict{Int64,EClassData}
 const HashCons = Dict{Any,Int64}
-const Parent = Tuple{Any,Int64} # parent enodes and eclasses
 const ParentMem = Dict{Int64,Vector{Parent}}
 const AnalysisData = Dict{Int64,Any}
 const Analyses = Vector{AbstractAnalysis}
-
-"""
-a cache mapping function symbols to e-classes that
-contain e-nodes with that function symbol.
-"""
 const SymbolCache = Dict{Any, Vector{Int64}}
+
+
 
 """
 A concrete type representing an [`EGraph`].
@@ -34,12 +32,16 @@ mutable struct EGraph
     """map from eclass id to eclasses"""
     M::ClassMem             #
     H::HashCons             # hashcons
-    parents::ParentMem
+    # parents::ParentMem
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
+    """
+    a cache mapping function symbols to e-classes that
+    contain e-nodes with that function symbol.
+    """
     symcache::SymbolCache
 end
 
@@ -47,7 +49,7 @@ EGraph() = EGraph(
     IntDisjointSets(0),
     ClassMem(),
     HashCons(),
-    ParentMem(),
+    # ParentMem(),
     Vector{Int64}(),
     0,
     Analyses(),
@@ -61,14 +63,6 @@ function EGraph(e)
     G
 end
 
-function addparent!(G::EGraph, a::Int64, parent::Parent)
-    @assert isenode(parent[1])
-    if !haskey(G.parents, a)
-        G.parents[a] = [parent]
-    else
-        union!(G.parents[a], [parent])
-    end
-end
 
 """
 Inserts an e-node in an [`EGraph`](@ref)
@@ -84,12 +78,17 @@ function add!(G::EGraph, n)::EClass
         return find(G, G.H[n]) |> EClass
     end
     @debug(n, " not found in H")
+
     id = push!(G.U) # create new singleton eclass
-    !haskey(G.parents, id) && (G.parents[id] = [])
-    getfunargs(n) .|> x -> addparent!(G, x.id, (n, id))
+
+    for child_eclass ∈ getfunargs(n)
+        addparent!(G.M[child_eclass.id], (n, id))
+    end
 
     G.H[n] = id
-    G.M[id] = [n]
+
+    classdata = EClassData(id, [n], [])
+    G.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
     sym = getfunsym(n)
@@ -119,14 +118,12 @@ function addexpr!(G::EGraph, e)::EClass
     df_walk((x -> add!(G, x)), e; skip_call = true)
 end
 
-function mergeparents!(G::EGraph, from::Int64, to::Int64)
-    !haskey(G.parents, from) && (G.parents[from] = []; return)
-    !haskey(G.parents, to) && (G.parents[to] = [])
-
-    union!(G.parents[to], G.parents[from])
-    delete!(G.parents, from)
+function clean_enode!(g::EGraph, t, to::Int64)
+    delete!(g.H, t)
+    canonicalize!(g.U, t)
+    g.H[t] = to
+    return t
 end
-
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
@@ -150,18 +147,14 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
 
     push!(G.dirty, id_u)
 
-    clean(t) = begin
-        delete!(G.H, t)
-        canonicalize!(G.U, t)
-        G.H[t] = to
-        t
+    G.M[from].nodes = map(G.M[from].nodes) do x
+        clean_enode!(G, x, to)
     end
-
-    G.M[from] = map(clean, G.M[from])
-    G.M[to] = map(clean, G.M[to])
-    G.M[to] = G.M[from] ∪ G.M[to]
+    G.M[to].nodes = map(G.M[to].nodes) do x
+        clean_enode!(G, x, to)
+    end
+    G.M[to] = union!(G.M[to], G.M[from])
     delete!(G.M, from)
-    mergeparents!(G, from, to)
 
     # canonicalize the root if needed
     if from == G.root
@@ -210,9 +203,10 @@ end
 
 function repair!(G::EGraph, id::Int64)
     id = find(G, id)
+    ecdata = G.M[id]
     @debug "repairing " id
 
-    for (p_enode, p_eclass) ∈ G.parents[id]
+    for (p_enode, p_eclass) ∈ ecdata.parents
         #old_id = G.H[p_enode]
         #delete!(G.M, old_id)
         delete!(G.H, p_enode)
@@ -224,7 +218,7 @@ function repair!(G::EGraph, id::Int64)
 
     new_parents = OrderedDict{Any,Int64}()
 
-    for (p_enode, p_eclass) ∈ G.parents[id]
+    for (p_enode, p_eclass) ∈ ecdata.parents
         canonicalize!(G.U, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
@@ -233,7 +227,7 @@ function repair!(G::EGraph, id::Int64)
         end
         new_parents[p_enode] = find(G, p_eclass)
     end
-    G.parents[id] = collect(new_parents) .|> Tuple
+    ecdata.parents = collect(new_parents) .|> Tuple
     @debug "updated parents " id G.parents[id]
 
 
@@ -242,7 +236,7 @@ function repair!(G::EGraph, id::Int64)
         haskey(an, id) && modify!(an, id)
         # modify!(an, id)
         id = find(G, id)
-        for (p_enode, p_eclass) ∈ G.parents[id]
+        for (p_enode, p_eclass) ∈ ecdata.parents
             # p_eclass = find(G, p_eclass)
             if !islazy(an) && !haskey(an, p_eclass)
                 an[p_eclass] = make(an, p_enode)

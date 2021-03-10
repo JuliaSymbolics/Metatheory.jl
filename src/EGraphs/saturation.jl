@@ -46,10 +46,12 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         )
     matches=MatchesBuf()
     EMPTY_DICT = Sub()
+    report = Report(egraph)
+    instcache = Dict{Rule, Dict{Sub, Int64}}()
+
 
     readstep!(scheduler)
 
-    report = Report(egraph)
 
     search_stats = @timed for rule ∈ theory
         # don't apply banned rules

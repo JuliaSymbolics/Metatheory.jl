@@ -22,7 +22,7 @@ t = comm_monoid ∪ fold_mul
 	println(extr)
 
     @test extr == :(b * (a * 12)) || extr == :((b * 12) * a) || extr == :(a * (b * 12)) ||
-		extr == :((a * b) * 12)
+		extr == :((a * b) * 12) || extr == :((12a) * b)
 end
 
 fold_add = @theory begin
@@ -85,7 +85,7 @@ end
 	println(extr)
 
     @test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
-		extr == :((a * b) * 12)
+		extr == :((a * b) * 12) || extr == :((12a) * b)
 end
 
 
@@ -135,19 +135,35 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	end
 	@test ex == :(a^5)
 
+	cust_astsize(n, an) = 1
+	function cust_astsize(n::Expr, an)
+		nc = astsize(n, an)
+		if getfunsym(n) == :(^)
+			nc = nc + 2
+		end
+		nc
+	end
+
+
 	@time begin
 		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
-		extran = addanalysis!(G, ExtractionAnalysis, astsize)
-		saturate!(G, t; timeout=7)
+		extran = addanalysis!(G, ExtractionAnalysis, cust_astsize)
+		saturate!(G, t; timeout=8)
 		ex = extract!(G, extran)
 	end
+	println(ex)
 	@test ex == :(5*log(a)) || ex == :(log(a)*5)
 end
 
 # EXTRACTION BUG!
 
 costfun(n, an) = 1
-costfun(n::Expr, an) = n.args[2] == :a ? 1 : 100
+function costfun(n::Expr, an)
+	left = n.args[2]
+
+	println(n)
+	:a ∈ g.M[left.id].nodes ? 1 : 100
+end
 
 moveright = @theory begin
     (:b * (:a * c)) => (:a * (:b * c))
@@ -161,6 +177,9 @@ g = EGraph(expr)
 saturate!(g, moveright)
 extractor = addanalysis!(g, ExtractionAnalysis, costfun)
 resg = extract!(g, extractor)
+display(g.M); println(); println(g.root)
+display(extractor.data); println()
+
 println(resg)
 
 @testset "Symbols in Right hand" begin
