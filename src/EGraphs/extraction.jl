@@ -2,15 +2,13 @@
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-astsize(n, an::AbstractAnalysis) = 1
-function astsize(n::Expr, an::AbstractAnalysis)
-    args = getfunargs(n)
-    cost = 1 + length(args)
+function astsize(n::ENode, an::AbstractAnalysis)
+    cost = 1 + length(n.args)
 
-    for child_eclass ∈ args
-        !haskey(an, child_eclass) && return Inf
-        if haskey(an, child_eclass) && an[child_eclass] != nothing
-            cost += last(an[child_eclass])
+    for a ∈ n.args
+        !haskey(an, a) && return Inf
+        if haskey(an, a) && an[a] != nothing
+            cost += last(an[a])
         end
     end
     return cost
@@ -21,8 +19,7 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-astsize_inv(n, an::AbstractAnalysis) = -astsize(n, an)
-astsize_inv(n::Expr, an::AbstractAnalysis) = -1 * astsize(n, an)
+astsize_inv(n::ENode, an::AbstractAnalysis) = -1 * astsize(n, an)
 
 const CostData = Dict{Int64, Tuple{Any, Number}}
 
@@ -39,7 +36,7 @@ end
 ExtractionAnalysis(g::EGraph, costfun::Function) =
     ExtractionAnalysis(g, costfun, CostData())
 
-make(a::ExtractionAnalysis, n) = (n, a.costfun(n, a))
+make(a::ExtractionAnalysis, n::ENode) = (n, a.costfun(n, a))
 
 function join(analysis::ExtractionAnalysis, from, to)
     last(from) <= last(to) ? from : to
@@ -56,11 +53,12 @@ islazy(an::ExtractionAnalysis) = true
 
 function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     (cn, ck) = an[id]
-    (!(cn isa Expr) || ck == Inf) && return cn
+    (ariety(cn) == 0 || ck == Inf) && return cn.sym
 
-    expr = copy(cn)
-    setfunargs!(expr, getfunargs(expr) .|> a -> rec_extract(G, an, a.id))
-    return expr
+    sym = cn.iscall ? :call : cn.sym
+    args = map(cn.args) do a rec_extract(G, an, a) end
+    args = cn.iscall ? [cn.sym, args...] : args
+    return Expr(sym, args...)
 end
 
 """

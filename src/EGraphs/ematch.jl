@@ -22,7 +22,7 @@ the remaining E-nodes. The base case of this recursion is the empty list, which
 requires no extension to the substitution; the other case relies on Match to find the
 substitutions that match the first term to the first E-node.
 """
-function ematchlist(e::EGraph, t::Vector{Any}, v::Vector{Int64}, sub::Sub)::Vector{Sub}
+function ematchlist(e::EGraph, t::Vector{Any}, v::AbstractVector{Int64}, sub::Sub)::Vector{Sub}
     c = Vector{Sub}()
 
     if length(t) != length(v) || length(t) == 0 || length(v) == 0
@@ -50,11 +50,11 @@ function ematch(e::EGraph, t, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
     c = Vector{Sub}()
     id = find(e,v)
     for n in e.M[id]
-        if (t isa QuoteNode ? t.value : t) == n
+        if (t isa QuoteNode ? t.value : t) == n.sym
             if haskey(sub, t)
                 union!(c, find(e, first(sub[t])) == id ? [sub] : [])
             else
-                union!(c, [ Base.ImmutableDict(sub, t => (EClass(id), n))])
+                union!(c, [ Base.ImmutableDict(sub, t => (EClass(id), n.sym))])
             end
             # union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
         end
@@ -66,8 +66,10 @@ end
 function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
     c = Vector{Sub}()
 
+    # println("lit = $lit")
+
     for n in e.M[find(e,v)]
-        if isexpr(t, :(::))
+        if isexpr(t, :(::)) && ariety(n) == 0
             # right hand of type assertion
             # tr = t.args[2]
             typ = t.args[2]
@@ -94,15 +96,14 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub
             #     error("Unsupported type assertion '", t, "'")
             # end
 
-            !(typeof(n) <: typ) && continue
-            union!(c, ematch(e, t.args[1], v, sub; lit=n))
+            !(typeof(n.sym) <: typ) && continue
+            union!(c, ematch(e, t.args[1], v, sub; lit=n.sym))
             continue
         end
 
         # otherwise ematch on an expr
-        (!(n isa Expr) || getfunsym(n) != getfunsym(t)) && continue
-        ids = Vector{Int64}(getfunargs(n) .|> x -> x.id)
-        union!(c, ematchlist(e, getfunargs(t), ids, sub))
+        (!(ariety(n) > 0) || n.sym != getfunsym(t)) && continue
+        union!(c, ematchlist(e, getfunargs(t), n.args, sub))
     end
     return c
 end
