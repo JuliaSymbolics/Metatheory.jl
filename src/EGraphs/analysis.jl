@@ -42,16 +42,16 @@ function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
         end
     end
 
-    rebuild!(g)
-
     for id ∈ ids
         id = find(g, id)
         if !haskey(analysis, id)
-            display(g.M); println()
-            display(analysis.data); println()
+            display(g.M[id]); println()
+            # display(analysis.data); println()
             error("failed to compute analysis for eclass ", id)
         end
     end
+
+    rebuild!(g)
 
     return analysis
 end
