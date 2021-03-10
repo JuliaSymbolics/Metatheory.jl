@@ -10,12 +10,8 @@ attaching values from a join semi-lattice domain to
 an EGraph
 """
 abstract type AbstractAnalysis end
-
-
 const ClassMem = Dict{Int64,EClassData}
 const HashCons = Dict{Any,Int64}
-const ParentMem = Dict{Int64,Vector{Parent}}
-const AnalysisData = Dict{Int64,Any}
 const Analyses = Vector{AbstractAnalysis}
 const SymbolCache = Dict{Any, Vector{Int64}}
 
@@ -32,7 +28,6 @@ mutable struct EGraph
     """map from eclass id to eclasses"""
     M::ClassMem             #
     H::HashCons             # hashcons
-    # parents::ParentMem
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
     root::Int64
@@ -67,13 +62,13 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(G::EGraph, n)::EClass
+function add!(G::EGraph, n::ENode)::EClass
     if n isa EClass
         return EClass(find(G, n))
     end
 
     @debug("adding ", n)
-    canonicalize!(G.U, n)
+    n = canonicalize(G.U, n)
     if haskey(G.H, n)
         return find(G, G.H[n]) |> EClass
     end
@@ -81,8 +76,8 @@ function add!(G::EGraph, n)::EClass
 
     id = push!(G.U) # create new singleton eclass
 
-    for child_eclass ∈ getfunargs(n)
-        addparent!(G.M[child_eclass.id], (n, id))
+    for c_id ∈ n.args
+        addparent!(G.M[c_id], (n, id))
     end
 
     G.H[n] = id
@@ -91,7 +86,7 @@ function add!(G::EGraph, n)::EClass
     G.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
-    sym = getfunsym(n)
+    sym = n.sym
     if !haskey(G.symcache, sym)
         G.symcache[sym] = []
     end
@@ -115,12 +110,19 @@ insert the literal into the [`EGraph`](@ref).
 """
 function addexpr!(G::EGraph, e)::EClass
     e = cleanast(e)
-    df_walk((x -> add!(G, x)), e; skip_call = true)
+    println("========== $e ===========")
+    df_walk((x -> begin
+        x isa EClass ? (return x) : nothing
+        # println("x = ", x)
+        n = ENode(x)
+        # println("n = ", n)
+        add!(G, (x isa ENode ? x : n))
+    end), e; skip_call = true)
 end
 
-function clean_enode!(g::EGraph, t, to::Int64)
+function clean_enode!(g::EGraph, t::ENode, to::Int64)
     delete!(g.H, t)
-    canonicalize!(g.U, t)
+    t = canonicalize(g.U, t)
     g.H[t] = to
     return t
 end
@@ -206,7 +208,7 @@ function repair!(G::EGraph, id::Int64)
     ecdata = G.M[id]
     @debug "repairing " id
 
-    for (p_enode, p_eclass) ∈ ecdata.parents
+    ecdata.parents = map(ecdata.parents) do (p_enode, p_eclass)
         #old_id = G.H[p_enode]
         #delete!(G.M, old_id)
         delete!(G.H, p_enode)
@@ -214,12 +216,13 @@ function repair!(G::EGraph, id::Int64)
         n = canonicalize(G.U, p_enode)
         n_id = find(G, p_eclass)
         G.H[n] = n_id
+        (n, n_id)
     end
 
-    new_parents = OrderedDict{Any,Int64}()
+    new_parents = OrderedDict{ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
-        canonicalize!(G.U, p_enode)
+        p_enode = canonicalize(G.U, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
             @debug "merging classes" p_eclass (new_parents[p_enode])
@@ -261,12 +264,9 @@ function reachable(g::EGraph, id::Int64; hist=Int64[])
     id = find(g, id)
     hist = hist ∪ [id]
     for n ∈ g.M[id]
-        if n isa Expr
-            for child_eclass ∈ getfunargs(n)
-                c_id = child_eclass.id
-                if c_id ∉ hist
-                    hist = hist ∪ reachable(g, c_id; hist=hist)
-                end
+        for c_id ∈ n.args
+            if c_id ∉ hist
+                hist = hist ∪ reachable(g, c_id; hist=hist)
             end
         end
     end
