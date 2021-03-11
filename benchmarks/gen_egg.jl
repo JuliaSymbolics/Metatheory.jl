@@ -1,11 +1,9 @@
 using Pkg
-Pkg.activate("metatheory")
-Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl.git")
 using Metatheory
 using Metatheory.EGraphs
 
 to_sexpr_pattern(e::QuoteNode) = e.value
-to_sexpr_pattern(e::Symbol) = "?$e" 
+to_sexpr_pattern(e::Symbol) = "?$e"
 function to_sexpr_pattern(e::Expr)
     @assert e.head == :call
     e1 = join([e.args[1] ;  to_sexpr_pattern.(e.args[2:end])], ' ')
@@ -28,7 +26,7 @@ function eggify(rules)
             println("Unsupported Rewrite Mode")
             @assert false
         end
-        
+
     end
     return join(egg_rules, ",\n")
 end
@@ -50,7 +48,7 @@ extractor = addanalysis!(G, ExtractionAnalysis, astsize)
 ex = extract!(G, extractor)
 println( "Best found: $ex")
 
-rust_code = 
+rust_code =
 """
 use egg::{*, rewrite as rw};
 //use std::time::Duration;
@@ -59,7 +57,7 @@ fn main() {
     let rules : &[Rewrite<SymbolLang, ()>] = &vec![
     $(eggify(theory))
     ].concat();
-    
+
     let start = "$(to_sexpr(query))".parse().unwrap();
     let runner = Runner::default().with_expr(&start)
         // More options here https://docs.rs/egg/0.6.0/egg/struct.Runner.html
