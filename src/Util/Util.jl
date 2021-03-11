@@ -30,6 +30,7 @@ export rmlines
 export binarize!
 export cleanast
 export interpolate_dollar
+export remove_assertions
 
 include("walks.jl")
 export df_walk

@@ -37,7 +37,11 @@ function compile_rule(rule::Rule)::Expr
 
     if rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
-        re = rule.right
+		ll = remove_assertions(rule.left)
+		re = quote
+			_lhs_expr = $(Meta.quot(ll));
+			$(rule.right)
+		end
     elseif rule.mode == :rewrite || rule.mode == :equational
 		# right side is quoted, symbolic replacement
         re = df_walk(c_right, rule.right, patvars; skip=skips, skip_call=true) |> quot
