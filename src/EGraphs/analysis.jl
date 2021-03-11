@@ -32,17 +32,19 @@ function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
 
         for id ∈ ids
             id = find(g, id)
-            pass = make_pass(g, analysis, id)
+            pass = mapreduce(x -> make(analysis, x),
+                (x, y) -> join(analysis, x, y), g.M[id])
             # pass = make_pass(G, analysis, find(G,id))
 
-            if pass !== missing
-                if pass !== get(analysis, id, missing)
-                    analysis[id] = pass
-                    did_something = true
-                    # modify!(analysis, id)
-                    push!(g.dirty, id)
-                end
+            # if pass !== missing
+            if pass !== get(analysis, id, missing)
+                analysis[id] = pass
+                # println("analysis value for $id is $(analysis[id])")
+                did_something = true
+                # modify!(analysis, id)
+                push!(g.dirty, id)
             end
+            # end
         end
     end
 
@@ -57,6 +59,8 @@ function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
 
     rebuild!(g)
 
+    # display(analysis.data); println()
+
     return analysis
 end
 
@@ -67,15 +71,14 @@ function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64)
     class = g.M[id]
     # FIXME this check breaks things. wtf
     # for n ∈ class
-    #     if n isa Expr
-    #         start = Meta.isexpr(n, :call) ? 2 : 1
-    #         # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
-    #         # any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
-    #         #     continue
-    #         if !all(x -> haskey(analysis, x.id), n.args[start:end])
-    #             return missing
-    #         end
-    #     end
+        # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
+        # any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
+        #     continue\
+        # @assert all(x -> haskey(analysis, x), n.args)
+        # if !all(x -> haskey(analysis, x), n.args)
+        #     return missing
+        # end
+
     # end
 
     joined = make(analysis, class[1])
