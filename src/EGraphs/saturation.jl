@@ -232,7 +232,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     end
     # println(match_hist)
 
-    display(egraph.M); println()
+    # display(egraph.M); println()
     tot_report.iterations = curr_iter
     @log tot_report
 
