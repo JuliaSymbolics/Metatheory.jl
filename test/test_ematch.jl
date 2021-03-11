@@ -15,6 +15,11 @@ r = @theory begin
     2 * a => :mag
 end
 @testset "Matching Literals" begin
+    g = EGraph(:(a * 1))
+    addexpr!(g, :foo)
+    saturate!(g, r)
+    display(g.M); println()
+
     @test (@areequal r a * 1 foo) == true
     @test (@areequal r a * 2 foo) == false
     @test (@areequal r a * 1 bar) == false

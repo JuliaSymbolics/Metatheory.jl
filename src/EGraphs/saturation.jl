@@ -231,6 +231,8 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
         stopwhen() && (tot_report.reason = :condition; break)
     end
     # println(match_hist)
+
+    # display(egraph.M); println()
     tot_report.iterations = curr_iter
     @log tot_report
 

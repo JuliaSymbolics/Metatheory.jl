@@ -9,12 +9,8 @@ attaching values from a join semi-lattice domain to
 an EGraph
 """
 abstract type AbstractAnalysis end
-
-
 const ClassMem = Dict{Int64,EClassData}
 const HashCons = Dict{Any,Int64}
-const ParentMem = Dict{Int64,Vector{Parent}}
-const AnalysisData = Dict{Int64,Any}
 const Analyses = Vector{AbstractAnalysis}
 const SymbolCache = Dict{Any, Vector{Int64}}
 
@@ -31,7 +27,6 @@ mutable struct EGraph
     """map from eclass id to eclasses"""
     M::ClassMem             #
     H::HashCons             # hashcons
-    # parents::ParentMem
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
     root::Int64
@@ -62,17 +57,39 @@ function EGraph(e)
     G
 end
 
+function canonicalize(g::EGraph, n::ENode)
+    ENode(n.sym, n.iscall, map(x -> find(g, x), n.args))
+end
+
+
+function canonicalize!(g::EGraph, n::ENode)
+    for i ∈ 1:ariety(n)
+        n.args[i] = find(g, n.args[i])
+    end
+    return n
+end
+
+
+"""
+Returns the canonical e-class id for a given e-class.
+"""
+find(G::EGraph, a::Int64)::Int64 = find_root!(G.U, a)
+find(G::EGraph, a::EClass)::Int64 = find_root!(G.U, a.id)
+
+
+### Definition 2.3: canonicalization
+# iscanonical(U::IntDisjointSets, n::Expr) = n == canonicalize(U, n)
+iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
+iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
+
 
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(G::EGraph, n)::EClass
-    if n isa EClass
-        return EClass(find(G, n))
-    end
-
+function add!(G::EGraph, n::ENode)::EClass
     @debug("adding ", n)
-    canonicalize!(G.U, n)
+
+    n = canonicalize!(G, n)
     if haskey(G.H, n)
         return find(G, G.H[n]) |> EClass
     end
@@ -80,8 +97,8 @@ function add!(G::EGraph, n)::EClass
 
     id = push!(G.U) # create new singleton eclass
 
-    for child_eclass ∈ getfunargs(n)
-        addparent!(G.M[child_eclass.id], (n, id))
+    for c_id ∈ n.args
+        addparent!(G.M[c_id], (n, id))
     end
 
     G.H[n] = id
@@ -90,7 +107,7 @@ function add!(G::EGraph, n)::EClass
     G.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
-    sym = getfunsym(n)
+    sym = n.sym
     if !haskey(G.symcache, sym)
         G.symcache[sym] = []
     end
@@ -114,12 +131,19 @@ insert the literal into the [`EGraph`](@ref).
 """
 function addexpr!(G::EGraph, e)::EClass
     e = cleanast(e)
-    df_walk((x -> add!(G, x)), e; skip_call = true)
+    # println("========== $e ===========")
+    df_walk((x -> begin
+        x isa EClass ? (return x) : nothing
+        # println("x = ", x)
+        n = ENode(x)
+        # println("n = ", n)
+        add!(G, (x isa ENode ? x : n))
+    end), e; skip_call = true)
 end
 
-function clean_enode!(g::EGraph, t, to::Int64)
+function clean_enode!(g::EGraph, t::ENode, to::Int64)
     delete!(g.H, t)
-    canonicalize!(g.U, t)
+    t = canonicalize!(g, t)
     g.H[t] = to
     return t
 end
@@ -170,11 +194,6 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     return id_u
 end
 
-"""
-Returns the canonical e-class id for a given e-class.
-"""
-find(G::EGraph, a::Int64)::Int64 = find_root!(G.U, a)
-find(G::EGraph, a::EClass)::Int64 = find_root!(G.U, a.id)
 
 """
 This function restores invariants and executes
@@ -198,6 +217,22 @@ function rebuild!(egraph::EGraph)
     if egraph.root != 0
         egraph.root = find(egraph, egraph.root)
     end
+
+    # INVARIANTS ASSERTIONS
+    # for (id, c) ∈  egraph.M
+    # #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
+    #     for an ∈ egraph.analyses
+    #         if haskey(an, id)
+    #             @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
+    #         end
+    #     end
+    #
+    #     for n ∈ c
+    #         # println(n)
+    #         # println("canon = ", canonicalize(egraph, n))
+    #         @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
+    #     end
+    # end
 end
 
 function repair!(G::EGraph, id::Int64)
@@ -205,20 +240,21 @@ function repair!(G::EGraph, id::Int64)
     ecdata = G.M[id]
     @debug "repairing " id
 
-    for (p_enode, p_eclass) ∈ ecdata.parents
+    ecdata.parents = map(ecdata.parents) do (p_enode, p_eclass)
         #old_id = G.H[p_enode]
         #delete!(G.M, old_id)
         delete!(G.H, p_enode)
         @debug "deleted from H " p_enode
-        n = canonicalize(G.U, p_enode)
+        n = canonicalize(G, p_enode)
         n_id = find(G, p_eclass)
         G.H[n] = n_id
+        (p_enode, p_eclass)
     end
 
-    new_parents = OrderedDict{Any,Int64}()
+    new_parents = OrderedDict{ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
-        canonicalize!(G.U, p_enode)
+        p_enode = canonicalize!(G, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
             @debug "merging classes" p_eclass (new_parents[p_enode])
@@ -229,12 +265,13 @@ function repair!(G::EGraph, id::Int64)
     ecdata.parents = collect(new_parents) .|> Tuple
     @debug "updated parents " id G.parents[id]
 
+    # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)
 
     # Analysis invariant maintenance
     for an ∈ G.analyses
         haskey(an, id) && modify!(an, id)
         # modify!(an, id)
-        id = find(G, id)
+        # id = find(G, id)
         for (p_enode, p_eclass) ∈ ecdata.parents
             # p_eclass = find(G, p_eclass)
             if !islazy(an) && !haskey(an, p_eclass)
@@ -249,6 +286,9 @@ function repair!(G::EGraph, id::Int64)
             end
         end
     end
+
+    # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)
+
 end
 
 
@@ -256,15 +296,19 @@ end
 Recursive function that traverses an [`EGraph`](@ref) and
 returns a vector of all reachable e-classes from a given e-class id.
 """
-function reachable(g::EGraph, id::Int64; hist=Int64[])
+function reachable(g::EGraph, id::Int64)
     id = find(g, id)
-    hist = hist ∪ [id]
-    for n ∈ g.M[id]
-        if n isa Expr
-            for child_eclass ∈ getfunargs(n)
-                c_id = child_eclass.id
+    hist = Int64[id]
+    todo = Int64[id]
+    while !isempty(todo)
+        curr = find(g, pop!(todo))
+        for n ∈ g.M[curr]
+            nn = canonicalize(g, n)
+            # println("node in reachability is ", n)
+            for c_id ∈ nn.args
                 if c_id ∉ hist
-                    hist = hist ∪ reachable(g, c_id; hist=hist)
+                    push!(hist, c_id)
+                    push!(todo, c_id)
                 end
             end
         end

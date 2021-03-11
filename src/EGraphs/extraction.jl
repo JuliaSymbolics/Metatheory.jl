@@ -2,16 +2,11 @@
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-astsize(n, an::AbstractAnalysis) = 1
-function astsize(n::Expr, an::AbstractAnalysis)
-    args = getfunargs(n)
-    cost = 1 + length(args)
-
-    for child_eclass ∈ args
-        !haskey(an, child_eclass) && return Inf
-        if haskey(an, child_eclass) && an[child_eclass] != nothing
-            cost += last(an[child_eclass])
-        end
+function astsize(n::ENode, an::AbstractAnalysis)
+    cost = 1 + ariety(n)
+    for a ∈ n.args
+        !haskey(an, a) && (cost += Inf; break)
+        cost += last(an[a])
     end
     return cost
 end
@@ -21,10 +16,9 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-astsize_inv(n, an::AbstractAnalysis) = -astsize(n, an)
-astsize_inv(n::Expr, an::AbstractAnalysis) = -1 * astsize(n, an)
+astsize_inv(n::ENode, an::AbstractAnalysis) = -1 * astsize(n, an)
 
-const CostData = Dict{Int64, Tuple{Any, Number}}
+const CostData = Dict{Int64, Tuple{ENode, Number}}
 
 """
 An [`AbstractAnalysis`](@ref) that computes the cost of expression nodes
@@ -39,7 +33,7 @@ end
 ExtractionAnalysis(g::EGraph, costfun::Function) =
     ExtractionAnalysis(g, costfun, CostData())
 
-make(a::ExtractionAnalysis, n) = (n, a.costfun(n, a))
+make(a::ExtractionAnalysis, n::ENode) = (n, a.costfun(n, a))
 
 function join(analysis::ExtractionAnalysis, from, to)
     last(from) <= last(to) ? from : to
@@ -55,12 +49,23 @@ Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
 islazy(an::ExtractionAnalysis) = true
 
 function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
+    # println("extracting from", id)
+    # println("class is ", G.M[id])
     (cn, ck) = an[id]
-    (!(cn isa Expr) || ck == Inf) && return cn
+    # println(cn, " ", ck, " ", ariety(cn))
+    # println("node is ", cn)
+    # cn = canonicalize(G.U, cn)
+    # println("canonicalized node is ", cn)
+    (ariety(cn) == 0 || ck == Inf) && return cn.sym
 
-    expr = copy(cn)
-    setfunargs!(expr, getfunargs(expr) .|> a -> rec_extract(G, an, a.id))
-    return expr
+    sym = cn.iscall ? :call : cn.sym
+    args = map(cn.args) do a
+        # TODO evaluate this behaviour
+        id == a && (error("loop in extraction"))
+        rec_extract(G, an, a)
+    end
+    args = cn.iscall ? [cn.sym, args...] : args
+    return Expr(sym, args...)
 end
 
 """
