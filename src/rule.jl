@@ -86,6 +86,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
 
     l = interpolate_dollar(l, mod)
     l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
+    # TODO FIXME move right_fun dictionary to be module-wise and not for each rule
     mode == :dynamic && (right_fun = Dict(mod => genrhsfun(l, r, mod)))
 
     e.args[iscall(e) ? 2 : 1] = l
@@ -113,7 +114,7 @@ function genrhsfun(left, right, mod::Module)
     # collect variable symbols in left hand
     lhs_vars = Set{Symbol}()
     df_walk( x -> (if x isa Symbol; push!(lhs_vars, x); end; x), left; skip_call=true )
-    params = Expr(:tuple, :_egraph, lhs_vars...)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, lhs_vars...)
 
     ex = :($params -> $right)
     (collect(lhs_vars), closure_generator(mod, ex))

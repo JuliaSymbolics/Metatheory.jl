@@ -27,6 +27,7 @@ end
 function inst(pat, sub::Sub, side::Symbol)
     # remove type assertions
     if side == :left
+        pat = remove_assertions(pat)
         pat = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), pat; skip_call=true )
     end
 
@@ -155,7 +156,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
             end
-            r = f(egraph, actual_params...)
+            r = f(lc, egraph, actual_params...)
             rc = addexpr!(egraph, r)
             merge!(egraph,lc.id,rc.id)
         else

@@ -105,7 +105,7 @@ end
 @testset "Direct Rules" begin
     t = @theory begin
         # maps
-        a * b |> ((a isa Number && b isa Number) ? a * b : :(a * b))
+        a * b |> ((a isa Number && b isa Number) ? a * b : _lhs_expr)
     end
     @test rewrite(:(3 * 1), t) == 3
 
