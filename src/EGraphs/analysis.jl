@@ -24,6 +24,8 @@ function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
 
     println(ids)
 
+    @assert isempty(g.dirty)
+
     did_something = true
     while did_something
         did_something = false

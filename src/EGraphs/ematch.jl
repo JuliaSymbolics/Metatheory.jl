@@ -66,8 +66,6 @@ end
 function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
     c = Vector{Sub}()
 
-    # println("lit = $lit")
-
     for n in e.M[find(e,v)]
         if isexpr(t, :(::)) && ariety(n) == 0
             # right hand of type assertion
