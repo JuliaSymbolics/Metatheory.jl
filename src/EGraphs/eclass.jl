@@ -1,8 +1,9 @@
 
-const Parent = Tuple{Any,Int64} # parent enodes and eclasses
+
+const Parent = Tuple{ENode,Int64} # parent enodes and eclasses
 mutable struct EClassData
     id::Int64
-    nodes::Vector{Any}
+    nodes::Vector{ENode}
     parents::Vector{Parent}
 end
 

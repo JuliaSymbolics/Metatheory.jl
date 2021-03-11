@@ -16,13 +16,15 @@ import ..setfunargs!
 
 using ..Util
 
-include("eclass.jl")
 include("enode.jl")
+include("eclass.jl")
 export isenode
 
 include("egg.jl")
 export find
 export EClass
+export ENode
+export ariety
 export EGraph
 export AbstractAnalysis
 export merge!

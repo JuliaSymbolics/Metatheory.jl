@@ -6,8 +6,8 @@ using Metatheory.Util
 using DataStructures
 using Test
 
-Metatheory.options[:verbose] = true
-Metatheory.options[:printiter] = true
+# Metatheory.options[:verbose] = true
+# Metatheory.options[:printiter] = true
 
 @metatheory_init
 
@@ -35,7 +35,6 @@ ts = Test.FallbackTestSet
       include("test_cat.jl")
       include("test_calculational_logic.jl")
       include("test_logic.jl")
-      # include("test_contexts.jl")
       # exported consistency test
       for m ∈ [Metatheory, Metatheory.Util, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
          for i ∈ propertynames(m)

@@ -18,6 +18,7 @@ t = comm_monoid ∪ fold_mul
     G = EGraph(cleanast(ex))
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t; timeout=15)
+	display(G.M); println()
     extr = extract!(G, extran)
 	println(extr)
 
@@ -110,8 +111,8 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 
 @testset "Complex Extraction" begin
 	G = EGraph(:(log(e) * log(e)))
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
 	saturate!(G, t; timeout=7)
+	extran = addanalysis!(G, ExtractionAnalysis, astsize)
 	@test extract!(G, extran) == 1
 
 	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))
@@ -135,13 +136,19 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	end
 	@test ex == :(a^5)
 
-	cust_astsize(n, an) = 1
-	function cust_astsize(n::Expr, an)
-		nc = astsize(n, an)
-		if getfunsym(n) == :(^)
-			nc = nc + 2
-		end
-		nc
+	# TODO could serve as example for more advanced
+	# symbolic mathematics simplification based on the computation cost
+	# of the expressions
+	function cust_astsize(n::ENode, an::AbstractAnalysis)
+	    cost = 1 + ariety(n)
+
+		(n.sym == :^) && (cost += 2)
+
+	    for a ∈ n.args
+	        !haskey(an, a) && (cost += Inf; break)
+	        cost += last(an[a])
+	    end
+	    return cost
 	end
 
 
@@ -157,12 +164,11 @@ end
 
 # EXTRACTION BUG!
 
-costfun(n, an) = 1
-function costfun(n::Expr, an)
-	left = n.args[2]
-
+function costfun(n::ENode, an)
 	println(n)
-	:a ∈ g.M[left.id].nodes ? 1 : 100
+	ariety(n) != 2 && (return 1)
+	left = n.args[1]
+	ENode(:a) ∈ g.M[left].nodes ? 1 : 100
 end
 
 moveright = @theory begin

@@ -26,12 +26,16 @@ end
 @testset "Simple congruence - rebuilding" begin
     testexpr = :(f(a,b) + f(a,c))
     G = EGraph(testexpr)
+    t1 = addexpr!(G, :b)
+
     t2 = addexpr!(G, :c)
     # display(G.M); println()
 
-    c_id = merge!(G, t2.id, 2)
-    in_same_set(G.U, c_id, 2)
-    in_same_set(G.U, t2.id, 2)
+    c_id = merge!(G, t2.id, t1.id)
+    # display(G.M); println()
+    @test in_same_set(G.U, c_id, t1.id)
+    @test in_same_set(G.U, t2.id, t1.id)
+    println(find_root!(G.U, t2.id))
     @test find_root!(G.U, t2.id) == 4
     # display(G.parents); println()
     rebuild!(G)
