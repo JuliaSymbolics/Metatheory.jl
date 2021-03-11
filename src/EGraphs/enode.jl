@@ -1,16 +1,17 @@
 using DataStructures
 using Base.Meta
 using StaticArrays
+using AutoHashEquals
 
-struct EClass
+@auto_hash_equals struct EClass
     id::Int64
 end
 
 
-struct ENode
+@auto_hash_equals struct ENode
     sym::Any
     iscall::Bool
-    args::SVector{T, Int64} where T
+    args::MVector{T, Int64} where T
 end
 
 ariety(n::ENode) = length(n.args)
@@ -39,21 +40,16 @@ isenode(x) = true
 
 function ENode(e::Expr)
     args = map(x->x.id, getfunargs(e))
-    ENode(getfunsym(e), iscall(e), SA{Int64}[args...])
+    ENode(getfunsym(e), iscall(e), MVector{length(args), Int64}(args...))
 end
 
 function ENode(a)
-    ENode(a, false, SA{Int64}[])
+    ENode(a, false, MVector{0, Int64}())
 end
 
 ENode(a::ENode) = error()
 
 
-
-### Definition 2.3: canonicalization
-# iscanonical(U::IntDisjointSets, n::Expr) = n == canonicalize(U, n)
-iscanonical(U::IntDisjointSets, n::ENode) = n == canonicalize(U, n)
-iscanonical(U::IntDisjointSets, e::EClass) = find_root!(U, e.id) == e.id
 
 # canonicalize an e-term n
 # throws a KeyError from find_root! if any of the child classes
@@ -66,9 +62,6 @@ iscanonical(U::IntDisjointSets, e::EClass) = find_root!(U, e.id) == e.id
 #     return ne
 # end
 
-function canonicalize(U::IntDisjointSets, n::ENode)
-    ENode(n.sym, n.iscall, map(x -> find_root!(U, x), n.args))
-end
 
 # # canonicalize in place
 # function canonicalize!(U::IntDisjointSets, n::Expr)

@@ -27,7 +27,7 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...;
     report = saturate!(G, t; timeout=timeout, matchlimit=matchlimit,
         sizeout=sizeout, stopwhen=alleq, mod=mod)
 
-    display(G.M); println()
+    # display(G.M); println()
 
     alleq()
 end

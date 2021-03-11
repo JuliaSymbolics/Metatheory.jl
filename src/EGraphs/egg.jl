@@ -58,17 +58,39 @@ function EGraph(e)
     G
 end
 
+function canonicalize(g::EGraph, n::ENode)
+    ENode(n.sym, n.iscall, map(x -> find(g, x), n.args))
+end
+
+
+function canonicalize!(g::EGraph, n::ENode)
+    for i ∈ 1:ariety(n)
+        n.args[i] = find(g, n.args[i])
+    end
+    return n
+end
+
+
+"""
+Returns the canonical e-class id for a given e-class.
+"""
+find(G::EGraph, a::Int64)::Int64 = find_root!(G.U, a)
+find(G::EGraph, a::EClass)::Int64 = find_root!(G.U, a.id)
+
+
+### Definition 2.3: canonicalization
+# iscanonical(U::IntDisjointSets, n::Expr) = n == canonicalize(U, n)
+iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
+iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
+
 
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(G::EGraph, n::ENode)::EClass
-    if n isa EClass
-        return EClass(find(G, n))
-    end
-
     @debug("adding ", n)
-    n = canonicalize(G.U, n)
+
+    n = canonicalize!(G, n)
     if haskey(G.H, n)
         return find(G, G.H[n]) |> EClass
     end
@@ -122,7 +144,7 @@ end
 
 function clean_enode!(g::EGraph, t::ENode, to::Int64)
     delete!(g.H, t)
-    t = canonicalize(g.U, t)
+    t = canonicalize!(g, t)
     g.H[t] = to
     return t
 end
@@ -173,11 +195,6 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     return id_u
 end
 
-"""
-Returns the canonical e-class id for a given e-class.
-"""
-find(G::EGraph, a::Int64)::Int64 = find_root!(G.U, a)
-find(G::EGraph, a::EClass)::Int64 = find_root!(G.U, a.id)
 
 """
 This function restores invariants and executes
@@ -202,9 +219,21 @@ function rebuild!(egraph::EGraph)
         egraph.root = find(egraph, egraph.root)
     end
 
-    for (id, ecdata) ∈  egraph.M
-        ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
-    end
+    # INVARIANTS ASSERTIONS
+    # for (id, c) ∈  egraph.M
+    # #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
+    #     for an ∈ egraph.analyses
+    #         if haskey(an, id)
+    #             @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
+    #         end
+    #     end
+    #
+    #     for n ∈ c
+    #         # println(n)
+    #         # println("canon = ", canonicalize(egraph, n))
+    #         @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
+    #     end
+    # end
 end
 
 function repair!(G::EGraph, id::Int64)
@@ -217,7 +246,7 @@ function repair!(G::EGraph, id::Int64)
         #delete!(G.M, old_id)
         delete!(G.H, p_enode)
         @debug "deleted from H " p_enode
-        n = canonicalize(G.U, p_enode)
+        n = canonicalize(G, p_enode)
         n_id = find(G, p_eclass)
         G.H[n] = n_id
         (p_enode, p_eclass)
@@ -226,7 +255,7 @@ function repair!(G::EGraph, id::Int64)
     new_parents = OrderedDict{ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
-        p_enode = canonicalize(G.U, p_enode)
+        p_enode = canonicalize!(G, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
             @debug "merging classes" p_eclass (new_parents[p_enode])
@@ -269,12 +298,12 @@ Recursive function that traverses an [`EGraph`](@ref) and
 returns a vector of all reachable e-classes from a given e-class id.
 """
 function reachable(g::EGraph, id::Int64; hist=Int64[])
-    # id = find(g, id)
+    id = find(g, id)
     hist = hist ∪ [id]
-    for n ∈ g.M[find(g,id)]
-        println("node in reachability is ", n)
+    for n ∈ g.M[id]
+        # println("node in reachability is ", n)
         for c_id ∈ n.args
-            # c_id = find(g, c_id)
+            c_id = find(g, c_id)
             if c_id ∉ hist
                 hist = hist ∪ reachable(g, c_id; hist=hist)
             end

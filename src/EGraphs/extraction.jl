@@ -50,10 +50,10 @@ Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
 islazy(an::ExtractionAnalysis) = true
 
 function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
-    println("extracting from", id)
-    println("class is ", G.M[id])
+    # println("extracting from", id)
+    # println("class is ", G.M[id])
     (cn, ck) = an[id]
-    println("node is ", cn)
+    # println("node is ", cn)
     # cn = canonicalize(G.U, cn)
     # println("canonicalized node is ", cn)
     (ariety(cn) == 0 || ck == Inf) && return cn.sym
