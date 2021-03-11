@@ -27,6 +27,9 @@ end
 
 istree(e::ENode) = error()
 
+struct EClass
+    id::Int64
+end
 
 """
 Check if an expr is an enode ⟺ all args are e-classes

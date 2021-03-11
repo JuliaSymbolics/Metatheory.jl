@@ -1,4 +1,5 @@
 
+
 const Parent = Tuple{ENode,Int64} # parent enodes and eclasses
 mutable struct EClassData
     id::Int64

@@ -2,7 +2,6 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 using DataStructures
-using StaticArrays
 
 """
 Abstract type representing an [`EGraph`](@ref) analysis,
