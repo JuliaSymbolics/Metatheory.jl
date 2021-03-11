@@ -3,10 +3,9 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
 function astsize(n::ENode, an::AbstractAnalysis)
-    cost = 1 + length(n.args)
-
+    cost = 1 + ariety(n)
     for a ∈ n.args
-        # !haskey(an, a) && return Inf
+        !haskey(an, a) && (cost += Inf; break)
         cost += last(an[a])
     end
     return cost
@@ -53,6 +52,7 @@ function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     # println("extracting from", id)
     # println("class is ", G.M[id])
     (cn, ck) = an[id]
+    # println(cn, " ", ck, " ", ariety(cn))
     # println("node is ", cn)
     # cn = canonicalize(G.U, cn)
     # println("canonicalized node is ", cn)
@@ -61,6 +61,7 @@ function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     sym = cn.iscall ? :call : cn.sym
     args = map(cn.args) do a
         # TODO evaluate this behaviour
+        id == a && (error("loop in extraction"))
         rec_extract(G, an, a)
     end
     args = cn.iscall ? [cn.sym, args...] : args

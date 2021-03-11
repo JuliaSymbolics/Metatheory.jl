@@ -15,13 +15,13 @@ Test.FallbackTestSet(desc) = Test.FallbackTestSet()
 
 ts = Test.FallbackTestSet
 
-@testset ts "Metatheory Tests" begin
-   @timev begin
+# @testset ts "Metatheory Tests" begin
+   # @timev begin
       include("test_egraphs.jl")
       include("test_ematch.jl")
       include("test_ematch_assertions.jl")
       include("test_analysis.jl")
-      # include("test_extraction.jl")
+      include("test_extraction.jl")
       # include("test_dynamic_ematch.jl")
       # # FIXME include("test_mu.jl")
       # include("test_while_interpreter.jl")
@@ -42,5 +42,5 @@ ts = Test.FallbackTestSet
             xxx = getproperty(m, i)
          end
       end
-   end
-end
+   # end
+# end

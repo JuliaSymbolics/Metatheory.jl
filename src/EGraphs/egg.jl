@@ -220,20 +220,20 @@ function rebuild!(egraph::EGraph)
     end
 
     # INVARIANTS ASSERTIONS
-    # for (id, c) ∈  egraph.M
-    # #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
-    #     for an ∈ egraph.analyses
-    #         if haskey(an, id)
-    #             @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
-    #         end
-    #     end
-    #
-    #     for n ∈ c
-    #         # println(n)
-    #         # println("canon = ", canonicalize(egraph, n))
-    #         @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
-    #     end
-    # end
+    for (id, c) ∈  egraph.M
+    #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
+        for an ∈ egraph.analyses
+            if haskey(an, id)
+                @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
+            end
+        end
+
+        for n ∈ c
+            # println(n)
+            # println("canon = ", canonicalize(egraph, n))
+            @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
+        end
+    end
 end
 
 function repair!(G::EGraph, id::Int64)
@@ -297,15 +297,20 @@ end
 Recursive function that traverses an [`EGraph`](@ref) and
 returns a vector of all reachable e-classes from a given e-class id.
 """
-function reachable(g::EGraph, id::Int64; hist=Int64[])
+function reachable(g::EGraph, id::Int64)
     id = find(g, id)
-    hist = hist ∪ [id]
-    for n ∈ g.M[id]
-        # println("node in reachability is ", n)
-        for c_id ∈ n.args
-            c_id = find(g, c_id)
-            if c_id ∉ hist
-                hist = hist ∪ reachable(g, c_id; hist=hist)
+    hist = Int64[id]
+    todo = Int64[id]
+    while !isempty(todo)
+        curr = find(g, pop!(todo))
+        for n ∈ g.M[curr]
+            nn = canonicalize(g, n)
+            # println("node in reachability is ", n)
+            for c_id ∈ nn.args
+                if c_id ∉ hist
+                    push!(hist, c_id)
+                    push!(todo, c_id)
+                end
             end
         end
     end
