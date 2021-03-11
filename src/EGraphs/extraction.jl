@@ -73,7 +73,6 @@ Given an [`ExtractionAnalysis`](@ref), extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
 function extract!(G::EGraph, extran::ExtractionAnalysis)
-    println("root is $(G.root)")
     islazy(extran) && analyze!(G, extran, G.root)
     !(extran ∈ G.analyses) && error("Extraction analysis is not associated to EGraph")
     rec_extract(G, extran, G.root)

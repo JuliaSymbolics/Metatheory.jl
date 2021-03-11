@@ -165,10 +165,10 @@ end
 # EXTRACTION BUG!
 
 function costfun(n::ENode, an)
-	ariety(n) != 2 && (return 1) 
-	left = n.args[1]
 	println(n)
-	:a ∈ g.M[left].nodes ? 1 : 100
+	ariety(n) != 2 && (return 1)
+	left = n.args[1]
+	ENode(:a) ∈ g.M[left].nodes ? 1 : 100
 end
 
 moveright = @theory begin

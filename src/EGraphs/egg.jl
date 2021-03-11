@@ -220,20 +220,20 @@ function rebuild!(egraph::EGraph)
     end
 
     # INVARIANTS ASSERTIONS
-    for (id, c) ∈  egraph.M
-    #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
-        for an ∈ egraph.analyses
-            if haskey(an, id)
-                @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
-            end
-        end
-
-        for n ∈ c
-            # println(n)
-            # println("canon = ", canonicalize(egraph, n))
-            @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
-        end
-    end
+    # for (id, c) ∈  egraph.M
+    # #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
+    #     for an ∈ egraph.analyses
+    #         if haskey(an, id)
+    #             @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
+    #         end
+    #     end
+    #
+    #     for n ∈ c
+    #         # println(n)
+    #         # println("canon = ", canonicalize(egraph, n))
+    #         @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
+    #     end
+    # end
 end
 
 function repair!(G::EGraph, id::Int64)
