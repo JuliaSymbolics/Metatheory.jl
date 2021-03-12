@@ -69,8 +69,8 @@ Rule(:(a::Number * b::Number |> a*b))
 function Rule(e::Expr; mod::Module=@__MODULE__)
     e = rmlines(copy(e))
     mode = :undef
-    mode = getfunsym(e)
-    l, r = e.args[iscall(e) ? (2:3) : (1:2)]
+    mode = gethead(e)
+    l, r = e.args[isexpr(e, :call) ? (2:3) : (1:2)]
 
     right_fun = nothing
 
@@ -89,7 +89,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     # TODO FIXME move right_fun dictionary to be module-wise and not for each rule
     mode == :dynamic && (right_fun = Dict(mod => genrhsfun(l, r, mod)))
 
-    e.args[iscall(e) ? 2 : 1] = l
+    e.args[isexpr(e, :call) ? 2 : 1] = l
     return Rule(l, r, e, mode, right_fun)
 end
 

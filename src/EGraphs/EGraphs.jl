@@ -6,13 +6,7 @@ using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 import ..Rule
-import ..iscall
-import ..istree
-import ..getfunsym
-import ..getfunargs
-import ..setfunsym!
-import ..setfunargs!
-
+using ..TermInterface
 
 using ..Util
 

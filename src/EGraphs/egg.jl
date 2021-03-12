@@ -59,7 +59,7 @@ end
 
 function canonicalize(g::EGraph, n::ENode)
     new_args = map(x -> find(g, x), n.args)
-    ENode(n.head, n.iscall, new_args, n.sourcetype, n.metadata)
+    ENode(n.head, new_args, n.sourcetype, n.metadata)
 end
 
 
