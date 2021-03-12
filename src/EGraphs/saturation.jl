@@ -63,7 +63,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         end
 
         # outermost symbol in lhs
-        sym = getfunsym(rule.left)
+        sym = gethead(rule.left)
         if istree(rule.left)
             ids = get(egraph.symcache, sym, [])
         else
@@ -78,7 +78,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         end
 
         if rule.mode == :equational
-            sym = getfunsym(rule.right)
+            sym = gethead(rule.right)
             ids = get(egraph.symcache, sym, [])
             for id ∈ ids
                 for sub in ematch(egraph, rule.right, id, EMPTY_DICT)

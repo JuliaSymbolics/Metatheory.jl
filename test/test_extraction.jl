@@ -18,9 +18,11 @@ t = comm_monoid ∪ fold_mul
     G = EGraph(cleanast(ex))
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t; timeout=15)
-	display(G.M); println()
+	# display(G.M); println()
+	println("===================")
     extr = extract!(G, extran)
 	println(extr)
+	dump(extr)
 
     @test extr == :(b * (a * 12)) || extr == :((b * 12) * a) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b)

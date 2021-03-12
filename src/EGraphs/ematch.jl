@@ -100,8 +100,8 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub
         end
 
         # otherwise ematch on an expr
-        (!(ariety(n) > 0) || n.head != getfunsym(t)) && continue
-        union!(c, ematchlist(e, getfunargs(t), n.args, sub))
+        (!(ariety(n) > 0) || n.head != gethead(t)) && continue
+        union!(c, ematchlist(e, getargs(t), n.args, sub))
     end
     return c
 end

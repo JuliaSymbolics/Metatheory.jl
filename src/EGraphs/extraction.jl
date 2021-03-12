@@ -48,24 +48,35 @@ Base.haskey(an::ExtractionAnalysis, id::Int64) = haskey(an.data, id)
 Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
 islazy(an::ExtractionAnalysis) = true
 
-function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
-    # println("extracting from", id)
-    # println("class is ", G.M[id])
+function rec_extract(g::EGraph, an::ExtractionAnalysis, id::Int64)
     (cn, ck) = an[id]
-    # println(cn, " ", ck, " ", ariety(cn))
-    # println("node is ", cn)
-    # cn = canonicalize(G.U, cn)
-    # println("canonicalized node is ", cn)
     (ariety(cn) == 0 || ck == Inf) && return cn.head
+    extractor = a -> rec_extract(g, an, a)
+    extractnode(cn.sourcetype, cn, extractor)
+end
 
-    sym = cn.iscall ? :call : cn.head
-    args = map(cn.args) do a
-        # TODO evaluate this behaviour
-        id == a && (error("loop in extraction"))
-        rec_extract(G, an, a)
+function extractnode(t::Type{Expr}, n::ENode, extractor::Function)::Expr
+    expr_args = []
+    expr_head = n.head
+
+    if n.metadata.iscall
+        push!(expr_args, n.head)
+        expr_head = :call
     end
-    args = cn.iscall ? [cn.head, args...] : args
-    return Expr(sym, args...)
+
+    for a ∈ n.args
+        # id == a && (error("loop in extraction"))
+        push!(expr_args, extractor(a))
+    end
+
+    return Expr(expr_head, expr_args...)
+end
+
+function extractnode(t::Type{T}, n::ENode, extractor::Function) where T
+    if ariety(n) > 0
+        error("ENode extraction is not defined for non-literal type $T")
+    end
+    return n.head
 end
 
 """
