@@ -3,8 +3,6 @@ module Util
 
 include("../docstrings.jl")
 
-using ..TermInterface
-
 using Base.Meta
 ## AST manipulation utility functions
 
@@ -24,6 +22,7 @@ include("cleaning.jl")
 export rmlines
 export binarize!
 export cleanast
+export cleanblock
 export interpolate_dollar
 export remove_assertions
 

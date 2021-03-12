@@ -131,16 +131,21 @@ Recursively traverse an [`Expr`](@ref) and insert terms into an
 insert the literal into the [`EGraph`](@ref).
 """
 function addexpr!(G::EGraph, e)::EClass
-    e = cleanast(e)
+    e = preprocess(e)
     # println("========== $e ===========")
-    df_walk((x -> begin
-        x isa EClass ? (return x) : nothing
-        # println("x = ", x)
-        n = ENode(x)
-        # println("n = ", n)
-        add!(G, (x isa ENode ? x : n))
-    end), e; skip_call = true)
+    class_ids = Int64[]
+
+    for child ∈ getargs(e)
+        c_eclass = addexpr!(G, child)
+        push!(class_ids, c_eclass.id)
+    end
+
+    node = ENode(e, class_ids)
+
+    return add!(G, node)
 end
+
+addexpr!(G::EGraph, e::EClass)::EClass = e
 
 function clean_enode!(g::EGraph, t::ENode, to::Int64)
     delete!(g.H, t)
