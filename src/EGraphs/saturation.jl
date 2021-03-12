@@ -180,6 +180,8 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     report.rebuild_stats = report.rebuild_stats + discard_value(rebuild_stats)
 
 
+    # TODO produce proofs with match_hist
+
     total_time!(report)
 
     return report, egraph
