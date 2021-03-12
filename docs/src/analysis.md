@@ -34,7 +34,7 @@ powers = @theory begin
 end
 logids = @theory begin
 	log(a^n) => n * log(a)
-	log(x * y) => log(x) * log(y)
+	log(x * y) => log(x) + log(y)
 	log(1) => 0
 	log(:e) => 1
 	:e^(log(x)) => x
