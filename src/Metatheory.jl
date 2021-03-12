@@ -23,14 +23,15 @@ end
 
 export options
 
+include("Util/Util.jl")
+using .Util
+export Util
+
+
 # TODO document this interface
 include("TermInterface.jl")
 using .TermInterface
 export TermInterface
-
-include("Util/Util.jl")
-using .Util
-export Util
 
 
 include("rgf.jl")

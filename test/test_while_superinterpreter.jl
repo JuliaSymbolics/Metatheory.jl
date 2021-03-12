@@ -119,8 +119,6 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__, timeout=10)
 
 	# FIXME bug!
-	# exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
-
 	exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
 	(g, ex) = @extract exx while_language astsize
 	# display(g.M); println()

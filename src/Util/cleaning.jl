@@ -16,10 +16,25 @@ function binarize!(e, op::Symbol)
     df_walk!(f, e)
 end
 
+function clean_block_step(e)
+    if isexpr(e, :block)
+        if length(e.args) == 1
+            return e.args[1]
+        elseif length(e.args) > 3
+            return foldl((x,y) -> Expr(:block, x, y), e.args[2:end])
+        end
+    end
+    return e
+end
+
+function cleanblock(e)
+    df_walk!(clean_block_step, e)
+end
+
 """
 Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)
 """
-cleanast(ex) = rmlines(ex) |>
+cleanast(ex) = rmlines(ex)  |>
     x -> binarize!(x, :(+)) |>
     x -> binarize!(x, :(*))
 

@@ -21,11 +21,13 @@ struct EClass
     id::Int64
 end
 
-function ENode(e)
-    args = map(x -> ( (@assert x isa EClass); x.id), getargs(e))
-    static_args = MVector{length(args), Int64}(args...)
+function ENode(e, c_ids::AbstractVector{Int64})
+    @assert length(getargs(e)) == length(c_ids)
+    static_args = MVector{length(c_ids), Int64}(c_ids...)
     ENode(gethead(e), static_args, typeof(e), getmetadata(e))
 end
+
+ENode(e) = ENode(e, Int64[])
 
 ENode(a::ENode) =
     error("constructor of ENode called on enode. This should never happen")
