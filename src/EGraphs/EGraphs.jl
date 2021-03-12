@@ -18,7 +18,6 @@ using ..Util
 
 include("enode.jl")
 include("eclass.jl")
-export isenode
 
 include("egg.jl")
 export find

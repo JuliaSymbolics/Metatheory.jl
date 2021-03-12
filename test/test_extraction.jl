@@ -142,7 +142,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	function cust_astsize(n::ENode, an::AbstractAnalysis)
 	    cost = 1 + ariety(n)
 
-		(n.sym == :^) && (cost += 2)
+		(n.head == :^) && (cost += 2)
 
 	    for a ∈ n.args
 	        !haskey(an, a) && (cost += Inf; break)

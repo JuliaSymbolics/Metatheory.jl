@@ -50,11 +50,11 @@ function ematch(e::EGraph, t, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
     c = Vector{Sub}()
     id = find(e,v)
     for n in e.M[id]
-        if (t isa QuoteNode ? t.value : t) == n.sym
+        if (t isa QuoteNode ? t.value : t) == n.head
             if haskey(sub, t)
                 union!(c, find(e, first(sub[t])) == id ? [sub] : [])
             else
-                union!(c, [ Base.ImmutableDict(sub, t => (EClass(id), n.sym))])
+                union!(c, [ Base.ImmutableDict(sub, t => (EClass(id), n.head))])
             end
             # union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
         end
@@ -94,13 +94,13 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub
             #     error("Unsupported type assertion '", t, "'")
             # end
 
-            !(typeof(n.sym) <: typ) && continue
-            union!(c, ematch(e, t.args[1], v, sub; lit=n.sym))
+            !(typeof(n.head) <: typ) && continue
+            union!(c, ematch(e, t.args[1], v, sub; lit=n.head))
             continue
         end
 
         # otherwise ematch on an expr
-        (!(ariety(n) > 0) || n.sym != getfunsym(t)) && continue
+        (!(ariety(n) > 0) || n.head != getfunsym(t)) && continue
         union!(c, ematchlist(e, getfunargs(t), n.args, sub))
     end
     return c

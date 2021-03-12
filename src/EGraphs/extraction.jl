@@ -56,15 +56,15 @@ function rec_extract(G::EGraph, an::ExtractionAnalysis, id::Int64)
     # println("node is ", cn)
     # cn = canonicalize(G.U, cn)
     # println("canonicalized node is ", cn)
-    (ariety(cn) == 0 || ck == Inf) && return cn.sym
+    (ariety(cn) == 0 || ck == Inf) && return cn.head
 
-    sym = cn.iscall ? :call : cn.sym
+    sym = cn.iscall ? :call : cn.head
     args = map(cn.args) do a
         # TODO evaluate this behaviour
         id == a && (error("loop in extraction"))
         rec_extract(G, an, a)
     end
-    args = cn.iscall ? [cn.sym, args...] : args
+    args = cn.iscall ? [cn.head, args...] : args
     return Expr(sym, args...)
 end
 
