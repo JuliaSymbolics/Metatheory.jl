@@ -58,7 +58,8 @@ function EGraph(e)
 end
 
 function canonicalize(g::EGraph, n::ENode)
-    ENode(n.sym, n.iscall, map(x -> find(g, x), n.args))
+    new_args = map(x -> find(g, x), n.args)
+    ENode(n.head, n.iscall, new_args, n.sourcetype, n.metadata)
 end
 
 
@@ -107,7 +108,7 @@ function add!(G::EGraph, n::ENode)::EClass
     G.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
-    sym = n.sym
+    sym = n.head
     if !haskey(G.symcache, sym)
         G.symcache[sym] = []
     end
@@ -170,19 +171,8 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
 
     push!(G.dirty, id_u)
 
-    G.M[from].nodes = map(G.M[from].nodes) do x
-        clean_enode!(G, x, to)
-    end
-    G.M[to].nodes = map(G.M[to].nodes) do x
-        clean_enode!(G, x, to)
-    end
     G.M[to] = union!(G.M[to], G.M[from])
-    delete!(G.M, from)
-
-    # canonicalize the root if needed
-    if from == G.root
-        G.root = to
-    end
+    G.M[from] = G.M[to]
 
     for analysis ∈ G.analyses
         if haskey(analysis, from) && haskey(analysis, to)
@@ -241,13 +231,7 @@ function repair!(G::EGraph, id::Int64)
     @debug "repairing " id
 
     ecdata.parents = map(ecdata.parents) do (p_enode, p_eclass)
-        #old_id = G.H[p_enode]
-        #delete!(G.M, old_id)
-        delete!(G.H, p_enode)
-        @debug "deleted from H " p_enode
-        n = canonicalize(G, p_enode)
-        n_id = find(G, p_eclass)
-        G.H[n] = n_id
+        clean_enode!(G, p_enode, find(G, p_eclass))
         (p_enode, p_eclass)
     end
 
