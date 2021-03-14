@@ -17,10 +17,6 @@ end
 
 ariety(n::ENode) = length(n.args)
 
-struct EClass
-    id::Int64
-end
-
 function ENode(e, c_ids::AbstractVector{Int64})
     @assert length(getargs(e)) == length(c_ids)
     static_args = MVector{length(c_ids), Int64}(c_ids...)

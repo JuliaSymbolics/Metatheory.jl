@@ -33,7 +33,7 @@ function BackoffScheduler(G::EGraph, theory::Vector{Rule})
 
     # These numbers seem to fit
     for rule ∈ theory
-        data[rule] = BackoffSchedulerEntry(gsize, gsize, 2, 0)
+        data[rule] = BackoffSchedulerEntry(8, 8, 2, 0)
     end
 
     return BackoffScheduler(data, G, theory)

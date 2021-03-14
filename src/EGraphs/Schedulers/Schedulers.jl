@@ -8,10 +8,13 @@ import ..EGraph
 include("./abstractscheduler.jl")
 include("./backoffscheduler.jl")
 include("./simplescheduler.jl")
+include("./scoredscheduler.jl")
 
 export AbstractScheduler
-export BackoffScheduler
 export SimpleScheduler
+export BackoffScheduler
+export ScoredScheduler
+
 export cansaturate
 export shouldskip
 export readstep!

@@ -1,6 +1,6 @@
 boson = @theory begin :c * :cdag => :cdag * :c + 1 end
 
-distr_assoc = Library.distrib(:*, :+) ∪ Library.associativity(:*)
+distr_assoc = distrib(:*, :+) ∪ [associativity(:*)]
 
 ident = @theory begin
     1 * x => x

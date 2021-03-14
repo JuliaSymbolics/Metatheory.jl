@@ -4,6 +4,10 @@ using Metatheory.Util
 # Description here:
 # https://www.philipzucker.com/metatheory-progress/
 
+v = Metatheory.options[:verbose]
+pit = Metatheory.options[:printiter]
+Metatheory.options[:verbose] = true
+Metatheory.options[:printiter] = true
 
 # https://github.com/AlgebraicJulia/Catlab.jl/blob/ce2fde9c63a8aab65cf2a7697f43cd24e5e00b3a/src/theories/Monoidal.jl#L127
 
@@ -17,7 +21,7 @@ cat_rules = @theory begin
     a ⊗ₒ munit() => a
     munit() ⊗ₒ a => a
 
-    #a => a ⊗ₒ munit() 
+    #a => a ⊗ₒ munit()
     #a => munit() ⊗ₒ a
 
     f ⋅ (g ⋅ h) == (f ⋅ g) ⋅ h
@@ -118,12 +122,12 @@ cart_rules = @theory begin
     end
 
 
-    pair(f, k) => Δ(dom(type(f))) ⋅ (f ⊗ₘ k)
+    pair(f, k) == Δ(dom(type(f))) ⋅ (f ⊗ₘ k)
     proj1(a, b) == id(a) ⊗ₘ ⋄(b)
     proj2(a, b) == ⋄(a) ⊗ₘ id(b)
     f ⋅ ⋄(b) => ⋄(dom(type(f)))
     # Has to invent f. Hard to fix.
-    # ⋄(b) => f ⋅ ⋄(b)  
+    # ⋄(b) => f ⋅ ⋄(b)
 
     f ⋅ Δ(b) => Δ(dom(type(f))) ⋅ (f ⊗ₘ f)
     Δ(a) ⋅ (f ⊗ₘ f) => f ⋅ Δ(cod(type(f)))
@@ -155,13 +159,37 @@ rules = typing_rules ∪ cat_rules ∪ monoidal_rules ∪ sym_rules ∪ diag_rul
 
 # A goofy little helper macro
 # Taking inspiration from Lean/Dafny/Agda
+using Metatheory.Util
 macro calc(e...)
     theory = eval(e[1])
     e = rmlines(e[2])
     @assert e.head == :block
-    for (a, b) in zip(e.args[1:end-1], e.args[2:end])
-        println(a, " =? ", b)
-        @time println(areequal(theory, a, b; timeout = 40))
+
+    @profiler for (a, b) in zip(e.args[1:end-1], e.args[2:end])
+        # println(a, " =? ", b)
+        eq = @time areequal(theory, a, b; timeout = 9)
+        println(eq)
+        #  WOULD WORK IF COST FUNCTION IS SIMILARITY TO OTHER FUN
+        # if !eq
+        #     i = 0
+        #     while !eq && i < 4
+        #         ga = EGraph(a); gb = EGraph(b)
+        #         ga_extr = addanalysis!(ga, ExtractionAnalysis, astsize)
+        #         gb_extr = addanalysis!(gb, ExtractionAnalysis, astsize)
+        #         @time saturate!(ga, theory; timeout = 9)
+        #         @time saturate!(gb, theory; timeout = 9)
+        #
+        #         new_a = extract!(ga, ga_extr)
+        #         new_b = extract!(gb, gb_extr)
+        #         println("i = $i \nnew a = $new_a \nnew b = $new_b")
+        #         eq = @time areequal(theory, new_a, new_b; timeout = 9)
+        #         i += 1
+        #     end
+        #
+        #     if !eq && i == 4
+        #         return false
+        #     end
+        # end
     end
 end
 
@@ -171,7 +199,7 @@ end
     ((⋄(a) ⊗ₘ ⋄(b)) ⋅ σ(munit(), munit()))
     (σ(a, b) ⋅ (⋄(b) ⊗ₘ ⋄(a)))
 
-end 
+end
 
 
 @calc rules begin
@@ -198,3 +226,12 @@ end
     (Δ(a) ⊗ₘ Δ(b)) ⋅ ((id(a) ⊗ₘ (σ(a, b) ⋅ (⋄(b) ⊗ₘ ⋄(a))) ⊗ₘ id(b)))
     pair(proj1(a, b), proj2(a, b))
 end
+
+# shorter proof also accepted
+@calc rules begin
+    id(a ⊗ₒ b)
+    pair(proj1(a, b), proj2(a, b))
+end
+
+Metatheory.options[:verbose] = v
+Metatheory.options[:printiter] = pit

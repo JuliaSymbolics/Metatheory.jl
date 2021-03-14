@@ -10,6 +10,7 @@
 # when evaluating dynamic rules we also want to know
 # what was the value of a matched literal
 const Sub = Base.ImmutableDict{Any, Tuple{EClass, Any}}
+const SubBuf = Vector{Sub}
 
 # https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
 # page 48
@@ -22,49 +23,47 @@ the remaining E-nodes. The base case of this recursion is the empty list, which
 requires no extension to the substitution; the other case relies on Match to find the
 substitutions that match the first term to the first E-node.
 """
-function ematchlist(e::EGraph, t::Vector{Any}, v::AbstractVector{Int64}, sub::Sub)::Vector{Sub}
-    c = Vector{Sub}()
-
+function ematchlist(e::EGraph, t::Vector{Any}, v::AbstractVector{Int64}, sub::Sub; buf=SubBuf())::SubBuf
     if length(t) != length(v) || length(t) == 0 || length(v) == 0
-        push!(c, sub)
+        push!(buf, sub)
     else
-        for sub1 in ematch(e, t[1], v[1], sub)
-            for sub2 in ematchlist(e, t[2:end], v[2:end], sub1)
-                push!(c, sub2)
-            end
+        for sub1 in ematchstep(e, t[1], v[1], sub)
+            ematchlist(e, t[2:end], v[2:end], sub1; buf=buf)
         end
     end
-    return c
+    return buf
 end
 
 # sub should be a map from pattern variables to Id
-function ematch(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
+function ematchstep(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     if haskey(sub, t)
-        return find(e, first(sub[t])) == find(e, v) ? [sub] : []
+        if find(e, first(sub[t])) == find(e, v)
+            push!(buf, sub)
+        end
     else
-        return [ Base.ImmutableDict(sub, t => (EClass(find(e, v)), lit)) ]
+        push!(buf, Base.ImmutableDict(sub, t => (EClass(find(e, v)), lit)))
     end
+    return buf
 end
 
-function ematch(e::EGraph, t, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
-    c = Vector{Sub}()
+function ematchstep(e::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     id = find(e,v)
     for n in e.M[id]
         if (t isa QuoteNode ? t.value : t) == n.head
             if haskey(sub, t)
-                union!(c, find(e, first(sub[t])) == id ? [sub] : [])
+                if find(e, first(sub[t])) == id
+                    push!(buf, sub)
+                end
             else
-                union!(c, [ Base.ImmutableDict(sub, t => (EClass(id), n.head))])
+                push!(buf, Base.ImmutableDict(sub, t => (EClass(id), n.head)))
             end
-            # union!(c, ematchlist(e, t.args[start:end], n.args[start:end] .|> x -> x.id, sub))
         end
     end
-    return c
+    return buf
 end
 
 
-function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub}
-    c = Vector{Sub}()
+function ematchstep(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
 
     for n in e.M[find(e,v)]
         if isexpr(t, :(::)) && ariety(n) == 0
@@ -95,13 +94,21 @@ function ematch(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing)::Vector{Sub
             # end
 
             !(typeof(n.head) <: typ) && continue
-            union!(c, ematch(e, t.args[1], v, sub; lit=n.head))
+            ematchstep(e, t.args[1], v, sub; lit=n.head, buf=buf)
             continue
         end
 
         # otherwise ematch on an expr
         (!(ariety(n) > 0) || n.head != gethead(t)) && continue
-        union!(c, ematchlist(e, getargs(t), n.args, sub))
+        ematchlist(e, getargs(t), n.args, sub; buf=buf)
     end
-    return c
+    return buf
+end
+
+const EMPTY_DICT = Sub()
+
+function ematch(g::EGraph, pat, id::Int64)
+    buf = SubBuf()
+    ematchstep(g, pat, id, EMPTY_DICT; buf=buf)
+    return buf
 end

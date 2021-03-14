@@ -108,7 +108,6 @@ g = EGraph(ex)
 # exit(0)
 
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
-
 ex = extract!(g, extran)
 println(ex)
 
