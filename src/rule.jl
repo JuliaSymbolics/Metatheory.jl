@@ -62,6 +62,12 @@ Symbolic rule
 Rule(:(a * b => b * a))
 ```
 
+Equational rule
+```julia
+Rule(:(a * b == b * a))
+```
+
+Dynamic rule
 ```julia
 Rule(:(a::Number * b::Number |> a*b))
 ```

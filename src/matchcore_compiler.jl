@@ -35,14 +35,17 @@ function compile_rule(rule::Rule)::Expr
 	patvars = Vector{Symbol}()
     le = df_walk(c_left, rule.left, patvars; skip=skips, skip_call=true) |> quot
 
-    if rule.mode == :dynamic # regular pattern matching
+	if rule.mode == :equational
+		error("equational rules not yet supported by classic rewriting backend." *
+			"Knuth-Bendix completion algorithm has not yet been implemented.")
+    elseif rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
 		ll = remove_assertions(rule.left)
 		re = quote
 			_lhs_expr = $(Meta.quot(ll));
 			$(rule.right)
 		end
-    elseif rule.mode == :rewrite || rule.mode == :equational
+    elseif rule.mode == :rewrite
 		# right side is quoted, symbolic replacement
         re = df_walk(c_right, rule.right, patvars; skip=skips, skip_call=true) |> quot
 	else
@@ -58,7 +61,7 @@ const identity_axiom = :($(quot(dollar(:i))) => i)
 # TODO analyse theory before compiling. Identify associativity and commutativity
 # and other loop-creating problems. Generate a pattern matching block with the
 # correct rule order and expansions for associativity and distributivity
-# import Iterators: flatten
+# import Iterators: flatten. Knuth-Bendix completion??
 
 function theory_block(t::Vector{Rule})
 	tn = Vector{Expr}()

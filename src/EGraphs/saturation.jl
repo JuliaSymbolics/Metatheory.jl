@@ -1,5 +1,6 @@
-const Match = Tuple{Rule, Sub, Int64}
+const Match = Tuple{Rule, Sub}
 const MatchesBuf = Vector{Match}
+# const MatchesBuf = Dict{Rule,Set{Sub}}
 
 import ..genrhsfun
 import ..options
@@ -28,7 +29,6 @@ function inst(pat, sub::Sub, side::Symbol)
     # remove type assertions
     if side == :left
         pat = remove_assertions(pat)
-        pat = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), pat; skip_call=true )
     end
 
     f = df_walk(inst_step, pat, sub, side; skip_call=true)
@@ -46,7 +46,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         matchlimit=options[:matchlimit] # max number of matches
         )
     matches=MatchesBuf()
-    EMPTY_DICT = Sub()
+
     report = Report(egraph)
     instcache = Dict{Rule, Dict{Sub, Int64}}()
 
@@ -56,6 +56,8 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
 
     search_stats = @timed for rule ∈ theory
         # don't apply banned rules
+        # !haskey(match_hist, rule) && (match_hist[rule] = Set{Sub}())
+        # !haskey(matches, rule) && (matches[rule] = Set{Sub}())
         shouldskip(scheduler, rule) && continue
 
         if rule.mode ∉ [:rewrite, :dynamic, :equational]
@@ -71,9 +73,9 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
         end
 
         for id ∈ ids
-            for sub in ematch(egraph, rule.left, id, EMPTY_DICT)
+            for sub in ematch(egraph, rule.left, id)
                 # display(sub); println()
-                !isempty(sub) && push!(matches, (rule, sub, id))
+                !isempty(sub) && push!(matches, (rule, sub))
             end
         end
 
@@ -81,9 +83,9 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
             sym = gethead(rule.right)
             ids = get(egraph.symcache, sym, [])
             for id ∈ ids
-                for sub in ematch(egraph, rule.right, id, EMPTY_DICT)
+                for sub in ematch(egraph, rule.right, id)
                     # display(sub); println()
-                    !isempty(sub) && push!(matches, (rule, sub, id))
+                    !isempty(sub) && push!(matches, (rule, sub))
                 end
             end
         end
@@ -94,10 +96,13 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     # mmm = unique(matches)
     # mmm = symdiff(match_hist, matches)
 
-    mmm = setdiff(matches, match_hist)
+    matches = setdiff(matches, match_hist)
+    # for (rule, subset) ∈ matches
+    #     setdiff!(subset, match_hist[rule])
+    # end
 
-    if length(mmm) > matchlimit
-        mmm = mmm[1:matchlimit]
+    if length(matches) > matchlimit
+        matches = matches[1:matchlimit]
         # mmm = Set(collect(mmm)[1:matchlimit])
         #
         # report.reason = :matchlimit
@@ -110,9 +115,10 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
 
     i = 0
 
-    apply_stats = @timed for match ∈ mmm
+    apply_stats = @timed for (rule, sub) ∈ matches
+    # apply_stats = @timed for (rule, subset) ∈ matches, sub ∈ subset
         i += 1
-        (rule, sub, id) = match
+        # (rule, sub) = match
 
         if i % 300 == 0
             if sizeout > 0 && length(egraph.U) > sizeout
@@ -170,7 +176,10 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     end
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
-    union!(match_hist, mmm)
+    # for (rule, subset) ∈ matches
+    #     union!(match_hist[rule], subset)
+    # end
+    union!(match_hist, matches)
 
     # display(egraph.parents); println()
     # display(egraph.M); println()
