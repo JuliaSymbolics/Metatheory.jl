@@ -13,11 +13,11 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 AutoHashEquals = "0.2"
-DocStringExtensions = "0.8"
-StaticArrays = "1"
 DataStructures = "0.18.9"
+DocStringExtensions = "0.8"
 MatchCore = "0.1.0"
 RuntimeGeneratedFunctions = "0.5.1"
+StaticArrays = "1"
 julia = "1"
 
 [extras]

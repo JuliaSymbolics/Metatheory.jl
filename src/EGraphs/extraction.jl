@@ -52,10 +52,11 @@ function rec_extract(g::EGraph, an::ExtractionAnalysis, id::Int64)
     (cn, ck) = an[id]
     (ariety(cn) == 0 || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
-    extractnode(cn.sourcetype, cn, extractor)
+    extractnode(cn, extractor)
 end
 
-function extractnode(t::Type{Expr}, n::ENode, extractor::Function)::Expr
+# TODO document how to extract
+function extractnode(n::ENode{Expr}, extractor::Function)::Expr
     expr_args = []
     expr_head = n.head
 
@@ -72,7 +73,7 @@ function extractnode(t::Type{Expr}, n::ENode, extractor::Function)::Expr
     return Expr(expr_head, expr_args...)
 end
 
-function extractnode(t::Type{T}, n::ENode, extractor::Function) where T
+function extractnode(n::ENode, extractor::Function) where T
     if ariety(n) > 0
         error("ENode extraction is not defined for non-literal type $T")
     end

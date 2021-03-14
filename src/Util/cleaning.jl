@@ -8,12 +8,18 @@ rmlines(a) = a
 """
 HARD FIX of n-arity of operators in `Expr` trees
 """
-function binarize!(e, op::Symbol)
-    f(e) = if (isexpr(e, :call) && e.args[1] == op && length(e.args) > 3)
+function binarize_step(e, ops::Vector{Symbol})
+    if !(e isa Expr) return e end
+    op = e.args[1]
+    if (isexpr(e, :call) && op ∈ ops && length(e.args) > 3)
         foldl((x,y) -> Expr(:call, op, x, y), e.args[2:end])
-    else e end
+    else
+        e
+    end
+end
 
-    df_walk!(f, e)
+function binarize!(e, ops::Vector{Symbol})
+    df_walk!(binarize_step, e, ops)
 end
 
 function clean_block_step(e)
@@ -31,12 +37,12 @@ function cleanblock(e)
     df_walk!(clean_block_step, e)
 end
 
+const binarize_ops = [:(+), :(*)]
 """
 Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)
 """
 cleanast(ex) = rmlines(ex)  |>
-    x -> binarize!(x, :(+)) |>
-    x -> binarize!(x, :(*))
+    x -> binarize!(x, binarize_ops)
 
 
 interp_dol(ex::Expr, mod::Module) =
@@ -48,4 +54,8 @@ function interpolate_dollar(ex, mod::Module)
 end
 
 
-remove_assertions(e) = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), e; skip_call=true )
+remove_assertions(e) = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x),
+    e; skip_call=true )
+
+unquote_sym(e) = df_walk( x -> (x isa QuoteNode && x.value isa Symbol ? x.value : x),
+    e; skip_call=true )
