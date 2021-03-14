@@ -115,8 +115,7 @@ side of a `:dynamic` [`Rule`](@ref).
 """
 function genrhsfun(left, right, mod::Module)
     # remove type assertions in left hand
-    lhs = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x), left; skip_call=true )
-
+    lhs = remove_assertions(left)
     # collect variable symbols in left hand
     lhs_vars = Set{Symbol}()
     df_walk( x -> (if x isa Symbol; push!(lhs_vars, x); end; x), left; skip_call=true )

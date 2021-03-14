@@ -59,7 +59,7 @@ end
 
 function canonicalize(g::EGraph, n::ENode)
     new_args = map(x -> find(g, x), n.args)
-    ENode(n.head, new_args, n.sourcetype, n.metadata)
+    typeof(n)(n.head, new_args, n.metadata)
 end
 
 
@@ -68,6 +68,7 @@ function canonicalize!(g::EGraph, n::ENode)
         n.args[i] = find(g, n.args[i])
     end
     return n
+    # n.args = map(x -> find(g, x), n.args)
 end
 
 
@@ -130,8 +131,8 @@ Recursively traverse an [`Expr`](@ref) and insert terms into an
 [`EGraph`](@ref). If `e` is not an [`Expr`](@ref), then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(G::EGraph, e)::EClass
-    e = preprocess(e)
+function addexpr_rec!(G::EGraph, e)::EClass
+    # e = preprocess(e)
     # println("========== $e ===========")
     class_ids = Int64[]
 
@@ -145,7 +146,9 @@ function addexpr!(G::EGraph, e)::EClass
     return add!(G, node)
 end
 
-addexpr!(G::EGraph, e::EClass)::EClass = e
+addexpr_rec!(G::EGraph, e::EClass)::EClass = e
+
+addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
 
 function clean_enode!(g::EGraph, t::ENode, to::Int64)
     delete!(g.H, t)
@@ -162,19 +165,13 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     id_a = find(G, a)
     id_b = find(G, b)
     id_a == id_b && return id_a
-    id_u = union!(G.U, id_a, id_b)
+    to = union!(G.U, id_a, id_b)
 
     @debug "merging" id_a id_b
 
-    from, to = if (id_u == id_a)
-        id_b, id_a
-    elseif (id_u == id_b)
-        id_a, id_b
-    else
-        error("egraph invariant maintenance error")
-    end
+    from = (to == id_a) ? id_b : id_a
 
-    push!(G.dirty, id_u)
+    push!(G.dirty, to)
 
     G.M[to] = union!(G.M[to], G.M[from])
     G.M[from] = G.M[to]
@@ -186,7 +183,7 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
         end
     end
 
-    return id_u
+    return to
 end
 
 
