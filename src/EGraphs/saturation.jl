@@ -8,7 +8,7 @@ import ..@log
 
 using .Schedulers
 
-using Memoize
+# using Memoize
 
 function inst_step(pat, sub::Sub, side::Symbol)
     # TODO interface istree (?)
@@ -27,7 +27,7 @@ function inst_step(pat, sub::Sub, side::Symbol)
     end
 end
 
-# @memoize ??? 
+# @memoize ???
 function inst(pat, sub::Sub, side::Symbol)
     # remove type assertions
     if side == :left
