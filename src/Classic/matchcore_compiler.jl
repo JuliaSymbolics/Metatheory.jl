@@ -38,6 +38,8 @@ function compile_rule(rule::Rule)::Expr
 	if rule.mode == :equational
 		error("equational rules not yet supported by classic rewriting backend." *
 			"Knuth-Bendix completion algorithm has not yet been implemented.")
+	elseif rule.mode == :inequality
+		error("anti-rules not yet supported by classical backend")
     elseif rule.mode == :dynamic # regular pattern matching
         # right side not quoted! needed to evaluate expressions in right hand.
 		ll = remove_assertions(rule.left)
