@@ -10,7 +10,7 @@ an EGraph
 """
 abstract type AbstractAnalysis end
 const ClassMem = Dict{Int64,EClassData}
-const HashCons = Dict{Any,Int64}
+const HashCons = Dict{ENode,Int64}
 const Analyses = Vector{AbstractAnalysis}
 const SymbolCache = Dict{Any, Vector{Int64}}
 
@@ -134,19 +134,26 @@ insert the literal into the [`EGraph`](@ref).
 function addexpr_rec!(G::EGraph, e)::EClass
     # e = preprocess(e)
     # println("========== $e ===========")
-    class_ids = Int64[]
-
-    for child ∈ getargs(e)
-        c_eclass = addexpr!(G, child)
-        push!(class_ids, c_eclass.id)
+    if e isa EClass
+        return e
     end
 
-    node = ENode(e, class_ids)
+    if istree(e)
+        args = getargs(e)
+        n = length(args)
+        class_ids = Vector{Int64}(undef, n)
+        for i ∈ 1:n
+            # println("child $child")
+            @inbounds child = args[i]
+            c_eclass = addexpr!(G, child)
+            @inbounds class_ids[i] = c_eclass.id
+        end
+        node = ENode(e, class_ids)
+        return add!(G, node)
+    end
 
-    return add!(G, node)
+    return add!(G, ENode(e))
 end
-
-addexpr_rec!(G::EGraph, e::EClass)::EClass = e
 
 addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
 
@@ -210,6 +217,9 @@ function rebuild!(egraph::EGraph)
         egraph.root = find(egraph, egraph.root)
     end
 
+    # for i ∈ 1:length(egraph.U)
+    #     find_root!(egraph.U, i)
+    # end
     # INVARIANTS ASSERTIONS
     # for (id, c) ∈  egraph.M
     # #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)

@@ -23,12 +23,12 @@ the remaining E-nodes. The base case of this recursion is the empty list, which
 requires no extension to the substitution; the other case relies on Match to find the
 substitutions that match the first term to the first E-node.
 """
-function ematchlist(e::EGraph, t::Vector{Any}, v::AbstractVector{Int64}, sub::Sub; buf=SubBuf())::SubBuf
+function ematchlist(e::EGraph, t::AbstractVector{Any}, v::AbstractVector{Int64}, sub::Sub; buf=SubBuf())::SubBuf
     if length(t) != length(v) || length(t) == 0 || length(v) == 0
         push!(buf, sub)
     else
         for sub1 in ematchstep(e, t[1], v[1], sub)
-            ematchlist(e, t[2:end], v[2:end], sub1; buf=buf)
+            ematchlist(e, (@view t[2:end]), (@view v[2:end]), sub1; buf=buf)
         end
     end
     return buf

@@ -8,26 +8,33 @@ rmlines(a) = a
 """
 HARD FIX of n-arity of operators in `Expr` trees
 """
-function binarize_step(e, ops::Vector{Symbol})
-    if !(e isa Expr) return e end
-    op = e.args[1]
-    if (isexpr(e, :call) && op ∈ ops && length(e.args) > 3)
-        foldl((x,y) -> Expr(:call, op, x, y), e.args[2:end])
-    else
-        e
+function binarize!(e, ops::Vector{Symbol})
+    if !(e isa Expr)
+        return e
     end
+
+    start = isexpr(e, :call) ? 2 : 1
+    e.args[start:end] = map(x -> binarize!(x, ops), @view e.args[start:end])
+
+    if isexpr(e, :call)
+        op = e.args[1]
+        if op ∈ ops && length(e.args) > 3
+            return foldl((x,y) -> Expr(:call, op, x, y), @view e.args[2:end])
+        end
+    end
+    return e
 end
 
-function binarize!(e, ops::Vector{Symbol})
-    df_walk!(binarize_step, e, ops)
-end
+# function binarize!(e, ops::Vector{Symbol})
+#     df_walk!(binarize_step, e, ops)
+# end
 
 function clean_block_step(e)
     if isexpr(e, :block)
         if length(e.args) == 1
             return e.args[1]
         elseif length(e.args) > 3
-            return foldl((x,y) -> Expr(:block, x, y), e.args[2:end])
+            return foldl((x,y) -> Expr(:block, x, y), @view e.args[2:end])
         end
     end
     return e
@@ -43,7 +50,6 @@ Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)
 """
 cleanast(ex) = rmlines(ex)  |>
     x -> binarize!(x, binarize_ops)
-
 
 interp_dol(ex::Expr, mod::Module) =
     Meta.isexpr(ex, :$) ? mod.eval(ex.args[1]) : ex

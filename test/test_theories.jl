@@ -20,5 +20,5 @@ end
         a + a => 2a
         b + b + b => 3b
     end
-    @test (Metatheory.theory_block(theory_macro) == theory)
+    @test (Metatheory.Classic.theory_block(theory_macro) == theory)
 end

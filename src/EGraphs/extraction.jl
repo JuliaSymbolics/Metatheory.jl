@@ -64,7 +64,7 @@ function extractnode(n::ENode{Expr}, extractor::Function)::Expr
         push!(expr_args, n.head)
         expr_head = :call
     end
-
+    
     for a ∈ n.args
         # id == a && (error("loop in extraction"))
         push!(expr_args, extractor(a))

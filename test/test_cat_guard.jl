@@ -165,7 +165,7 @@ macro calc(e...)
     e = rmlines(e[2])
     @assert e.head == :block
 
-    @profiler for (a, b) in zip(e.args[1:end-1], e.args[2:end])
+    for (a, b) in zip(e.args[1:end-1], e.args[2:end])
         # println(a, " =? ", b)
         eq = @time areequal(theory, a, b; timeout = 9)
         println(eq)

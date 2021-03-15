@@ -1,5 +1,13 @@
 # Classical Rewriting
 
+```@meta
+CurrentModule = Metatheory
+DocTestSetup  = quote
+    using Metatheory
+    using Metatheory.EGraphs
+end
+```
+
 There are some use cases where EGraphs and equality saturation are not
 required. The **classical rewriting backend** is suited for **simple tasks**
 when computing the whole equivalence class is overkill.

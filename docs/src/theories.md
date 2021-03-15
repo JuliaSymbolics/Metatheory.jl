@@ -1,19 +1,20 @@
 # Rules and Theories Syntax
 
-TODO: table of syntax
+# Rule Syntax for Classical Rewriting
 
-## The Metatheory Library
+| Kind            | Supported in Left Hand Side                                                                                                                                                                                   | Operator | Supported in Right Hand Side                                                                                                                                                         |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Symbolic  Rule  | `x`  (pattern variables) ``\\`` `:foo` (symbol literals) ``\\`` `x::Type` (type assertions) ``\\`` `$(2 + 3)` (unquoting) ``\\`` `a...` (pattern variable destructuring, matches many subterms as a tuple) ``\\``  Other literals are supported. | `=>`     | `x` (pattern variables) ``\\`` `:foo`(symbol literals) ``\\`` `a...` (pattern variable destructuring) ``\\``  `$(2 + 3)` (unquoting) ``\\`` Other literals are supported.                                           |
+| Dynamic Rule    | Same as above                                                                                                                                                                                                  | `\|>`    | Dynamic rules can execute all valid Julia code. The pattern variables  that matched are available (bound) in the r.h.s.. Other global variables  in the execution module are bound. An additional variable `_lhs_expr` is bound, referring to the left hand side that matched the rule.  |
+| Equational Rule | Unsupported                                                                                                                                                                                                    | `==`     | Unsupported                                                                                                                                                                          |
 
-The `Metatheory.Library` module contains utility functions and macros for creating
-rules and theories from commonly used algebraic structures and
-properties.
-```julia
-using Metatheory.Library
+# Rule Syntax for EGraphs Rewriting
 
-comm_monoid = commutative_monoid(:(*), 1)
-# alternatively
-comm_monoid = @commutative_monoid (*) 1
-```
+| Kind            | Supported in  Left Hand Side                                                                                                                                                                                         | Operator | Supported in Right Hand Side                                                                                                                                                                                                                                                                                                                                                                                   |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Symbolic  Rule  | `x`  (pattern variables) ``\\`` `:foo` (symbol literals) ``\\`` `x::Type` (type assertions) ``\\`` `$(2 + 3)` (unquoting) ``\\``  Other literals are supported. **Pattern variable destructuring is not supported**. | `=>`     | `x` (pattern variables) ``\\`` `:foo`(symbol literals) ``\\``  `$(2 + 3)` (unquoting) ``\\`` Other literals are supported.                                                                                                                                                                                                                                                                                                                    |
+| Dynamic Rule    | Same as above                                                                                                                                                                                                        | `\|>`    | Dynamic rules execute valid Julia code. The pattern variables  that matched are available (bound) in the r.h.s.. Other global variables  in the execution module are bound. An additional variable `_lhs_expr` is bound,  referring to the left hand side that matched the rule.  **NOTE**: additionally, the `_egraph` variable is bound,  referring to the current `EGraph` on which rewriting is happening. |
+| Equational Rule | Same as Symbolic Rules.                                                                                                                                                                                              | `==`     | Same as left hand side of symbolic rules.                                                                                                                                                                                                                                                                                                                                                                      |
 
 
 ## Theories are Collections and Composable
