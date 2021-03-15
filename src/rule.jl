@@ -19,6 +19,8 @@ const dynamic_syms = [:(|>)]
 # symbols for bidirectional equality
 const equational_syms = [:(==)]
 
+# symbols for anti-rules
+const inequality_syms = [:(!=), :(≠)]
 
 """
 Construct a `Rule` from a quoted expression.
@@ -84,8 +86,10 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
         mode = :dynamic
     elseif mode ∈ rewrite_syms # right side is quoted, symbolic replacement
         mode = :rewrite
-    elseif mode ∈ equational_syms # right side is quoted, symbolic replacement
+    elseif mode ∈ equational_syms
         mode = :equational
+    elseif mode ∈ inequality_syms
+        mode = :inequality
     else
         error(`rule "$e" is not in valid form.\n`)
     end
