@@ -1,14 +1,17 @@
+fix_literal(id) = if id isa Symbol; Meta.quot(id) else id end
+(~)(id) = fix_literal(id)
+
 commutativity(op) = :( ($op)(a, b) == ($op)(b, a) ) |> Rule
 right_associative(op) = :( ($op)(a, $(op)(b,c)) => ($op)($(op)(a,b), c) ) |> Rule
 left_associative(op) = :( ($op)($(op)(a,b), c) => ($op)(a, $(op)(b,c)) ) |> Rule
 
 associativity(op) = :( ($op)(a, $(op)(b,c)) == ($op)($(op)(a,b), c) ) |> Rule
 
-identity_left(op, id) = :( ($op)($id, a) => a ) |> Rule
-identity_right(op, id) = :( ($op)(a, $id) => a ) |> Rule
+identity_left(op, id) = let id = ~id; :( ($op)($id, a) => a ) |> Rule end
+identity_right(op, id) = let id = ~id; :( ($op)(a, $id) => a ) |> Rule end
 
-inverse_left(op, id, invop) = :( ($op)(($invop)(a), a) => $id ) |> Rule
-inverse_right(op, id, invop) = :( ($op)(a, ($invop)(a)) => $id ) |> Rule
+inverse_left(op, id, invop) = let id = ~id; :( ($op)(($invop)(a), a) => $id ) |> Rule end
+inverse_right(op, id, invop) = let id = ~id; :( ($op)(a, ($invop)(a)) => $id ) |> Rule end
 
 # distributivity of two operations
 # example: `@distrib (⋅) (⊕)`
@@ -25,15 +28,19 @@ function distrib_right(outop, inop)
 end
 
 function monoid(op, id)
-	@assert Base.isbinaryoperator(op)
-	[associativity(op), identity_left(op, id), identity_right(op,id)]
+	let id = ~id
+		@assert Base.isbinaryoperator(op)
+		[associativity(op), identity_left(op, id), identity_right(op,id)]
+	end
 end
 macro monoid(op, id) monoid(op, id) end
 
 
 function commutative_monoid(op, id)
-	@assert Base.isbinaryoperator(op)
-	[commutativity(op), associativity(op), identity_left(op, id)]
+	let id = ~id;
+		@assert Base.isbinaryoperator(op)
+		[commutativity(op), associativity(op), identity_left(op, id)]
+	end
 end
 macro commutative_monoid(op, id) commutative_monoid(op, id) end
 
@@ -42,9 +49,11 @@ macro commutative_monoid(op, id) commutative_monoid(op, id) end
 # for all elements a and b in G. If this additional condition holds,
 # then the operation is said to be commutative, and the group is called an abelian group.
 function commutative_group(op, id, invop)
-	@assert Base.isbinaryoperator(op)
-	# @assert Base.isunaryoperator(invop)
-	commutative_monoid(op, id) ∪ [inverse_right(op, id, invop)]
+	let id = ~id;
+		@assert Base.isbinaryoperator(op)
+		# @assert Base.isunaryoperator(invop)
+		commutative_monoid(op, id) ∪ [inverse_right(op, id, invop)]
+	end
 end
 abelian_group(op, id, invop) = commutative_group(op, id, invop)
 macro commutative_group(op, id, invop) commutative_group(op, id, invop) end
