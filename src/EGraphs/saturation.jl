@@ -274,7 +274,6 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     return report, egraph
 end
 
-# TODO plot how egraph shrinks and grows during saturation
 """
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.

@@ -135,7 +135,8 @@ the subtyping mechanism during pattern matching.
 function eval_types_in_assertions(x, mod::Module)
     if isexpr(x, :(::))
         !(x.args[1] isa Symbol) && error("Type assertion is not on metavariable")
-        Expr(:(::), x.args[1], mod.eval(x.args[2]))
+        x.args[2] isa Type && (return x)
+        Expr(:(::), x.args[1], getfield(mod, x.args[2]))
     else x
     end
 end
