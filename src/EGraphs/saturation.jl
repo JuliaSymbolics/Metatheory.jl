@@ -11,13 +11,16 @@ using .Schedulers
 # using Memoize
 
 function inst_step(pat, sub::Sub, side::Symbol)
-    # TODO interface istree (?)
+    if pat isa Expr
+        start = isexpr(pat, :call) ? 2 : 1
+        pat.args[start:end] = pat.args[start:end] .|> x ->
+            inst_step(x, sub, side)
+            return pat
+    end
+
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
         lit != nothing ? lit : eclass
-        # if lit isa Symbol &&
-        #     QuoteNode(lit)
-        # end
     elseif pat isa Symbol
         error("unbound pattern variable $pat")
     elseif side == :right && pat isa QuoteNode && pat.value isa Symbol
@@ -34,9 +37,9 @@ function inst(pat, sub::Sub, side::Symbol)
         pat = remove_assertions(pat)
     end
 
-    f = df_walk(inst_step, pat, sub, side; skip_call=true)
-    # println(f, " $side")
-    f
+    expr = deepcopy(pat)
+    inst_step(expr, sub, side)
+    # df_walk(inst_step, pat, sub, side; skip_call=true)
 end
 
 """
@@ -45,8 +48,9 @@ from a substitution, resulting from a pattern matcher run.
 """
 function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol)::EClass
     # e = preprocess(pat)
-    # println("========== $e ===========")
-    class_ids = Int64[]
+    # println("========== $pat ===========")
+
+    pat isa EClass && return pat
 
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
@@ -57,25 +61,35 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol)::EClass
         pat = pat.value
     end
 
-    for child ∈ getargs(pat)
-        c_eclass = addexprinst!(G, child, sub, side)
-        push!(class_ids, c_eclass.id)
+    # println("pat $pat")
+    pat isa EClass && return pat
+
+    if istree(pat)
+        args = getargs(pat)
+        n = length(args)
+        class_ids = Vector{Int64}(undef, length(args))
+        for i ∈ 1:n
+            # println("child $child")
+            @inbounds child = args[i]
+            c_eclass = addexprinst_rec!(G, child, sub, side)
+            @inbounds class_ids[i] = c_eclass.id
+        end
+        node = ENode(pat, class_ids)
+        return add!(G, node)
     end
 
-    node = ENode(pat, class_ids)
+    return add!(G, ENode(pat))
 
-    return add!(G, node)
+    # println("node $node")
+
 end
 
-addexprinst_rec!(g::EGraph, e::EClass, sub::Sub)::EClass = e
+# addexprinst_rec!(g::EGraph, e::EClass, sub::Sub, side::Symbol)::EClass = (println("matched eclass $e"); e)
 
 addexprinst!(g::EGraph, e, sub::Sub, side::Symbol)::EClass =
     addexprinst_rec!(g, preprocess(e), sub, side)
 
 # @memoize
-function sataddexpr!(g::EGraph, e)
-    addexpr!(g,e)
-end
 
 function cached_ids(egraph::EGraph, side)::Vector{Int64}
     # outermost symbol in rule side
@@ -144,37 +158,37 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         writestep!(scheduler, rule)
 
         if rule.mode == :rewrite || rule.mode == :equational # symbolic replacement
-            l = inst(rule.left, sub, :left)
-            r = inst(rule.right, sub, :right)
-            # l = remove_assertions(rule.left)
-            # r = rule.right
+            # l = inst(rule.left, sub, :left)
+            # r = inst(rule.right, sub, :right)
+            l = remove_assertions(rule.left)
+            r = rule.right
             # r = unquote_sym(rule.right)
-            # lc = addexprinst!(egraph, l, sub, :left)
-            # rc = addexprinst!(egraph, r, sub, :right)
-            lc = sataddexpr!(egraph, l)
-            rc = sataddexpr!(egraph, r)
+            # println(l); println(r)
+            lc = addexprinst!(egraph, l, sub, :left)
+            rc = addexprinst!(egraph, r, sub, :right)
+            # lc = addexpr!(egraph, l)
+            # rc = addexpr!(egraph, r)
             merge!(egraph, lc.id, rc.id)
 
             if rule.mode == :equational
                 # swap
-                r = inst(rule.left, sub, :right)
-                l = inst(rule.right, sub, :left)
+                # r = inst(rule.left, sub, :right)
+                # l = inst(rule.right, sub, :left)
                 # r = unquote_sym(rule.left)
-                # r = rule.left
-                # l = remove_assertions(rule.right)
-                lc = sataddexpr!(egraph, l)
-                rc = sataddexpr!(egraph, r)
-                # lc = addexprinst!(egraph, l, sub, :left)
-                # rc = addexprinst!(egraph, r, sub. :right)
+                r = rule.left
+                l = remove_assertions(rule.right)
+                # lc = addexpr!(egraph, l)
+                # rc = addexpr!(egraph, r)
+                lc = addexprinst!(egraph, l, sub, :left)
+                rc = addexprinst!(egraph, r, sub, :right)
                 merge!(egraph, lc.id, rc.id)
             end
 
         elseif rule.mode == :dynamic # execute the right hand!
-            l = inst(rule.left, sub, :left)
-            # l = remove_assertions(rule.left)
-            lc = sataddexpr!(egraph, l)
-            # rc = addexpr!(egraph, r)
-            # lc = addexprinst!(egraph, l, sub, :left)
+            # l = inst(rule.left, sub, :left)
+            # lc = addexpr!(egraph, l)
+            l = remove_assertions(rule.left)
+            lc = addexprinst!(egraph, l, sub, :left)
 
             (params, f) = rule.right_fun[mod]
             actual_params = map(params) do x
@@ -182,7 +196,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
                 literal != nothing ? literal : eclass
             end
             r = f(lc, egraph, actual_params...)
-            rc = sataddexpr!(egraph, r)
+            rc = addexpr!(egraph, r)
             merge!(egraph,lc.id,rc.id)
         else
             error("unsupported rule mode")
@@ -224,17 +238,16 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     #     setdiff!(subset, match_hist[rule])
     # end
 
-    if length(matches) > matchlimit
-        matches = matches[1:matchlimit]
-        # mmm = Set(collect(mmm)[1:matchlimit])
-        #
-        # report.reason = :matchlimit
-        # @goto quit_rebuild
-    end
-
     # println("============ WRITE PHASE ============")
     # println("\n $(length(matches)) $(length(match_hist))")
-    # println(" diff length $(length(mmm))")
+    if length(matches) > matchlimit
+        matches = matches[1:matchlimit]
+    #     # mmm = Set(collect(mmm)[1:matchlimit])
+    #     #
+    #     # report.reason = :matchlimit
+    #     # @goto quit_rebuild
+    end
+    # println(" diff length $(length(matches))")
 
     apply_stats = @timed eqsat_apply!(egraph, matches,
         scheduler, report, mod, sizeout, stopwhen)
@@ -270,9 +283,8 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     mod=@__MODULE__,
     timeout=options[:timeout], stopwhen=(()->false), sizeout=options[:sizeout],
     matchlimit=options[:matchlimit],
-    scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
+    scheduler::Type{<:AbstractScheduler}=BackoffScheduler,  schedulerparams::Tuple=())
 
-    GC.enable(false)
     curr_iter = 0
 
     # prepare the dynamic rules in this module
@@ -283,7 +295,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     end
 
     # init the scheduler
-    sched = scheduler(egraph, theory)
+    sched = scheduler(egraph, theory, schedulerparams...)
 
     match_hist = MatchesBuf()
 
@@ -314,6 +326,5 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     tot_report.iterations = curr_iter
     @log tot_report
 
-    GC.enable(true)
     return tot_report
 end

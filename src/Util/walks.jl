@@ -20,6 +20,11 @@ end
 Depth First Walk (Tree Postwalk) on expressions. Does not mutate expressions.
 """
 function df_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
+    ne = e isa Expr ? copy(e) : e
+    df_walk_rec(f, ne, f_args...; skip=skip, skip_call=skip_call)
+end
+
+function df_walk_rec(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if !(e isa Expr) || e.head ∈ skip
         return f(e, f_args...)
     end
@@ -29,10 +34,9 @@ function df_walk(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
         start = 2
     end
 
-    ne = copy(e)
-    ne.args[start:end] = ne.args[start:end] .|> x ->
+    e.args[start:end] = (@view e.args[start:end]) .|> x ->
         df_walk(f, x, f_args...; skip=skip, skip_call=skip_call)
-    return f(ne, f_args...)
+    return f(e, f_args...)
 end
 
 

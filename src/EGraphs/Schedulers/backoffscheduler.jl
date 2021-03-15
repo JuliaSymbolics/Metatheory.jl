@@ -27,17 +27,22 @@ end
 shouldskip(s::BackoffScheduler, r::Rule) = s.data[r].banremaining > 0
 
 
-function BackoffScheduler(G::EGraph, theory::Vector{Rule})
+function BackoffScheduler(g::EGraph, theory::Vector{Rule})
+    BackoffScheduler(g, theory, 8, 2)
+end
+
+function BackoffScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::Int)
     gsize = length(G.U)
     data = Dict{Rule, BackoffSchedulerEntry}()
 
     # These numbers seem to fit
     for rule ∈ theory
-        data[rule] = BackoffSchedulerEntry(8, 8, 2, 0)
+        data[rule] = BackoffSchedulerEntry(fuel, fuel, bantime, 0)
     end
 
     return BackoffScheduler(data, G, theory)
 end
+
 
 # can saturate if there's no banned rule
 cansaturate(s::BackoffScheduler) = all(kv -> !isbanned(last(kv)), s.data)
@@ -64,7 +69,7 @@ function writestep!(s::BackoffScheduler, rule::Rule)
     # decrement fuel, ban rule if fuel is empty
     rd.fuel -= 1
     if rd.fuel == 0
-        # @info "banning rule!" rule
+        # @info "banning rule $rule for $(rd.bantime)!"
         rd.banremaining = rd.bantime
     end
 end

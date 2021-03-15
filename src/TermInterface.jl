@@ -6,7 +6,7 @@ using Base.Meta
 # Interface for Expr. Implement these methods for your own type to
 # Use it instead of Expr in egraphs!
 gethead(e::Expr) = isexpr(e, :call) ? e.args[1] : e.head
-getargs(e::Expr) = e.args[(isexpr(e, :call) ? 2 : 1):end]
+getargs(e::Expr) = @view e.args[(isexpr(e, :call) ? 2 : 1):end]
 istree(e::Expr) = true
 getmetadata(e::Expr) = (iscall=isexpr(e, :call),)
 preprocess(e::Expr) = cleanast(e)

@@ -27,42 +27,29 @@ include("Util/Util.jl")
 using .Util
 export Util
 
-
 # TODO document this interface
 include("TermInterface.jl")
 using .TermInterface
 export TermInterface
 
-
 include("rgf.jl")
+export @metatheory_init
+
 include("rule.jl")
-export Rule
-
 include("theory.jl")
-include("matchcore_compiler.jl")
-include("rewrite.jl")
-include("match.jl")
+export Rule
+export @rule
+export @theory
+export Theory
 
+include("Classic/Classic.jl")
+using .Classic: gettheory
+export Classic
 
 include("EGraphs/EGraphs.jl")
 export EGraphs
 
-export @metatheory_init
-
 include("Library/Library.jl")
 export Library
-
-export @rule
-export @theory
-
-export Theory
-
-
-export rewrite
-export @rewrite
-export @esc_rewrite
-export @compile_theory
-export @matcher
-export @rewriter
 
 end # module

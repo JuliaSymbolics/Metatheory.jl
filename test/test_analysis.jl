@@ -49,7 +49,7 @@ function EGraphs.modify!(an::NumberFold, id::Int64)
     g = an.egraph
     # !haskey(an, id) && return nothing
     if an[id] isa Number
-        newclass = EGraphs.add!(g, ENode(an[id], Int64[]))
+        newclass = EGraphs.add!(g, ENode(an[id]))
         merge!(g, newclass.id, id)
     end
 end

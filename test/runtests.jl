@@ -1,4 +1,5 @@
 using Metatheory
+using Metatheory.Classic
 using Metatheory.EGraphs
 using Metatheory.Library
 using Metatheory.Util

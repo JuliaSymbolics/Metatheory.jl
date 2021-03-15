@@ -33,6 +33,21 @@ comm_monoid = @theory begin
 end
 ```
 
+## The Metatheory Library
+
+The `Metatheory.Library` module contains utility functions and macros for creating
+rules and theories from commonly used algebraic structures and
+properties.
+```julia
+using Metatheory.Library
+
+comm_monoid = commutative_monoid(:(*), 1)
+# alternatively
+comm_monoid = @commutative_monoid (*) 1
+```
+
+
+
 ## Equality Saturation
 
 We can programmatically build and saturate an EGraph.
@@ -52,7 +67,7 @@ println(report);
 
 ```
 
-With the EGraph equality saturation backend, Metatheory.jl can prove simple equalities very efficiently. The `@areequal` macro takes a theory and some
+With the EGraph equality saturation backend, Metatheory.jl can prove **simple** equalities very efficiently. The `@areequal` macro takes a theory and some
 expressions and returns true iff the expressions are equal
 according to the theory. The following example returns true.
 ```julia

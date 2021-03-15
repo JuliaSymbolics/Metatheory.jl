@@ -6,6 +6,22 @@
 Modules = [Metatheory]
 ```
 
+## Metatheory.Classic
+
+```@meta
+CurrentModule = Metatheory
+DocTestSetup  = quote
+    using Metatheory
+    using Metatheory.EGraphs
+end
+```
+
+
+```@autodocs
+Modules = [Classic]
+```
+
+
 ## Metatheory.EGraphs
 
 ```@meta

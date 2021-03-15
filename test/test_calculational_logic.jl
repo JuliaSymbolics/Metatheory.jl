@@ -48,9 +48,8 @@ calc = @theory begin
     (p ∧ q)             ==  ((p == q) == p ∨ q)
 
     (p => q)            ==  ((p ∨ q) == q)
-    (p => q)            ==  (¬p ∨ q)
+    # (p => q)            ==  (¬p ∨ q)
     # (p <= q)            =>  (q => p)
-
 end
 
 fold = @theory begin
@@ -73,7 +72,7 @@ t = calc ∪ fold
 @test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
 
 # Frege's theorem
-@test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); sizeout=2^14)
+@test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); timeout=12, sizeout=2^15)
 
 # Demorgan's
 @test @areequal t true (¬(p ∨ q) == (¬p ∧ ¬q))

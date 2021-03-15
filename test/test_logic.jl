@@ -45,23 +45,6 @@ impl = @theory begin
     (p => q)            =>  (¬p ∨ q)
 end
 
-# fold = @theory begin
-#     (true == false)     =>   false
-#     (false == true)     =>   false
-#     (true == true)      =>   true
-#     (false == false)    =>   true
-#     (true ∨ false)      =>   true
-#     (false ∨ true)      =>   true
-#     (true ∨ true)       =>   true
-#     (false ∨ false)     =>   false
-#     (true ∧ true)       =>   true
-#     (false ∧ true)      =>   false
-#     (true ∧ false)      =>   false
-#     (false ∧ false)     =>   false
-#     ¬(true)             =>   false
-#     ¬(false)            =>   true
-# end
-
 fold = @theory begin
     (p::Bool == q::Bool)    |>     (p == q)
     (p::Bool ∨ q::Bool)     |>     (p || q)
@@ -90,6 +73,10 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # Consensus theorem
 @test @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z))   ((x ∧ y) ∨ (¬x ∧ z))
 
+# @timev areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬x ∧ z)))
+# @timev areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬babo ∧ z)))
+# @timev areequalmagic(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)),   :((x ∧ y) ∨ (¬x ∧ z)))
+# @timev areequalmagic(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)),   :((babo ∧ y) ∨ (¬x ∧ z)))
 
 # TODO proof strategies?
 # FIXME
@@ -99,25 +86,43 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 
 # @test areequal(t, true, :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s)))
 
+function prove(t, ex, steps)
+    hist = UInt64[]
+    push!(hist, hash(ex))
+    for i ∈ 1:steps
+        g = EGraph(ex)
+        saturate!(g, t, timeout=8, sizeout=5300, schedulerparams=(8,2))
+        extran = addanalysis!(g, ExtractionAnalysis, astsize)
+        ex = extract!(g, extran)
+        println(ex)
+        if !TermInterface.istree(ex)
+            return ex
+        end
+        if hash(ex) ∈ hist
+            println("loop detected")
+            return ex
+        end
+        push!(hist, hash(ex))
+    end
+end
+
 ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
-println(ex)
-g = EGraph(ex)
-@timev saturate!(g, t; timeout=8, sizeout=2^15)
+@test prove(t, ex, 2)
+
+# ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
+# println(ex)
+# g = EGraph(ex)
+# @profiler saturate!(g, t; timeout=8, sizeout=2^15)
+
+# extran = addanalysis!(g, ExtractionAnalysis, astsize)
+# ex = extract!(g, extran)
+# println(ex)
 
 # @profiler saturate!(g, t; timeout=8, sizeout=2^15)
 # exit(0)
 
-extran = addanalysis!(g, ExtractionAnalysis, astsize)
-ex = extract!(g, extran)
-println(ex)
-
-g = EGraph(ex)
-extran = addanalysis!(g, ExtractionAnalysis, astsize)
-@time saturate!(g, t; timeout=8, sizeout=2^12)
-
-ex = extract!(g, extran)
-
-@test ex == true
+# ex = rewrite(:(((p => p) ∧ (r => z) ∧ (p ∨ r)) => (q ∨ s)), impl)
+# @test false == prove(t, ex, 4)
 
 
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
