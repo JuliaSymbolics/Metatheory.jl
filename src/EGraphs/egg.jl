@@ -181,7 +181,8 @@ function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
     push!(G.dirty, to)
 
     G.M[to] = union!(G.M[to], G.M[from])
-    G.M[from] = G.M[to]
+    # G.M[from] = G.M[to]
+    delete!(G.M, from)
 
     for analysis ∈ G.analyses
         if haskey(analysis, from) && haskey(analysis, to)

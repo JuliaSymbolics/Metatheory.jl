@@ -18,7 +18,7 @@ function eggify(rules)
     for rule in rules
         l = to_sexpr_pattern(rule.left)
         r = to_sexpr_pattern(rule.right)
-        if rule.mode == :rewrite
+        if rule.mode == :symbolic
             push!(egg_rules,"\tvec![rw!( \"$(rule.expr)\" ; \"$l\" => \"$r\" )]")
         elseif rule.mode == :equational
             push!(egg_rules,"\trw!( \"$(rule.expr)\" ; \"$l\" <=> \"$r\" )")

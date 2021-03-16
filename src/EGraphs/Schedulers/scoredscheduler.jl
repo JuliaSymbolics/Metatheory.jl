@@ -3,7 +3,7 @@ mutable struct ScoredSchedulerEntry
     fuel::Int
     bantime::Int
     banremaining::Int
-    score::Int          # bantime multiplier, low = good
+    weight::Int          # bantime multiplier, low = good
 end
 
 isbanned(d::ScoredSchedulerEntry) = d.banremaining > 0
@@ -27,29 +27,47 @@ end
 
 shouldskip(s::ScoredScheduler, r::Rule) = s.data[r].banremaining > 0
 
-using MatchCore
-function score(r::Rule)
-    @smatch r.expr begin
-        # associativity
-        :( ($f)($a, ($&f)($b, $c)) => ($&f)(($&f)($&a, $&b), $&c)) => 3
-        :( ($f)(($&f)($a, $b), $c) => ($&f)($&a, ($&f)($&b, $&c))) => 3
-        :( ($f)($a, ($&f)($b, $c)) == ($&f)(($&f)($&a, $&b), $&c)) => 3
-        :( ($f)(($&f)($a, $b), $c) == ($&f)($&a, ($&f)($&b, $&c))) => 3
-        :( ($f)($a, $b) => ($&f)($&b, $&a)) => 3
-        :( ($f)($a, $b) == ($&f)($&b, $&a)) => 3
-        :($i) => 1
+function exprsize(e)
+    if !(e isa Expr)
+        return 1
     end
+
+    start = Meta.isexpr(e, :call) ? 2 : 1
+
+    c = 1 + length(e.args[start:end])
+    for a ∈ e.args[start:end]
+        c += exprsize(a)
+    end
+
+    return c
 end
 
-function ScoredScheduler(G::EGraph, theory::Vector{Rule})
+function ScoredScheduler(g::EGraph, theory::Vector{Rule})
+    ScoredScheduler(g, theory, 8, 2, exprsize)
+end
+
+function ScoredScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::Int, complexity::Function)
     gsize = length(G.U)
     data = Dict{Rule, ScoredSchedulerEntry}()
 
     # These numbers seem to fit
     for rule ∈ theory
-        s = score(rule)
-        println("$rule HAS SCORE $s")
-        data[rule] = ScoredSchedulerEntry(8, 8, 2 * s, 0, s)
+        (l, r) = rule.left, rule.right
+        l = l |> cleanast |> remove_assertions |> unquote_sym
+        r = r |> cleanast |> remove_assertions |> unquote_sym
+
+        cl = complexity(l)
+        cr = complexity(r)
+        # println("$rule HAS SCORE $((cl, cr))")
+        if cl > cr
+            w = 1   # reduces complexity
+        elseif cr > cl
+            w = 3   # augments complexity
+        else
+            w = 2   # complexity is equal
+        end
+        # println(w)
+        data[rule] = ScoredSchedulerEntry(fuel, fuel, bantime, 0, w)
     end
 
     return ScoredScheduler(data, G, theory)
@@ -65,10 +83,10 @@ function readstep!(s::ScoredScheduler)
             rd.banremaining -= 1
 
             if rd.banremaining == 0
-                # @info "unbanning rule" rule
-                rd.bantime *= 2
-                rd.capacity *= 2
+                rd.bantime *= 1 + rd.weight
+                rd.capacity *= (4 - rd.weight)
                 rd.fuel = rd.capacity
+                # @info "unbanning rule" rule rd.weight rd.bantime rd.capacity
             end
         end
     end
@@ -80,7 +98,7 @@ function writestep!(s::ScoredScheduler, rule::Rule)
     # decrement fuel, ban rule if fuel is empty
     rd.fuel -= 1
     if rd.fuel == 0
-        # @info "banning rule!" rule
+        # @info "banning rule!" rule rd.weight rd.bantime rd.capacity
         rd.banremaining = rd.bantime
     end
 end

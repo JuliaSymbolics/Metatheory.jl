@@ -30,6 +30,8 @@ include("analysis.jl")
 
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
+export Schedulers
+
 
 include("saturation_report.jl")
 include("saturation.jl")
