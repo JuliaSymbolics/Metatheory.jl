@@ -3,8 +3,8 @@
 const Parent = Tuple{ENode,Int64} # parent enodes and eclasses
 mutable struct EClassData
     id::Int64
-    nodes::Set{ENode}
-    parents::Dict{ENode, Int64}
+    nodes::OrderedSet{ENode}
+    parents::OrderedDict{ENode, Int64}
 end
 
 # Interface for indexing EClassData

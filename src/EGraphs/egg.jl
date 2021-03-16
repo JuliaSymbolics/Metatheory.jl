@@ -105,7 +105,7 @@ function add!(G::EGraph, n::ENode)::EClass
 
     G.H[n] = id
 
-    classdata = EClassData(id, Set([n]), Dict{ENode, Int64}())
+    classdata = EClassData(id, OrderedSet([n]), OrderedDict{ENode, Int64}())
     G.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
@@ -249,7 +249,7 @@ function repair!(G::EGraph, id::Int64)
         clean_enode!(G, p_enode, find(G, p_eclass))
     end
 
-    new_parents = Dict{ENode,Int64}()
+    new_parents = OrderedDict{ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
         p_enode = canonicalize!(G, p_enode)
