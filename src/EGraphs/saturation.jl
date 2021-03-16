@@ -1,4 +1,4 @@
-const Match = Tuple{Rule, Sub}
+const Match = Tuple{Rule, Sub, Int64, Bool} #bool isright
 const MatchesBuf = Vector{Match}
 # const MatchesBuf = Dict{Rule,Set{Sub}}
 
@@ -53,6 +53,8 @@ addexprinst!(g::EGraph, e, sub::Sub, side::Symbol)::EClass =
 
 function cached_ids(egraph::EGraph, side)::Vector{Int64}
     # outermost symbol in rule side
+    # side = remove_assertions(side)
+    # side = unquote_sym(side)
     if istree(side)
         sym = gethead(side)
         get(egraph.symcache, sym, [])
@@ -66,9 +68,11 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
     matches=MatchesBuf()
     for rule ∈ theory
         # don't apply banned rules
-        shouldskip(scheduler, rule) && continue
-
-        if rule.mode ∉ [:rewrite, :dynamic, :equational, :inequality]
+        if shouldskip(scheduler, rule)
+            # println("skipping banned rule $rule")
+            continue
+        end
+        if rule.mode ∉ [:symbolic, :dynamic, :equational, :unequal]
             error("unsupported mode in rule ", rule)
         end
 
@@ -77,16 +81,16 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
         for id ∈ ids
             for sub in ematch(egraph, rule.left, id)
                 # display(sub); println()
-                !isempty(sub) && push!(matches, (rule, sub))
+                !isempty(sub) && push!(matches, (rule, sub, id, false))
             end
         end
 
-        if rule.mode == :equational || rule.mode == :inequality
+        if rule.mode == :equational || rule.mode == :unequal
             ids = cached_ids(egraph, rule.right)
             for id ∈ ids
                 for sub in ematch(egraph, rule.right, id)
                     # display(sub); println()
-                    !isempty(sub) && push!(matches, (rule, sub))
+                    !isempty(sub) && push!(matches, (rule, sub, id, true))
                 end
             end
         end
@@ -98,7 +102,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         scheduler::AbstractScheduler, report::Report,
         mod::Module, sizeout::Int64, stopwhen::Function)::Report
     i = 0
-    for (rule, sub) ∈ matches
+    for (rule, sub, id, isright) ∈ matches
         i += 1
 
         if i % 300 == 0
@@ -117,19 +121,35 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
 
         writestep!(scheduler, rule)
 
-        l = remove_assertions(rule.left)
-        lc = addexprinst!(egraph, l, sub, :left)
-        if rule.mode == :rewrite || rule.mode == :equational || rule.mode == :inequality # symbolic replacement
-            r = rule.right
-            rc = addexprinst!(egraph, r, sub, :right)
-            if rule.mode == :inequality && find(egraph, lc) == find(egraph, rc)
+        # l = remove_assertions(rule.left)
+        # println("THE ONE IT MATCHED ON = ", lc)
+        # lc = addexprinst!(egraph, l, sub, :left).id
+        # println("THE INSTANTIATED ONE = ", lc)
+
+
+        if rule.mode == :symbolic || rule.mode == :equational || rule.mode == :unequal # symbolic replacement
+            if isright
+                rc = id
+                # println("THE ONE IT MATCHED ON = ", rc)
+                # schifo = addexprinst!(egraph, rule.right, sub, :right).id
+                # println("THE INSTANTIATED ONE = ", schifo)
+                lc = addexprinst!(egraph, remove_assertions(rule.left), sub, :left).id
+            else
+                lc = id
+                # println("THE ONE IT MATCHED ON = ", lc)
+                # schifo = addexprinst!(egraph, remove_assertions(rule.left), sub, :left).id
+                # println("THE INSTANTIATED ONE = ", schifo)
+                rc = addexprinst!(egraph, rule.right, sub, :right).id
+            end
+            if rule.mode == :unequal && find(egraph, lc) == find(egraph, rc)
                     @log "Contradiction!" rule
                     report.reason = :contradiction
                     return report
             else
-                merge!(egraph, lc.id, rc.id)
+                merge!(egraph, lc, rc)
             end
         elseif rule.mode == :dynamic # execute the right hand!
+            lc = id
             (params, f) = rule.right_fun[mod]
             actual_params = map(params) do x
                 (eclass, literal) = sub[x]
@@ -137,7 +157,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
             end
             r = f(lc, egraph, actual_params...)
             rc = addexpr!(egraph, r)
-            merge!(egraph,lc.id,rc.id)
+            merge!(egraph,lc,rc.id)
         else
             error("unsupported rule mode")
         end
@@ -180,13 +200,13 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
 
     # println("============ WRITE PHASE ============")
     # println("\n $(length(matches)) $(length(match_hist))")
-    if length(matches) > matchlimit
-        matches = matches[1:matchlimit]
-    #     # mmm = Set(collect(mmm)[1:matchlimit])
-    #     #
-    #     # report.reason = :matchlimit
-    #     # @goto quit_rebuild
-    end
+    # if length(matches) > matchlimit
+    #     matches = matches[1:matchlimit]
+    # #     # mmm = Set(collect(mmm)[1:matchlimit])
+    # #     #
+    # #     # report.reason = :matchlimit
+    # #     # @goto quit_rebuild
+    # end
     # println(" diff length $(length(matches))")
 
     apply_stats = @timed eqsat_apply!(egraph, matches,
@@ -195,7 +215,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
     # don't add inequalities to history
-    union!(match_hist, filter(x -> x[1].mode != :inequality, matches))
+    union!(match_hist, filter(x -> x[1].mode != :unequal, matches))
 
     # display(egraph.parents); println()
     # display(egraph.M); println()
@@ -250,6 +270,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
         tot_report = tot_report + report
 
         # report.reason == :matchlimit && break
+        report.reason == :condition && break
         report.reason == :contradiction && break
         cansaturate(sched) && report.saturated && (tot_report.saturated = true; break)
         curr_iter >= timeout && (tot_report.reason = :timeout; break)

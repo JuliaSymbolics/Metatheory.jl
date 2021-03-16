@@ -27,3 +27,22 @@ ENode(e) = ENode(e, Int64[])
 
 ENode(a::ENode) =
     error("constructor of ENode called on enode. This should never happen")
+
+# string representation of the rule
+function Base.show(io::IO, x::ENode)
+    print(io, "(", x.head)
+    n = ariety(x)
+    if n == 0
+        print(io, ")")
+        return
+    else
+        print(io, " ")
+    end
+    for i ∈ 1:n
+        if i < n
+            print(io, x.args[i], " ")
+        else
+            print(io, x.args[i], ")")
+        end
+    end
+end
