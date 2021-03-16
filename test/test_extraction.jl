@@ -87,7 +87,8 @@ end
 	println(extr)
 
     @test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
-		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b))
+		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
+		extr == :((b * (12a)))
 end
 
 

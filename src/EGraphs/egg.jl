@@ -100,18 +100,18 @@ function add!(G::EGraph, n::ENode)::EClass
     id = push!(G.U) # create new singleton eclass
 
     for c_id ∈ n.args
-        addparent!(G.M[c_id], (n, id))
+        addparent!(G.M[c_id], n, id)
     end
 
     G.H[n] = id
 
-    classdata = EClassData(id, [n], [])
+    classdata = EClassData(id, Set([n]), Dict{ENode, Int64}())
     G.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
     sym = n.head
     if !haskey(G.symcache, sym)
-        G.symcache[sym] = []
+        G.symcache[sym] = Int64[]
     end
     push!(G.symcache[sym], id)
 
@@ -158,9 +158,11 @@ end
 addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
 
 function clean_enode!(g::EGraph, t::ENode, to::Int64)
-    delete!(g.H, t)
-    t = canonicalize!(g, t)
-    g.H[t] = to
+    nt = canonicalize!(g, t)
+    if nt != t
+        delete!(g.H, t)
+    end
+    g.H[nt] = to
     return t
 end
 
@@ -205,7 +207,7 @@ function rebuild!(egraph::EGraph)
     while !isempty(egraph.dirty)
         todo = unique([find(egraph, id) for id ∈ egraph.dirty])
         empty!(egraph.dirty)
-        foreach(todo) do x
+        for x ∈ todo
             repair!(egraph, x)
         end
     end
@@ -243,12 +245,11 @@ function repair!(G::EGraph, id::Int64)
     ecdata = G.M[id]
     @debug "repairing " id
 
-    ecdata.parents = map(ecdata.parents) do (p_enode, p_eclass)
+    for (p_enode, p_eclass) ∈ ecdata.parents
         clean_enode!(G, p_enode, find(G, p_eclass))
-        (p_enode, p_eclass)
     end
 
-    new_parents = OrderedDict{ENode,Int64}()
+    new_parents = Dict{ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
         p_enode = canonicalize!(G, p_enode)
@@ -259,7 +260,7 @@ function repair!(G::EGraph, id::Int64)
         end
         new_parents[p_enode] = find(G, p_eclass)
     end
-    ecdata.parents = collect(new_parents) .|> Tuple
+    ecdata.parents = new_parents
     @debug "updated parents " id G.parents[id]
 
     # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)

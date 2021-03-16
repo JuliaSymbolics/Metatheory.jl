@@ -104,18 +104,17 @@ function prove(t, ex, steps)
         end
         push!(hist, hash(ex))
     end
+    return ex
 end
 
 ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
-@test prove(t, ex, 2)
+@test prove(t, ex, 3)
 
 # using Metatheory.EGraphs.Schedulers
-# # println(ex)
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
-# @timev repo = saturate!(g, t; timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
-# println(repo)
-#
+# @profiler saturate!(g, t; timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
+
 # extran = addanalysis!(g, ExtractionAnalysis, astsize)
 # ex = extract!(g, extran)
 # println(ex)
