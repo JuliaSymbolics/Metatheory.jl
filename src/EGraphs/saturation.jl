@@ -1,5 +1,5 @@
 const Match = Tuple{Rule, Sub, Int64, Bool} #bool isright
-const MatchesBuf = Vector{Match}
+const MatchesBuf = OrderedSet{Match}
 # const MatchesBuf = Dict{Rule,Set{Sub}}
 
 import ..genrhsfun
@@ -102,7 +102,8 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         scheduler::AbstractScheduler, report::Report,
         mod::Module, sizeout::Int64, stopwhen::Function)::Report
     i = 0
-    for (rule, sub, id, isright) ∈ matches
+    for match ∈ matches
+        (rule, sub, id, isright) = match
         i += 1
 
         if i % 300 == 0
@@ -141,10 +142,13 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
                 # println("THE INSTANTIATED ONE = ", schifo)
                 rc = addexprinst!(egraph, rule.right, sub, :right).id
             end
-            if rule.mode == :unequal && find(egraph, lc) == find(egraph, rc)
+            if rule.mode == :unequal
+                delete!(matches, match)
+                if find(egraph, lc) == find(egraph, rc)
                     @log "Contradiction!" rule
                     report.reason = :contradiction
                     return report
+                end
             else
                 merge!(egraph, lc, rc)
             end
@@ -193,7 +197,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     # mmm = unique(matches)
     # mmm = symdiff(match_hist, matches)
 
-    matches = setdiff(matches, match_hist)
+    matches = setdiff!(matches, match_hist)
     # for (rule, subset) ∈ matches
     #     setdiff!(subset, match_hist[rule])
     # end
@@ -215,7 +219,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
     # don't add inequalities to history
-    union!(match_hist, filter(x -> x[1].mode != :unequal, matches))
+    union!(match_hist, matches)
 
     # display(egraph.parents); println()
     # display(egraph.M); println()
@@ -256,6 +260,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
 
     tot_report = Report()
 
+    # GC.enable(false)
     while true
         curr_iter+=1
 
@@ -282,6 +287,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
     # display(egraph.M); println()
     tot_report.iterations = curr_iter
     @log tot_report
+    # GC.enable(true)
 
     return tot_report
 end

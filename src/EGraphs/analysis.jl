@@ -15,7 +15,6 @@ function addanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy
     return analysis
 end
 
-# FIXME doesnt work on cycles.
 """
 **WARNING**. This function is unstable.
 """
@@ -64,29 +63,6 @@ end
 analyze!(g::EGraph, an::AbstractAnalysis, id::Int64) =
     analyze!(g, an, reachable(g, id))
 
-function make_pass(g::EGraph, analysis::AbstractAnalysis, id::Int64)
-    class = g.M[id]
-    # FIXME this check breaks things. wtf
-    # for n ∈ class
-        # if !all(x -> haskey(analysis, find(g, x.id)), n.args[start:end])
-        # any(x -> find(g, x.id) == find(g, id), n.args[start:end]) &&
-        #     continue\
-        # @assert all(x -> haskey(analysis, x), n.args)
-        # if !all(x -> haskey(analysis, x), n.args)
-        #     return missing
-        # end
-
-    # end
-
-    joined = make(analysis, class[1])
-
-    for n ∈ class
-        datum = make(analysis, n)
-        # println(datum)
-        joined = join(analysis, joined, datum)
-    end
-    return joined
-end
 
 # TODO document AbstractAnalysis
 

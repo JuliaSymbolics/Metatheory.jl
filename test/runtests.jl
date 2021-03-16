@@ -39,7 +39,7 @@ ts = Test.FallbackTestSet
       include("test_inequality.jl")
 
       # exported consistency test
-      for m ∈ [Metatheory, Metatheory.Util, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
+      for m ∈ [Metatheory, Metatheory.Util, Metatheory.Classic, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
          for i ∈ propertynames(m)
             xxx = getproperty(m, i)
          end

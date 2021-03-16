@@ -14,7 +14,11 @@ function binarize!(e, ops::Vector{Symbol})
     end
 
     start = isexpr(e, :call) ? 2 : 1
-    e.args[start:end] = map(x -> binarize!(x, ops), @view e.args[start:end])
+    n = length(e.args)
+
+    for i ∈ start:n
+        e.args[i] = binarize!(e.args[i], ops)
+    end
 
     if isexpr(e, :call)
         op = e.args[1]

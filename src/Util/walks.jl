@@ -33,9 +33,12 @@ function df_walk_rec(f, e, f_args...; skip=Vector{Symbol}(), skip_call=false)
     if skip_call && isexpr(e, :call)
         start = 2
     end
+    n = length(e.args)
 
-    e.args[start:end] = (@view e.args[start:end]) .|> x ->
-        df_walk(f, x, f_args...; skip=skip, skip_call=skip_call)
+    for i ∈ start:n
+        e.args[i] = df_walk_rec(f, e.args[i], f_args...; skip=skip, skip_call=skip_call)
+    end
+
     return f(e, f_args...)
 end
 
