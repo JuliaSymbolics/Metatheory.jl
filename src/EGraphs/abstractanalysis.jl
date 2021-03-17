@@ -2,7 +2,7 @@ abstract type AbstractAnalysis end
 
 # TODO document AbstractAnalysis
 
-# modify!(analysis::Type{<:AbstractAnalysis}, eclass::EClassData) =
+# modify!(analysis::Type{<:AbstractAnalysis}, eclass::EClass) =
 #     error("Analysis does not implement modify!")
 modify!(analysis::Type{<:AbstractAnalysis}, g, id) = nothing
 join(analysis::Type{<:AbstractAnalysis}, a, b) =

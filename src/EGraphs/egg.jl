@@ -8,7 +8,7 @@ Abstract type representing an [`EGraph`](@ref) analysis,
 attaching values from a join semi-lattice domain to
 an EGraph
 """
-const ClassMem = Dict{Int64,EClassData}
+const ClassMem = Dict{Int64,EClass}
 const HashCons = Dict{ENode,Int64}
 const Analyses = Set{Type{<:AbstractAnalysis}}
 const SymbolCache = Dict{Any, Vector{Int64}}
@@ -79,8 +79,8 @@ find(g::EGraph, a::Int64)::Int64 = find_root!(g.U, a)
 find(g::EGraph, a::EClass)::Int64 = find_root!(g.U, a.id)
 
 
-geteclass(g::EGraph, a::Int64)::EClassData = g.M[find(g, a)]
-geteclass(g::EGraph, a::EClass)::Int64 = geteclass(g, a.id)
+geteclass(g::EGraph, a::Int64)::EClass = g.M[find(g, a)]
+geteclass(g::EGraph, a::EClass)::Int64 = a
 
 
 ### Definition 2.3: canonicalization
@@ -88,6 +88,9 @@ geteclass(g::EGraph, a::EClass)::Int64 = geteclass(g, a.id)
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
+function canonicalize!(g::EGraph, e::EClass)
+    e.id = find(g, e.id)
+end
 
 """
 Inserts an e-node in an [`EGraph`](@ref)
@@ -97,7 +100,7 @@ function add!(g::EGraph, n::ENode)::EClass
 
     n = canonicalize!(g, n)
     if haskey(g.H, n)
-        return find(g, g.H[n]) |> EClass
+        return geteclass(g, find(g, g.H[n]))
     end
     @debug(n, " not found in H")
 
@@ -109,7 +112,7 @@ function add!(g::EGraph, n::ENode)::EClass
 
     g.H[n] = id
 
-    classdata = EClassData(id, OrderedSet([n]), OrderedDict{ENode, Int64}())
+    classdata = EClass(id, OrderedSet([n]), OrderedDict{ENode, Int64}())
     g.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
@@ -127,7 +130,7 @@ function add!(g::EGraph, n::ENode)::EClass
         end
     end
 
-    return EClass(id)
+    return classdata
 end
 
 """

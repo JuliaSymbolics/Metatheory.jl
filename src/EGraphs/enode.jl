@@ -4,10 +4,9 @@ using AutoHashEquals
 
 import Base.ImmutableDict
 
-@auto_hash_equals struct EClass
-    id::Int64
-end
-
+# @auto_hash_equals struct EClass
+#     id::Int64
+# end
 
 @auto_hash_equals struct ENode{X}
     head::Any

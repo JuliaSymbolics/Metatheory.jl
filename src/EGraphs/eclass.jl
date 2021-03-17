@@ -2,41 +2,41 @@ using Parameters
 
 const AnalysisData = ImmutableDict{Type{<:AbstractAnalysis}, Any}
 
-mutable struct EClassData
+mutable struct EClass
     id::Int64
     nodes::OrderedSet{ENode}
     parents::OrderedDict{ENode, Int64}
     data::Union{Nothing, AnalysisData}
 end
-EClassData(id) = EClassData(id, OrderedSet{ENode}(), OrderedDict{ENode, Int64}(), nothing)
-EClassData(id, nodes, parents) = EClassData(id, nodes, parents, nothing)
+EClass(id) = EClass(id, OrderedSet{ENode}(), OrderedDict{ENode, Int64}(), nothing)
+EClass(id, nodes, parents) = EClass(id, nodes, parents, nothing)
 
-# Interface for indexing EClassData
-Base.getindex(a::EClassData, i) = a.nodes[i]
-Base.setindex!(a::EClassData, v, i) = setindex!(a.nodes, v, i)
-Base.firstindex(a::EClassData) = firstindex(a.nodes)
-Base.lastindex(a::EClassData) = lastindex(a.nodes)
+# Interface for indexing EClass
+Base.getindex(a::EClass, i) = a.nodes[i]
+Base.setindex!(a::EClass, v, i) = setindex!(a.nodes, v, i)
+Base.firstindex(a::EClass) = firstindex(a.nodes)
+Base.lastindex(a::EClass) = lastindex(a.nodes)
 
-# Interface for iterating EClassData
-Base.iterate(a::EClassData) = iterate(a.nodes)
-Base.iterate(a::EClassData, state) = iterate(a.nodes, state)
+# Interface for iterating EClass
+Base.iterate(a::EClass) = iterate(a.nodes)
+Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
-# Base.show(io::IO, a::EClassData) = Base.show(io, a.nodes)
+# Base.show(io::IO, a::EClass) = Base.show(io, a.nodes)
 #
-# function addparent!(a::EClassData, n::ENode, p::EClassData)
+# function addparent!(a::EClass, n::ENode, p::EClass)
 #     a.parents[n] = p
 # end
 
-function addparent!(a::EClassData, n::ENode, id::Int64)
+function addparent!(a::EClass, n::ENode, id::Int64)
     a.parents[n] = id
 end
 
-function Base.union(to::EClassData, from::EClassData)
-    EClassData(to.id, from.nodes ∪ to.nodes, from.parents ∪ to.parents, from.data ∪ to.data)
+function Base.union(to::EClass, from::EClass)
+    EClass(to.id, from.nodes ∪ to.nodes, from.parents ∪ to.parents, from.data ∪ to.data)
 end
 
-function Base.union!(to::EClassData, from::EClassData)
+function Base.union!(to::EClass, from::EClass)
     union!(to.nodes, from.nodes)
     merge!(to.parents, from.parents)
     if to.data != nothing && from.data != nothing
@@ -74,21 +74,21 @@ function join_analysis_data(d::AnalysisData, dsrc::AnalysisData)
 end
 
 # Thanks to Shashi Gowda
-function hasdata(a::EClassData, x::Type{<:AbstractAnalysis})
+function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
     a.data == nothing && (return false)
     return haskey(a.data, x)
 end
 
-function getdata(a::EClassData, x::Type{<:AbstractAnalysis})
+function getdata(a::EClass, x::Type{<:AbstractAnalysis})
     !hasdata(a, x) && error("EClass does not contain analysis data for $x")
     return a.data[x]
 end
 
-function getdata(a::EClassData, x::Type{<:AbstractAnalysis}, default)
+function getdata(a::EClass, x::Type{<:AbstractAnalysis}, default)
     hasdata(a, x) ? a.data[x] : default
 end
 
-function setdata!(a::EClassData, x::Type{<:AbstractAnalysis}, value)
+function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
     # lazy allocation
     a.data == nothing && (a.data = AnalysisData())
     # a.data[x] = value

@@ -24,7 +24,7 @@ astsize_inv(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis}) = -1 * astsize(n,
 An [`AbstractAnalysis`](@ref) that computes the cost of expression nodes
 and chooses the node with the smallest cost for each E-Class.
 This abstract type is parametrised by a function F.
-This is useful for the analysis storage in [`EClassData`](@ref)
+This is useful for the analysis storage in [`EClass`](@ref)
 """
 abstract type ExtractionAnalysis{F} <: AbstractAnalysis end
 
