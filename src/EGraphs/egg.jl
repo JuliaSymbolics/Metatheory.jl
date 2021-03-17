@@ -8,10 +8,9 @@ Abstract type representing an [`EGraph`](@ref) analysis,
 attaching values from a join semi-lattice domain to
 an EGraph
 """
-abstract type AbstractAnalysis end
 const ClassMem = Dict{Int64,EClassData}
 const HashCons = Dict{ENode,Int64}
-const Analyses = Vector{AbstractAnalysis}
+const Analyses = Set{Type{<:AbstractAnalysis}}
 const SymbolCache = Dict{Any, Vector{Int64}}
 
 
@@ -50,11 +49,12 @@ EGraph() = EGraph(
     SymbolCache()
 )
 
+
 function EGraph(e)
-    G = EGraph()
-    rootclass = addexpr!(G, e)
-    G.root = rootclass.id
-    G
+    g = EGraph()
+    rootclass = addexpr!(g, e)
+    g.root = rootclass.id
+    g
 end
 
 function canonicalize(g::EGraph, n::ENode)
@@ -75,8 +75,12 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-find(G::EGraph, a::Int64)::Int64 = find_root!(G.U, a)
-find(G::EGraph, a::EClass)::Int64 = find_root!(G.U, a.id)
+find(g::EGraph, a::Int64)::Int64 = find_root!(g.U, a)
+find(g::EGraph, a::EClass)::Int64 = find_root!(g.U, a.id)
+
+
+geteclass(g::EGraph, a::Int64)::EClassData = g.M[find(g, a)]
+geteclass(g::EGraph, a::EClass)::Int64 = geteclass(g, a.id)
 
 
 ### Definition 2.3: canonicalization
@@ -88,38 +92,38 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(G::EGraph, n::ENode)::EClass
+function add!(g::EGraph, n::ENode)::EClass
     @debug("adding ", n)
 
-    n = canonicalize!(G, n)
-    if haskey(G.H, n)
-        return find(G, G.H[n]) |> EClass
+    n = canonicalize!(g, n)
+    if haskey(g.H, n)
+        return find(g, g.H[n]) |> EClass
     end
     @debug(n, " not found in H")
 
-    id = push!(G.U) # create new singleton eclass
+    id = push!(g.U) # create new singleton eclass
 
     for c_id ∈ n.args
-        addparent!(G.M[c_id], n, id)
+        addparent!(g.M[c_id], n, id)
     end
 
-    G.H[n] = id
+    g.H[n] = id
 
     classdata = EClassData(id, OrderedSet([n]), OrderedDict{ENode, Int64}())
-    G.M[id] = classdata
+    g.M[id] = classdata
 
     # cache the eclass for the symbol for faster matching
     sym = n.head
-    if !haskey(G.symcache, sym)
-        G.symcache[sym] = Int64[]
+    if !haskey(g.symcache, sym)
+        g.symcache[sym] = Int64[]
     end
-    push!(G.symcache[sym], id)
+    push!(g.symcache[sym], id)
 
     # make analyses for new enode
-    for analysis ∈ G.analyses
-        if !islazy(analysis)
-            analysis[id] = make(analysis, n)
-            modify!(analysis, id)
+    for an ∈ g.analyses
+        if !islazy(an)
+            setdata!(classdata, an, make(an, g, n))
+            modify!(an, g, id)
         end
     end
 
@@ -131,7 +135,7 @@ Recursively traverse an [`Expr`](@ref) and insert terms into an
 [`EGraph`](@ref). If `e` is not an [`Expr`](@ref), then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr_rec!(G::EGraph, e)::EClass
+function addexpr_rec!(g::EGraph, e)::EClass
     # e = preprocess(e)
     # println("========== $e ===========")
     if e isa EClass
@@ -145,14 +149,14 @@ function addexpr_rec!(G::EGraph, e)::EClass
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexpr!(G, child)
+            c_eclass = addexpr!(g, child)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode(e, class_ids)
-        return add!(G, node)
+        return add!(g, node)
     end
 
-    return add!(G, ENode(e))
+    return add!(g, ENode(e))
 end
 
 addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
@@ -170,28 +174,33 @@ end
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
 """
-function Base.merge!(G::EGraph, a::Int64, b::Int64)::Int64
-    id_a = find(G, a)
-    id_b = find(G, b)
+function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
+    id_a = find(g, a)
+    id_b = find(g, b)
     id_a == id_b && return id_a
-    to = union!(G.U, id_a, id_b)
+    to = union!(g.U, id_a, id_b)
 
     @debug "merging" id_a id_b
 
     from = (to == id_a) ? id_b : id_a
 
-    push!(G.dirty, to)
+    push!(g.dirty, to)
 
-    G.M[to] = union!(G.M[to], G.M[from])
-    # G.M[from] = G.M[to]
-    delete!(G.M, from)
+    from_class = g.M[from]
+    to_class = g.M[to]
 
-    for analysis ∈ G.analyses
-        if haskey(analysis, from) && haskey(analysis, to)
-            analysis[to] = join(analysis, analysis[from], analysis[to])
-            delete!(analysis, from)
-        end
-    end
+    g.M[to] = union!(from_class, to_class)
+    # g.M[from] = g.M[to]
+    delete!(g.M, from)
+
+    # mutable version
+    # for an ∈ g.analyses
+    #     if hasdata(from_class, an) && hasdata(to_class, an)
+    #         from_data = getdata(from_class, an)
+    #         to_data = getdata(to_class, an)
+    #         setdata!(to_class, an, join(an, from_data, to_data))
+    #     end
+    # end
 
     return to
 end
@@ -240,52 +249,55 @@ function rebuild!(egraph::EGraph)
     # end
 end
 
-function repair!(G::EGraph, id::Int64)
-    id = find(G, id)
-    ecdata = G.M[id]
+function repair!(g::EGraph, id::Int64)
+    id = find(g, id)
+    ecdata = g.M[id]
     @debug "repairing " id
 
     for (p_enode, p_eclass) ∈ ecdata.parents
-        clean_enode!(G, p_enode, find(G, p_eclass))
+        clean_enode!(g, p_enode, find(g, p_eclass))
     end
 
     new_parents = OrderedDict{ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
-        p_enode = canonicalize!(G, p_enode)
+        p_enode = canonicalize!(g, p_enode)
         # deduplicate parents
         if haskey(new_parents, p_enode)
             @debug "merging classes" p_eclass (new_parents[p_enode])
-            merge!(G, p_eclass, new_parents[p_enode])
+            merge!(g, p_eclass, new_parents[p_enode])
         end
-        new_parents[p_enode] = find(G, p_eclass)
+        new_parents[p_enode] = find(g, p_eclass)
     end
     ecdata.parents = new_parents
-    @debug "updated parents " id G.parents[id]
+    @debug "updated parents " id g.parents[id]
 
-    # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)
+    # ecdata.nodes = map(n -> canonicalize(g.U, n), ecdata.nodes)
 
     # Analysis invariant maintenance
-    for an ∈ G.analyses
-        haskey(an, id) && modify!(an, id)
+    for an ∈ g.analyses
+        hasdata(ecdata, an) && modify!(an, g, id)
         # modify!(an, id)
-        # id = find(G, id)
-        for (p_enode, p_eclass) ∈ ecdata.parents
-            # p_eclass = find(G, p_eclass)
-            if !islazy(an) && !haskey(an, p_eclass)
-                an[p_eclass] = make(an, p_enode)
+        # id = find(g, id)
+        for (p_enode, p_id) ∈ ecdata.parents
+            # p_eclass = find(g, p_eclass)
+            p_eclass = g.M[p_id]
+            if !islazy(an) && !hasdata(p_eclass, an)
+                setdata!(p_eclass, an, make(an, p_enode))
             end
-            if haskey(an, p_eclass)
-                new_data = join(an, an[p_eclass], make(an, p_enode))
-                if new_data != an[p_eclass]
-                    an[p_eclass] = new_data
-                    push!(G.dirty, p_eclass)
+            if hasdata(p_eclass, an)
+                p_data = getdata(p_eclass, an)
+
+                new_data = join(an, p_data, make(an, g, p_enode))
+                if new_data != p_data
+                    setdata!(p_eclass, an, new_data)
+                    push!(g.dirty, p_id)
                 end
             end
         end
     end
 
-    # ecdata.nodes = map(n -> canonicalize(G.U, n), ecdata.nodes)
+    # ecdata.nodes = map(n -> canonicalize(g.U, n), ecdata.nodes)
 
 end
 

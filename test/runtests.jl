@@ -25,7 +25,6 @@ ts = Test.FallbackTestSet
       include("test_extraction.jl")
       include("test_dynamic_ematch.jl")
       # FIXME include("test_mu.jl")
-      include("test_julog.jl")
       include("test_boson.jl")
       include("test_while_interpreter.jl")
       include("test_theories.jl")

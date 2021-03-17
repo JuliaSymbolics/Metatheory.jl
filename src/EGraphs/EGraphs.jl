@@ -12,22 +12,30 @@ using ..TermInterface
 using ..Util
 
 include("enode.jl")
+export EClass
+export ENode
+
+include("abstractanalysis.jl")
+export AbstractAnalysis
+
 include("eclass.jl")
+export EClassData
+export hasdata
+export getdata
+export setdata!
 
 include("egg.jl")
 export find
-export EClass
-export ENode
+export geteclass
 export ariety
 export EGraph
-export AbstractAnalysis
 export merge!
 export addexpr!
 export addanalysis!
 export rebuild!
 
 include("analysis.jl")
-
+export analyze!
 
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")

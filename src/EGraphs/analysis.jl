@@ -1,24 +1,26 @@
-"""
-Adds an [`AbstractAnalysis`](@ref) to an [`EGraph`](@ref).
-An [`EGraph`](@ref) can only contain one analysis of type
-`AnType`.
-"""
-function addanalysis!(g::EGraph, AnType::Type{<:AbstractAnalysis}, args...; lazy=false)
-    for i ∈ g.analyses
-        typeof(i) isa AnType && return nothing
+function addanalysis!(g::EGraph, an::Type{<:AbstractAnalysis})
+    push!(g.analyses, an)
+    if !islazy(an)
+        analyze!(g, an)
     end
-    analysis = AnType(g, args...)
-    push!(g.analyses, analysis)
+end
 
-    !islazy(analysis) && analyze!(g, analysis, collect(keys(g.M)))
 
-    return analysis
+analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, id::Int64) =
+    analyze!(g, an, reachable(g, id))
+
+
+function analyze!(g::EGraph, an::Type{<:AbstractAnalysis})
+    analyze!(g, an, collect(keys(g.M)))
 end
 
 """
+
 **WARNING**. This function is unstable.
+An [`EGraph`](@ref) can only contain one analysis of type `an`.
 """
-function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
+function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
+    push!(g.analyses, an)
     ids = sort(ids)
     @assert isempty(g.dirty)
 
@@ -28,25 +30,23 @@ function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
 
         for id ∈ ids
             id = find(g, id)
-            pass = mapreduce(x -> make(analysis, x),
-                (x, y) -> join(analysis, x, y), g.M[id])
+            eclass = g.M[id]
+            pass = mapreduce(x -> make(an, g, x), (x, y) -> join(an, x, y), eclass)
             # pass = make_pass(G, analysis, find(G,id))
 
             # if pass !== missing
-            if pass !== get(analysis, id, missing)
-                analysis[id] = pass
-                # println("analysis value for $id is $(analysis[id])")
+            if pass !== getdata(eclass, an, missing)
+                setdata!(eclass, an, pass)
                 did_something = true
-                # modify!(analysis, id)
                 push!(g.dirty, id)
             end
-            # end
         end
     end
 
     for id ∈ ids
         id = find(g, id)
-        if !haskey(analysis, id)
+        eclass = g.M[id]
+        if !hasdata(eclass, an)
             # display(g.M[id]); println()
             # display(analysis.data); println()
             error("failed to compute analysis for eclass ", id)
@@ -57,43 +57,5 @@ function analyze!(g::EGraph, analysis::AbstractAnalysis, ids::Vector{Int64})
 
     # display(analysis.data); println()
 
-    return analysis
+    return true
 end
-
-analyze!(g::EGraph, an::AbstractAnalysis, id::Int64) =
-    analyze!(g, an, reachable(g, id))
-
-
-# TODO document AbstractAnalysis
-
-modify!(analysis::AbstractAnalysis, id::Int64) =
-    error("Analysis does not implement modify!")
-join(analysis::AbstractAnalysis, a, b) =
-    error("Analysis does not implement join")
-make(analysis::AbstractAnalysis, a) =
-    error("Analysis does not implement make")
-
-Base.haskey(analysis::AbstractAnalysis, id::Int64) =
-    error("Analysis does not implement haskey")
-Base.haskey(analysis::AbstractAnalysis, ec::EClass) =
-    haskey(analysis, ec.id)
-
-
-Base.getindex(analysis::AbstractAnalysis, id::Int64) =
-    error("Analysis does not implement getindex")
-Base.getindex(analysis::AbstractAnalysis, ec::EClass) = analysis[ec.id]
-
-Base.setindex!(analysis::AbstractAnalysis, value, id::Int64) =
-    error("Analysis does not implement setindex!")
-Base.setindex!(analysis::AbstractAnalysis, value, ec::EClass) =
-    setindex!(analysis, ec.id, value)
-
-Base.delete!(analysis::AbstractAnalysis, id::Int64) =
-    error("Analysis does not implement delete!")
-Base.delete!(analysis::AbstractAnalysis, ec::EClass) =
-    setindex!(analysis, ec.id, value)
-
-Base.get(an::AbstractAnalysis, id::Int64, default) = haskey(an, id) ? an[id] : default
-Base.get(an::AbstractAnalysis, ec::EClass, default) = get(an, ec.id, default)
-
-islazy(an::AbstractAnalysis)::Bool = false
