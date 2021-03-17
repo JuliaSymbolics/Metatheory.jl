@@ -2,11 +2,12 @@
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-function astsize(n::ENode, an::AbstractAnalysis)
+function astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = 1 + ariety(n)
-    for a ∈ n.args
-        !haskey(an, a) && (cost += Inf; break)
-        cost += last(an[a])
+    for id ∈ n.args
+        eclass = geteclass(g, id)
+        !hasdata(eclass, an) && (cost += Inf; break)
+        cost += last(getdata(eclass, an))
     end
     return cost
 end
@@ -16,40 +17,26 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-astsize_inv(n::ENode, an::AbstractAnalysis) = -1 * astsize(n, an)
+astsize_inv(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis}) = -1 * astsize(n, g, an)
 
-const CostData = Dict{Int64, Tuple{ENode, Number}}
 
 """
 An [`AbstractAnalysis`](@ref) that computes the cost of expression nodes
 and chooses the node with the smallest cost for each E-Class.
+This abstract type is parametrised by a function F.
+This is useful for the analysis storage in [`EClassData`](@ref)
 """
-struct ExtractionAnalysis <: AbstractAnalysis
-    egraph::EGraph
-    costfun::Function
-    data::CostData
-end
+abstract type ExtractionAnalysis{F} <: AbstractAnalysis end
 
-ExtractionAnalysis(g::EGraph, costfun::Function) =
-    ExtractionAnalysis(g, costfun, CostData())
+make(a::Type{ExtractionAnalysis{F}}, g::EGraph, n::ENode) where F = (n, F(n, g, a))
 
-make(a::ExtractionAnalysis, n::ENode) = (n, a.costfun(n, a))
+join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : to
 
-function join(analysis::ExtractionAnalysis, from, to)
-    last(from) <= last(to) ? from : to
-end
+islazy(a::Type{<:ExtractionAnalysis}) = true
 
-modify!(analysis::ExtractionAnalysis, id::Int64) = nothing
-
-Base.setindex!(an::ExtractionAnalysis, value, id::Int64) =
-    setindex!(an.data, value, id)
-Base.getindex(an::ExtractionAnalysis, id::Int64) = an.data[id]
-Base.haskey(an::ExtractionAnalysis, id::Int64) = haskey(an.data, id)
-Base.delete!(an::ExtractionAnalysis, id::Int64) = delete!(an.data, id)
-islazy(an::ExtractionAnalysis) = true
-
-function rec_extract(g::EGraph, an::ExtractionAnalysis, id::Int64)
-    (cn, ck) = an[id]
+function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
+    eclass = g.M[id]
+    (cn, ck) = getdata(eclass, an)
     (ariety(cn) == 0 || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
     extractnode(cn, extractor)
@@ -64,7 +51,7 @@ function extractnode(n::ENode{Expr}, extractor::Function)::Expr
         push!(expr_args, n.head)
         expr_head = :call
     end
-    
+
     for a ∈ n.args
         # id == a && (error("loop in extraction"))
         push!(expr_args, extractor(a))
@@ -84,18 +71,29 @@ end
 Given an [`ExtractionAnalysis`](@ref), extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-function extract!(G::EGraph, extran::ExtractionAnalysis)
-    islazy(extran) && analyze!(G, extran, G.root)
-    !(extran ∈ G.analyses) && error("Extraction analysis is not associated to EGraph")
-    rec_extract(G, extran, G.root)
+function extract!(g::EGraph, a::Type{ExtractionAnalysis{F}} where F; root=-1)
+    if root == -1
+        root = g.root
+    end
+    analyze!(g, a, root)
+    !(a ∈ g.analyses) && error("Extraction analysis is not associated to EGraph")
+    rec_extract(g, a, g.root)
+end
+
+"""
+Given a cost function, extract the expression
+with the smallest computed cost from an [`EGraph`](@ref)
+"""
+function extract!(g::EGraph, costfun::Function; root=-1)
+    extran = ExtractionAnalysis{costfun}
+    extract!(g, extran; root=root)
 end
 
 macro extract(expr, theory, costfun)
     quote
         let g = EGraph($expr)
             saturate!(g, $theory)
-            extran = addanalysis!(g, ExtractionAnalysis, $costfun)
-            ex = extract!(g, extran)
+            ex = extract!(g, $costfun)
             (g, ex)
         end
     end |> esc

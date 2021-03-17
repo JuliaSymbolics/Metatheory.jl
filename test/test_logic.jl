@@ -92,8 +92,7 @@ function prove(t, ex, steps)
     for i ∈ 1:steps
         g = EGraph(ex)
         saturate!(g, t, params)
-        extran = addanalysis!(g, ExtractionAnalysis, astsize)
-        ex = extract!(g, extran)
+        ex = extract!(g, astsize)
         println(ex)
         if !TermInterface.istree(ex)
             return ex

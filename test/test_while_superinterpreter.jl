@@ -56,8 +56,7 @@ t = read_mem ∪ arithm_rules ∪ bool_rules
 	exx = :((false ∨ false) ∨ ¬(false ∨ false), $(Mem(:x => 2)))
 	g = EGraph(exx)
 	saturate!(g, t)
-	extran = addanalysis!(g, ExtractionAnalysis, astsize)
-	ex = extract!(g, extran)
+	ex = extract!(g, astsize)
 	@test ex == true
 	params=SaturationParams(timeout=12)
 	@test areequal(t, exx, true; mod=@__MODULE__, params=params)

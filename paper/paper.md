@@ -130,8 +130,7 @@ t = comm_monoid ∪ comm_group ∪ folder ∪ div_sim ;
 
 g = EGraph(:(a * (2*3) / 6)) ;
 saturate!(g, t) ;
-extran = addanalysis!(g, ExtractionAnalysis, astsize) ;
-ex = extract!(g, extran)
+ex = extract!(g, astsize)
 # :a
 
 ```

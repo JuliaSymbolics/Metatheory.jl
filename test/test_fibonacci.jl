@@ -12,9 +12,8 @@ g = EGraph(:(fib(10)))
 z = EGraph(:(fib(10)))
 @time saturate!(z, fibo, params)
 
-extran = addanalysis!(g, ExtractionAnalysis, astsize)
 display(g.M); println()
 
 @testset "Fibonacci" begin
-    @test 55 == extract!(g, extran)
+    @test 55 == extract!(g, astsize)
 end

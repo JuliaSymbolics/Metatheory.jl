@@ -10,18 +10,16 @@ t = comm_monoid ∪ fold_mul
 
 @testset "Extraction 1 - Commutative Monoid" begin
     G = EGraph(:(3 * 4))
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t)
-    @test (12 == extract!(G, extran))
+    @test (12 == extract!(G, astsize))
 
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
 	params=SaturationParams(timeout=15)
     saturate!(G, t, params)
 	# display(G.M); println()
 	println("===================")
-    extr = extract!(G, extran)
+    extr = extract!(G, astsize)
 	println(extr)
 
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
@@ -43,11 +41,10 @@ end
     # sleep(0.3)
     ex = cleanast(:((x*(a+b)) + (y*(a+b))))
     G = EGraph(ex)
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t)
     # end
 
-    extract!(G, extran) == :((x+y) * (b+a))
+    extract!(G, astsize) == :((x+y) * (b+a))
 end
 
 @testset "Lazy Extraction 2" begin
@@ -59,11 +56,10 @@ end
     # sleep(0.3)
     ex = cleanast(:((x*(a+b)) + (y*(a+b))))
     G = EGraph(ex)
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t)
     # end
 
-    extract!(G, extran) == :((x+y) * (b+a))
+    extract!(G, astsize) == :((x+y) * (b+a))
 end
 
 @testset "Extraction - Adding analysis after saturation" begin
@@ -73,20 +69,18 @@ end
     addexpr!(G, :(a * 2))
     saturate!(G, t)
 
-    extran = addanalysis!(G, ExtractionAnalysis, astsize)
     saturate!(G, t)
 
-    @test (12 == extract!(G, extran))
+    @test (12 == extract!(G, astsize))
 
     # for i ∈ 1:100
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
     addanalysis!(G, NumberFold)
-    extran = addanalysis!(G, ExtractionAnalysis, astsize)
 	params=SaturationParams(timeout=15)
     saturate!(G, comm_monoid, params)
 
-    extr = extract!(G, extran)
+    extr = extract!(G, astsize)
 	println(extr)
 
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
@@ -118,42 +112,41 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	G = EGraph(:(log(e) * log(e)))
 	params=SaturationParams(timeout=7)
 	saturate!(G, t, params)
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
-	@test extract!(G, extran) == 1
+	@test extract!(G, astsize) == 1
 
 	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))
-	extran = addanalysis!(G, ExtractionAnalysis, astsize)
 	params=SaturationParams(timeout=7)
 	saturate!(G, t, params)
-	@test extract!(G, extran) == 3
+	@test extract!(G, astsize) == 3
 
 	@time begin
 		G = EGraph(:(a^3 * a^2))
-		extran = addanalysis!(G, ExtractionAnalysis, astsize)
 		saturate!(G, t)
-		ex = extract!(G, extran)
+		ex = extract!(G, astsize)
 	end
 	@test ex == :(a^5)
 
 	@time begin
 		G = EGraph(:(a^3 * a^2))
-		extran = addanalysis!(G, ExtractionAnalysis, astsize)
 		saturate!(G, t)
-		ex = extract!(G, extran)
+		ex = extract!(G, astsize)
 	end
 	@test ex == :(a^5)
 
 	# TODO could serve as example for more advanced
 	# symbolic mathematics simplification based on the computation cost
 	# of the expressions
-	function cust_astsize(n::ENode, an::AbstractAnalysis)
-	    cost = 1 + ariety(n)
+	function cust_astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+		cost = 1 + ariety(n)
 
-		(n.head == :^) && (cost += 2)
+		if n.head == :^
+			cost += 2
+		end
 
-	    for a ∈ n.args
-	        !haskey(an, a) && (cost += Inf; break)
-	        cost += last(an[a])
+		for id ∈ n.args
+	        eclass = geteclass(g, id)
+	        !hasdata(eclass, an) && (cost += Inf; break)
+	        cost += last(getdata(eclass, an))
 	    end
 	    return cost
 	end
@@ -161,9 +154,8 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 
 	@time begin
 		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
-		extran = addanalysis!(G, ExtractionAnalysis, cust_astsize)
 		saturate!(G, t)
-		ex = extract!(G, extran)
+		ex = extract!(G, cust_astsize)
 	end
 	println(ex)
 	@test ex == :(5*log(a)) || ex == :(log(a)*5)
@@ -171,11 +163,12 @@ end
 
 # EXTRACTION BUG!
 
-function costfun(n::ENode, an)
+function costfun(n::ENode, g::EGraph, an)
 	println(n)
 	ariety(n) != 2 && (return 1)
 	left = n.args[1]
-	ENode(:a) ∈ g.M[left].nodes ? 1 : 100
+	left_class = geteclass(g, left)
+	ENode(:a) ∈ left_class.nodes ? 1 : 100
 end
 
 moveright = @theory begin
@@ -188,11 +181,7 @@ println(res)
 
 g = EGraph(expr)
 saturate!(g, moveright)
-extractor = addanalysis!(g, ExtractionAnalysis, costfun)
-resg = extract!(g, extractor)
-display(g.M); println(); println(g.root)
-display(extractor.data); println()
-
+resg = extract!(g, costfun)
 println(resg)
 
 @testset "Symbols in Right hand" begin
@@ -206,10 +195,9 @@ end
 	ex = :(foo(wa(rio) ⋅ bazoo ⋅ woo))
 	g = EGraph(ex)
 	saturate!(g, co)
-	extran = addanalysis!(g, ExtractionAnalysis, astsize)
 
 	display(g.M); println()
-	res = extract!(g, extran)
+	res = extract!(g, astsize)
 
 	resclassic = rewrite(ex, co)
 
