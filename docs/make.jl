@@ -1,8 +1,8 @@
-using Documenter
+using Documenter, Metatheory
 
-include("../src/Metatheory.jl")
-
-makedocs(modules = [Metatheory], sitename = "Metatheory.jl",
+makedocs(
+    modules = [Metatheory],
+    sitename = "Metatheory.jl",
     pages = [
         "index.md"
         "theories.md"
