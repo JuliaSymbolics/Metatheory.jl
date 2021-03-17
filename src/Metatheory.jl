@@ -12,9 +12,6 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 options = Dict{Symbol, Any}(
     :verbose => false,
     :printiter => false,
-    :sizeout => 2^14, # default sizeout
-    :timeout => 7,
-    :matchlimit => 5000
 )
 
 macro log(args...)
@@ -36,9 +33,12 @@ include("rgf.jl")
 export @metatheory_init
 
 include("rule.jl")
-include("theory.jl")
 export Rule
 export @rule
+export RHS_FUNCTION_CACHE
+export getrhsfun
+
+include("theory.jl")
 export @theory
 export Theory
 

@@ -101,8 +101,9 @@ end
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
     addanalysis!(G, NumberFold)
+    params=SaturationParams(timeout=15)
     @test areequal(G, comm_monoid, :((3 * a) * (4 * b)), :((12*a)*b),
-        :(((6*2)*b)*a); timeout=15)
+        :(((6*2)*b)*a); params=params)
 end
 
 @testset "Infinite Loops analysis" begin
@@ -111,7 +112,8 @@ end
     end
 
     G = EGraph(Util.cleanast( :(1 * x) ))
-    saturate!(G,boson, timeout=100)
+    params=SaturationParams(timeout=100)
+    saturate!(G,boson, params)
     extractor = addanalysis!(G, ExtractionAnalysis, astsize)
     ex = extract!(G, extractor)
 

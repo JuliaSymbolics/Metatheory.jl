@@ -79,7 +79,6 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # @timev areequalmagic(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)),   :((babo ∧ y) ∨ (¬x ∧ z)))
 
 # TODO proof strategies?
-# FIXME
 # Constructive Dilemma
 
 # @test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
@@ -87,11 +86,12 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # @test areequal(t, true, :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s)))
 
 function prove(t, ex, steps)
+    params = SaturationParams(timeout=8, sizeout=5300, schedulerparams=(8,2))
     hist = UInt64[]
     push!(hist, hash(ex))
     for i ∈ 1:steps
         g = EGraph(ex)
-        saturate!(g, t, timeout=8, sizeout=5300, schedulerparams=(8,2))
+        saturate!(g, t, params)
         extran = addanalysis!(g, ExtractionAnalysis, astsize)
         ex = extract!(g, extran)
         println(ex)
@@ -113,8 +113,9 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # using Metatheory.EGraphs.Schedulers
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
-# @profiler saturate!(g, t; timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
-
+# params = SaturationParams(timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
+# @timev saturate!(g, t, params)
+#
 # extran = addanalysis!(g, ExtractionAnalysis, astsize)
 # ex = extract!(g, extran)
 # println(ex)

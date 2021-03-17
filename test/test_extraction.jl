@@ -17,7 +17,8 @@ t = comm_monoid ∪ fold_mul
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
-    saturate!(G, t; timeout=15)
+	params=SaturationParams(timeout=15)
+    saturate!(G, t, params)
 	# display(G.M); println()
 	println("===================")
     extr = extract!(G, extran)
@@ -25,7 +26,7 @@ t = comm_monoid ∪ fold_mul
 
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
-		extr == :((b * (12a))) || extr == :((b * 12) * a)
+		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12)
 end
 
 fold_add = @theory begin
@@ -82,14 +83,15 @@ end
     G = EGraph(cleanast(ex))
     addanalysis!(G, NumberFold)
     extran = addanalysis!(G, ExtractionAnalysis, astsize)
-    saturate!(G, comm_monoid; timeout=15)
+	params=SaturationParams(timeout=15)
+    saturate!(G, comm_monoid, params)
 
     extr = extract!(G, extran)
 	println(extr)
 
-    @test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
+	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
-		extr == :((b * (12a))) || extr == :((b * 12) * a)
+		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12)
 end
 
 
@@ -114,19 +116,21 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 
 @testset "Complex Extraction" begin
 	G = EGraph(:(log(e) * log(e)))
-	saturate!(G, t; timeout=7)
+	params=SaturationParams(timeout=7)
+	saturate!(G, t, params)
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
 	@test extract!(G, extran) == 1
 
 	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))
 	extran = addanalysis!(G, ExtractionAnalysis, astsize)
-	saturate!(G, t; timeout=7)
+	params=SaturationParams(timeout=7)
+	saturate!(G, t, params)
 	@test extract!(G, extran) == 3
 
 	@time begin
 		G = EGraph(:(a^3 * a^2))
 		extran = addanalysis!(G, ExtractionAnalysis, astsize)
-		saturate!(G, t; timeout=7)
+		saturate!(G, t)
 		ex = extract!(G, extran)
 	end
 	@test ex == :(a^5)
@@ -134,7 +138,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	@time begin
 		G = EGraph(:(a^3 * a^2))
 		extran = addanalysis!(G, ExtractionAnalysis, astsize)
-		saturate!(G, t; timeout=7)
+		saturate!(G, t)
 		ex = extract!(G, extran)
 	end
 	@test ex == :(a^5)
@@ -158,7 +162,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	@time begin
 		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
 		extran = addanalysis!(G, ExtractionAnalysis, cust_astsize)
-		saturate!(G, t; timeout=8)
+		saturate!(G, t)
 		ex = extract!(G, extran)
 	end
 	println(ex)

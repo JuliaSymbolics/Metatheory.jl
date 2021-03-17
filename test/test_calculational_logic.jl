@@ -72,7 +72,8 @@ t = calc ∪ fold
 @test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
 
 # Frege's theorem
-@test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); timeout=12, sizeout=2^15)
+params = SaturationParams(timeout=12, sizeout=2^15)
+@test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); params=params)
 
 # Demorgan's
 @test @areequal t true (¬(p ∨ q) == (¬p ∧ ¬q))

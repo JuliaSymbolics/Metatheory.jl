@@ -3,7 +3,7 @@
 macro matcher(te)
     if Meta.isexpr(te, :block) # @matcher begine rules... end
 		te = rmlines(te)
-        t = compile_theory(Vector{Rule}(te.args .|> Rule), __module__)
+        t = gettheoryfun(Vector{Rule}(te.args .|> Rule), __module__)
     else
         if !isdefined(__module__, te) error(`theory $theory not found!`) end
         t = getfield(__module__, te)

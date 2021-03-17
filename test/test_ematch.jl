@@ -70,7 +70,8 @@ simp_theory = @theory begin
     munit() => :foo
 end
 G = EGraph( :(munit()) )
-saturate!(G, simp_theory, timeout=1)
+params=SaturationParams(timeout=1)
+saturate!(G, simp_theory, params)
 
 
 module Bar
@@ -89,7 +90,6 @@ end
 t = @theory begin
    :woo |> foo
 end
-
 
 g = EGraph(:woo);
 saturate!(g, t; mod=Bar);

@@ -100,20 +100,20 @@ end
 
 function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         scheduler::AbstractScheduler, report::Report,
-        mod::Module, sizeout::Int64, stopwhen::Function)::Report
+        mod::Module, params::SaturationParams)::Report
     i = 0
     for match ∈ matches
         (rule, sub, id, isright) = match
         i += 1
 
         if i % 300 == 0
-            if sizeout > 0 && length(egraph.U) > sizeout
+            if params.sizeout > 0 && length(egraph.U) > params.sizeout
                 @log "E-GRAPH SIZEOUT"
                 report.reason = :sizeout
                 return report
             end
 
-            if stopwhen()
+            if params.stopwhen()
                 @log "Halting requirement satisfied"
                 report.reason = :condition
                 return report
@@ -154,12 +154,12 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
             end
         elseif rule.mode == :dynamic # execute the right hand!
             lc = id
-            (params, f) = rule.right_fun[mod]
+            (params, f) = getrhsfun(rule, mod)
             actual_params = map(params) do x
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
             end
-            r = f(lc, egraph, actual_params...)
+            r = f(EClass(lc), egraph, actual_params...)
             rc = addexpr!(egraph, r)
             merge!(egraph,lc,rc.id)
         else
@@ -177,11 +177,8 @@ end
 """
 Core algorithm of the library: the equality saturation step.
 """
-function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
-        scheduler=SimpleScheduler(), mod=@__MODULE__,
-        match_hist=MatchesBuf(), sizeout=options[:sizeout], stopwhen=()->false,
-        matchlimit=options[:matchlimit] # max number of matches
-        )
+function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
+        scheduler::AbstractScheduler, match_hist::MatchesBuf, params::SaturationParams)
 
     report = Report(egraph)
     instcache = Dict{Rule, Dict{Sub, Int64}}()
@@ -214,7 +211,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule};
     # println(" diff length $(length(matches))")
 
     apply_stats = @timed eqsat_apply!(egraph, matches,
-        scheduler, report, mod, sizeout, stopwhen)
+        scheduler, report, mod, params)
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
@@ -238,23 +235,16 @@ end
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-function saturate!(egraph::EGraph, theory::Vector{Rule};
-    mod=@__MODULE__,
-    timeout=options[:timeout], stopwhen=(()->false), sizeout=options[:sizeout],
-    matchlimit=options[:matchlimit],
-    scheduler::Type{<:AbstractScheduler}=BackoffScheduler,  schedulerparams::Tuple=())
+saturate!(egraph::EGraph, theory::Vector{Rule}; mod=@__MODULE__) =
+    saturate!(egraph, theory, SaturationParams(); mod=mod)
+
+function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParams;
+    mod=@__MODULE__,)
 
     curr_iter = 0
 
-    # prepare the dynamic rules in this module
-    for rule ∈ theory
-        if rule.mode == :dynamic && !haskey(rule.right_fun, mod)
-            rule.right_fun[mod] = genrhsfun(rule.left, rule.right, mod)
-        end
-    end
-
     # init the scheduler
-    sched = scheduler(egraph, theory, schedulerparams...)
+    sched = params.scheduler(egraph, theory, params.schedulerparams...)
 
     match_hist = MatchesBuf()
 
@@ -266,11 +256,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
 
         options[:printiter] && @info("iteration ", curr_iter)
 
-        report, egraph = eqsat_step!(egraph, theory;
-            scheduler=sched, mod=mod,
-            match_hist=match_hist, sizeout=sizeout,
-            matchlimit=matchlimit,
-            stopwhen=stopwhen)
+        report, egraph = eqsat_step!(egraph, theory, mod, sched, match_hist, params)
 
         tot_report = tot_report + report
 
@@ -278,9 +264,9 @@ function saturate!(egraph::EGraph, theory::Vector{Rule};
         report.reason == :condition && break
         report.reason == :contradiction && break
         cansaturate(sched) && report.saturated && (tot_report.saturated = true; break)
-        curr_iter >= timeout && (tot_report.reason = :timeout; break)
-        sizeout > 0 && length(egraph.U) > sizeout && (tot_report.reason = :sizeout; break)
-        stopwhen() && (tot_report.reason = :condition; break)
+        curr_iter >= params.timeout && (tot_report.reason = :timeout; break)
+        params.sizeout > 0 && length(egraph.U) > params.sizeout && (tot_report.reason = :sizeout; break)
+        params.stopwhen() && (tot_report.reason = :condition; break)
     end
     # println(match_hist)
 
