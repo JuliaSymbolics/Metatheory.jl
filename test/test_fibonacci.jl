@@ -5,11 +5,12 @@ fibo = @theory begin
     fib(n::Int) |> (n < 2 ? n : :(fib($(n-1)) + fib($(n-2))))
 end
 
+params=SaturationParams(timeout=60)
 g = EGraph(:(fib(10)))
-@time saturate!(g, fibo; timeout=60)
+@time saturate!(g, fibo, params)
 
 z = EGraph(:(fib(10)))
-@time saturate!(z, fibo; timeout=60)
+@time saturate!(z, fibo, params)
 
 extran = addanalysis!(g, ExtractionAnalysis, astsize)
 display(g.M); println()

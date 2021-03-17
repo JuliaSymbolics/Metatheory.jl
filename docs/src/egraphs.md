@@ -73,3 +73,16 @@ according to the theory. The following example returns true.
 ```julia
 @areequal t (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))
 ```
+
+
+### Configurable Parameters
+
+[`saturate!`](@ref) can accept an additional parameter of type
+[`SaturationParams`](@ref) to configure the equality saturation algorithm.
+The documentation for the configurable parameters is available in the [`SaturationParams`](@ref) API docstring.
+
+```julia
+# create the saturation params
+params = SaturationParams(timeout=10, sizeout=4000)
+saturate!(egraph, theory, params)
+```

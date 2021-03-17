@@ -34,7 +34,7 @@ function rewrite(ex, theory::Theory;
     ex=cleanast(ex)
 
 	if !(theory isa Function)
-		theory = compile_theory(theory, m; __source__=__source__)
+		theory = gettheoryfun(theory, m)
 	end
 
     # n = iteration count. useful to protect against ∞ loops

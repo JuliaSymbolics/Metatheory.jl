@@ -7,13 +7,14 @@ ident = @theory begin
 end
 
 function boson_expand(ex)
+    params = SaturationParams(timeout=4)
     G = EGraph(ex)
-    saturate!(G, boson ∪ distr_assoc, timeout=4)
+    saturate!(G, boson ∪ distr_assoc, params)
     extractor = addanalysis!(G, ExtractionAnalysis, astsize_inv)
     ex = extract!(G, extractor)
 
     G = EGraph(ex)
-    saturate!(G, distr_assoc ∪ ident, timeout=4)
+    saturate!(G, distr_assoc ∪ ident, params)
     extractor = addanalysis!(G, ExtractionAnalysis, astsize)
     ex = extract!(G, extractor)
     # ex = rewrite(ex, ident)

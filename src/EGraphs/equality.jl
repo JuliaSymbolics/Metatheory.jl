@@ -1,17 +1,11 @@
 function areequal(theory::Vector{Rule}, exprs...;
-    timeout=options[:timeout], sizeout=options[:sizeout],
-    matchlimit=options[:matchlimit], mod=@__MODULE__,
-    scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
+    mod=@__MODULE__, params=SaturationParams())
     G = EGraph(exprs[1])
-    areequal(G, theory, exprs...;
-        timeout=timeout, matchlimit=matchlimit, sizeout=sizeout, mod=mod,
-        scheduler=scheduler)
+    areequal(G, theory, exprs...; params=params)
 end
 
 function areequal(G::EGraph, t::Vector{Rule}, exprs...;
-    timeout=options[:timeout], sizeout=options[:sizeout],
-    matchlimit=options[:matchlimit], mod=@__MODULE__,
-    scheduler::Type{<:AbstractScheduler}=BackoffScheduler)
+    mod=@__MODULE__, params=SaturationParams())
     @log "Checking equality for " exprs
     if length(exprs) == 1; return true end
 
@@ -27,8 +21,9 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...;
 
     alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
 
-    report = saturate!(G, t; timeout=timeout, matchlimit=matchlimit,
-        sizeout=sizeout, stopwhen=alleq, mod=mod, scheduler=scheduler)
+    params.stopwhen = alleq
+
+    report = saturate!(G, t, params; mod=mod)
 
     # display(G.M); println()
 

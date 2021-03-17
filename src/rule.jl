@@ -3,7 +3,6 @@ mutable struct Rule
     right::Any
     expr::Expr # original expression
     mode::Symbol # can be :symbolic or :dynamic
-    right_fun::Union{Nothing, Dict{Module, Tuple{Vector{Symbol}, Function}}}
 end
 
 import Base.==
@@ -95,17 +94,29 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
     mode = gethead(e)
     l, r = e.args[isexpr(e, :call) ? (2:3) : (1:2)]
 
-    right_fun = nothing
-
     mode = getmode(e)
 
     l = interpolate_dollar(l, mod)
     l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
-    # TODO FIXME move right_fun dictionary to be module-wise and not for each rule
-    mode == :dynamic && (right_fun = Dict(mod => genrhsfun(l, r, mod)))
-
     e.args[isexpr(e, :call) ? 2 : 1] = l
-    return Rule(l, r, e, mode, right_fun)
+    return Rule(l, r, e, mode)
+end
+
+# Global Right Hand Side function cache for dynamic rules.
+# Now we're talking.
+# TODO use a LRUCache
+const RHS_FUNCTION_CACHE = Dict{Tuple{Rule, Module}, Tuple{Vector{Symbol}, Function}}()
+const RHS_FUNCTION_CACHE_LOCK = ReentrantLock()
+
+function getrhsfun(r::Rule, m::Module)
+    lock(RHS_FUNCTION_CACHE_LOCK) do
+        p = (r,m)
+        if !haskey(RHS_FUNCTION_CACHE, p)
+            z = genrhsfun(r.left, r.right, m)
+            RHS_FUNCTION_CACHE[p] = z
+        end
+        return RHS_FUNCTION_CACHE[p]
+    end
 end
 
 macro rule(e)

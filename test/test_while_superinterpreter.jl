@@ -59,7 +59,8 @@ t = read_mem ∪ arithm_rules ∪ bool_rules
 	extran = addanalysis!(g, ExtractionAnalysis, astsize)
 	ex = extract!(g, extran)
 	@test ex == true
-	@test areequal(t, exx, true; mod=@__MODULE__, timeout=12)
+	params=SaturationParams(timeout=12)
+	@test areequal(t, exx, true; mod=@__MODULE__, params=params)
 
 	@test areequal(t, :((2 < 3) ∧ (3 < 4), $(Mem(:x => 2))),
 		true; mod=@__MODULE__)
@@ -83,7 +84,8 @@ t = read_mem ∪ arithm_rules ∪ bool_rules ∪ if_rules
 	@test areequal(t, 2, :(if true x else 0 end, 	$(Mem(:x => 2))); mod=@__MODULE__)
 	@test areequal(t, 0, :(if false x else 0 end, 	$(Mem(:x => 2))); mod=@__MODULE__)
 	@test areequal(t, 2, :(if ¬(false) x else 0 end, $(Mem(:x => 2))); mod=@__MODULE__)
-	@test areequal(t, 0, :(if ¬(2 < x) x else 0 end, $(Mem(:x => 3))); mod=@__MODULE__, timeout=10)
+	params=SaturationParams(timeout=10)
+	@test areequal(t, 0, :(if ¬(2 < x) x else 0 end, $(Mem(:x => 3))); mod=@__MODULE__, params=params)
 end
 
 
@@ -116,14 +118,15 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 	(g, ex) = @extract exx while_language astsize
 	# display(g.M); println()
 	println(ex)
-	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__, timeout=10)
+	params=SaturationParams(timeout=10)
+	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__, params=params)
 
 	# FIXME bug!
 	exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
 	(g, ex) = @extract exx while_language astsize
 	# display(g.M); println()
 	println(ex)
-	@test_broken areequal(while_language, Mem(:x => 4), exx; mod=@__MODULE__, timeout=100)
+	@test_broken areequal(while_language, Mem(:x => 4), exx; mod=@__MODULE__, params=params)
 	# exit(0)
 
 	# @test 10 == eval_while( :( while x < 10; x = x + 1 end ; x ) , Mem(:x => 3))

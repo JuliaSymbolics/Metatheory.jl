@@ -103,6 +103,21 @@ macro compile_theory(theory)
     gettheory(theory, __module__)
 end
 
+# TODO use LRU cache
+const MATCHCORE_FUNCTION_CACHE = Dict{Vector{Rule}, Function}()
+const MATCHCORE_FUNCTION_CACHE_LOCK = ReentrantLock()
+
+function gettheoryfun(t::Vector{Rule}, m::Module)
+    lock(MATCHCORE_FUNCTION_CACHE_LOCK) do
+        if !haskey(MATCHCORE_FUNCTION_CACHE, t)
+            z = compile_theory(t, m)
+            MATCHCORE_FUNCTION_CACHE[t] = z
+        end
+        return MATCHCORE_FUNCTION_CACHE[t]
+    end
+end
+
+
 # Retrieve a theory from a module at compile time. Not exported
 function gettheory(var, mod; compile=true)
 	t = nothing
@@ -113,7 +128,7 @@ function gettheory(var, mod; compile=true)
 	end
 
 	if compile && !(t isa Function)
-		t = compile_theory(t, mod)
+		t = gettheoryfun(t, mod)
 	end
 
 	return t

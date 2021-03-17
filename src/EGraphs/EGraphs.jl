@@ -6,8 +6,9 @@ using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
 import ..Rule
-using ..TermInterface
+import ..getrhsfun
 
+using ..TermInterface
 using ..Util
 
 include("enode.jl")
@@ -31,9 +32,11 @@ include("analysis.jl")
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers
-
+using .Schedulers
 
 include("saturation_report.jl")
+include("saturation_params.jl")
+export SaturationParams
 include("saturation.jl")
 export saturate!
 include("equality.jl")
