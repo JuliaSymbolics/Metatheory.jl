@@ -283,7 +283,7 @@ function repair!(g::EGraph, id::Int64)
             # p_eclass = find(g, p_eclass)
             p_eclass = g.M[p_id]
             if !islazy(an) && !hasdata(p_eclass, an)
-                setdata!(p_eclass, an, make(an, p_enode))
+                setdata!(p_eclass, an, make(an, g, p_enode))
             end
             if hasdata(p_eclass, an)
                 p_data = getdata(p_eclass, an)
