@@ -41,7 +41,7 @@ function ematchstep(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=S
             push!(buf, sub)
         end
     else
-        push!(buf, Base.ImmutableDict(sub, t => (EClass(find(e, v)), lit)))
+        push!(buf, Base.ImmutableDict(sub, t => (geteclass(e, find(e, v)), lit)))
     end
     return buf
 end
@@ -55,7 +55,7 @@ function ematchstep(e::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())
                     push!(buf, sub)
                 end
             else
-                push!(buf, Base.ImmutableDict(sub, t => (EClass(id), n.head)))
+                push!(buf, Base.ImmutableDict(sub, t => (geteclass(e, id), n.head)))
             end
         end
     end

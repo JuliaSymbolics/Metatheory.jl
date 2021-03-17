@@ -159,7 +159,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
             end
-            r = f(EClass(lc), egraph, actual_params...)
+            r = f(geteclass(egraph, lc), egraph, actual_params...)
             rc = addexpr!(egraph, r)
             merge!(egraph,lc,rc.id)
         else

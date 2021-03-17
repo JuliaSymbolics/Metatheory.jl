@@ -12,14 +12,13 @@ using ..TermInterface
 using ..Util
 
 include("enode.jl")
-export EClass
 export ENode
 
 include("abstractanalysis.jl")
 export AbstractAnalysis
 
 include("eclass.jl")
-export EClassData
+export EClass
 export hasdata
 export getdata
 export setdata!
