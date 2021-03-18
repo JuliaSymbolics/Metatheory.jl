@@ -62,17 +62,6 @@ function join_analysis_data(d::AnalysisData, dsrc::AnalysisData)
     return d
 end
 
-# mutable version
-function join_analysis_data(d::AnalysisData, dsrc::AnalysisData)
-    for (an, val_b) in dsrc
-        if haskey(d, an)
-            val_a = d[an]
-            nv = join(an, val_a, val_b)
-        end
-    end
-    return d
-end
-
 # Thanks to Shashi Gowda
 function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
     a.data == nothing && (return false)
