@@ -29,9 +29,12 @@ function rewrite(ex, theory::Theory;
         __source__=LineNumberNode(0),
         order=:inner,                   # evaluation order
         m::Module=@__MODULE__,
-		timeout::Int=TIMEOUT
+		timeout::Int=TIMEOUT,
+		clean=true
     )
-    ex=cleanast(ex)
+	if clean
+    	ex=cleanast(ex)
+	end
 
 	if !(theory isa Function)
 		theory = gettheoryfun(theory, m)
@@ -45,7 +48,7 @@ function rewrite(ex, theory::Theory;
         n >= timeout ? error("max reduction iterations exceeded") : nothing
     end
 
-    step = x -> cleanast(theory(x, m))
+    step = x -> if clean cleanast(theory(x, m)) else theory(x,m) end
     norm_step = x -> normalize_nocycle(step, x; callback=countit)
 
     # evaluation order: outer = suitable for symbolic maths

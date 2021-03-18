@@ -127,7 +127,6 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         # lc = addexprinst!(egraph, l, sub, :left).id
         # println("THE INSTANTIATED ONE = ", lc)
 
-
         if rule.mode == :symbolic || rule.mode == :equational || rule.mode == :unequal # symbolic replacement
             if isright
                 rc = id
@@ -154,8 +153,8 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
             end
         elseif rule.mode == :dynamic # execute the right hand!
             lc = id
-            (params, f) = getrhsfun(rule, mod)
-            actual_params = map(params) do x
+            (fpar, f) = getrhsfun(rule, mod)
+            actual_params = map(fpar) do x
                 (eclass, literal) = sub[x]
                 literal != nothing ? literal : eclass
             end
@@ -183,7 +182,6 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     report = Report(egraph)
     instcache = Dict{Rule, Dict{Sub, Int64}}()
 
-
     readstep!(scheduler)
 
 
@@ -210,8 +208,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     # end
     # println(" diff length $(length(matches))")
 
-    apply_stats = @timed eqsat_apply!(egraph, matches,
-        scheduler, report, mod, params)
+    apply_stats = @timed eqsat_apply!(egraph, matches, scheduler, report, mod, params)
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 

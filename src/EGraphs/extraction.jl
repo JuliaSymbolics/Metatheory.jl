@@ -43,6 +43,7 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
 end
 
 # TODO document how to extract
+# TODO maybe extractor can just be the array of extracted children?
 function extractnode(n::ENode{Expr}, extractor::Function)::Expr
     expr_args = []
     expr_head = n.head
