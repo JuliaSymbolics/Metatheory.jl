@@ -17,10 +17,7 @@ t = comm_monoid ∪ fold_mul
     G = EGraph(cleanast(ex))
 	params=SaturationParams(timeout=15)
     saturate!(G, t, params)
-	# display(G.M); println()
-	println("===================")
     extr = extract!(G, astsize)
-	println(extr)
 
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
@@ -81,7 +78,6 @@ end
     saturate!(G, comm_monoid, params)
 
     extr = extract!(G, astsize)
-	println(extr)
 
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
@@ -157,14 +153,12 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 		saturate!(G, t)
 		ex = extract!(G, cust_astsize)
 	end
-	println(ex)
 	@test ex == :(5*log(a)) || ex == :(log(a)*5)
 end
 
 # EXTRACTION BUG!
 
 function costfun(n::ENode, g::EGraph, an)
-	println(n)
 	ariety(n) != 2 && (return 1)
 	left = n.args[1]
 	left_class = geteclass(g, left)
@@ -177,12 +171,10 @@ end
 
 expr = :(a * (a * (b * (a * b))))
 res = rewrite( expr , moveright)
-println(res)
 
 g = EGraph(expr)
 saturate!(g, moveright)
 resg = extract!(g, costfun)
-println(resg)
 
 @testset "Symbols in Right hand" begin
     @test resg == res == :(a * (a * (a * (b * b))))
@@ -196,7 +188,6 @@ end
 	g = EGraph(ex)
 	saturate!(g, co)
 
-	display(g.M); println()
 	res = extract!(g, astsize)
 
 	resclassic = rewrite(ex, co)

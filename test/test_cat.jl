@@ -21,7 +21,7 @@ end
 
 function tag(x)
     r = df_walk(tag_matcher, x; skip_call=true, skip=[:(.)])
-    println("tagged $x to $(r)")
+    # println("tagged $x to $(r)")
     r
 end
 
@@ -57,7 +57,6 @@ end
 
 SymMonCat = MonCat ∪ @theory begin
     σ(A, B).(A⊗B→B⊗A) ⋅ σ(B, A).(B⊗A→A⊗B) == id(A⊗B).(A⊗B→A⊗B)
-    # σ(A, B).(A⊗B→B⊗A) ⋅ σ(B, A).(B⊗A→A⊗B) |> (println("culprit! $A, $B"); display(_egraph.M); println(); :(id($A⊗$B).($A⊗$B→$A⊗$B)))
 
     σ(A, B⊗C).(A⊗(B⊗C)→(B⊗C)⊗A) == σ(A⊗B, C).((A⊗B)⊗C→C⊗(A⊗B))
     (f.(A→B)⊗g.(C→D))⋅σ(B,D).(B⊗D→D⊗B) == σ(A,C).(A⊗C→C⊗A) ⋅ (g.(C→D)⊗f.(A→B))

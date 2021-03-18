@@ -18,7 +18,7 @@ end
     g = EGraph(:(a * 1))
     addexpr!(g, :foo)
     saturate!(g, r)
-    display(g.M); println()
+    # display(g.M); println()
 
     @test (@areequal r a * 1 foo) == true
     @test (@areequal r a * 2 foo) == false

@@ -176,8 +176,6 @@ end
 
 mult_monoid = @red_commutative_monoid Int (*) 1 (*)
 
-println(mult_monoid)
-
 @testset "Multiplication Monoid" begin
 	res_macro = @rewrite (3 * (1 * 2)) mult_monoid
 	res_sym = rewrite(:(3 * (1 * 2)), mult_monoid; order=:inner)
@@ -341,8 +339,6 @@ dollart = @theory begin
 	$(Expr(:call, :foo, :bar)) => :match
 	:x + $(3+2) => :weeee
 end
-
-println(dollart)
 
 @testset "Dollar Escapes" begin
 	r1 = rewrite(:(foo(bar)), dollart; m=@__MODULE__)

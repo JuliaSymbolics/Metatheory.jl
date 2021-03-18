@@ -28,7 +28,7 @@ end
     # display(G.M); println()
     @test in_same_set(G.U, c_id, t1.id)
     @test in_same_set(G.U, t2.id, t1.id)
-    println(find_root!(G.U, t2.id))
+    # println(find_root!(G.U, t2.id))
     @test find_root!(G.U, t2.id) == 4
     rebuild!(G)
     # f(a,b) = f(a,c)
