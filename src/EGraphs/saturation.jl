@@ -12,7 +12,7 @@ using .Schedulers
 Exactly like [`addexpr!`](@ref), but instantiate pattern variables
 from a substitution, resulting from a pattern matcher run.
 """
-function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol)::EClass
+function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol, r::Rule)::EClass
     # e = preprocess(pat)
     # println("========== $pat ===========")
 
@@ -20,9 +20,14 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol)::EClass
 
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
-        pat = (lit != nothing ? lit : eclass)
+        pat = (lit !== nothing ? lit : eclass)
     elseif pat isa Symbol
-        error("unbound pattern variable $pat")
+        # TODO tell me the rule!
+        # for (k,v) ∈ sub
+        #     println("$k => $v"); println()
+        # end
+        # println.(sort(collect(G.M); lt=((x,y)-> x[1] < y[1])))
+        error("unbound pattern variable $pat in rule $r")
     elseif side == :right && pat isa QuoteNode && pat.value isa Symbol
         pat = pat.value
     end
@@ -37,7 +42,7 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol)::EClass
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexprinst_rec!(G, child, sub, side)
+            c_eclass = addexprinst_rec!(G, child, sub, side, r)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode(pat, class_ids)
@@ -47,8 +52,8 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol)::EClass
     return add!(G, ENode(pat))
 end
 
-addexprinst!(g::EGraph, e, sub::Sub, side::Symbol)::EClass =
-    addexprinst_rec!(g, preprocess(e), sub, side)
+addexprinst!(g::EGraph, e, sub::Sub, side::Symbol, r::Rule)::EClass =
+    addexprinst_rec!(g, preprocess(e), sub, side, r)
 
 
 function cached_ids(egraph::EGraph, side)::Vector{Int64}
@@ -133,13 +138,13 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
                 # println("THE ONE IT MATCHED ON = ", rc)
                 # schifo = addexprinst!(egraph, rule.right, sub, :right).id
                 # println("THE INSTANTIATED ONE = ", schifo)
-                lc = addexprinst!(egraph, remove_assertions(rule.left), sub, :left).id
+                lc = addexprinst!(egraph, remove_assertions(rule.left), sub, :left, rule).id
             else
                 lc = id
                 # println("THE ONE IT MATCHED ON = ", lc)
                 # schifo = addexprinst!(egraph, remove_assertions(rule.left), sub, :left).id
                 # println("THE INSTANTIATED ONE = ", schifo)
-                rc = addexprinst!(egraph, rule.right, sub, :right).id
+                rc = addexprinst!(egraph, rule.right, sub, :right, rule).id
             end
             if rule.mode == :unequal
                 delete!(matches, match)
@@ -156,7 +161,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
             (fpar, f) = getrhsfun(rule, mod)
             actual_params = map(fpar) do x
                 (eclass, literal) = sub[x]
-                literal != nothing ? literal : eclass
+                literal !== nothing ? literal : eclass
             end
             r = f(geteclass(egraph, lc), egraph, actual_params...)
             rc = addexpr!(egraph, r)
@@ -218,7 +223,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     # display(egraph.parents); println()
     # display(egraph.M); println()
     @label quit_rebuild
-    report.saturated = isempty(egraph.dirty) && report.reason == nothing
+    report.saturated = isempty(egraph.dirty) && report.reason === nothing
     rebuild_stats = @timed rebuild!(egraph)
     report.rebuild_stats = report.rebuild_stats + discard_value(rebuild_stats)
 

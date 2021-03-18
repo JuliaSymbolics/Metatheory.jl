@@ -79,7 +79,12 @@ find(g::EGraph, a::Int64)::Int64 = find_root!(g.U, a)
 find(g::EGraph, a::EClass)::Int64 = find_root!(g.U, a.id)
 
 
-geteclass(g::EGraph, a::Int64)::EClass = g.M[find(g, a)]
+function geteclass(g::EGraph, a::Int64)::EClass
+    id = find(g, a)
+    ec = g.M[id]
+    ec.id = id
+    ec
+end
 geteclass(g::EGraph, a::EClass)::Int64 = a
 
 
@@ -190,20 +195,14 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     push!(g.dirty, to)
 
     from_class = g.M[from]
+    # from_class.id = from
     to_class = g.M[to]
 
     g.M[to] = union!(from_class, to_class)
+    # to_class.id = to
+
     # g.M[from] = g.M[to]
     delete!(g.M, from)
-
-    # mutable version
-    # for an ∈ g.analyses
-    #     if hasdata(from_class, an) && hasdata(to_class, an)
-    #         from_data = getdata(from_class, an)
-    #         to_data = getdata(to_class, an)
-    #         setdata!(to_class, an, join(an, from_data, to_data))
-    #     end
-    # end
 
     return to
 end

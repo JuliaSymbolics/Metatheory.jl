@@ -27,3 +27,5 @@ Manifest.toml
 
 # HTML Coverage folder
 coverage/
+
+.vscode/
