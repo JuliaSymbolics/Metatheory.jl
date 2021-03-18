@@ -16,11 +16,12 @@ function boson_expand(ex)
     saturate!(G, distr_assoc ∪ ident, params)
     ex = extract!(G, astsize)
     # ex = rewrite(ex, ident)
-    println(ex)
+    # println(ex)
     return ex
 end
 
 e1 = :(c * c * cdag * cdag)
-println(boson_expand(e1))
 
-println(normalize_nocycle(boson_expand, e1))
+# TODO add expected result
+# println(boson_expand(e1))
+# println(normalize_nocycle(boson_expand, e1))

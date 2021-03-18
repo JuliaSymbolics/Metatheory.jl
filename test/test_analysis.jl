@@ -85,7 +85,7 @@ end
     saturate!(G, comm_monoid)
 
     # display(G.M); println()
-    println(G.root)
+    # println(G.root)
     # display(G.analyses[1].data); println()
 
     @test (true == areequal(G, comm_monoid, :(3 * 4), 12, :(4*3), :(6*2)))
@@ -108,7 +108,7 @@ end
     saturate!(G,boson, params)
     ex = extract!(G, ExtractionAnalysis{astsize})
 
-    println(ex)
+    # println(ex)
 
     using Metatheory.EGraphs
     boson = @theory begin
@@ -124,5 +124,5 @@ end
     saturate!(G,boson)
     ex = extract!(G, astsize_inv)
 
-    println(ex)
+    # println(ex)
 end
