@@ -113,7 +113,7 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
 # params = SaturationParams(timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
-# @timev saturate!(g, t, params)
+# @profview saturate!(g, t, params)
 #
 # extran = addanalysis!(g, ExtractionAnalysis, astsize)
 # ex = extract!(g, extran)

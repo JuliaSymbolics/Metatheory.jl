@@ -22,7 +22,19 @@ Base.iterate(a::EClass) = iterate(a.nodes)
 Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
-# Base.show(io::IO, a::EClass) = Base.show(io, a.nodes)
+function Base.show(io::IO, a::EClass)
+    print(io, "EClass $(a.id) (")
+    print(io, collect(a.nodes))
+    if a.data === nothing
+        print(io, ")")
+        return
+    end
+    print(io, ", analysis = {")
+    for (k, v) ∈ a.data
+        print(io, "$k => $v, ")
+    end
+    print(io, "})")
+end
 #
 # function addparent!(a::EClass, n::ENode, p::EClass)
 #     a.parents[n] = p
@@ -39,11 +51,11 @@ end
 function Base.union!(to::EClass, from::EClass)
     union!(to.nodes, from.nodes)
     merge!(to.parents, from.parents)
-    if to.data != nothing && from.data != nothing
+    if to.data !== nothing && from.data !== nothing
         # merge!(to.data, from.data)
         # to.data = join_analysis_data(to.data, from.data)
         to.data = join_analysis_data(to.data, from.data)
-    elseif to.data == nothing
+    elseif to.data === nothing
         to.data = from.data
     end
     return to
@@ -64,7 +76,7 @@ end
 
 # Thanks to Shashi Gowda
 function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
-    a.data == nothing && (return false)
+    a.data === nothing && (return false)
     return haskey(a.data, x)
 end
 
@@ -79,7 +91,7 @@ end
 
 function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
     # lazy allocation
-    a.data == nothing && (a.data = AnalysisData())
+    a.data === nothing && (a.data = AnalysisData())
     # a.data[x] = value
     a.data = AnalysisData(a.data, x, value)
 end

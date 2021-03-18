@@ -1,4 +1,5 @@
 using Metatheory
+using Test
 using Metatheory.Library
 using Metatheory.EGraphs
 using Metatheory.Classic
@@ -100,10 +101,16 @@ plus_t = commutative_monoid(:(+), 0)
 
 minus_t = @theory begin
     a - a       => 0
-    a + (-b)    => a - b
+    a - b       => a + (-1*b)
+    -a          => -1 * a
+    # TODO FIXME this rules bugs the pattern matcher
+    # a + (-b)    => a + (-1*b)
 end
 
 mulplus_t = @theory begin
+    # TODO FIXME this rules improves performance and avoids commutative
+    # explosion of the egraph
+    0 * a       => 0
     a * 0       => 0
     a * (b + c) == ((a*b) + (a*c))
     a + (b * a) => ((b+1)*a)
@@ -115,8 +122,18 @@ pow_t = @theory begin
     (x * y)^z   == x^z * y^z
     (x^p)^q     == x^(p*q)
     x^0         => 1
+    0^x         => 0
+    1^x         => 1
     x^1         => x
     inv(x)      == x^(-1)
+end
+
+div_t = @theory begin
+    x / 1 => x
+    # x / x => 1 TODO SIGN ANALYSIS
+    x * (x / y) => 1 / y
+    x * (y / z) == (x * y) / z
+    x^(-1)      == 1 / x
 end
 
 # Dynamic rules
@@ -124,11 +141,16 @@ fold_t = @theory begin
     -(a::Number)            |> -a
     a::Number + b::Number   |> a + b
     a::Number * b::Number   |> a * b
+    a::Number ^ b::Number   |> a^b
+    a::Number / b::Number   |> a/b
 end
 
-cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t #∪ pow_t
+cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t ∪ pow_t ∪ div_t
 
 using Metatheory.TermInterface
+
+## Canonicalization
+
 
 function customlt(x,y)
     if typeof(x) == Expr && Expr == typeof(y)
@@ -153,21 +175,67 @@ canonical_t = @theory begin
     (+)(xs...)      |> Expr(:call, :+, sort!(xs; lt=customlt)...)
 end
 
+Metatheory.options[:verbose] = false
+Metatheory.options[:printiter] = false
+
 macro simplify(ex)
-    g = EGraph(ex)
-    println(saturate!(g, cas))
-    res = extract!(g, astsize)
-    println(res)
-    # for (id, ec) ∈ g.M
-    #     println(id, " => ", collect(ec.nodes))
-    #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
-    # end
-    res = rewrite(res, canonical_t; clean=false, m=__module__)
-    Meta.quot(res)
+    rep = @timev begin
+        g = EGraph(ex)
+        # simpl_hist = []
+        # stopwhen = () -> begin
+        #     res = extract!(g, astsize)
+        #     println(res)
+        #     if res ∈ simpl_hist return true
+        #     else push!(simpl_hist, res); return false end
+        # end
+        params = SaturationParams(
+            scheduler=ScoredScheduler,
+            timeout=7,
+            schedulerparams=(8,2, Schedulers.exprsize)
+        )#stopwhen=stopwhen)
+        saturate!(g, cas, params)
+        # saturate!(g, cas)
+        res = extract!(g, astsize)
+        println(res)
+        # for (id, ec) ∈ g.M
+        #     println(id, " => ", collect(ec.nodes))
+        #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
+        # end
+        res = rewrite(res, canonical_t; clean=false, m=__module__)
+        Meta.quot(res)
+    end
+    rep
 end
+
+
 
 @simplify 2a + a + a
 @simplify a * c * b
 @simplify 1 * x * 2
 @simplify (a*b)^2
+@simplify (a^2*b^2)^3
+
 @simplify a + b + (0*c) + d
+@simplify a + b + (c*0) + d - d
+@simplify (a + d) - d
+
+@simplify a + b * c^0 + d
+@simplify a * x^y * b * x^d
+
+@simplify a * x^(12 + 3) * b * x^(42^3)
+
+@simplify (x+y)^(a*0) / (y+x)^0
+
+
+testt = @theory begin
+    a + b       ==  b + a
+    a + (b + c) ==  (a + b) + c
+    d - d       => 0
+    a + -b      => a - b
+    a - b       => a + (-b)
+end
+
+ex = :((a + d) + -d)
+g = EGraph(ex)
+saturate!(g, testt)
+extract!(g, astsize)
