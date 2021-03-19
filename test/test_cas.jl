@@ -7,7 +7,7 @@ using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
 ## TypeAnalysis
-@metatheory_init
+@metatheory_init ()
 
 
 ## M is a Module
@@ -147,8 +147,7 @@ fold_t = @theory begin
     a::Number / b::Number   |> a/b
 end
 
-# cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t ∪ pow_t ∪ div_t
-cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t
+cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t ∪ pow_t ∪ div_t
 
 using Metatheory.TermInterface
 
@@ -184,20 +183,13 @@ Metatheory.options[:printiter] = false
 function simplify(ex)
     rep = @timev begin
         g = EGraph(ex)
-        # simpl_hist = []
-        # stopwhen = () -> begin
-        #     res = extract!(g, astsize)
-        #     println(res)
-        #     if res ∈ simpl_hist return true
-        #     else push!(simpl_hist, res); return false end
-        # end
         params = SaturationParams(
             scheduler=ScoredScheduler,
             timeout=7,
-            schedulerparams=(8,2, Schedulers.exprsize)
-        )#stopwhen=stopwhen)
+            schedulerparams=(8,2, Schedulers.exprsize),
+            #stopwhen=stopwhen,
+        )
         saturate!(g, cas, params)
-        # saturate!(g, cas)
         res = extract!(g, astsize)
         println(res)
         # for (id, ec) ∈ g.M
@@ -214,52 +206,15 @@ macro simplify(ex)
 end
 
 
-@test :(4a) == @simplify 2a + a + a
-@test :(a*b*c) @simplify a * c * b
-@test :(3x) @simplify 1 * x * 2
-@test :((a*b)^2) @simplify (a*b)^2
-#@test 
- 
-
-@simplify (a^2*b^2)^3
-@test :() @simplify a + b + (0*c) + d
-@test :() @simplify a + b + (c*0) + d - d
-@test :() @simplify (a + d) - d
-@test :() @simplify a + b * c^0 + d
-@test :() @simplify a * x^y * b * x^d
-@test :() @simplify a * x^(12 + 3) * b * x^(42^3)
-@test :() @simplify (x+y)^(a*0) / (y+x)^0
-
-
-testt = @theory begin
-    a + b       ==  b + a
-    a + (b + c) ==  (a + b) + c
-    d - d       => 0
-    a + neg(b)      => a - b
-    a - b       => a + neg(b)
-end
-
-ex = :((a + d) + neg(d))
-g = EGraph(ex)
-saturate!(g, testt)
-
-ex = :((a + d) + -d)
-g = EGraph(ex)
-saturate!(g, testt)
-extract!(g, astsize)
-
-
-# ITS NOT ONLY A PROBLEM OF BINARY OPERATORS
-testt = @theory begin
-    foo(a, b)           ==  foo(b, a)
-    foo(a, foo(b, c))   ==  foo(foo(a, b), c)
-    bar(d, d)           =>  0
-    foo(a, bar(b))      =>  bar(a, b)
-    bar(a, b)           =>  foo(a, bar(b))
-end
-
-ex = :(foo(foo(a, d), bar(d)))
-g = EGraph(ex)
-saturate!(g, testt)
-extract!(g, astsize)
-
+@test :(4a)         == @simplify 2a + a + a
+@test :(a*b*c)      == @simplify a * c * b
+@test :(2x)         == @simplify 1 * x * 2
+@test :((a*b)^2)    == @simplify (a*b)^2
+@test :((a*b)^6)    == @simplify (a^2*b^2)^3
+@test :(a+b+d)      == @simplify a + b + (0*c) + d
+@test :(a+b)        == @simplify a + b + (c*0) + d - d
+@test :(a)          == @simplify (a + d) - d
+@test :(a + b + d)  == @simplify a + b * c^0 + d
+@test :(a * b * x ^ (d+y))  == @simplify a * x^y * b * x^d
+@test :(a * b * x ^ 74103)  == @simplify a * x^(12 + 3) * b * x^(42^3)
+@test 1                     == @simplify (x+y)^(a*0) / (y+x)^0
