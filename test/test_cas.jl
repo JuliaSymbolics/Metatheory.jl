@@ -138,16 +138,32 @@ div_t = @theory begin
     x^(-1)      == 1 / x
 end
 
+trig_t = @theory begin 
+    sin(θ)^2 + cos(θ)^2     => 1
+    sin(θ)^2 - 1            => cos(θ)^2
+    cos(θ)^2 - 1            => sin(θ)^2
+    tan(θ)^2 - sec(θ)^2     => 1
+    tan(θ)^2 + 1            => sec(θ)^2
+    sec(θ)^2 - 1            => tan(θ)^2
+
+    cot(θ)^2 - csc(θ)^2     => 1
+    cot(θ)^2 + 1            => csc(θ)^2
+    csc(θ)^2 - 1            => cot(θ)^2
+end
+
 # Dynamic rules
 fold_t = @theory begin
     -(a::Number)            |> -a
     a::Number + b::Number   |> a + b
     a::Number * b::Number   |> a * b
-    a::Number ^ b::Number   |> a^b
+    a::Number ^ b::Number   |> begin b < 0 && a isa Int && (a = float(a)) ; a^b end
     a::Number / b::Number   |> a/b
 end
 
-cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t ∪ pow_t ∪ div_t
+
+
+cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪
+    mulplus_t ∪ pow_t ∪ div_t ∪ trig_t
 
 using Metatheory.TermInterface
 
@@ -217,4 +233,11 @@ end
 @test :(a + b + d)  == @simplify a + b * c^0 + d
 @test :(a * b * x ^ (d+y))  == @simplify a * x^y * b * x^d
 @test :(a * b * x ^ 74103)  == @simplify a * x^(12 + 3) * b * x^(42^3)
-@test 1                     == @simplify (x+y)^(a*0) / (y+x)^0
+
+@test 1 == @simplify (x+y)^(a*0) / (y+x)^0
+@test 2 == @simplify cos(x)^2 + 1 + sin(x)^2
+@test 2 == @simplify cos(y)^2 + 1 + sin(y)^2
+@test 2 == @simplify sin(y)^2 + cos(y)^2 + 1
+
+@test :(y + sec(x)^2 ) == @simplify 1 + y + tan(x)^2
+@test :(y + csc(x)^2 ) == @simplify 1 + y + cot(x)^2
