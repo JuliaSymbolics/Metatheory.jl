@@ -26,7 +26,7 @@ export cleanblock
 export interpolate_dollar
 export remove_assertions
 export unquote_sym
-
+export collect_symbols
 
 include("walks.jl")
 export df_walk

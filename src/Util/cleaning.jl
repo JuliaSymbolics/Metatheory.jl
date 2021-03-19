@@ -69,3 +69,9 @@ remove_assertions(e) = df_walk( x -> (isexpr(x, :(::)) ? x.args[1] : x),
 
 unquote_sym(e) = df_walk( x -> (x isa QuoteNode && x.value isa Symbol ? x.value : x),
     e; skip_call=true )
+
+function collect_symbols(ex)
+    syms = Set{Symbol}()
+    df_walk( x -> (if x isa Symbol; push!(syms, x); end; x), ex; skip_call=true )
+    syms
+end

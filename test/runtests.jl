@@ -36,6 +36,7 @@ ts = Test.FallbackTestSet
       include("test_calculational_logic.jl")
       include("test_logic.jl")
       include("test_inequality.jl")
+      include("test_cas.jl")
 
       # exported consistency test
       for m ∈ [Metatheory, Metatheory.Util, Metatheory.Classic, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]

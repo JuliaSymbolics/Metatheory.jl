@@ -1,6 +1,7 @@
 mutable struct Rule
     left::Any
     right::Any
+    patvars::Vector{Symbol}
     expr::Expr # original expression
     mode::Symbol # can be :symbolic or :dynamic
 end
@@ -98,21 +99,22 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
 
     l = interpolate_dollar(l, mod)
     l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
+    patvars = collect(collect_symbols(remove_assertions(l)))
     e.args[isexpr(e, :call) ? 2 : 1] = l
-    return Rule(l, r, e, mode)
+    return Rule(l, r, patvars, e, mode)
 end
 
 # Global Right Hand Side function cache for dynamic rules.
 # Now we're talking.
 # TODO use a LRUCache
-const RHS_FUNCTION_CACHE = Dict{Tuple{Rule, Module}, Tuple{Vector{Symbol}, Function}}()
+const RHS_FUNCTION_CACHE = Dict{Tuple{Rule, Module}, Function}()
 const RHS_FUNCTION_CACHE_LOCK = ReentrantLock()
 
 function getrhsfun(r::Rule, m::Module)
     lock(RHS_FUNCTION_CACHE_LOCK) do
         p = (r,m)
         if !haskey(RHS_FUNCTION_CACHE, p)
-            z = genrhsfun(r.left, r.right, m)
+            z = genrhsfun(r, m)
             RHS_FUNCTION_CACHE[p] = z
         end
         return RHS_FUNCTION_CACHE[p]
@@ -125,24 +127,17 @@ end
 
 # string representation of the rule
 function Base.show(io::IO, x::Rule)
-    println(io, "Rule(:(", x.expr, "))")
+    print(io, "Rule(:(", x.expr, "))")
 end
 
 """
-Generates a tuple containing the list of formal parameters (`Symbol`s)
-and the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
+Generates the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
 side of a `:dynamic` [`Rule`](@ref).
 """
-function genrhsfun(left, right, mod::Module)
-    # remove type assertions in left hand
-    lhs = remove_assertions(left)
-    # collect variable symbols in left hand
-    lhs_vars = Set{Symbol}()
-    df_walk( x -> (if x isa Symbol; push!(lhs_vars, x); end; x), left; skip_call=true )
-    params = Expr(:tuple, :_lhs_expr, :_egraph, lhs_vars...)
-
-    ex = :($params -> $right)
-    (collect(lhs_vars), closure_generator(mod, ex))
+function genrhsfun(r::Rule, mod::Module)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, r.patvars...)
+    ex = :($params -> $(r.right))
+    closure_generator(mod, ex)
 end
 
 

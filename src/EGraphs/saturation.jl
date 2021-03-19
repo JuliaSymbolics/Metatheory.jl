@@ -56,16 +56,17 @@ addexprinst!(g::EGraph, e, sub::Sub, side::Symbol, r::Rule)::EClass =
     addexprinst_rec!(g, preprocess(e), sub, side, r)
 
 
-function cached_ids(egraph::EGraph, side)::Vector{Int64}
+function cached_ids(egraph::EGraph, side)#::Vector{Int64}
     # outermost symbol in rule side
     # side = remove_assertions(side)
     # side = unquote_sym(side)
-    if istree(side)
-        sym = gethead(side)
-        get(egraph.symcache, sym, [])
-    else
-        collect(keys(egraph.M))
-    end
+    # if istree(side)
+    #     sym = gethead(side)
+    #     get(egraph.symcache, (sym, length(getargs(side))), [])
+    # else
+        # collect(keys(egraph.M))
+    keys(egraph.M)
+    # end
 end
 
 function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
@@ -85,6 +86,17 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
 
         for id ∈ ids
             for sub in ematch(egraph, rule.left, id)
+
+                if rule.left == :(a + (-b))
+                    ks = collect(keys(sub))
+                    println(rule)
+                    println(egraph.M[id])
+                    println(rule.patvars)
+                    println(ks)
+
+                    !isempty(sub) && !isempty(symdiff(rule.patvars, ks)) && error("damnnn")
+                end
+
                 # display(sub); println()
                 !isempty(sub) && push!(matches, (rule, sub, id, false))
             end
@@ -158,8 +170,8 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
             end
         elseif rule.mode == :dynamic # execute the right hand!
             lc = id
-            (fpar, f) = getrhsfun(rule, mod)
-            actual_params = map(fpar) do x
+            f = getrhsfun(rule, mod)
+            actual_params = map(rule.patvars) do x
                 (eclass, literal) = sub[x]
                 literal !== nothing ? literal : eclass
             end
