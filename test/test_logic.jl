@@ -86,7 +86,8 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # @test areequal(t, true, :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s)))
 
 function prove(t, ex, steps)
-    params = SaturationParams(timeout=8, sizeout=5300, schedulerparams=(8,2))
+    params = SaturationParams(timeout=8, sizeout=5000, 
+        scheduler=Schedulers.ScoredScheduler , schedulerparams=(8,2, Schedulers.exprsize))
     hist = UInt64[]
     push!(hist, hash(ex))
     for i ∈ 1:steps
@@ -114,7 +115,11 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
 # params = SaturationParams(timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
 # @profview saturate!(g, t, params)
-#
+
+
+# ex = :((p ∧ q ∨ (¬q ∧ (p => r) ∧ q)) => (s ∧ q))
+# prove(t, ex, 3)
+
 # extran = addanalysis!(g, ExtractionAnalysis, astsize)
 # ex = extract!(g, extran)
 # println(ex)

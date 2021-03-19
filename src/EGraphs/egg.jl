@@ -198,6 +198,7 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     # from_class.id = from
     to_class = g.M[to]
 
+    # Im the troublesome line!
     g.M[to] = union!(from_class, to_class)
     # to_class.id = to
 

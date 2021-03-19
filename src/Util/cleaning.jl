@@ -5,8 +5,9 @@ Remove LineNumberNode from quoted blocks of code
 rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
 rmlines(a) = a
 
+# TODO binarize block?
 """
-HARD FIX of n-arity of operators in `Expr` trees
+HARD FIX of n-arity of operators in `Expr` trees.
 """
 function binarize!(e, ops::Vector{Symbol})
     if !(e isa Expr)
