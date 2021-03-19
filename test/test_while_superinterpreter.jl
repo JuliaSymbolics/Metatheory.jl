@@ -7,7 +7,7 @@ import Base.ImmutableDict
 Mem = Dict{Symbol, Union{Bool, Int}}
 
 read_mem = @theory begin
-	(v::$Symbol, σ::$Mem) |> σ[v]
+	(v::$Symbol, σ::$Mem) |> if v == :skip σ else σ[v] end
 end
 
 @testset "Reading Memory" begin
@@ -70,21 +70,21 @@ t = read_mem ∪ arithm_rules ∪ bool_rules
 end
 
 if_rules = @theory begin
-	(if guard; t end) => (if guard; t else skip end)
+	(if guard; t end) => (if guard; t else :skip end)
 	(if guard; t else f end, σ::$Mem) => (if (guard, σ); t else f end, σ)
 	(if true; t else f end, σ::$Mem) => (t, σ)
 	(if false; t else f end, σ::$Mem) => (f, σ)
 end
 
-t = read_mem ∪ arithm_rules ∪ bool_rules ∪ if_rules
+if_language = read_mem ∪ arithm_rules ∪ bool_rules ∪ if_rules
 
 
 @testset "If Semantics" begin
-	@test areequal(t, 2, :(if true x else 0 end, 	$(Mem(:x => 2))); mod=@__MODULE__)
-	@test areequal(t, 0, :(if false x else 0 end, 	$(Mem(:x => 2))); mod=@__MODULE__)
-	@test areequal(t, 2, :(if ¬(false) x else 0 end, $(Mem(:x => 2))); mod=@__MODULE__)
+	@test areequal(if_language, 2, :(if true x else 0 end, 	$(Mem(:x => 2))); mod=@__MODULE__)
+	@test areequal(if_language, 0, :(if false x else 0 end, 	$(Mem(:x => 2))); mod=@__MODULE__)
+	@test areequal(if_language, 2, :(if ¬(false) x else 0 end, $(Mem(:x => 2))); mod=@__MODULE__)
 	params=SaturationParams(timeout=10)
-	@test areequal(t, 0, :(if ¬(2 < x) x else 0 end, $(Mem(:x => 3))); mod=@__MODULE__, params=params)
+	@test areequal(if_language, 0, :(if ¬(2 < x) x else 0 end, $(Mem(:x => 3))); mod=@__MODULE__, params=params)
 end
 
 
@@ -95,7 +95,7 @@ while_rules = @theory begin
 	(c1::$Bool; c2) => c2
 	(σ::$Mem; c2) => (c2, σ)
 	(while guard body end, σ::$Mem) =>
-		(if guard; (body; while guard body end) else skip end, σ)
+		(if guard; (body; while guard body end) else :skip end, σ)
 end
 
 
@@ -104,7 +104,7 @@ write_mem = @theory begin
 	(sym::Symbol = val::$Int, σ::$Mem) |> merge(σ, Dict(sym => val))
 end
 
-while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_rules;
+while_language = if_language ∪ write_mem ∪ while_rules;
 
 @testset "While Semantics" begin
 	exx = :((x = 3), $(Mem(:x => 2)))
@@ -117,11 +117,17 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__, params=params)
 
 	# FIXME bug!
-	# exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
-	# (g, ex) = @extract exx while_language astsize
-	# @test_broken areequal(while_language, Mem(:x => 4), exx; mod=@__MODULE__, params=params)
+	params=SaturationParams(timeout=12)
+	exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
+	@test areequal(while_language, Mem(:x => 4), exx; mod=@__MODULE__, params=params)
 	# exit(0)
-
-	# @test 10 == eval_while( :( while x < 10; x = x + 1 end ; x ) , Mem(:x => 3))
-	# @test 50 == eval_while( :( while x < y; (x = x + 1; y = y - 1) end ; x ) , Mem(:x => 0, :y => 100))
+	
+	exx = :(
+		(while x < 10
+			x = x + 1 
+		end; x), $(Mem(:x => 3)))
+	g = EGraph(exx)
+	params=SaturationParams(timeout=100, scheduler=Schedulers.SimpleScheduler)
+	saturate!(g, while_language, params)
+	@test 10 == extract!(g, astsize)
 end

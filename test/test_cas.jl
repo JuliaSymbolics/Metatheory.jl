@@ -97,7 +97,6 @@ ex3 = :("ciao" * " mondo")
 
 ## Theory for CAS
 
-
 mult_t = commutative_monoid(:(*), 1)
 plus_t = commutative_monoid(:(+), 0)
 
@@ -197,7 +196,7 @@ Metatheory.options[:verbose] = false
 Metatheory.options[:printiter] = false
 
 function simplify(ex)
-    rep = @timev begin
+    # rep = @timev begin
         g = EGraph(ex)
         params = SaturationParams(
             scheduler=ScoredScheduler,
@@ -207,14 +206,14 @@ function simplify(ex)
         )
         saturate!(g, cas, params)
         res = extract!(g, astsize)
-        println(res)
+        # println(res)
         # for (id, ec) ∈ g.M
         #     println(id, " => ", collect(ec.nodes))
         #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
         # end
         res = rewrite(res, canonical_t; clean=false, m=@__MODULE__)
-    end
-    rep
+    # end
+    # rep
 end
 
 macro simplify(ex)

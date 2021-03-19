@@ -139,10 +139,6 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
 
         writestep!(scheduler, rule)
 
-        # l = remove_assertions(rule.left)
-        # println("THE ONE IT MATCHED ON = ", lc)
-        # lc = addexprinst!(egraph, l, sub, :left).id
-        # println("THE INSTANTIATED ONE = ", lc)
 
         if rule.mode == :symbolic || rule.mode == :equational || rule.mode == :unequal # symbolic replacement
             if isright
