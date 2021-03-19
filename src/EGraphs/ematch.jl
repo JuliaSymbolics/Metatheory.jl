@@ -34,7 +34,7 @@ function ematchlist(e::EGraph, t::AbstractVector{Any}, v::AbstractVector{Int64},
     return buf
 end
 
-# sub should be a map from pattern variables to Id
+# Tries to match on a pattern variable
 function ematchstep(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     if haskey(sub, t)
         if find(e, first(sub[t])) == find(e, v)
@@ -46,6 +46,7 @@ function ematchstep(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=S
     return buf
 end
 
+# Tries to match on literals
 function ematchstep(e::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     id = find(e,v)
     for n in e.M[id]
@@ -62,8 +63,9 @@ function ematchstep(e::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())
     return buf
 end
 
-
+# tries to match on composite expressions
 function ematchstep(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+
 
     for n in e.M[find(e,v)]
         if isexpr(t, :(::)) && ariety(n) == 0
@@ -99,8 +101,8 @@ function ematchstep(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=Sub
         end
 
         # otherwise ematch on an expr
-        (!(ariety(n) > 0) || n.head != gethead(t)) && continue
-        ematchlist(e, getargs(t), n.args, sub; buf=buf)
+        (ariety(n) > 0) && n.head == gethead(t) && length(getargs(t)) == length(n.args) || continue
+         ematchlist(e, getargs(t), n.args, sub; buf=buf)
     end
     return buf
 end

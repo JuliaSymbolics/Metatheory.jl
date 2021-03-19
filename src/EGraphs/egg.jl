@@ -82,10 +82,10 @@ find(g::EGraph, a::EClass)::Int64 = find_root!(g.U, a.id)
 function geteclass(g::EGraph, a::Int64)::EClass
     id = find(g, a)
     ec = g.M[id]
-    ec.id = id
+    # ec.id = id
     ec
 end
-geteclass(g::EGraph, a::EClass)::Int64 = a
+# geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
 
 
 ### Definition 2.3: canonicalization
