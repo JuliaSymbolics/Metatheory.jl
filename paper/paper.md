@@ -126,7 +126,7 @@ div_sim = @theory begin
   a::Real / a::Real  |>  (a != 0 ? 1 : error("division by 0"))
 end;
 
-t = comm_monoid ∪ comm_group ∪ folder ∪ div_sim ;
+t = union(comm_monoid, comm_group, folder, div_sim) ;
 
 g = EGraph(:(a * (2*3) / 6)) ;
 saturate!(g, t) ;
