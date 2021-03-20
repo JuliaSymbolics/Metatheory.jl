@@ -19,13 +19,13 @@ function areequal(G::EGraph, t::Vector{Rule}, exprs...;
 
     @log "starting saturation"
 
-    alleq = () -> (all(x -> in_same_set(G.U, ids[1], x), ids[2:end]))
+    alleq = () -> (all(x -> in_same_set(G.uf, ids[1], x), ids[2:end]))
 
     params.stopwhen = alleq
 
     report = saturate!(G, t, params; mod=mod)
 
-    # display(G.M); println()
+    # display(G.emap); println()
 
     alleq()
 end

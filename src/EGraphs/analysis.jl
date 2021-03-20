@@ -11,7 +11,7 @@ analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, id::Int64) =
 
 
 function analyze!(g::EGraph, an::Type{<:AbstractAnalysis})
-    analyze!(g, an, collect(keys(g.M)))
+    analyze!(g, an, collect(keys(g.emap)))
 end
 
 """
@@ -29,8 +29,8 @@ function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
         did_something = false
 
         for id ∈ ids
-            id = find(g, id)
-            eclass = g.M[id]
+            eclass = geteclass(g, id)
+            id = eclass.id
             pass = mapreduce(x -> make(an, g, x), (x, y) -> join(an, x, y), eclass)
             # pass = make_pass(G, analysis, find(G,id))
 
@@ -44,10 +44,10 @@ function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
     end
 
     for id ∈ ids
-        id = find(g, id)
-        eclass = g.M[id]
+        eclass = geteclass(g, id)
+        id = eclass.id
         if !hasdata(eclass, an)
-            # display(g.M[id]); println()
+            # display(g.emap[id]); println()
             # display(analysis.data); println()
             error("failed to compute analysis for eclass ", id)
         end

@@ -26,7 +26,7 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol, r::Rule)::ECla
         # for (k,v) ∈ sub
         #     println("$k => $v"); println()
         # end
-        # println.(sort(collect(G.M); lt=((x,y)-> x[1] < y[1])))
+        # println.(sort(collect(G.emap); lt=((x,y)-> x[1] < y[1])))
         error("unbound pattern variable $pat in rule $r")
     elseif side == :right && pat isa QuoteNode && pat.value isa Symbol
         pat = pat.value
@@ -60,13 +60,13 @@ function cached_ids(egraph::EGraph, side)#::Vector{Int64}
     # outermost symbol in rule side
     # side = remove_assertions(side)
     # side = unquote_sym(side)
-    # if istree(side)
-    #     sym = gethead(side)
-    #     get(egraph.symcache, (sym, length(getargs(side))), [])
-    # else
-        # collect(keys(egraph.M))
-    keys(egraph.M)
-    # end
+    if istree(side)
+        sym = gethead(side)
+        get(egraph.symcache, sym, [])
+    else
+        # collect(keys(egraph.emap))
+        keys(egraph.emap)
+    end
 end
 
 function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
@@ -90,7 +90,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
                 if rule.left == :(a + (-b))
                     ks = collect(keys(sub))
                     println(rule)
-                    println(egraph.M[id])
+                    println(egraph.emap[id])
                     println(rule.patvars)
                     println(ks)
 
@@ -124,7 +124,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         i += 1
 
         if i % 300 == 0
-            if params.sizeout > 0 && length(egraph.U) > params.sizeout
+            if params.sizeout > 0 && length(egraph.uf) > params.sizeout
                 @log "E-GRAPH SIZEOUT"
                 report.reason = :sizeout
                 return report
@@ -181,7 +181,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         # println(rule)
         # println(sub)
         # println(l); println(r)
-        # display(egraph.M); println()
+        # display(egraph.emap); println()
     end
     return report
 end
@@ -229,7 +229,7 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     union!(match_hist, matches)
 
     # display(egraph.parents); println()
-    # display(egraph.M); println()
+    # display(egraph.emap); println()
     @label quit_rebuild
     report.saturated = isempty(egraph.dirty) && report.reason === nothing
     rebuild_stats = @timed rebuild!(egraph)
@@ -275,12 +275,12 @@ function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParam
         report.reason == :contradiction && break
         cansaturate(sched) && report.saturated && (tot_report.saturated = true; break)
         curr_iter >= params.timeout && (tot_report.reason = :timeout; break)
-        params.sizeout > 0 && length(egraph.U) > params.sizeout && (tot_report.reason = :sizeout; break)
+        params.sizeout > 0 && length(egraph.uf) > params.sizeout && (tot_report.reason = :sizeout; break)
         params.stopwhen() && (tot_report.reason = :condition; break)
     end
     # println(match_hist)
 
-    # display(egraph.M); println()
+    # display(egraph.emap); println()
     tot_report.iterations = curr_iter
     @log tot_report
     # GC.enable(true)

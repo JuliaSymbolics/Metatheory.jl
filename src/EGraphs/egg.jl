@@ -22,10 +22,10 @@ for implementation details
 """
 mutable struct EGraph
     """stores the equality relations over e-class ids"""
-    U::IntDisjointSets
+    uf::IntDisjointSets
     """map from eclass id to eclasses"""
-    M::ClassMem             #
-    H::HashCons             # hashcons
+    emap::ClassMem             #
+    hashcons::HashCons             # hashcons
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
     root::Int64
@@ -75,21 +75,20 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-find(g::EGraph, a::Int64)::Int64 = find_root!(g.U, a)
-find(g::EGraph, a::EClass)::Int64 = find_root!(g.U, a.id)
+find(g::EGraph, a::Int64)::Int64 = find_root!(g.uf, a)
+find(g::EGraph, a::EClass)::Int64 = find_root!(g.uf, a.id)
 
 
 function geteclass(g::EGraph, a::Int64)::EClass
     id = find(g, a)
-    ec = g.M[id]
-    # ec.id = id
+    ec = g.emap[id]
+    ec.id = id
     ec
 end
 # geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
 
 
 ### Definition 2.3: canonicalization
-# iscanonical(U::IntDisjointSets, n::Expr) = n == canonicalize(U, n)
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
@@ -104,21 +103,21 @@ function add!(g::EGraph, n::ENode)::EClass
     @debug("adding ", n)
 
     n = canonicalize!(g, n)
-    if haskey(g.H, n)
-        return geteclass(g, find(g, g.H[n]))
+    if haskey(g.hashcons, n)
+        return geteclass(g, find(g, g.hashcons[n]))
     end
-    @debug(n, " not found in H")
+    @debug(n, " not found in hashcons")
 
-    id = push!(g.U) # create new singleton eclass
+    id = push!(g.uf) # create new singleton eclass
 
     for c_id ∈ n.args
-        addparent!(g.M[c_id], n, id)
+        addparent!(g.emap[c_id], n, id)
     end
 
-    g.H[n] = id
+    g.hashcons[n] = id
 
     classdata = EClass(id, OrderedSet([n]), OrderedDict{ENode, Int64}())
-    g.M[id] = classdata
+    g.emap[id] = classdata
 
     # cache the eclass for the symbol for faster matching
     sym = n.head
@@ -139,7 +138,7 @@ function add!(g::EGraph, n::ENode)::EClass
 end
 
 """
-Recursively traverse an [`Expr`](@ref) and insert terms into an
+Recursively traverse an type satisfying the `TermInterface` and insert terms into an
 [`EGraph`](@ref). If `e` is not an [`Expr`](@ref), then directly
 insert the literal into the [`EGraph`](@ref).
 """
@@ -157,7 +156,7 @@ function addexpr_rec!(g::EGraph, e)::EClass
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexpr!(g, child)
+            c_eclass = addexpr_rec!(g, child)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode(e, class_ids)
@@ -172,9 +171,9 @@ addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
 function clean_enode!(g::EGraph, t::ENode, to::Int64)
     nt = canonicalize!(g, t)
     if nt != t
-        delete!(g.H, t)
+        delete!(g.hashcons, t)
     end
-    g.H[nt] = to
+    g.hashcons[nt] = to
     return t
 end
 
@@ -186,7 +185,7 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     id_a = find(g, a)
     id_b = find(g, b)
     id_a == id_b && return id_a
-    to = union!(g.U, id_a, id_b)
+    to = union!(g.uf, id_a, id_b)
 
     @debug "merging" id_a id_b
 
@@ -194,16 +193,17 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
 
     push!(g.dirty, to)
 
-    from_class = g.M[from]
-    # from_class.id = from
-    to_class = g.M[to]
+    from_class = g.emap[from]
+    from_class.id = from
+    to_class = g.emap[to]
+    to_class.id = to
 
     # Im the troublesome line!
-    g.M[to] = union!(from_class, to_class)
+    g.emap[to] = union!(from_class, to_class)
     # to_class.id = to
 
-    # g.M[from] = g.M[to]
-    delete!(g.M, from)
+    # g.emap[from] = g.emap[to]
+    delete!(g.emap, from)
 
     return to
 end
@@ -232,29 +232,34 @@ function rebuild!(egraph::EGraph)
         egraph.root = find(egraph, egraph.root)
     end
 
-    # for i ∈ 1:length(egraph.U)
-    #     find_root!(egraph.U, i)
+    # for i ∈ 1:length(egraph.uf)
+    #     find_root!(egraph.uf, i)
     # end
     # INVARIANTS ASSERTIONS
-    # for (id, c) ∈  egraph.M
-    # #     ecdata.nodes = map(n -> canonicalize(egraph.U, n), ecdata.nodes)
-    #     for an ∈ egraph.analyses
-    #         if haskey(an, id)
-    #             @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
-    #         end
-    #     end
-    #
-    #     for n ∈ c
-    #         # println(n)
-    #         # println("canon = ", canonicalize(egraph, n))
-    #         @assert egraph.H[canonicalize(egraph, n)] == find(egraph, id)
-    #     end
+    # for (id, c) ∈  egraph.emap
+    #     ecdata.nodes = map(n -> canonicalize(egraph.uf, n), ecdata.nodes)
+        # println(id, "=>", c.id)
+        # @assert(id == c.id)
+        # for an ∈ egraph.analyses
+        #     if haskey(an, id)
+        #         @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
+        #     end
+        # end
+    
+        # for n ∈ c
+        #     println(n)
+        #     println("canon = ", canonicalize(egraph, n))
+        #     hr = egraph.hashcons[canonicalize(egraph, n)]
+        #     println(hr)
+        #     @assert hr == find(egraph, id)
+        # end
     # end
 end
 
 function repair!(g::EGraph, id::Int64)
     id = find(g, id)
-    ecdata = g.M[id]
+    ecdata = g.emap[id]
+    ecdata.id = id
     @debug "repairing " id
 
     for (p_enode, p_eclass) ∈ ecdata.parents
@@ -275,7 +280,7 @@ function repair!(g::EGraph, id::Int64)
     ecdata.parents = new_parents
     @debug "updated parents " id g.parents[id]
 
-    # ecdata.nodes = map(n -> canonicalize(g.U, n), ecdata.nodes)
+    # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
     # Analysis invariant maintenance
     for an ∈ g.analyses
@@ -284,7 +289,7 @@ function repair!(g::EGraph, id::Int64)
         # id = find(g, id)
         for (p_enode, p_id) ∈ ecdata.parents
             # p_eclass = find(g, p_eclass)
-            p_eclass = g.M[p_id]
+            p_eclass = g.emap[p_id]
             if !islazy(an) && !hasdata(p_eclass, an)
                 setdata!(p_eclass, an, make(an, g, p_enode))
             end
@@ -300,7 +305,7 @@ function repair!(g::EGraph, id::Int64)
         end
     end
 
-    # ecdata.nodes = map(n -> canonicalize(g.U, n), ecdata.nodes)
+    # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
 end
 
@@ -315,7 +320,7 @@ function reachable(g::EGraph, id::Int64)
     todo = Int64[id]
     while !isempty(todo)
         curr = find(g, pop!(todo))
-        for n ∈ g.M[curr]
+        for n ∈ g.emap[curr]
             nn = canonicalize(g, n)
             # println("node in reachability is ", n)
             for c_id ∈ nn.args

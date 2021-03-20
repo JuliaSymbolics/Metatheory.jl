@@ -35,28 +35,28 @@ function ematchlist(e::EGraph, t::AbstractVector{Any}, v::AbstractVector{Int64},
 end
 
 # Tries to match on a pattern variable
-function ematchstep(e::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+function ematchstep(g::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     if haskey(sub, t)
-        if find(e, first(sub[t])) == find(e, v)
+        if find(g, first(sub[t])) == find(g, v)
             push!(buf, sub)
         end
     else
-        push!(buf, Base.ImmutableDict(sub, t => (geteclass(e, find(e, v)), lit)))
+        push!(buf, Base.ImmutableDict(sub, t => (geteclass(g, find(g, v)), lit)))
     end
     return buf
 end
 
 # Tries to match on literals
-function ematchstep(e::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
-    id = find(e,v)
-    for n in e.M[id]
+function ematchstep(g::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+    ec = geteclass(g, v)
+    for n in ec
         if (t isa QuoteNode ? t.value : t) == n.head
             if haskey(sub, t)
-                if find(e, first(sub[t])) == id
+                if find(g, first(sub[t])) == ec.id
                     push!(buf, sub)
                 end
             else
-                push!(buf, Base.ImmutableDict(sub, t => (geteclass(e, id), n.head)))
+                push!(buf, Base.ImmutableDict(sub, t => (ec, n.head)))
             end
         end
     end
@@ -64,10 +64,9 @@ function ematchstep(e::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())
 end
 
 # tries to match on composite expressions
-function ematchstep(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
-
-
-    for n in e.M[find(e,v)]
+function ematchstep(g::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+    ec = geteclass(g, v)
+    for n in ec
         if isexpr(t, :(::)) && ariety(n) == 0
             # right hand of type assertion
             # tr = t.args[2]
@@ -96,13 +95,13 @@ function ematchstep(e::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=Sub
             # end
 
             !(typeof(n.head) <: typ) && continue
-            ematchstep(e, t.args[1], v, sub; lit=n.head, buf=buf)
+            ematchstep(g, t.args[1], v, sub; lit=n.head, buf=buf)
             continue
         end
 
         # otherwise ematch on an expr
         (ariety(n) > 0) && n.head == gethead(t) && length(getargs(t)) == length(n.args) || continue
-         ematchlist(e, getargs(t), n.args, sub; buf=buf)
+         ematchlist(g, getargs(t), n.args, sub; buf=buf)
     end
     return buf
 end

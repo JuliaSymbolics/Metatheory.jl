@@ -47,7 +47,7 @@ function ScoredScheduler(g::EGraph, theory::Vector{Rule})
 end
 
 function ScoredScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::Int, complexity::Function)
-    gsize = length(G.U)
+    gsize = length(G.uf)
     data = Dict{Rule, ScoredSchedulerEntry}()
 
     # These numbers seem to fit

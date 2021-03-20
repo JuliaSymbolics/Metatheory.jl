@@ -22,21 +22,21 @@ end
 #     end
 #
 #     G = EGraph(:(2*3))
-#     display(G.M); println()
+#     display(G.emap); println()
 #     res = areequal(G, some_theory, :(2 * 3), :(sametype($Int64)))
-#     display(G.M); println()
+#     display(G.emap); println()
 #     @test res
 #
 #     G = EGraph(:(2*"ciao"))
-#     display(G.M); println()
+#     display(G.emap); println()
 #     res = !areequal(G, some_theory, :(2 * "ciao"), :(sametype($Int64)))
-#     display(G.M); println()
+#     display(G.emap); println()
 #     @test res
 #
 #     G = EGraph(:("ciaoz"*"ciao"))
-#     display(G.M); println()
+#     display(G.emap); println()
 #     res = areequal(G, some_theory, :("ciaoz" * "ciao"), :(sametype($String)))
-#     display(G.M); println()
+#     display(G.emap); println()
 #     @test res
 #     # @test true == areequal(G, some_theory, :(matched(2,3)), :(specific(3,2)))
 # end

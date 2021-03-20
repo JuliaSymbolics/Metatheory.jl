@@ -32,7 +32,7 @@ function BackoffScheduler(g::EGraph, theory::Vector{Rule})
 end
 
 function BackoffScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::Int)
-    gsize = length(G.U)
+    gsize = length(G.uf)
     data = Dict{Rule, BackoffSchedulerEntry}()
 
     # These numbers seem to fit

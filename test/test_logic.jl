@@ -140,7 +140,7 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
 # @time saturate!(g, t; timeout=30, sizeout=Inf)
 #
-# in_same_set(g.U, g.root, addexpr!(g, true).id) |> println
+# in_same_set(g.uf, g.root, addexpr!(g, true).id) |> println
 #
 # struct LogicAnalysis <: AbstractAnalysis
 #     egraph::EGraph
