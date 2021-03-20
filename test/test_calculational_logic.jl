@@ -96,7 +96,7 @@ params = SaturationParams(timeout=12, sizeout=2^15)
 # println(extract!(g, extran))
 
 #
-# in_same_set(g.U, g.root, addexpr!(g, true).id) |> println
+# in_same_set(g.uf, g.root, addexpr!(g, true).id) |> println
 #
 # struct LogicAnalysis <: AbstractAnalysis
 #     egraph::EGraph

@@ -3,6 +3,7 @@ module TermInterface
 using ..Util
 using Base.Meta
 
+# TODO document this interface for extending for custom types
 # Interface for Expr. Implement these methods for your own type to
 # Use it instead of Expr in egraphs!
 gethead(e::Expr) = isexpr(e, :call) ? e.args[1] : e.head

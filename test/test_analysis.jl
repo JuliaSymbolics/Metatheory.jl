@@ -11,8 +11,8 @@ function EGraphs.make(an::Type{NumberFold}, g::EGraph, n::ENode)
     n.head isa Number && return n.head
 
     if ariety(n) == 2
-        l = g.M[n.args[1]]
-        r = g.M[n.args[2]]
+        l = g.emap[n.args[1]]
+        r = g.emap[n.args[2]]
         ldata = getdata(l, an, nothing)
         rdata = getdata(r, an, nothing)
 
@@ -40,7 +40,7 @@ end
 
 function EGraphs.modify!(an::Type{NumberFold}, g::EGraph, id::Int64)
     # !haskey(an, id) && return nothing
-    eclass = g.M[id]
+    eclass = g.emap[id]
     d = getdata(eclass, an, nothing)
     if d isa Number
         newclass = addexpr!(g, d)
@@ -84,7 +84,7 @@ end
     addanalysis!(G, NumberFold)
     saturate!(G, comm_monoid)
 
-    # display(G.M); println()
+    # display(G.emap); println()
     # println(G.root)
     # display(G.analyses[1].data); println()
 

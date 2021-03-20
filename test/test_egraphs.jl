@@ -10,7 +10,7 @@
     G = EGraph(testexpr)
     t2 = addexpr!(G, testmatch)
     merge!(G, t2.id, 3)
-    @test in_same_set(G.U, t2.id, 3) == true
+    @test in_same_set(G.uf, t2.id, 3) == true
     # DOES NOT UPWARD MERGE
 end
 
@@ -22,22 +22,22 @@ end
     t1 = addexpr!(G, :b)
 
     t2 = addexpr!(G, :c)
-    # display(G.M); println()
+    # display(G.emap); println()
 
     c_id = merge!(G, t2.id, t1.id)
-    # display(G.M); println()
-    @test in_same_set(G.U, c_id, t1.id)
-    @test in_same_set(G.U, t2.id, t1.id)
-    # println(find_root!(G.U, t2.id))
-    @test find_root!(G.U, t2.id) == 4
+    # display(G.emap); println()
+    @test in_same_set(G.uf, c_id, t1.id)
+    @test in_same_set(G.uf, t2.id, t1.id)
+    # println(find_root!(G.uf, t2.id))
+    @test find_root!(G.uf, t2.id) == 4
     rebuild!(G)
     # f(a,b) = f(a,c)
-    # display(G.M); println()
-    # display(G.H); println()
+    # display(G.emap); println()
+    # display(G.hashcons); println()
     # display(G.parents); println()
 
 
-    @test in_same_set(G.U, 5, 3)
+    @test in_same_set(G.uf, 5, 3)
 end
 
 
@@ -53,20 +53,20 @@ end
     c_id = merge!(G, t1.id, 1) # a == apply(6,f,a)
     c2_id = merge!(G, t2.id, 1) # a == apply(9,f,a)
 
-    # display(G.M); println()
+    # display(G.emap); println()
 
     rebuild!(G)
 
-    # display(G.M); println()
+    # display(G.emap); println()
 
     t3 = addexpr!(G, apply(3, f, :a))
     t4 = addexpr!(G, apply(7, f, :a))
 
     # f^m(a) = a = f^n(a) ⟹ f^(gcd(m,n))(a) = a
-    @test in_same_set(G.U, t1.id, 1) == true
-    @test in_same_set(G.U, t2.id, 1) == true
-    @test in_same_set(G.U, t3.id, 1) == true
-    @test in_same_set(G.U, t4.id, 1) == false
+    @test in_same_set(G.uf, t1.id, 1) == true
+    @test in_same_set(G.uf, t2.id, 1) == true
+    @test in_same_set(G.uf, t3.id, 1) == true
+    @test in_same_set(G.uf, t4.id, 1) == false
 
     # if m or n is prime, f(a) = a
     t5 = addexpr!(G, apply(11, f, :a))
@@ -75,6 +75,6 @@ end
 
     rebuild!(G)
 
-    @test in_same_set(G.U, t5.id, 1) == true
-    @test in_same_set(G.U, t6.id, 1) == true
+    @test in_same_set(G.uf, t5.id, 1) == true
+    @test in_same_set(G.uf, t6.id, 1) == true
 end

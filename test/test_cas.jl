@@ -73,8 +73,8 @@ EGraphs.islazy(x::Type{TypeAnalysis}) = true
 
 ##
 
-# display(g.M); println()
-# for (k, ec) ∈ g.M
+# display(g.emap); println()
+# for (k, ec) ∈ g.emap
 #     println(k)
 #     println(collect(ec.nodes))
 #     println(getdata(ec, TypeAnalysis, nothing))
@@ -207,7 +207,7 @@ function simplify(ex)
         saturate!(g, cas, params)
         res = extract!(g, astsize)
         # println(res)
-        # for (id, ec) ∈ g.M
+        # for (id, ec) ∈ g.emap
         #     println(id, " => ", collect(ec.nodes))
         #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
         # end

@@ -35,7 +35,7 @@ join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : 
 islazy(a::Type{<:ExtractionAnalysis}) = true
 
 function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
-    eclass = g.M[id]
+    eclass = geteclass(g, id)
     (cn, ck) = getdata(eclass, an)
     (ariety(cn) == 0 || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
@@ -61,7 +61,7 @@ function extractnode(n::ENode{Expr}, extractor::Function)::Expr
     return Expr(expr_head, expr_args...)
 end
 
-function extractnode(n::ENode, extractor::Function) where T
+function extractnode(n::ENode{T}, extractor::Function) where T
     if ariety(n) > 0
         error("ENode extraction is not defined for non-literal type $T")
     end
