@@ -1,7 +1,7 @@
 name = "Metatheory"
 uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
-version = "0.3"
+version = "0.3.0"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -14,9 +14,9 @@ RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 DataStructures = "0.18.9"
 DocStringExtensions = "0.8"
 MatchCore = "0.1.0"
+Parameters = "0.12"
 RuntimeGeneratedFunctions = "0.5.1"
 julia = "1"
-Parameters = "0.12"
 
 [extras]
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
