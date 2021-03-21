@@ -1,7 +1,7 @@
 name = "Metatheory"
 uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
