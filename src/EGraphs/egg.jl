@@ -57,9 +57,9 @@ function EGraph(e)
     g
 end
 
-function canonicalize(g::EGraph, n::ENode)
+function canonicalize(g::EGraph, n::ENode{T}) where T
     new_args = map(x -> find(g, x), n.args)
-    typeof(n)(n.head, new_args, n.metadata)
+    ENode{T}(n.head, new_args, n.metadata)
 end
 
 
@@ -67,6 +67,7 @@ function canonicalize!(g::EGraph, n::ENode)
     for i ∈ 1:ariety(n)
         n.args[i] = find(g, n.args[i])
     end
+    n.hash[] = UInt(0)
     return n
     # n.args = map(x -> find(g, x), n.args)
 end
@@ -102,7 +103,7 @@ Inserts an e-node in an [`EGraph`](@ref)
 function add!(g::EGraph, n::ENode)::EClass
     @debug("adding ", n)
 
-    n = canonicalize!(g, n)
+    n = canonicalize(g, n)
     if haskey(g.hashcons, n)
         return geteclass(g, find(g, g.hashcons[n]))
     end
@@ -168,11 +169,12 @@ end
 
 addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
 
+"""
+Canonicalize an [`ENode`](@ref) and reset it from the hashcons.
+"""
 function clean_enode!(g::EGraph, t::ENode, to::Int64)
-    nt = canonicalize!(g, t)
-    if nt != t
-        delete!(g.hashcons, t)
-    end
+    delete!(g.hashcons, t)
+    nt = canonicalize(g, t)
     g.hashcons[nt] = to
     return t
 end

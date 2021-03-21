@@ -54,16 +54,21 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
     # println("symval $symval")
     # println("child types $child_types")
 
-    t_arr = map(last, code_typed(symval, child_types))
+    # t_arr = map(last, code_typed(symval, child_types))
 
-    if length(t_arr) == 0
-        error("TYPE ERROR. No method for $(n.head) with types $child_types")
-    elseif length(t_arr) !== 1
-        error("AMBIGUOUS TYPES! $n $t_arr")
+    # if length(t_arr) == 0
+    #     error("TYPE ERROR. No method for $(n.head) with types $child_types")
+    # elseif length(t_arr) !== 1
+    #     error("AMBIGUOUS TYPES! $n $t_arr")
+    # end
+
+    # t = t_arr[1]
+    t = Core.Compiler.return_type(symval, child_types)
+
+    if t == Union{}
+        throw(MethodError(symval, child_types...))
     end
-
-    t = t_arr[1]
-    # println("inferred type is $t")
+    # println("analyzed type of $n is $t")
     return t
 end
 
@@ -92,7 +97,7 @@ ex2 = :("ciao" * 2)
 ex3 = :("ciao" * " mondo")
 
 @test ComplexF64 == infer(ex1)
-@test_throws ErrorException infer(ex2)
+@test_throws MethodError infer(ex2)
 @test String == infer(ex3)
 
 ## Theory for CAS

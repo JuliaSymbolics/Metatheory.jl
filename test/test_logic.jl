@@ -1,5 +1,8 @@
-
 # Metatheory.options[:printiter] = true
+using Metatheory
+using Metatheory.EGraphs
+using Metatheory.Classic
+using Test
 
 or_alg = @theory begin
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
@@ -111,9 +114,11 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 @test prove(t, ex, 3)
 
 # using Metatheory.EGraphs.Schedulers
+# Metatheory.options[:verbose] = true
+# Metatheory.options[:printiter] = true
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
-# params = SaturationParams(timeout=10, sizeout=2^15, scheduler=ScoredScheduler)
+# params = SaturationParams(timeout=10, sizeout=2^15)#, scheduler=ScoredScheduler)
 # @profview saturate!(g, t, params)
 
 
@@ -146,3 +151,4 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 #     egraph::EGraph
 #     logic_egraph::EGraph
 # end
+

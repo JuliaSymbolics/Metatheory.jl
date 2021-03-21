@@ -9,7 +9,7 @@ abstract type AbstractScheduler end
 """
 Should return true if the e-graph can be said to be saturated
 """
-cansaturate(s::AbstractScheduler) = error("not implemented")
+cansaturate(s::AbstractScheduler)::Bool = error("not implemented")
 
 """
 Should return true if the rule `r` should be skipped
