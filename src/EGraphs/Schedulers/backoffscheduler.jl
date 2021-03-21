@@ -24,7 +24,7 @@ struct BackoffScheduler <: AbstractScheduler
     theory::Vector{Rule}
 end
 
-shouldskip(s::BackoffScheduler, r::Rule) = s.data[r].banremaining > 0
+shouldskip(s::BackoffScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
 
 
 function BackoffScheduler(g::EGraph, theory::Vector{Rule})
@@ -45,7 +45,7 @@ end
 
 
 # can saturate if there's no banned rule
-cansaturate(s::BackoffScheduler) = all(kv -> !isbanned(last(kv)), s.data)
+cansaturate(s::BackoffScheduler)::Bool = all(kv -> !isbanned(last(kv)), s.data)
 
 function readstep!(s::BackoffScheduler)
     for rule ∈ s.theory

@@ -6,7 +6,7 @@ mutable struct ScoredSchedulerEntry
     weight::Int          # bantime multiplier, low = good
 end
 
-isbanned(d::ScoredSchedulerEntry) = d.banremaining > 0
+isbanned(d::ScoredSchedulerEntry)::Bool = d.banremaining > 0
 
 
 """
@@ -25,7 +25,7 @@ struct ScoredScheduler <: AbstractScheduler
     theory::Vector{Rule}
 end
 
-shouldskip(s::ScoredScheduler, r::Rule) = s.data[r].banremaining > 0
+shouldskip(s::ScoredScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
 
 function exprsize(e)
     if !(e isa Expr)
@@ -74,7 +74,7 @@ function ScoredScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::In
 end
 
 # can saturate if there's no banned rule
-cansaturate(s::ScoredScheduler) = all(kv -> !isbanned(last(kv)), s.data)
+cansaturate(s::ScoredScheduler)::Bool = all(kv -> !isbanned(last(kv)), s.data)
 
 function readstep!(s::ScoredScheduler)
     for rule ∈ s.theory

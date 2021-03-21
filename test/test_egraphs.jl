@@ -34,8 +34,11 @@ end
     # f(a,b) = f(a,c)
     # display(G.emap); println()
     # display(G.hashcons); println()
-    # display(G.parents); println()
 
+    # for (id, ec) ∈ G.emap
+    #     println(id)
+    #     dump.(ec.nodes)
+    # end
 
     @test in_same_set(G.uf, 5, 3)
 end

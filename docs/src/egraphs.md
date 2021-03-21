@@ -2,7 +2,8 @@
 
 
 An EGraph is an efficient data structure for representing congruence relations.
-Over the past decade, several projects have repurposed EGraphs to implement state-of-the-art, rewrite-driven compiler optimizations and program synthesizers using a technique known as equality saturation.
+EGraphs are data structures originating from theorem provers. Several projects have very recently 
+repurposed EGraphs to implement state-of-the-art, rewrite-driven compiler optimizations and program synthesizers using a technique known as equality saturation.
 Metatheory.jl provides a general purpose, customizable implementation of EGraphs and equality saturation, inspired from the [egg](https://egraphs-good.github.io/) library for Rust. You can read more about the design
 of the EGraph data structure and equality saturation algorithm in the
 [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304).
