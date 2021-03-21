@@ -1,7 +1,6 @@
 using Metatheory 
 using Metatheory.EGraphs 
 using Test
-using AutoHashEquals
 
 @metatheory_init ()
 
