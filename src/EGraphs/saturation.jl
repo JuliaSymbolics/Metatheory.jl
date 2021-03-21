@@ -86,17 +86,6 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
 
         for id ∈ ids
             for sub in ematch(egraph, rule.left, id)
-
-                if rule.left == :(a + (-b))
-                    ks = collect(keys(sub))
-                    println(rule)
-                    println(egraph.emap[id])
-                    println(rule.patvars)
-                    println(ks)
-
-                    !isempty(sub) && !isempty(symdiff(rule.patvars, ks)) && error("damnnn")
-                end
-
                 # display(sub); println()
                 !isempty(sub) && push!(matches, (rule, sub, id, false))
             end
