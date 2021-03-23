@@ -36,7 +36,12 @@ islazy(a::Type{<:ExtractionAnalysis}) = true
 
 function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
     eclass = geteclass(g, id)
-    (cn, ck) = getdata(eclass, an)
+    anval = getdata(eclass, an, missing)
+    if anval === missing 
+        analyze!(g, an, id)
+        anval = getdata(eclass, an)
+    end
+    (cn, ck) = anval
     (ariety(cn) == 0 || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
     extractnode(cn, extractor)
@@ -73,12 +78,14 @@ Given an [`ExtractionAnalysis`](@ref), extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
 function extract!(g::EGraph, a::Type{ExtractionAnalysis{F}} where F; root=-1)
+    # @show root g.root
     if root == -1
         root = g.root
     end
+    # @show root g.root
     analyze!(g, a, root)
     !(a ∈ g.analyses) && error("Extraction analysis is not associated to EGraph")
-    rec_extract(g, a, g.root)
+    rec_extract(g, a, root)
 end
 
 """

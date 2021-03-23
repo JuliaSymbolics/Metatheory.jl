@@ -109,9 +109,9 @@ minus_t = @theory begin
     a - a       => 0
     a - b       => a + (-1*b)
     -a          => -1 * a
-    # TODO FIXME this rules bugs the pattern matcher
     a + (-b)    => a + (-1*b)
 end
+
 
 mulplus_t = @theory begin
     # TODO FIXME this rules improves performance and avoids commutative
@@ -131,13 +131,15 @@ pow_t = @theory begin
     0^x         => 0
     1^x         => 1
     x^1         => x
+    x * x       => x^2
     inv(x)      == x^(-1)
 end
 
 div_t = @theory begin
     x / 1 => x
     # x / x => 1 TODO SIGN ANALYSIS
-    x * (x / y) => 1 / y
+    x / (x / y) => y
+    x * (y / x) => y
     x * (y / z) == (x * y) / z
     x^(-1)      == 1 / x
 end
@@ -164,30 +166,46 @@ fold_t = @theory begin
     a::Number / b::Number   |> a/b
 end
 
-
+diff_t = @theory begin
+    ∂(y, x::Symbol) |> begin 
+        z = extract!(_egraph, simplcost; root=y.id)
+        @show z
+        zd = differentiate(z, x)
+        @show zd
+        zd
+    end
+end
 
 cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪
-    mulplus_t ∪ pow_t ∪ div_t ∪ trig_t
+    mulplus_t ∪ pow_t ∪ div_t ∪ trig_t ∪ diff_t
+
+
 
 using Metatheory.TermInterface
 
+# ==================================================================
 ## Canonicalization
 
 
 function customlt(x,y)
-    if typeof(x) == Expr && Expr == typeof(y)
+    if typeof(x) == Expr && typeof(y) == Expr 
         false
     elseif typeof(x) == typeof(y)
         isless(x,y)
     elseif x isa Symbol && y isa Number
         false
-    else
-        true
-    end
+    elseif x isa Expr && y isa Number
+        false
+    elseif x isa Expr && y isa Symbol
+        false 
+    else true end
 end
 
 canonical_t = @theory begin
     # restore n-arity
+    (x * x)             => x^2
+    (x^n::Number * x)   => x^(n+1)
+    (x * x^n::Number)   => x^(n+1) 
     (x + (+)(ys...)) => +(x,ys...)
     ((+)(xs...) + y) => +(xs..., y)
     (x * (*)(ys...)) => *(x,ys...)
@@ -197,31 +215,58 @@ canonical_t = @theory begin
     (+)(xs...)      |> Expr(:call, :+, sort!(xs; lt=customlt)...)
 end
 
-Metatheory.options[:verbose] = false
-Metatheory.options[:printiter] = false
+Metatheory.options[:verbose] = true
+Metatheory.options[:printiter] = true
 
-function simplify(ex)
-    # rep = @timev begin
-        g = EGraph(ex)
-        params = SaturationParams(
-            scheduler=ScoredScheduler,
-            timeout=7,
-            schedulerparams=(8,2, Schedulers.exprsize),
-            #stopwhen=stopwhen,
-        )
-        saturate!(g, cas, params)
-        res = extract!(g, astsize)
-        # println(res)
-        # for (id, ec) ∈ g.emap
-        #     println(id, " => ", collect(ec.nodes))
-        #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
-        # end
-        res = rewrite(res, canonical_t; clean=false, m=@__MODULE__)
-    # end
-    # rep
+using Calculus: differentiate
+
+
+function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+    cost = 0 + ariety(n)
+    if n.head == :∂
+        cost += 20
+    end
+    for id ∈ n.args
+        eclass = geteclass(g, id)
+        !hasdata(eclass, an) && (cost += Inf; break)
+        cost += last(getdata(eclass, an))
+    end
+    return cost
 end
 
+function simplify(ex; steps=4)
+    params = SaturationParams(
+        scheduler=ScoredScheduler,
+        sizeout=5000,
+        timeout=7,
+        schedulerparams=(8,2, Schedulers.exprsize),
+        #stopwhen=stopwhen,
+    )
+    hist = UInt64[]
+    push!(hist, hash(ex))
+    for i ∈ 1:steps
+        g = EGraph(ex)
+        saturate!(g, cas, params; mod=@__MODULE__)
+        ex = extract!(g, simplcost)
+        ex = rewrite(ex, canonical_t; clean=false, m=@__MODULE__)
+        if !TermInterface.istree(ex)
+            return ex
+        end
+        if hash(ex) ∈ hist
+            println("loop detected")
+            return ex
+        end
+        push!(hist, hash(ex))
+    end
+    # println(res)
+    # for (id, ec) ∈ g.emap
+    #     println(id, " => ", collect(ec.nodes))
+    #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
+    # end
+    
+end
 macro simplify(ex)
+
     Meta.quot(simplify(ex))
 end
 
@@ -245,3 +290,24 @@ end
 
 @test :(y + sec(x)^2 ) == @simplify 1 + y + tan(x)^2
 @test :(y + csc(x)^2 ) == @simplify 1 + y + cot(x)^2
+
+
+
+# @simplify ∂(x^2, x)
+
+@time @simplify ∂(x^(cos(x)), x)
+
+@test :(2x^3) == @simplify x * ∂(x^2, x) * x
+
+# @simplify ∂(y^3, y) * ∂(x^2 + 2, x) / y * x
+
+# @simplify (6 * x * x * y)
+
+# @simplify ∂(y^3, y) / y
+
+# # ex = :( ∂(x^(cos(x)), x) )
+# ex = :( (6 * x * x * y) )
+# g = EGraph(ex)
+# saturate!(g, cas; mod=@__MODULE__)
+# g.emap
+# extract!(g, simplcost; root=g.root)

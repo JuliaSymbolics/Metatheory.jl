@@ -291,7 +291,7 @@ function repair!(g::EGraph, id::Int64)
         # id = find(g, id)
         for (p_enode, p_id) ∈ ecdata.parents
             # p_eclass = find(g, p_eclass)
-            p_eclass = g.emap[p_id]
+            p_eclass = geteclass(g, p_id)
             if !islazy(an) && !hasdata(p_eclass, an)
                 setdata!(p_eclass, an, make(an, g, p_enode))
             end

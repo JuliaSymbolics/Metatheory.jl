@@ -22,7 +22,7 @@ An [`EGraph`](@ref) can only contain one analysis of type `an`.
 function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
     push!(g.analyses, an)
     ids = sort(ids)
-    @assert isempty(g.dirty)
+    # @assert isempty(g.dirty)
 
     did_something = true
     while did_something

@@ -81,7 +81,7 @@ function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
 end
 
 function getdata(a::EClass, x::Type{<:AbstractAnalysis})
-    !hasdata(a, x) && error("EClass does not contain analysis data for $x")
+    !hasdata(a, x) && error("EClass $a does not contain analysis data for $x")
     return a.data[x]
 end
 
