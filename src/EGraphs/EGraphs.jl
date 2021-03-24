@@ -5,11 +5,12 @@ include("../docstrings.jl")
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-import ..Rule
-import ..getrhsfun
+# import ..Rule
+# import ..getrhsfun
 
 using ..TermInterface
 using ..Util
+using ..Rules
 
 include("enode.jl")
 export ENode
@@ -26,7 +27,7 @@ export setdata!
 include("egg.jl")
 export find
 export geteclass
-export ariety
+export arity
 export EGraph
 export merge!
 export addexpr!

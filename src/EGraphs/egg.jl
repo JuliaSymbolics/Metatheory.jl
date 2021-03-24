@@ -64,7 +64,7 @@ end
 
 
 function canonicalize!(g::EGraph, n::ENode)
-    for i ∈ 1:ariety(n)
+    for i ∈ 1:arity(n)
         n.args[i] = find(g, n.args[i])
     end
     n.hash[] = UInt(0)

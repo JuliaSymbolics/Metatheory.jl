@@ -3,7 +3,7 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
 function astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
-    cost = 1 + ariety(n)
+    cost = 1 + arity(n)
     for id ∈ n.args
         eclass = geteclass(g, id)
         !hasdata(eclass, an) && (cost += Inf; break)
@@ -42,7 +42,7 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
         anval = getdata(eclass, an)
     end
     (cn, ck) = anval
-    (ariety(cn) == 0 || ck == Inf) && return cn.head
+    (arity(cn) == 0 || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
     extractnode(cn, extractor)
 end
@@ -67,7 +67,7 @@ function extractnode(n::ENode{Expr}, extractor::Function)::Expr
 end
 
 function extractnode(n::ENode{T}, extractor::Function) where T
-    if ariety(n) > 0
+    if arity(n) > 0
         error("ENode extraction is not defined for non-literal type $T")
     end
     return n.head

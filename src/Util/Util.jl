@@ -25,7 +25,6 @@ export cleanast
 export cleanast!
 export cleanast_rec
 export cleanblock
-export interpolate_dollar
 export remove_assertions
 export unquote_sym
 export collect_symbols
