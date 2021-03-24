@@ -12,11 +12,13 @@ using .Schedulers
 Exactly like [`addexpr!`](@ref), but instantiate pattern variables
 from a substitution, resulting from a pattern matcher run.
 """
-function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol, r::Rule)::EClass
+function addexprinst!(G::EGraph, spat, sub::Sub, side::Symbol, r::Rule)::EClass
     # e = preprocess(pat)
     # println("========== $pat ===========")
 
-    pat isa EClass && return pat
+    spat isa EClass && return spat
+
+    pat = preprocess(spat)
 
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
@@ -42,7 +44,7 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol, r::Rule)::ECla
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexprinst_rec!(G, child, sub, side, r)
+            c_eclass = addexprinst!(G, child, sub, side, r)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode(pat, class_ids)
@@ -52,8 +54,6 @@ function addexprinst_rec!(G::EGraph, pat, sub::Sub, side::Symbol, r::Rule)::ECla
     return add!(G, ENode(pat))
 end
 
-addexprinst!(g::EGraph, e, sub::Sub, side::Symbol, r::Rule)::EClass =
-    addexprinst_rec!(g, preprocess(e), sub, side, r)
 
 
 function cached_ids(egraph::EGraph, side)#::Vector{Int64}
@@ -104,6 +104,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
     return matches
 end
 
+using .ReportReasons
 function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         scheduler::AbstractScheduler, report::Report,
         mod::Module, params::SaturationParams)::Report
@@ -115,13 +116,13 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         if i % 300 == 0
             if params.sizeout > 0 && length(egraph.uf) > params.sizeout
                 @log "E-GRAPH SIZEOUT"
-                report.reason = :sizeout
+                report.reason = EClassLimit()
                 return report
             end
 
             if params.stopwhen()
                 @log "Halting requirement satisfied"
-                report.reason = :condition
+                report.reason = ConditionSatisfied()
                 return report
             end
         end
@@ -132,22 +133,16 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         if rule.mode == :symbolic || rule.mode == :equational || rule.mode == :unequal # symbolic replacement
             if isright
                 rc = id
-                # println("THE ONE IT MATCHED ON = ", rc)
-                # schifo = addexprinst!(egraph, rule.right, sub, :right).id
-                # println("THE INSTANTIATED ONE = ", schifo)
                 lc = addexprinst!(egraph, remove_assertions(rule.left), sub, :left, rule).id
             else
                 lc = id
-                # println("THE ONE IT MATCHED ON = ", lc)
-                # schifo = addexprinst!(egraph, remove_assertions(rule.left), sub, :left).id
-                # println("THE INSTANTIATED ONE = ", schifo)
                 rc = addexprinst!(egraph, rule.right, sub, :right, rule).id
             end
             if rule.mode == :unequal
                 delete!(matches, match)
                 if find(egraph, lc) == find(egraph, rc)
                     @log "Contradiction!" rule
-                    report.reason = :contradiction
+                    report.reason = Contradiction()
                     return report
                 end
             else
@@ -191,13 +186,8 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     matches = search_stats.value
     report.search_stats = report.search_stats + discard_value(search_stats)
 
-    # mmm = unique(matches)
-    # mmm = symdiff(match_hist, matches)
-
     matches = setdiff!(matches, match_hist)
-    # for (rule, subset) ∈ matches
-    #     setdiff!(subset, match_hist[rule])
-    # end
+
 
     # println("============ WRITE PHASE ============")
     # println("\n $(length(matches)) $(length(match_hist))")
@@ -220,7 +210,9 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     # display(egraph.parents); println()
     # display(egraph.emap); println()
     @label quit_rebuild
-    report.saturated = isempty(egraph.dirty) && report.reason === nothing
+    if report.reason === nothing && cansaturate(scheduler) && isempty(egraph.dirty)
+        report.reason = Saturated()
+    end
     rebuild_stats = @timed rebuild!(egraph)
     report.rebuild_stats = report.rebuild_stats + discard_value(rebuild_stats)
 
@@ -253,19 +245,31 @@ function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParam
     while true
         curr_iter+=1
 
-        options[:printiter] && @info("iteration ", curr_iter)
+        options.printiter && @info("iteration ", curr_iter)
 
         report, egraph = eqsat_step!(egraph, theory, mod, sched, match_hist, params)
 
         tot_report = tot_report + report
 
         # report.reason == :matchlimit && break
-        report.reason == :condition && break
-        report.reason == :contradiction && break
-        cansaturate(sched) && report.saturated && (tot_report.saturated = true; break)
-        curr_iter >= params.timeout && (tot_report.reason = :timeout; break)
-        params.sizeout > 0 && length(egraph.uf) > params.sizeout && (tot_report.reason = :sizeout; break)
-        params.stopwhen() && (tot_report.reason = :condition; break)
+        if report.reason isa Union{ConditionSatisfied, Contradiction, Saturated}
+            break
+        end
+
+        if curr_iter >= params.timeout 
+            tot_report.reason = Timeout()
+            break
+        end
+
+        if params.sizeout > 0 && length(egraph.uf) > params.sizeout 
+            tot_report.reason = EClassLimit()
+            break
+        end
+
+        if params.stopwhen() 
+            tot_report.reason = ConditionSatisfied()
+            break
+        end
     end
     # println(match_hist)
 

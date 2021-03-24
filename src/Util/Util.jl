@@ -22,6 +22,8 @@ include("cleaning.jl")
 export rmlines
 export binarize!
 export cleanast
+export cleanast!
+export cleanast_rec
 export cleanblock
 export interpolate_dollar
 export remove_assertions

@@ -1,5 +1,3 @@
-using Parameters
-
 const AnalysisData = ImmutableDict{Type{<:AbstractAnalysis}, Any}
 
 mutable struct EClass

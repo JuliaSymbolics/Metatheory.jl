@@ -50,11 +50,52 @@ function cleanblock(e)
 end
 
 const binarize_ops = [:(+), :(*)]
+
+
 """
 Binarize n-ary operators (`+` and `*`) and call [`rmlines`](@ref)
 """
-cleanast(ex) = rmlines(ex)  |>
+cleanast_rec(ex) = rmlines(ex)  |>
     x -> binarize!(x, binarize_ops)
+
+
+
+function cleanast(e::Expr)
+    # TODO better line removal 
+    if isexpr(e, :block)
+        return Expr(e.head, filter(x -> !(x isa LineNumberNode), e.args)...)
+    end
+
+    # Binarize
+    if isexpr(e, :call)
+        op = e.args[1]
+        if op ∈ binarize_ops && length(e.args) > 3
+            return foldl((x,y) -> Expr(:call, op, x, y), @view e.args[2:end])
+        end
+    end
+    return e
+end
+
+
+function cleanast!(e::Expr)
+    # TODO better line removal 
+    if isexpr(e, :block)
+        e.args = filter(x -> !(x isa LineNumberNode), e.args)
+    end
+
+    # Binarize
+    if isexpr(e, :call)
+        op = e.args[1]
+        if op ∈ binarize_ops && length(e.args) > 3
+            ne = foldl((x,y) -> Expr(:call, op, x, y), @view e.args[2:end])
+            e.args = ne.args
+        end
+    end
+    return e
+end
+
+
+
 
 interp_dol(ex::Expr, mod::Module) =
     Meta.isexpr(ex, :$) ? mod.eval(ex.args[1]) : ex

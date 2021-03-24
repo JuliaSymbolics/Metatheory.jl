@@ -33,7 +33,7 @@ function rewrite(ex, theory::Theory;
 		clean=true
     )
 	if clean
-    	ex=cleanast(ex)
+    	ex=cleanast_rec(ex)
 	end
 
 	if !(theory isa Function)
@@ -48,7 +48,7 @@ function rewrite(ex, theory::Theory;
         n >= timeout ? error("max reduction iterations exceeded") : nothing
     end
 
-    step = x -> if clean cleanast(theory(x, m)) else theory(x,m) end
+    step = x -> if clean cleanast_rec(theory(x, m)) else theory(x,m) end
     norm_step = x -> normalize_nocycle(step, x; callback=countit)
 
     # evaluation order: outer = suitable for symbolic maths

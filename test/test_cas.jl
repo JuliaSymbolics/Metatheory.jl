@@ -166,6 +166,7 @@ fold_t = @theory begin
     a::Number / b::Number   |> a/b
 end
 
+using Calculus: differentiate
 diff_t = @theory begin
     ∂(y, x::Symbol) |> begin 
         z = extract!(_egraph, simplcost; root=y.id)
@@ -215,10 +216,9 @@ canonical_t = @theory begin
     (+)(xs...)      |> Expr(:call, :+, sort!(xs; lt=customlt)...)
 end
 
-Metatheory.options[:verbose] = true
-Metatheory.options[:printiter] = true
+# Metatheory.options[:verbose] = true
+# Metatheory.options[:printiter] = true
 
-using Calculus: differentiate
 
 
 function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
