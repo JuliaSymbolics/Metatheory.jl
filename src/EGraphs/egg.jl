@@ -140,15 +140,16 @@ end
 
 """
 Recursively traverse an type satisfying the `TermInterface` and insert terms into an
-[`EGraph`](@ref). If `e` is not an [`Expr`](@ref), then directly
+[`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr_rec!(g::EGraph, e)::EClass
+function addexpr!(g::EGraph, se)::EClass
     # e = preprocess(e)
     # println("========== $e ===========")
-    if e isa EClass
-        return e
+    if se isa EClass
+        return se
     end
+    e = preprocess(se)
 
     if istree(e)
         args = getargs(e)
@@ -157,7 +158,7 @@ function addexpr_rec!(g::EGraph, e)::EClass
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexpr_rec!(g, child)
+            c_eclass = addexpr!(g, child)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode(e, class_ids)
@@ -167,7 +168,6 @@ function addexpr_rec!(g::EGraph, e)::EClass
     return add!(g, ENode(e))
 end
 
-addexpr!(g::EGraph, e) = addexpr_rec!(g, preprocess(e))
 
 """
 Canonicalize an [`ENode`](@ref) and reset it from the hashcons.

@@ -8,5 +8,5 @@ end
 g = EGraph(:foo)
 report = saturate!(g, failme)
 # println(report)
-@test report.reason == :contradiction
+@test report.reason isa ReportReasons.Contradiction
 @test !(@areequal failme foo wazoo)

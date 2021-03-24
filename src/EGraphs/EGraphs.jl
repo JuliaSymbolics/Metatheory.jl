@@ -41,6 +41,8 @@ include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers
 
+include("saturation_reason.jl")
+export ReportReasons
 include("saturation_report.jl")
 include("saturation_params.jl")
 export SaturationParams

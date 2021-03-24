@@ -7,15 +7,10 @@ include("docstrings.jl")
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-# TODO document options
-# Options
-options = Dict{Symbol, Any}(
-    :verbose => false,
-    :printiter => false,
-)
+include("options.jl")
 
 macro log(args...)
-    quote options[:verbose] && @info($(args...)) end |> esc
+    quote options.verbose && @info($(args...)) end |> esc
 end
 
 export options

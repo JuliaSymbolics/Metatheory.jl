@@ -1,3 +1,4 @@
+# TODO move this to an abstract type
 mutable struct Rule
     left::Any
     right::Any
@@ -141,7 +142,6 @@ function genrhsfun(r::Rule, mod::Module)
 end
 
 
-# TODO is there anything better than eval to use here?
 """
 When creating a theory, type assertions in the left hand contain symbols.
 We want to replace the type symbols with the real type values, to fully support

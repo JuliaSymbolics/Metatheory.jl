@@ -64,5 +64,5 @@ function EGraphs.extractnode(n::ENode{MyExpr}, extractor::Function)
     return MyExpr(n.head, ret_args, foo, bar, baz)
 end
 
-expected = MyExpr(:z, Any[MyExpr(:h, Any[4], "hello", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+expected = MyExpr(:z, Any[MyExpr(:h, Any[4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 @test extract!(g, astsize) == expected

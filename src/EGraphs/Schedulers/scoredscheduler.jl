@@ -53,8 +53,8 @@ function ScoredScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::In
     # These numbers seem to fit
     for rule ∈ theory
         (l, r) = rule.left, rule.right
-        l = l |> cleanast |> remove_assertions |> unquote_sym
-        r = r |> cleanast |> remove_assertions |> unquote_sym
+        l = l |> cleanast_rec |> remove_assertions |> unquote_sym
+        r = r |> cleanast_rec |> remove_assertions |> unquote_sym
 
         cl = complexity(l)
         cr = complexity(r)

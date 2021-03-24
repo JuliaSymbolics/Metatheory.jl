@@ -24,21 +24,24 @@ discard_value(stats::NamedTuple) = (
 
 const EmptyTimeData = (time=0.0, bytes=0, gctime=0.0)
 
+# =============================================================================
+
+
 mutable struct Report
-    reason::Union{Symbol, Nothing}
+    # TODO move this to a custom type
+    reason::Union{ReportReasons.ReportReason, Nothing}
     egraph::EGraph
     iterations::Int
-    saturated::Bool
     search_stats::TimeData
     apply_stats::TimeData
     rebuild_stats::TimeData
     total_time::TimeData
 end
 
-Report() = Report(nothing, EGraph(), 0, false,
+Report() = Report(nothing, EGraph(), 0,
     EmptyTimeData, EmptyTimeData, EmptyTimeData, EmptyTimeData)
 
-Report(g::EGraph) = Report(nothing, g, 0, false,
+Report(g::EGraph) = Report(nothing, g, 0,
     EmptyTimeData, EmptyTimeData, EmptyTimeData, EmptyTimeData)
 
 
@@ -52,7 +55,6 @@ function Base.show(io::IO, x::Report)
     println(io, "Equality Saturation Report")
     println(io, "=================")
     println(io, "\tStop Reason: $(x.reason)")
-    println(io, "\tEGraph Saturated: $(x.saturated)")
     println(io, "\tIterations: $(x.iterations)")
     println(io, "\tEGraph Size: $(length(g.emap)) eclasses, $(length(g.hashcons)) nodes")
     println(io, "\tTotal Time: $(x.total_time)")
@@ -68,7 +70,7 @@ function (+)(a::TimeData, b::TimeData)
 end
 
 function (+)(a::Report, b::Report)
-    Report(b.reason, b.egraph, a.iterations+b.iterations, b.saturated,
+    Report(b.reason, b.egraph, a.iterations+b.iterations,
         a.search_stats + b.search_stats,
         a.apply_stats + b.apply_stats,
         a.rebuild_stats + b.rebuild_stats,
