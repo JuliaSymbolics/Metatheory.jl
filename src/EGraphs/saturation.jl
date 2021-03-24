@@ -1,4 +1,4 @@
-const Match = Tuple{Rule, Sub, Int64, Bool} #bool isright
+const Match = Tuple{Rule, Sub, Int64} #bool isright
 const MatchesBuf = OrderedSet{Match}
 # const MatchesBuf = Dict{Rule,Set{Sub}}
 
@@ -78,28 +78,25 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
             # println("skipping banned rule $rule")
             continue
         end
-        if rule.mode ∉ [:symbolic, :dynamic, :equational, :unequal]
-            error("unsupported mode in rule ", rule)
-        end
 
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
             for sub in ematch(egraph, rule.left, id)
                 # display(sub); println()
-                !isempty(sub) && push!(matches, (rule, sub, id, false))
+                !isempty(sub) && push!(matches, (rule, sub, id))
             end
         end
 
-        if rule.mode == :equational || rule.mode == :unequal
-            ids = cached_ids(egraph, rule.right)
-            for id ∈ ids
-                for sub in ematch(egraph, rule.right, id)
-                    # display(sub); println()
-                    !isempty(sub) && push!(matches, (rule, sub, id, true))
-                end
-            end
-        end
+        # if rule.mode == :equational || rule.mode == :unequal
+        #     ids = cached_ids(egraph, rule.right)
+        #     for id ∈ ids
+        #         for sub in ematch(egraph, rule.right, id)
+        #             # display(sub); println()
+        #             !isempty(sub) && push!(matches, (rule, sub, id, true))
+        #         end
+        #     end
+        # end
     end
     return matches
 end
@@ -110,7 +107,7 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         mod::Module, params::SaturationParams)::Report
     i = 0
     for match ∈ matches
-        (rule, sub, id, isright) = match
+        (rule, sub, id) = match
         i += 1
 
         if i % 300 == 0
@@ -130,25 +127,21 @@ function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
         writestep!(scheduler, rule)
 
 
-        if rule.mode == :symbolic || rule.mode == :equational || rule.mode == :unequal # symbolic replacement
-            if isright
-                rc = id
-                lc = addexprinst!(egraph, remove_assertions(rule.left), sub, :left, rule).id
-            else
-                lc = id
-                rc = addexprinst!(egraph, rule.right, sub, :right, rule).id
-            end
-            if rule.mode == :unequal
-                delete!(matches, match)
-                if find(egraph, lc) == find(egraph, rc)
-                    @log "Contradiction!" rule
-                    report.reason = Contradiction()
-                    return report
-                end
-            else
+        if rule isa SymbolicRule 
+            lc = id
+            rc = addexprinst!(egraph, rule.right, sub, :right, rule).id
+
+            # if rule.mode == :unequal
+            #     delete!(matches, match)
+            #     if find(egraph, lc) == find(egraph, rc)
+            #         @log "Contradiction!" rule
+            #         report.reason = Contradiction()
+            #         return report
+            #     end
+            # else
                 merge!(egraph, lc, rc)
-            end
-        elseif rule.mode == :dynamic # execute the right hand!
+            # end
+        elseif rule isa DynamicRule # execute the right hand!
             lc = id
             f = getrhsfun(rule, mod)
             actual_params = map(rule.patvars) do x
@@ -231,14 +224,24 @@ saturate!(egraph::EGraph, theory::Vector{Rule}; mod=@__MODULE__) =
 
 function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParams;
     mod=@__MODULE__,)
-
     curr_iter = 0
 
-    # init the scheduler
+    ntheory = Vector{Rule}()
+    # destructure equational rules into directed 
+    # rewrite rules for better scheduling
+    for r ∈ theory
+        if r isa EqualityRule
+            ltr, rtl = destructure(r)
+            push!(ntheory, ltr) # left to right
+            push!(ntheory, rtl) # right to left
+        else
+            push!(ntheory, r) 
+        end
+    end
+    theory = ntheory
+
     sched = params.scheduler(egraph, theory, params.schedulerparams...)
-
     match_hist = MatchesBuf()
-
     tot_report = Report()
 
     # GC.enable(false)

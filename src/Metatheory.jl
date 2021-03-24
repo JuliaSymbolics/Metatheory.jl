@@ -27,15 +27,11 @@ export TermInterface
 include("rgf.jl")
 export @metatheory_init
 
-include("rule.jl")
-export Rule
-export @rule
-export RHS_FUNCTION_CACHE
-export getrhsfun
-
-include("theory.jl")
-export @theory
-export Theory
+include("Rules/Rules.jl")
+using .Rules
+export Rules
+# TODO re-export? ugly?
+include("Rules/exports.jl")
 
 include("Classic/Classic.jl")
 using .Classic: gettheory
