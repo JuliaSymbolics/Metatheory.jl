@@ -2,7 +2,6 @@
 # https://github.com/philzook58/EGraphs.jl/blob/main/src/matcher.jl
 # https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
 # TODO support destructuring
-# DONE support type assertions
 
 # ematching seems to be faster without spawning tasks
 

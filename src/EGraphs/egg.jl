@@ -307,6 +307,8 @@ function repair!(g::EGraph, id::Int64)
         end
     end
 
+    unique!(ecdata.nodes)
+
     # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
 end
