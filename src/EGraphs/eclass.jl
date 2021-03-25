@@ -55,6 +55,7 @@ function Base.union!(to::EClass, from::EClass)
     # vcat here HALVENS the memory usage of the whole tests
     # maybe use this?
     # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
+    # calling unique! in repair seems to work!! 
 
     to.nodes = vcat(to.nodes, from.nodes)
     to.parents = vcat(to.parents, from.parents)
