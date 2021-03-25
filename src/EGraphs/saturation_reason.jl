@@ -21,8 +21,10 @@ struct Contradiction <: ReportReason end
 Base.show(io::IO, x::Contradiction) = print(io, "Equality Contradiction detected")
 export Contradiction
 
-struct EClassLimit <: ReportReason end
-Base.show(io::IO, x::EClassLimit) = print(io, "EClass Limit Exceeded")
+struct EClassLimit <: ReportReason 
+    limit::Int
+end
+Base.show(io::IO, x::EClassLimit) = print(io, "Limit of $(x.limit) EClasses Exceeded")
 export EClassLimit
 
 struct NodeLimit <: ReportReason end

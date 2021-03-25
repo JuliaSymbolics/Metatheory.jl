@@ -18,7 +18,7 @@ end
     g = EGraph(:(a * 1))
     addexpr!(g, :foo)
     saturate!(g, r)
-    # display(g.emap); println()
+    # display(g.classes); println()
 
     @test (@areequal r a * 1 foo) == true
     @test (@areequal r a * 2 foo) == false
@@ -77,14 +77,14 @@ saturate!(G, simp_theory, params)
 module Bar
    foo = 42
    using Metatheory
-   @metatheory_init
+   @metatheory_init ()
    export foo
 end
 
 module Foo
    foo = 12
    using Metatheory
-   @metatheory_init
+   @metatheory_init ()
 end
 
 t = @theory begin
@@ -107,4 +107,4 @@ end
 #
 # @time saturate!(G, comm_monoid)
 #
-# G.hashcons |> display
+# G.memo |> display

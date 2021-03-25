@@ -72,7 +72,7 @@ t = calc ∪ fold
 @test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
 
 # Frege's theorem
-params = SaturationParams(timeout=12, sizeout=2^15)
+params = SaturationParams(timeout=12, eclasslimit=5000)
 @test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); params=params)
 
 # Demorgan's
@@ -90,15 +90,8 @@ params = SaturationParams(timeout=12, sizeout=2^15)
 
 #
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
-# @time saturate!(g, t; timeout=10, sizeout=2^12)
+# @time saturate!(g, t; timeout=10, eclasslimit=2^12)
 # extran = addanalysis!(g, ExtractionAnalysis, astsize)
 #
 # println(extract!(g, extran))
 
-#
-# in_same_set(g.uf, g.root, addexpr!(g, true).id) |> println
-#
-# struct LogicAnalysis <: AbstractAnalysis
-#     egraph::EGraph
-#     logic_egraph::EGraph
-# end

@@ -89,7 +89,7 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # @test areequal(t, true, :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s)))
 
 function prove(t, ex, steps)
-    params = SaturationParams(timeout=8, sizeout=5000, 
+    params = SaturationParams(timeout=8, eclasslimit=5000, 
         scheduler=Schedulers.ScoredScheduler , schedulerparams=(8,2, Schedulers.exprsize))
     hist = UInt64[]
     push!(hist, hash(ex))
@@ -118,7 +118,7 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # Metatheory.options.printiter = true
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
-# params = SaturationParams(timeout=10, sizeout=2^15, scheduler=SimpleScheduler)#, scheduler=ScoredScheduler)
+# params = SaturationParams(timeout=10, eclasslimit=5000, scheduler=SimpleScheduler)#, scheduler=ScoredScheduler)
 # @profview saturate!(g, t, params)
 
 
@@ -132,10 +132,10 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # #
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
-# @timev areequal(g, t, ex, true; timeout=10, sizeout=2^15, scheduler=ScoredScheduler, schedulerparams=(32, 1))
+# @timev areequal(g, t, ex, true; timeout=10, eclasslimit=5000, scheduler=ScoredScheduler, schedulerparams=(32, 1))
 #
 
-# @profiler saturate!(g, t; timeout=8, sizeout=2^15)
+# @profiler saturate!(g, t; timeout=8, eclasslimit=5000)
 # exit(0)
 
 # ex = rewrite(:(((p => p) ∧ (r => z) ∧ (p ∨ r)) => (q ∨ s)), impl)
@@ -143,7 +143,7 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 
 
 # g = EGraph(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)))
-# @time saturate!(g, t; timeout=30, sizeout=Inf)
+# @time saturate!(g, t; timeout=30, eclasslimit=Inf)
 #
 # in_same_set(g.uf, g.root, addexpr!(g, true).id) |> println
 #

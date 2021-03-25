@@ -56,7 +56,7 @@ The function `saturate!` takes an `EGraph` and a theory, and executes
 equality saturation. Returns a report
 of the equality saturation process.
 `saturate!` is configurable, customizable parameters include
-a `timeout` on the number of iterations, a `sizeout` on the number of e-classes in the EGraph, a `stopwhen` functions that stops saturation when it evaluates to true.
+a `timeout` on the number of iterations, a `eclasslimit` on the number of e-classes in the EGraph, a `stopwhen` functions that stops saturation when it evaluates to true.
 ```julia
 G = EGraph(:((a * b) * (1 * (b + c))));
 report = saturate!(G, t);
@@ -84,6 +84,6 @@ The documentation for the configurable parameters is available in the [`Saturati
 
 ```julia
 # create the saturation params
-params = SaturationParams(timeout=10, sizeout=4000)
+params = SaturationParams(timeout=10, eclasslimit=4000)
 saturate!(egraph, theory, params)
 ```
