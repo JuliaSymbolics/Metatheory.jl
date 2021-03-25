@@ -18,7 +18,7 @@ end
 @testset "MU puzzle" begin
     # no matter the timeout we set here,
     # MU is not a theorem of the MIU system 
-    params = SaturationParams(timeout=12, sizeout=2^13)
+    params = SaturationParams(timeout=12, eclasslimit=8000)
     start = :(M⋅I⋅END)
     g = EGraph(start)
     saturate!(g, miu)

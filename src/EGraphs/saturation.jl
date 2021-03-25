@@ -1,5 +1,5 @@
 const Match = Tuple{Rule, Union{Nothing, Pattern}, Sub, Int64}
-const MatchesBuf = OrderedSet{Match}
+const MatchesBuf = Vector{Match}
 # const MatchesBuf = Dict{Rule,Set{Sub}}
 
 import ..genrhsfun
@@ -46,8 +46,8 @@ function cached_ids(egraph::EGraph, side)#::Vector{Int64}
         sym = gethead(side)
         get(egraph.symcache, sym, [])
     else
-        # collect(keys(egraph.emap))
-        keys(egraph.emap)
+        # collect(keys(egraph.classes))
+        keys(egraph.classes)
     end
 end
 
@@ -87,16 +87,6 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
         for id ∈ ids
             search_rule!(egraph, rule, id, matches)
         end
-
-        # if rule.mode == :equational || rule.mode == :unequal
-        #     ids = cached_ids(egraph, rule.right)
-        #     for id ∈ ids
-        #         for sub in ematch(egraph, rule.right, id)
-        #             # display(sub); println()
-        #             !isempty(sub) && push!(matches, (rule, sub, id, true))
-        #         end
-        #     end
-        # end
     end
     return matches
 end
@@ -107,7 +97,7 @@ function apply_rule!(g::EGraph, rule::UnequalRule,
     lc = id
     rinst = instantiate(pat, sub, rule)
     rc = addexpr!(g, rinst).id
-    delete!(matches, match)
+    # delete!(matches, match)
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
         rep.reason = Contradiction()
@@ -149,19 +139,19 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
     for match ∈ matches
         i += 1
 
-        if i % 300 == 0
-            if params.sizeout > 0 && length(g.uf) > params.sizeout
-                @log "E-GRAPH SIZEOUT"
-                rep.reason = EClassLimit()
-                return rep
-            end
-
-            if params.stopwhen()
-                @log "Halting requirement satisfied"
-                rep.reason = ConditionSatisfied()
-                return rep
-            end
+        # if i % 300 == 0
+        if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
+            @log "E-GRAPH SIZEOUT"
+            rep.reason = EClassLimit(params.eclasslimit)
+            return rep
         end
+
+        #     if params.stopwhen()
+        #         @log "Halting requirement satisfied"
+        #         rep.reason = ConditionSatisfied()
+        #         return rep
+        #     end
+        # end
 
         rule=match[1]
         writestep!(scheduler, rule)
@@ -172,7 +162,7 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
         # println(rule)
         # println(sub)
         # println(l); println(r)
-        # display(egraph.emap); println()
+        # display(egraph.classes); println()
     end
     return rep
 end
@@ -193,7 +183,7 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
     matches = search_stats.value
     report.search_stats = report.search_stats + discard_value(search_stats)
 
-    matches = setdiff!(matches, match_hist)
+    # matches = setdiff!(matches, match_hist)
 
 
     # println("============ WRITE PHASE ============")
@@ -209,11 +199,10 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
-    # don't add inequalities to history
-    union!(match_hist, matches)
+    # union!(match_hist, matches)
 
     # display(egraph.parents); println()
-    # display(egraph.emap); println()
+    # display(egraph.classes); println()
     if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
         report.reason = Saturated()
     end
@@ -261,8 +250,8 @@ function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
             break
         end
 
-        if params.sizeout > 0 && length(g.uf) > params.sizeout 
-            tot_report.reason = EClassLimit()
+        if params.eclasslimit > 0 && g.numclasses > params.eclasslimit 
+            tot_report.reason = EClassLimit(params.eclasslimit)
             break
         end
 
@@ -273,7 +262,7 @@ function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
     end
     # println(match_hist)
 
-    # display(egraph.emap); println()
+    # display(egraph.classes); println()
     tot_report.iterations = curr_iter
     @log tot_report
     # GC.enable(true)

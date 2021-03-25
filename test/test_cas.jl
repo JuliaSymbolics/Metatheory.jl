@@ -78,8 +78,8 @@ EGraphs.islazy(x::Type{TypeAnalysis}) = true
 
 ##
 
-# display(g.emap); println()
-# for (k, ec) ∈ g.emap
+# display(g.classes); println()
+# for (k, ec) ∈ g.classes
 #     println(k)
 #     println(collect(ec.nodes))
 #     println(getdata(ec, TypeAnalysis, nothing))
@@ -237,7 +237,7 @@ end
 function simplify(ex; steps=4)
     params = SaturationParams(
         scheduler=ScoredScheduler,
-        sizeout=5000,
+        eclasslimit=5000,
         timeout=7,
         schedulerparams=(8,2, Schedulers.exprsize),
         #stopwhen=stopwhen,
@@ -259,7 +259,7 @@ function simplify(ex; steps=4)
         push!(hist, hash(ex))
     end
     # println(res)
-    # for (id, ec) ∈ g.emap
+    # for (id, ec) ∈ g.classes
     #     println(id, " => ", collect(ec.nodes))
     #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
     # end
@@ -309,5 +309,20 @@ end
 # ex = :( (6 * x * x * y) )
 # g = EGraph(ex)
 # saturate!(g, cas; mod=@__MODULE__)
-# g.emap
+# g.classes
 # extract!(g, simplcost; root=g.root)
+
+# params = SaturationParams(
+#     scheduler=BackoffScheduler,
+#     eclasslimit=5000,
+#     timeout=7,
+#     schedulerparams=(1000,5),
+#     #stopwhen=stopwhen,
+# )
+
+# ex = :((x+y)^(a*0) / (y+x)^0)
+# g = EGraph(ex)
+# @profview println(saturate!(g, cas, params; mod=@__MODULE__))
+
+# ex = extract!(g, simplcost)
+# ex = rewrite(ex, canonical_t; clean=false, m=@__MODULE__)

@@ -11,7 +11,7 @@ analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, id::Int64) =
 
 
 function analyze!(g::EGraph, an::Type{<:AbstractAnalysis})
-    analyze!(g, an, collect(keys(g.emap)))
+    analyze!(g, an, collect(keys(g.classes)))
 end
 
 """
@@ -47,7 +47,7 @@ function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
         eclass = geteclass(g, id)
         id = eclass.id
         if !hasdata(eclass, an)
-            # display(g.emap[id]); println()
+            # display(g.classes[id]); println()
             # display(analysis.data); println()
             error("failed to compute analysis for eclass ", id)
         end
