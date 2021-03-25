@@ -114,11 +114,11 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 @test prove(t, ex, 3)
 
 # using Metatheory.EGraphs.Schedulers
-# Metatheory.options[:verbose] = true
-# Metatheory.options[:printiter] = true
+# Metatheory.options.verbose = true
+# Metatheory.options.printiter = true
 # ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 # g = EGraph(ex)
-# params = SaturationParams(timeout=10, sizeout=2^15)#, scheduler=ScoredScheduler)
+# params = SaturationParams(timeout=10, sizeout=2^15, scheduler=SimpleScheduler)#, scheduler=ScoredScheduler)
 # @profview saturate!(g, t, params)
 
 

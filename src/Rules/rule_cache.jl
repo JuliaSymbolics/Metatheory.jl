@@ -21,7 +21,8 @@ Generates the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
 side of a `:dynamic` [`Rule`](@ref).
 """
 function genrhsfun(r::DynamicRule, mod::Module)
-    params = Expr(:tuple, :_lhs_expr, :_egraph, r.patvars...)
+    patvars = map(x -> x.var, r.patvars)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, patvars...)
     ex = :($params -> $(r.right))
     closure_generator(mod, ex)
 end

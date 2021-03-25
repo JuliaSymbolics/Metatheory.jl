@@ -25,6 +25,12 @@ struct PatTypeAssertion <: Pattern
 end
 Base.show(io::IO, x::PatTypeAssertion) = print(io, x.var, "::", x.type)
 
+struct PatSplatVar <: Pattern
+    var::PatVar
+end
+Base.show(io::IO, x::PatSplatVar) = print(io, x.var, "...")
+
+
 struct PatTerm <: Pattern
     head::Any
     args::Vector{Pattern}
@@ -81,6 +87,14 @@ function Pattern(ex::Expr)
         end
     end
 
+    if head == :(...) && meta.iscall == false
+        v = patargs[1]
+        if v isa PatVar
+            return PatSplatVar(v)
+        end
+    end
+
+
     PatTerm(head, patargs, meta)
 end
 
@@ -114,3 +128,16 @@ function Pattern(ex)
     end
     PatLiteral(ex)
 end
+
+# collect pattern variables in a set of symbols
+patvars(p::PatLiteral; s=PatVar[]) = s 
+patvars(p::PatVar; s=PatVar[]) = push!(s, p)
+patvars(p::PatTypeAssertion; s=PatVar[]) = patvars(p.var; s=s)
+patvars(p::PatSplatVar; s=PatVar[]) = patvars(p.var; s=s)
+
+function patvars(p::PatTerm; s=PatVar[])
+    for x ∈ p.args 
+        patvars(x; s)
+    end
+    return s
+end 

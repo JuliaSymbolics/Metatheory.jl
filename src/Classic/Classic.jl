@@ -3,8 +3,8 @@ This module contains classical rewriting functions and utilities
 """
 module Classic
 
-import ..Rule
-import ..Theory
+using ..Rules
+import ..patvars
 # import ..gettheory
 import ..closure_generator
 import ..@metatheory_init

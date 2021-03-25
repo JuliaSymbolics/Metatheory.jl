@@ -34,12 +34,15 @@ struct RewriteRule <: SymbolicRule
     right::Pattern
 end
 
+abstract type BidirRule <: SymbolicRule end
+==(a::BidirRule, b::BidirRule) = (a.left == b.left) && (a.right == b.right)
+
 """
 This type of *anti*-rules is used for checking contradictions in the EGraph
 backend. If two terms, corresponding to the left and right hand side of an
 *anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
 """
-struct UnequalRule <: SymbolicRule 
+struct UnequalRule <: BidirRule 
     left::Pattern
     right::Pattern
 end
@@ -49,7 +52,7 @@ end
 Rule(:(a * b == b * a))
 ```
 """
-struct EqualityRule <: SymbolicRule 
+struct EqualityRule <: BidirRule 
     left::Pattern
     right::Pattern
 end
@@ -71,6 +74,8 @@ Rule(:(a::Number * b::Number |> a*b))
 struct DynamicRule <: Rule 
     left::Pattern
     right::Any
+    patvars::Vector{PatVar} # useful set of pattern variables
+    DynamicRule(l::Pattern, r) = new(l, r, unique(patvars(l)))
 end
 
 ==(a::DynamicRule, b::DynamicRule) = (a.left == b.left) && (a.right == b.right)

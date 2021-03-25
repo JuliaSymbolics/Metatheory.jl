@@ -10,7 +10,7 @@ abstract type NumberFold <: AbstractAnalysis end
 function EGraphs.make(an::Type{NumberFold}, g::EGraph, n::ENode)
     n.head isa Number && return n.head
 
-    if ariety(n) == 2
+    if arity(n) == 2
         l = g.emap[n.args[1]]
         r = g.emap[n.args[2]]
         ldata = getdata(l, an, nothing)

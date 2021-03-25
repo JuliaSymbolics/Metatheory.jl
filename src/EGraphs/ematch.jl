@@ -93,7 +93,7 @@ const EMPTY_DICT = Sub()
 function ematch(g::EGraph, pat::Pattern, id::Int64)
     buf = SubBuf()
     ematchstep(g, pat, id, EMPTY_DICT; buf=buf)
-    @show pat
-    println.(buf)
+    # @show pat
+    # println.(buf)
     return buf
 end
