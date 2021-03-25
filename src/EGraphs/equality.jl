@@ -1,10 +1,10 @@
-function areequal(theory::Vector{Rule}, exprs...;
+function areequal(theory::Vector{<:Rule}, exprs...;
     mod=@__MODULE__, params=SaturationParams())
     G = EGraph(exprs[1])
     areequal(G, theory, exprs...; params=params)
 end
 
-function areequal(G::EGraph, t::Vector{Rule}, exprs...;
+function areequal(G::EGraph, t::Vector{<:Rule}, exprs...;
     mod=@__MODULE__, params=SaturationParams())
     @log "Checking equality for " exprs
     if length(exprs) == 1; return true end

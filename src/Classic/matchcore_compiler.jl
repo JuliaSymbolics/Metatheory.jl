@@ -7,55 +7,80 @@ using MatchCore
 # escape symbols to create MLStyle compatible patterns
 
 # compile left hand of rule
-# if it's the first time seeing v, add it to the "seen symbols" Set
-# insert a :& expression only if v has not been seen before
-function c_left(v::Symbol, s)
-    if Base.isbinaryoperator(v) return v end
-    (v ∉ s ? (push!(s, v); v) : amp(v)) |> dollar
+# if it's the first time seeing p, add it to the "seen symbols" Set
+# insert a :& expression only if p has been seen before
+function compile_lhs(p::PatVar, seen)
+	if p.var ∉ seen 
+		push!(seen, p.var)
+		return dollar(p.var)
+	else
+		return dollar(amp(p.var))
+	end
 end
-c_left(v::Expr, s) = v.head ∈ add_dollar ? dollar(v) : v
-# support symbol literals in left hand
-c_left(v::QuoteNode, s) = v.value isa Symbol ? dollar(v) : v
-c_left(v, s) = v # ignore other types
 
-c_right(v::Symbol, s) = Base.isbinaryoperator(v) ? v : dollar(v) #(v ∈ s ? dollar(v) : v)
-function c_right(v::Expr, s)
-    v.head ∈ add_dollar ? dollar(v) : v
+compile_lhs(p::PatLiteral, seen) = p.val
+compile_lhs(p::PatTypeAssertion, seen) = 
+	dollar(Expr(:(::), p.var.var, p.type))
+compile_lhs(p::PatSplatVar, seen) = 
+	dollar(Expr(:(...), p.var.var))
+
+
+function compile_lhs(p::PatTerm, seen)
+	cargs = map(x -> compile_lhs(x, seen), p.args)
+	if p.metadata !== nothing && p.metadata.iscall == true 
+		Expr(:call, p.head, cargs...)
+	else
+		Expr(p.head, cargs...)
+	end
 end
-c_right(v::QuoteNode, s) = v.value isa Symbol ? v.value : v
-c_right(v, s) = v #ignore other types
 
-# add dollar in front of the expressions with those symbols as head
-const add_dollar = [:(::), :(...)]
-# don't walk down on these symbols
-const skips = [:(::), :(...)]
+
+
+compile_rhs(p::PatVar) = dollar(p.var)
+compile_rhs(p::PatLiteral) = p.val
+compile_rhs(p::PatTypeAssertion) = 
+	dollar(Expr(:(::), p.var.var, p.type))
+compile_rhs(p::PatSplatVar) = 
+	dollar(Expr(:(...), p.var.var))
+
+
+function compile_rhs(p::PatTerm)
+	cargs =  map(x -> compile_rhs(x), p.args)
+	if p.metadata !== nothing && p.metadata.iscall == true 
+		Expr(:call, p.head, cargs...)
+	else
+		Expr(p.head, cargs...)
+	end
+end
 
 # Compile rules from Metatheory format to MatchCore format
-function compile_rule(rule::Rule)::Expr
-	patvars = Vector{Symbol}()
-    le = df_walk(c_left, rule.left, patvars; skip=skips, skip_call=true) |> quot
-
-	if rule.mode == :equational
-		error("equational rules not yet supported by classic rewriting backend." *
+function compile_rule(rule::EqualityRule)
+	error("equational rules not yet supported by classic rewriting backend." *
 			"Knuth-Bendix completion algorithm has not yet been implemented.")
-	elseif rule.mode == :unequal
-		error("anti-rules not yet supported by classical backend")
-    elseif rule.mode == :dynamic # regular pattern matching
-        # right side not quoted! needed to evaluate expressions in right hand.
-		ll = remove_assertions(rule.left)
-		re = quote
-			_lhs_expr = $(Meta.quot(ll));
-			$(rule.right)
-		end
-    elseif rule.mode == :symbolic
-		# right side is quoted, symbolic replacement
-        re = df_walk(c_right, rule.right, patvars; skip=skips, skip_call=true) |> quot
-	else
-        error(`rule "$e" is not in valid form.\n`)
-    end
-
-    return :($le => $re)
 end
+
+function compile_rule(rule::UnequalRule)
+	error("inequality anti-rules are only available for the egraphs backend.")
+end
+
+function compile_rule(rule::RewriteRule)
+	seen = Symbol[]
+	lhs = Meta.quot(compile_lhs(rule.left, seen))
+	rhs = Meta.quot(compile_rhs(rule.right))
+	return :($lhs => $rhs)
+end
+
+function compile_rule(rule::DynamicRule)
+	seen = Symbol[]
+	lhs = Meta.quot(compile_lhs(rule.left, seen))
+	rhs = quote
+		# _lhs_expr = $(Meta.quot(lhs));
+		$(rule.right)
+	end
+
+	return :($lhs => $rhs)
+end
+
 
 # catch-all for reductions
 const identity_axiom = :($(quot(dollar(:i))) => i)
@@ -65,15 +90,11 @@ const identity_axiom = :($(quot(dollar(:i))) => i)
 # correct rule order and expansions for associativity and distributivity
 # import Iterators: flatten. Knuth-Bendix completion??
 
-function theory_block(t::Vector{Rule})
+function theory_block(t::Vector{<:Rule})
 	tn = Vector{Expr}()
 
 	for r ∈ t
 		push!(tn, compile_rule(r))
-		if r.mode == :equational
-			mirrored = Rule(r.right, r.left, r.expr, r.mode, nothing)
-			push!(tn, compile_rule(mirrored))
-		end
 	end
 
 	block(tn..., identity_axiom)
@@ -84,11 +105,13 @@ Compile a theory to a closure that does the pattern matching job
 Returns a RuntimeGeneratedFunction, which does not use eval and
 is as fast as a regular Julia anonymous function 🔥
 """
-function compile_theory(theory::Vector{Rule}, mod::Module; __source__=LineNumberNode(0))
+function compile_theory(theory::Vector{<:Rule}, mod::Module; __source__=LineNumberNode(0))
     # generate an unique parameter name
     parameter = Meta.gensym(:reducing_expression)
     block = theory_block(theory)
 
+	# println(block)
+	# dump(block; maxdepth=12)
     matching = MatchCore.gen_match(parameter, block, __source__, mod)
     matching = MatchCore.AbstractPatterns.init_cfg(matching)
 
@@ -104,10 +127,10 @@ macro compile_theory(theory)
 end
 
 # TODO use LRU cache
-const MATCHCORE_FUNCTION_CACHE = Dict{Vector{Rule}, Function}()
+const MATCHCORE_FUNCTION_CACHE = Dict{Vector{<:Rule}, Function}()
 const MATCHCORE_FUNCTION_CACHE_LOCK = ReentrantLock()
 
-function gettheoryfun(t::Vector{Rule}, m::Module)
+function gettheoryfun(t::Vector{<:Rule}, m::Module)
     lock(MATCHCORE_FUNCTION_CACHE_LOCK) do
         if !haskey(MATCHCORE_FUNCTION_CACHE, t)
             z = compile_theory(t, m)

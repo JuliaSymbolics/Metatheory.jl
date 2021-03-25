@@ -1,4 +1,4 @@
-const Match = Tuple{Rule, Sub, Int64, Bool} #bool isright
+const Match = Tuple{Rule, Union{Nothing, Pattern}, Sub, Int64}
 const MatchesBuf = OrderedSet{Match}
 # const MatchesBuf = Dict{Rule,Set{Sub}}
 
@@ -8,52 +8,34 @@ import ..@log
 
 using .Schedulers
 
-"""
-Exactly like [`addexpr!`](@ref), but instantiate pattern variables
-from a substitution, resulting from a pattern matcher run.
-"""
-function addexprinst!(G::EGraph, spat, sub::Sub, side::Symbol, r::Rule)::EClass
-    # e = preprocess(pat)
-    # println("========== $pat ===========")
 
-    spat isa EClass && return spat
-
-    pat = preprocess(spat)
-
+function instantiate(pat::PatVar, sub::Sub, rule::Rule)
     if haskey(sub, pat)
         (eclass, lit) = sub[pat]
-        pat = (lit !== nothing ? lit : eclass)
-    elseif pat isa Symbol
-        # TODO tell me the rule!
-        # for (k,v) ∈ sub
-        #     println("$k => $v"); println()
-        # end
-        # println.(sort(collect(G.emap); lt=((x,y)-> x[1] < y[1])))
-        error("unbound pattern variable $pat in rule $r")
-    elseif side == :right && pat isa QuoteNode && pat.value isa Symbol
-        pat = pat.value
+        return (lit !== nothing ? lit : eclass)
+    else
+        error("unbound pattern variable $pat in rule $rule")
     end
-
-    # println("pat $pat")
-    pat isa EClass && return pat
-
-    if istree(pat)
-        args = getargs(pat)
-        n = length(args)
-        class_ids = Vector{Int64}(undef, length(args))
-        for i ∈ 1:n
-            # println("child $child")
-            @inbounds child = args[i]
-            c_eclass = addexprinst!(G, child, sub, side, r)
-            @inbounds class_ids[i] = c_eclass.id
-        end
-        node = ENode(pat, class_ids)
-        return add!(G, node)
-    end
-
-    return add!(G, ENode(pat))
 end
 
+function instantiate(pat::PatLiteral, sub::Sub, rule::Rule)
+    pat.val
+end
+
+function instantiate(pat::PatTypeAssertion, sub::Sub, rule::Rule)
+    instantiate(pat.var, sub, rule)
+end
+
+function instantiate(pat::PatTerm, sub::Sub, rule::Rule)
+    # TODO support custom types here!
+    # similarterm ? ask Shashi
+    meta = pat.metadata
+    if meta !== nothing && meta.iscall
+        Expr(:call, pat.head, map(x -> instantiate(x, sub, rule), pat.args)...)
+    else
+        Expr(pat.head, map(x -> instantiate(x, sub, rule), pat.args)...)
+    end
+end
 
 
 function cached_ids(egraph::EGraph, side)#::Vector{Int64}
@@ -69,7 +51,28 @@ function cached_ids(egraph::EGraph, side)#::Vector{Int64}
     end
 end
 
-function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
+function search_rule!(g::EGraph, r::SymbolicRule, id::Int64, matches::MatchesBuf)
+    for sub in ematch(g, r.left, id)
+        !isempty(sub) && push!(matches, (r, r.right, sub, id))
+    end
+end
+
+function search_rule!(g::EGraph, r::DynamicRule, id::Int64, matches::MatchesBuf)
+    for sub in ematch(g, r.left, id)
+        !isempty(sub) && push!(matches, (r, nothing, sub, id))
+    end
+end
+
+function search_rule!(g::EGraph, r::BidirRule, id::Int64, matches::MatchesBuf)
+    for sub in ematch(g, r.left, id)
+        !isempty(sub) && push!(matches, (r, r.right, sub, id))
+    end
+    for sub in ematch(g, r.right, id)
+        !isempty(sub) && push!(matches, (r, r.left, sub, id))
+    end
+end
+
+function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
         scheduler::AbstractScheduler)::MatchesBuf
     matches=MatchesBuf()
     for rule ∈ theory
@@ -78,111 +81,115 @@ function eqsat_search!(egraph::EGraph, theory::Vector{Rule},
             # println("skipping banned rule $rule")
             continue
         end
-        if rule.mode ∉ [:symbolic, :dynamic, :equational, :unequal]
-            error("unsupported mode in rule ", rule)
-        end
 
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            for sub in ematch(egraph, rule.left, id)
-                # display(sub); println()
-                !isempty(sub) && push!(matches, (rule, sub, id, false))
-            end
+            search_rule!(egraph, rule, id, matches)
         end
 
-        if rule.mode == :equational || rule.mode == :unequal
-            ids = cached_ids(egraph, rule.right)
-            for id ∈ ids
-                for sub in ematch(egraph, rule.right, id)
-                    # display(sub); println()
-                    !isempty(sub) && push!(matches, (rule, sub, id, true))
-                end
-            end
-        end
+        # if rule.mode == :equational || rule.mode == :unequal
+        #     ids = cached_ids(egraph, rule.right)
+        #     for id ∈ ids
+        #         for sub in ematch(egraph, rule.right, id)
+        #             # display(sub); println()
+        #             !isempty(sub) && push!(matches, (rule, sub, id, true))
+        #         end
+        #     end
+        # end
     end
     return matches
 end
 
+function apply_rule!(g::EGraph, rule::UnequalRule,
+        match::Match, matches::MatchesBuf, rep::Report, mod::Module)
+    (_, pat, sub, id) = match
+    lc = id
+    rinst = instantiate(pat, sub, rule)
+    rc = addexpr!(g, rinst).id
+    delete!(matches, match)
+    if find(g, lc) == find(g, rc)
+        @log "Contradiction!" rule
+        rep.reason = Contradiction()
+        return (false, rep)
+    end
+    return (true, nothing)
+end
+
+function apply_rule!(g::EGraph, rule::SymbolicRule, 
+        match::Match, matches::MatchesBuf, rep::Report,  mod::Module)
+    (_, pat, sub, id) = match
+    rinst = instantiate(pat, sub, rule)
+    rc = addexpr!(g, rinst).id
+    merge!(g, id, rc)
+    return (true, nothing)
+end
+
+function apply_rule!(g::EGraph, rule::DynamicRule, 
+        match::Match, matches::MatchesBuf, rep::Report,  mod::Module)
+    (_, pat, sub, id) = match
+    lc = id
+    f = Rules.getrhsfun(rule, mod)
+    actual_params = map(rule.patvars) do x
+        (eclass, literal) = sub[x]
+        literal !== nothing ? literal : eclass
+    end
+    r = f(geteclass(g, lc), g, actual_params...)
+    rc = addexpr!(g, r)
+    merge!(g,lc,rc.id)
+    return (true, nothing)
+end
+
+
 using .ReportReasons
-function eqsat_apply!(egraph::EGraph, matches::MatchesBuf,
-        scheduler::AbstractScheduler, report::Report,
+function eqsat_apply!(g::EGraph, matches::MatchesBuf,
+        scheduler::AbstractScheduler, rep::Report,
         mod::Module, params::SaturationParams)::Report
     i = 0
     for match ∈ matches
-        (rule, sub, id, isright) = match
         i += 1
 
         if i % 300 == 0
-            if params.sizeout > 0 && length(egraph.uf) > params.sizeout
+            if params.sizeout > 0 && length(g.uf) > params.sizeout
                 @log "E-GRAPH SIZEOUT"
-                report.reason = EClassLimit()
-                return report
+                rep.reason = EClassLimit()
+                return rep
             end
 
             if params.stopwhen()
                 @log "Halting requirement satisfied"
-                report.reason = ConditionSatisfied()
-                return report
+                rep.reason = ConditionSatisfied()
+                return rep
             end
         end
 
+        rule=match[1]
         writestep!(scheduler, rule)
-
-
-        if rule.mode == :symbolic || rule.mode == :equational || rule.mode == :unequal # symbolic replacement
-            if isright
-                rc = id
-                lc = addexprinst!(egraph, remove_assertions(rule.left), sub, :left, rule).id
-            else
-                lc = id
-                rc = addexprinst!(egraph, rule.right, sub, :right, rule).id
-            end
-            if rule.mode == :unequal
-                delete!(matches, match)
-                if find(egraph, lc) == find(egraph, rc)
-                    @log "Contradiction!" rule
-                    report.reason = Contradiction()
-                    return report
-                end
-            else
-                merge!(egraph, lc, rc)
-            end
-        elseif rule.mode == :dynamic # execute the right hand!
-            lc = id
-            f = getrhsfun(rule, mod)
-            actual_params = map(rule.patvars) do x
-                (eclass, literal) = sub[x]
-                literal !== nothing ? literal : eclass
-            end
-            r = f(geteclass(egraph, lc), egraph, actual_params...)
-            rc = addexpr!(egraph, r)
-            merge!(egraph,lc,rc.id)
-        else
-            error("unsupported rule mode")
+        (ok, nrep) = apply_rule!(g, rule, match, matches, rep, mod)
+        if !ok 
+            return nrep 
         end
-
         # println(rule)
         # println(sub)
         # println(l); println(r)
         # display(egraph.emap); println()
     end
-    return report
+    return rep
 end
 
 """
 Core algorithm of the library: the equality saturation step.
 """
-function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
+function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
         scheduler::AbstractScheduler, match_hist::MatchesBuf, params::SaturationParams)
 
-    report = Report(egraph)
+    report = Report(g)
     instcache = Dict{Rule, Dict{Sub, Int64}}()
 
     readstep!(scheduler)
 
 
-    search_stats = @timed eqsat_search!(egraph, theory, scheduler)
+    search_stats = @timed eqsat_search!(g, theory, scheduler)
     matches = search_stats.value
     report.search_stats = report.search_stats + discard_value(search_stats)
 
@@ -195,12 +202,10 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
     #     matches = matches[1:matchlimit]
     # #     # mmm = Set(collect(mmm)[1:matchlimit])
     # #     #
-    # #     # report.reason = :matchlimit
-    # #     # @goto quit_rebuild
     # end
     # println(" diff length $(length(matches))")
 
-    apply_stats = @timed eqsat_apply!(egraph, matches, scheduler, report, mod, params)
+    apply_stats = @timed eqsat_apply!(g, matches, scheduler, report, mod, params)
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
@@ -209,36 +214,31 @@ function eqsat_step!(egraph::EGraph, theory::Vector{Rule}, mod::Module,
 
     # display(egraph.parents); println()
     # display(egraph.emap); println()
-    @label quit_rebuild
-    if report.reason === nothing && cansaturate(scheduler) && isempty(egraph.dirty)
+    if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
         report.reason = Saturated()
     end
-    rebuild_stats = @timed rebuild!(egraph)
+    rebuild_stats = @timed rebuild!(g)
     report.rebuild_stats = report.rebuild_stats + discard_value(rebuild_stats)
 
     # TODO produce proofs with match_hist
     total_time!(report)
 
-    return report, egraph
+    return report, g
 end
 
 """
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-saturate!(egraph::EGraph, theory::Vector{Rule}; mod=@__MODULE__) =
-    saturate!(egraph, theory, SaturationParams(); mod=mod)
+saturate!(g::EGraph, theory::Vector{<:Rule}; mod=@__MODULE__) =
+    saturate!(g, theory, SaturationParams(); mod=mod)
 
-function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParams;
+function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
     mod=@__MODULE__,)
-
     curr_iter = 0
 
-    # init the scheduler
-    sched = params.scheduler(egraph, theory, params.schedulerparams...)
-
+    sched = params.scheduler(g, theory, params.schedulerparams...)
     match_hist = MatchesBuf()
-
     tot_report = Report()
 
     # GC.enable(false)
@@ -247,7 +247,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParam
 
         options.printiter && @info("iteration ", curr_iter)
 
-        report, egraph = eqsat_step!(egraph, theory, mod, sched, match_hist, params)
+        report, egraph = eqsat_step!(g, theory, mod, sched, match_hist, params)
 
         tot_report = tot_report + report
 
@@ -261,7 +261,7 @@ function saturate!(egraph::EGraph, theory::Vector{Rule}, params::SaturationParam
             break
         end
 
-        if params.sizeout > 0 && length(egraph.uf) > params.sizeout 
+        if params.sizeout > 0 && length(g.uf) > params.sizeout 
             tot_report.reason = EClassLimit()
             break
         end

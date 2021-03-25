@@ -6,7 +6,7 @@ struct SimpleScheduler <: AbstractScheduler end
 cansaturate(s::SimpleScheduler) = true
 shouldskip(s::SimpleScheduler, r::Rule) = false
 
-function SimpleScheduler(G::EGraph, theory::Vector{Rule})
+function SimpleScheduler(G::EGraph, theory::Vector{<:Rule})
     SimpleScheduler()
 end
 
