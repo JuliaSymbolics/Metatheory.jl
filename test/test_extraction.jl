@@ -133,7 +133,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	# symbolic mathematics simplification based on the computation cost
 	# of the expressions
 	function cust_astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
-		cost = 1 + ariety(n)
+		cost = 1 + arity(n)
 
 		if n.head == :^
 			cost += 2
@@ -159,7 +159,7 @@ end
 # EXTRACTION BUG!
 
 function costfun(n::ENode, g::EGraph, an)
-	ariety(n) != 2 && (return 1)
+	arity(n) != 2 && (return 1)
 	left = n.args[1]
 	left_class = geteclass(g, left)
 	ENode(:a) ∈ left_class.nodes ? 1 : 100

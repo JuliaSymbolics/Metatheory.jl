@@ -45,14 +45,13 @@ function Base.hash(t::ENode{T}, salt::UInt) where {T}
     return h′
 end
 
-
-ariety(n::ENode) = length(n.args)
+TermInterface.arity(n::ENode) = length(n.args)
 
 
 # string representation of the rule
 function Base.show(io::IO, x::ENode)
     print(io, "(", x.head)
-    n = ariety(x)
+    n = arity(x)
     if n == 0
         print(io, ")")
         return

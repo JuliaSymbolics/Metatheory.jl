@@ -21,17 +21,17 @@ associativity from taking an unfair amount of resources.
 struct BackoffScheduler <: AbstractScheduler
     data::Dict{Rule, BackoffSchedulerEntry}
     G::EGraph
-    theory::Vector{Rule}
+    theory::Vector{<:Rule}
 end
 
 shouldskip(s::BackoffScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
 
 
-function BackoffScheduler(g::EGraph, theory::Vector{Rule})
+function BackoffScheduler(g::EGraph, theory::Vector{<:Rule})
     BackoffScheduler(g, theory, 8, 2)
 end
 
-function BackoffScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::Int)
+function BackoffScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int)
     gsize = length(G.uf)
     data = Dict{Rule, BackoffSchedulerEntry}()
 

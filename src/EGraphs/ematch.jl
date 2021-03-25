@@ -2,7 +2,6 @@
 # https://github.com/philzook58/EGraphs.jl/blob/main/src/matcher.jl
 # https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
 # TODO support destructuring
-# DONE support type assertions
 
 # ematching seems to be faster without spawning tasks
 
@@ -23,7 +22,7 @@ the remaining E-nodes. The base case of this recursion is the empty list, which
 requires no extension to the substitution; the other case relies on Match to find the
 substitutions that match the first term to the first E-node.
 """
-function ematchlist(e::EGraph, t::AbstractVector{Any}, v::AbstractVector{Int64}, sub::Sub; buf=SubBuf())::SubBuf
+function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int64}, sub::Sub; buf=SubBuf())::SubBuf
     if length(t) != length(v) || length(t) == 0 || length(v) == 0
         push!(buf, sub)
     else
@@ -35,7 +34,7 @@ function ematchlist(e::EGraph, t::AbstractVector{Any}, v::AbstractVector{Int64},
 end
 
 # Tries to match on a pattern variable
-function ematchstep(g::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+function ematchstep(g::EGraph, t::PatVar, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     if haskey(sub, t)
         if find(g, first(sub[t])) == find(g, v)
             push!(buf, sub)
@@ -47,10 +46,10 @@ function ematchstep(g::EGraph, t::Symbol, v::Int64, sub::Sub; lit=nothing, buf=S
 end
 
 # Tries to match on literals
-function ematchstep(g::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+function ematchstep(g::EGraph, t::PatLiteral, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     ec = geteclass(g, v)
     for n in ec
-        if (t isa QuoteNode ? t.value : t) == n.head
+        if arity(n) == 0 && t.val == n.head
             if haskey(sub, t)
                 if find(g, first(sub[t])) == ec.id
                     push!(buf, sub)
@@ -63,53 +62,37 @@ function ematchstep(g::EGraph, t, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())
     return buf
 end
 
-# tries to match on composite expressions
-function ematchstep(g::EGraph, t::Expr, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+
+# tries to match on type assertions
+function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
     ec = geteclass(g, v)
     for n in ec
-        if isexpr(t, :(::)) && ariety(n) == 0
-            # right hand of type assertion
-            # tr = t.args[2]
-            typ = t.args[2]
-
-            # println(n)
-            # println(typ, " ", typeof(typ))
-            # if tr isa Type
-            #     typ = tr
-            # elseif tr isa Symbol
-            #     if haskey(sub, tr)
-            #         typ = sub[tr][2]
-            #     else
-            #         # add the type to the egraph
-            #         type_id = add!(e, typeof(n))
-            #         sub =  Base.ImmutableDict(sub, t.args[2] => (type_id, typeof(n)))
-            #         typ = typeof(n)
-            #         # union!(c, ematch(e, t, v, sub))
-            #         # continue
-            #     end
-            # # elseif isexpr(tr, :curly)
-            # # TODO allow for parametric type variables
-            # # see https://dl.acm.org/doi/pdf/10.1145/3276483
-            # else
-            #     error("Unsupported type assertion '", t, "'")
-            # end
-
-            !(typeof(n.head) <: typ) && continue
-            ematchstep(g, t.args[1], v, sub; lit=n.head, buf=buf)
+        if arity(n) == 0
+            !(typeof(n.head) <: t.type) && continue
+            ematchstep(g, t.var, v, sub; lit=n.head, buf=buf)
             continue
         end
+    end
+    return buf
+end
 
-        # otherwise ematch on an expr
-        (ariety(n) > 0) && n.head == gethead(t) && length(getargs(t)) == length(n.args) || continue
-         ematchlist(g, getargs(t), n.args, sub; buf=buf)
+
+# tries to match on composite expressions
+function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+    ec = geteclass(g, v)
+    for n in ec
+        (arity(n) > 0) && n.head == t.head && arity(t) == arity(n) || continue
+         ematchlist(g, t.args, n.args, sub; buf=buf)
     end
     return buf
 end
 
 const EMPTY_DICT = Sub()
 
-function ematch(g::EGraph, pat, id::Int64)
+function ematch(g::EGraph, pat::Pattern, id::Int64)
     buf = SubBuf()
     ematchstep(g, pat, id, EMPTY_DICT; buf=buf)
+    # @show pat
+    # println.(buf)
     return buf
 end

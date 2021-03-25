@@ -7,7 +7,7 @@ macro matcher(te)
     else
         if !isdefined(__module__, te) error(`theory $theory not found!`) end
         t = getfield(__module__, te)
-		if t isa Vector{Rule}; t = compile_theory(t, __module__) end
+		if t isa Vector{<:Rule}; t = compile_theory(t, __module__) end
         if !t isa Function error(`$te is not a valid theory`) end
     end
 

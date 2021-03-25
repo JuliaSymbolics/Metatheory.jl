@@ -22,7 +22,7 @@ associativity from taking an unfair amount of resources.
 struct ScoredScheduler <: AbstractScheduler
     data::Dict{Rule, ScoredSchedulerEntry}
     G::EGraph
-    theory::Vector{Rule}
+    theory::Vector{<:Rule}
 end
 
 shouldskip(s::ScoredScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
@@ -42,11 +42,11 @@ function exprsize(e)
     return c
 end
 
-function ScoredScheduler(g::EGraph, theory::Vector{Rule})
+function ScoredScheduler(g::EGraph, theory::Vector{<:Rule})
     ScoredScheduler(g, theory, 8, 2, exprsize)
 end
 
-function ScoredScheduler(G::EGraph, theory::Vector{Rule}, fuel::Int, bantime::Int, complexity::Function)
+function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int, complexity::Function)
     gsize = length(G.uf)
     data = Dict{Rule, ScoredSchedulerEntry}()
 
