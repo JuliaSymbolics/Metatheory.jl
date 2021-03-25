@@ -85,12 +85,12 @@ end
 A Theory is either a vector of [`Rule`](@ref) or
 a compiled, callable function.
 """
-const Theory = Union{Vector{Rule}, Function}
+const Theory = Union{Vector{<:Rule}, Function}
 
 
-lhs = Pattern(:(x * x))
-rhs = Pattern(:(x ^ 2))
-UnequalRule(lhs, rhs)
-Rule(:(x*x => x^2))
-Rule(:(x*x::Number |> x*x)) |> dump
-Rule(:(x*x == x^2))
+# lhs = Pattern(:(x * x))
+# rhs = Pattern(:(x ^ 2))
+# UnequalRule(lhs, rhs)
+# Rule(:(x*x => x^2))
+# Rule(:(x*x::Number |> x*x)) |> dump
+# Rule(:(x*x == x^2))

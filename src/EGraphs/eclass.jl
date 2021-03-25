@@ -2,11 +2,11 @@ const AnalysisData = ImmutableDict{Type{<:AbstractAnalysis}, Any}
 
 mutable struct EClass
     id::Int64
-    nodes::OrderedSet{ENode}
-    parents::OrderedDict{ENode, Int64}
+    nodes::Vector{ENode}
+    parents::Vector{Pair{ENode, Int64}}
     data::Union{Nothing, AnalysisData}
 end
-EClass(id) = EClass(id, OrderedSet{ENode}(), OrderedDict{ENode, Int64}(), nothing)
+EClass(id) = EClass(id, ENode[], Pair{ENode, Int64}[], nothing)
 EClass(id, nodes, parents) = EClass(id, nodes, parents, nothing)
 
 # Interface for indexing EClass
@@ -39,7 +39,10 @@ end
 # end
 
 function addparent!(a::EClass, n::ENode, id::Int64)
-    a.parents[n] = id
+    # if (n => id) ∉ a.parents 
+        push!(a.parents, (n => id))
+    # end
+    # a.parents[n] = id
 end
 
 function Base.union(to::EClass, from::EClass)
@@ -47,8 +50,14 @@ function Base.union(to::EClass, from::EClass)
 end
 
 function Base.union!(to::EClass, from::EClass)
-    union!(to.nodes, from.nodes)
-    merge!(to.parents, from.parents)
+    # TODO FIXME THOSE WERE UNIONS! how to fix this?
+    # now nodes list contain duplicates, but using 
+    # vcat here HALVENS the memory usage of the whole tests
+    # maybe use this?
+    # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
+
+    to.nodes = vcat(to.nodes, from.nodes)
+    to.parents = vcat(to.parents, from.parents)
     if to.data !== nothing && from.data !== nothing
         # merge!(to.data, from.data)
         # to.data = join_analysis_data(to.data, from.data)

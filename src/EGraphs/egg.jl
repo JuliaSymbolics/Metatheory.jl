@@ -117,7 +117,7 @@ function add!(g::EGraph, n::ENode)::EClass
 
     g.hashcons[n] = id
 
-    classdata = EClass(id, OrderedSet([n]), OrderedDict{ENode, Int64}())
+    classdata = EClass(id, ENode[n], Pair{ENode, Int64}[])
     g.emap[id] = classdata
 
     # cache the eclass for the symbol for faster matching
@@ -279,7 +279,7 @@ function repair!(g::EGraph, id::Int64)
         end
         new_parents[p_enode] = find(g, p_eclass)
     end
-    ecdata.parents = new_parents
+    ecdata.parents = collect(new_parents)
     @debug "updated parents " id g.parents[id]
 
     # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)

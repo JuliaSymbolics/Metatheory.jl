@@ -27,7 +27,6 @@ ts = Test.FallbackTestSet
       include("test_mu.jl")
       include("test_boson.jl")
       include("test_while_interpreter.jl")
-      include("test_theories.jl")
       include("test_reductions.jl")
       include("test_taylor.jl")
       include("test_while_superinterpreter.jl")

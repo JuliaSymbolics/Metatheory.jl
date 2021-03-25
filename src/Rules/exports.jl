@@ -4,11 +4,14 @@ export PatLiteral
 export PatVar
 export PatTerm
 export PatTypeAssertion
+export PatSplatVar
+export patvars
 
 # include("rules/rule_types.jl")
 export Rule
 export SymbolicRule
 export RewriteRule
+export BidirRule
 export EqualityRule
 export UnequalRule
 export DynamicRule
