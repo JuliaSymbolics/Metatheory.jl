@@ -22,22 +22,20 @@ module MTFib
 
 using Metatheory
 using Metatheory.EGraphs
-@metatheory_init
+
+@metatheory_init ()
 
 const fibo = @theory begin
     x::$Int + y::$Int |> x+y
     fib(n::$Int) |> (n < 2 ? n : :(fib($(n-1)) + fib($(n-2))))
 end;
 
-using Suppressor
-
 function compute_fib(n)
-    @suppress begin # don't print crap
-        g = EGraph(:(fib($n)))
-        saturate!(g, fibo; timeout=7000)
-        extran = addanalysis!(g, ExtractionAnalysis, astsize)
-        extract!(g, extran)
-    end
+    params = SaturationParams(timeout = 7000, 
+        scheduler=Schedulers.SimpleScheduler)
+    g = EGraph(:(fib($n)))
+    saturate!(g, fibo, params)
+    extract!(g, astsize)
 end
 
 end
@@ -47,12 +45,14 @@ using BenchmarkTools
 ns = 1:2:22
 
 SU_ts = map(ns) do n
+    println(n)
     @assert SUFib.compute_fib(n) isa Number
     b = @benchmarkable SUFib.compute_fib($n) seconds=0.2
     mean(run(b)).time / 1e9
 end
 
 MT_ts = map(ns) do n
+    println(n)
     @assert MTFib.compute_fib(n) isa Number
     b = @benchmarkable MTFib.compute_fib($n) seconds=0.2
     mean(run(b)).time / 1e9
@@ -60,5 +60,6 @@ end
 
 
 using Plots
-plot(ns, SU_ts, label="SymbolicUtils", title="fib(n)", ylabel="time (s)", xlabel="n")
-plot!(ns, MT_ts, label="Metatheory")
+plot(ns, SU_ts, label="SymbolicUtils.jl", title="fib(n)", ylabel="Time (s)", xlabel="n", color = :lightblue, m=(:cross, :blue), legend = :topleft, size=(320,220))
+plot!(ns, MT_ts, label="Metatheory.jl", color = :orange, m = (:circle, :orange) )
+savefig("fib.pdf")

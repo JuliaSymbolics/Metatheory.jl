@@ -23,8 +23,10 @@ requires no extension to the substitution; the other case relies on Match to fin
 substitutions that match the first term to the first E-node.
 """
 function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int64}, sub::Sub; buf=SubBuf())::SubBuf
-    if length(t) != length(v) || length(t) == 0 || length(v) == 0
-        push!(buf, sub)
+    if length(t) == 0 || length(v) == 0
+        if !isempty(sub)
+            push!(buf, sub)
+        end
     else
         for sub1 in ematchstep(e, t[1], v[1], sub)
             ematchlist(e, (@view t[2:end]), (@view v[2:end]), sub1; buf=buf)
@@ -76,6 +78,22 @@ function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub::Sub; lit=noth
     return buf
 end
 
+function ematchstep(g::EGraph, t::PatEquiv, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+    buf1 = SubBuf()
+    buf2 = SubBuf()
+
+    
+    for sub1 ∈ ematchstep(g, t.left, v, sub; buf=buf1)
+        ematchstep(g, t.right, v, sub1; buf=buf2)
+    end
+
+    if !isempty(buf1) && !isempty(buf2) 
+        for sub ∈ vcat(buf1, buf2)
+            push!(buf, sub)
+        end
+    end
+    return buf 
+end
 
 # tries to match on composite expressions
 function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
@@ -87,11 +105,8 @@ function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub::Sub; lit=nothing, buf=
     return buf
 end
 
-const EMPTY_DICT = Sub()
-
-function ematch(g::EGraph, pat::Pattern, id::Int64)
-    buf = SubBuf()
-    ematchstep(g, pat, id, EMPTY_DICT; buf=buf)
+function ematch(g::EGraph, pat::Pattern, id::Int64; sub=Sub(), buf=SubBuf())
+    ematchstep(g, pat, id, sub; buf=buf)
     # @show pat
     # println.(buf)
     return buf

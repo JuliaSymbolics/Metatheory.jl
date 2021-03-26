@@ -34,6 +34,19 @@ struct RewriteRule <: SymbolicRule
     right::Pattern
 end
 
+# =============================================================================
+
+# Only the last LHS is rewritten
+struct MultiPatRewriteRule <: SymbolicRule 
+    left::Pattern
+    right::Pattern
+    # additional lhs patterns
+    pats::Vector{Pattern}
+end
+==(a::MultiPatRewriteRule, b::MultiPatRewriteRule) = a.left == b.left && 
+    all(a.pats .== b.pats) && (a.right == b.right)
+
+
 abstract type BidirRule <: SymbolicRule end
 ==(a::BidirRule, b::BidirRule) = (a.left == b.left) && (a.right == b.right)
 
