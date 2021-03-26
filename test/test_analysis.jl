@@ -11,8 +11,8 @@ function EGraphs.make(an::Type{NumberFold}, g::EGraph, n::ENode)
     n.head isa Number && return n.head
 
     if arity(n) == 2
-        l = g.classes[n.args[1]]
-        r = g.classes[n.args[2]]
+        l = geteclass(g, n.args[1])
+        r = geteclass(g, n.args[2])
         ldata = getdata(l, an, nothing)
         rdata = getdata(r, an, nothing)
 

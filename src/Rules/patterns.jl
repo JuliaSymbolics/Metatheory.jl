@@ -30,6 +30,13 @@ struct PatSplatVar <: Pattern
 end
 Base.show(io::IO, x::PatSplatVar) = print(io, x.var, "...")
 
+# only available in EGraphs
+struct PatEquiv <: Pattern
+    left::Pattern
+    right::Pattern
+end
+Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
+
 
 struct PatTerm <: Pattern
     head::Any
@@ -127,6 +134,10 @@ function Pattern(ex)
         PatTerm(head, patargs, meta)
     end
     PatLiteral(ex)
+end
+
+macro pat(ex)
+    Pattern(ex)
 end
 
 # collect pattern variables in a set of symbols

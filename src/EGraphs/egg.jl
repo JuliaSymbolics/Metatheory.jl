@@ -213,6 +213,9 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     return to
 end
 
+function in_same_class(g::EGraph, a, b)
+    find(g, a) == find(g, b)
+end
 
 """
 This function restores invariants and executes

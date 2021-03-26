@@ -37,6 +37,7 @@ ts = Test.FallbackTestSet
       include("test_inequality.jl")
       include("test_cas.jl")
       include("test_custom_types.jl")
+      include("test_multipat.jl")
 
 
       # exported consistency test
