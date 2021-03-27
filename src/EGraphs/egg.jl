@@ -109,7 +109,8 @@ function add!(g::EGraph, n::ENode)::EClass
 
     n = canonicalize(g, n)
     if haskey(g.memo, n)
-        return geteclass(g, find(g, g.memo[n]))
+        # return g.classes[g.memo[n]]
+        return geteclass(g, g.memo[n])
     end
     @debug(n, " not found in memo")
 
@@ -126,11 +127,11 @@ function add!(g::EGraph, n::ENode)::EClass
     g.numclasses += 1
 
     # cache the eclass for the symbol for faster matching
-    sym = n.head
-    if !haskey(g.symcache, sym)
-        g.symcache[sym] = Int64[]
-    end
-    push!(g.symcache[sym], id)
+    # sym = n.head
+    # if !haskey(g.symcache, sym)
+    #     g.symcache[sym] = Int64[]
+    # end
+    # push!(g.symcache[sym], id)
 
     # make analyses for new enode
     for an ∈ g.analyses
@@ -174,15 +175,17 @@ function addexpr!(g::EGraph, se)::EClass
 end
 
 
-"""
-Canonicalize an [`ENode`](@ref) and reset it from the memo.
-"""
-function clean_enode!(g::EGraph, t::ENode, to::Int64)
-    delete!(g.memo, t)
-    nt = canonicalize(g, t)
-    g.memo[nt] = to
-    return t
-end
+# """
+# Canonicalize an [`ENode`](@ref) and reset it from the memo.
+# """
+# function clean_enode!(g::EGraph, t::ENode, to::Int64)
+#     # delete!(g.memo, t)
+#     # println("removed $t")
+#     nt = canonicalize(g, t)
+#     # println("added $t $to")
+#     g.memo[nt] = to
+#     return t
+# end
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
@@ -225,16 +228,25 @@ for more details.
 """
 function rebuild!(egraph::EGraph)
     while !isempty(egraph.dirty)
-        todo = unique([find(egraph, id) for id ∈ egraph.dirty])
+        # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
+        todo = unique(egraph.dirty)
         empty!(egraph.dirty)
         for x ∈ todo
             repair!(egraph, x)
         end
     end
 
-    for (sym, ids) ∈ egraph.symcache
-        egraph.symcache[sym] = unique(ids .|> x -> find(egraph, x))
-    end
+    # for (node, id) ∈ egraph.memo
+    #     egraph.memo[node] = find(egraph, id)
+    # #     sym = node.head
+    # #     if !haskey(egraph.symcache, sym)
+    # #         egraph.symcache[sym] = Int64[]
+    # #     end
+    # #     push!(egraph.symcache[sym], id)
+    # end
+    # for (sym, ids) ∈ egraph.symcache
+    #     egraph.symcache[sym] = unique(ids .|> x -> find(egraph, x))
+    # end
 
     if egraph.root != 0
         egraph.root = find(egraph, egraph.root)
@@ -245,23 +257,25 @@ function rebuild!(egraph::EGraph)
     # end
     # INVARIANTS ASSERTIONS
     # for (id, c) ∈  egraph.classes
-    #     ecdata.nodes = map(n -> canonicalize(egraph.uf, n), ecdata.nodes)
-        # println(id, "=>", c.id)
-        # @assert(id == c.id)
-        # for an ∈ egraph.analyses
-        #     if haskey(an, id)
-        #         @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
-        #     end
-        # end
+    #     # ecdata.nodes = map(n -> canonicalize(egraph.uf, n), ecdata.nodes)
+    #     println(id, "=>", c.id)
+    #     @assert(id == c.id)
+    #     # for an ∈ egraph.analyses
+    #     #     if haskey(an, id)
+    #     #         @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
+    #     #     end
+    #     # end
     
-        # for n ∈ c
-        #     println(n)
-        #     println("canon = ", canonicalize(egraph, n))
-        #     hr = egraph.memo[canonicalize(egraph, n)]
-        #     println(hr)
-        #     @assert hr == find(egraph, id)
-        # end
+    #     for n ∈ c
+    #         println(n)
+    #         println("canon = ", canonicalize(egraph, n))
+    #         hr = egraph.memo[canonicalize(egraph, n)]
+    #         println(hr)
+    #         @assert hr == find(egraph, id)
+    #     end
     # end
+    # display(egraph.classes); println()
+    # @show egraph.dirty
 end
 
 function repair!(g::EGraph, id::Int64)
@@ -270,9 +284,9 @@ function repair!(g::EGraph, id::Int64)
     ecdata.id = id
     @debug "repairing " id
 
-    for (p_enode, p_eclass) ∈ ecdata.parents
-        clean_enode!(g, p_enode, find(g, p_eclass))
-    end
+    # for (p_enode, p_eclass) ∈ ecdata.parents
+    #     clean_enode!(g, p_enode, find(g, p_eclass))
+    # end
 
     new_parents = OrderedDict{ENode,Int64}()
 
@@ -283,7 +297,9 @@ function repair!(g::EGraph, id::Int64)
             @debug "merging classes" p_eclass (new_parents[p_enode])
             merge!(g, p_eclass, new_parents[p_enode])
         end
-        new_parents[p_enode] = find(g, p_eclass)
+        n_id = find(g, p_eclass)
+        g.memo[p_enode] = n_id 
+        new_parents[p_enode] = n_id 
     end
     ecdata.parents = collect(new_parents)
     @debug "updated parents " id g.parents[id]

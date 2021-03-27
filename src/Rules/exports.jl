@@ -3,6 +3,7 @@ export Pattern
 export PatLiteral
 export PatVar
 export PatTerm
+export PatAllTerm
 export PatTypeAssertion
 export PatSplatVar
 export PatEquiv

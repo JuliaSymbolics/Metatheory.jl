@@ -30,14 +30,18 @@ ts = Test.FallbackTestSet
       include("test_reductions.jl")
       include("test_taylor.jl")
       include("test_while_superinterpreter.jl")
-      include("test_fibonacci.jl")
       include("test_cat.jl")
-      include("test_calculational_logic.jl")
-      include("test_logic.jl")
       include("test_inequality.jl")
-      include("test_cas.jl")
       include("test_custom_types.jl")
       include("test_multipat.jl")
+      include("test_patallterm.jl")
+      # use cases
+      include("fib/test_fibonacci.jl")
+      include("logic/test_calculational_logic.jl")
+      include("logic/test_logic.jl")
+      include("cas/test_infer.jl")
+      include("cas/test_cas.jl")
+
 
 
       # exported consistency test

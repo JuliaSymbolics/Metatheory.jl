@@ -117,8 +117,12 @@ while_language = if_language ∪ write_mem ∪ while_rules;
 	@test areequal(while_language, Mem(:x => 5), exx; mod=@__MODULE__, params=params)
 
 	# FIXME bug!
-	params=SaturationParams(timeout=12)
+	params=SaturationParams(timeout=14)
 	exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
+	# g = EGraph(exx)
+	# params=SaturationParams(timeout=12)
+	# saturate!(g, while_language, params)
+	# println(extract!(g, astsize))
 	@test areequal(while_language, Mem(:x => 4), exx; mod=@__MODULE__, params=params)
 	# exit(0)
 	
