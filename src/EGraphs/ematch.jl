@@ -105,6 +105,23 @@ function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub::Sub; lit=nothing, buf=
     return buf
 end
 
+function ematchstep(g::EGraph, t::PatAllTerm, v::Int64, sub::Sub; lit=nothing, buf=SubBuf())::SubBuf
+    ec = geteclass(g, v)
+    for n in ec
+        (arity(n) > 0) && arity(t) == arity(n) || continue
+        if haskey(sub, t.head)
+            @show sub[t.head]
+            if find(g, first(sub[t.head])) == find(g, v)
+                ematchlist(g, t.args, n.args, sub; buf=buf)
+            end
+        else
+            nsub = Base.ImmutableDict(sub, t.head => (geteclass(g, find(g, v)), lit))
+            ematchlist(g, t.args, n.args, nsub; buf=buf)
+        end
+    end
+    return buf
+end
+
 function ematch(g::EGraph, pat::Pattern, id::Int64; sub=Sub(), buf=SubBuf())
     ematchstep(g, pat, id, sub; buf=buf)
     # @show pat

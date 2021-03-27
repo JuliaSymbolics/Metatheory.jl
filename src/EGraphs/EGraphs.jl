@@ -11,6 +11,8 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 using ..TermInterface
 using ..Util
 using ..Rules
+import ..@log
+
 
 include("enode.jl")
 export ENode
@@ -49,6 +51,10 @@ export ReportReasons
 include("saturation_report.jl")
 include("saturation_params.jl")
 export SaturationParams
+
+include("saturation_search.jl")
+include("saturation_apply.jl")
+
 include("saturation.jl")
 export saturate!
 include("equality.jl")

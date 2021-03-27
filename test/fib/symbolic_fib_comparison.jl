@@ -17,7 +17,6 @@ compute_fib(n) = rset(fib(n))
 end
 
 
-
 module MTFib
 
 using Metatheory
@@ -60,6 +59,15 @@ end
 
 
 using Plots
-plot(ns, SU_ts, label="SymbolicUtils.jl", title="fib(n)", ylabel="Time (s)", xlabel="n", color = :lightblue, m=(:cross, :blue), legend = :topleft, size=(320,220))
-plot!(ns, MT_ts, label="Metatheory.jl", color = :orange, m = (:circle, :orange) )
-savefig("fib.pdf")
+pyplot()
+
+font = "DejaVu Math TeX Gyre"
+# default(titlefont=font, legendfont=font, fontfamily=font)
+default(fontfamily=font, markerstrokewidth=0)
+
+
+plot(ns, SU_ts, label="SymbolicUtils.jl", title="fib(n)", ylabel="Time (s)", xlabel="n", 
+    color = :black, legend = :topleft, line=:dot,  # m=(:cross, :blue),
+    size=(320,220), legendfontsize = 9, titlefontsize=12)
+plot!(ns, MT_ts, label="Metatheory.jl", color = :black) # m = (:circle, :orange) )
+savefig("benchmarks/figures/fib.pdf")
