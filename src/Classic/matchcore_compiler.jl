@@ -18,7 +18,9 @@ function compile_lhs(p::PatVar, seen)
 	end
 end
 
-compile_lhs(p::PatLiteral, seen) = p.val
+function compile_lhs(p::PatLiteral{T}, seen) where T
+	p.val
+end
 compile_lhs(p::PatTypeAssertion, seen) = 
 	dollar(Expr(:(::), p.var.var, p.type))
 compile_lhs(p::PatSplatVar, seen) = 
@@ -37,7 +39,9 @@ end
 
 
 compile_rhs(p::PatVar) = dollar(p.var)
-compile_rhs(p::PatLiteral) = p.val
+function compile_rhs(p::PatLiteral{T}) where T
+    p.val
+end
 compile_rhs(p::PatTypeAssertion) = 
 	dollar(Expr(:(::), p.var.var, p.type))
 compile_rhs(p::PatSplatVar) = 
@@ -74,6 +78,7 @@ function compile_rule(rule::DynamicRule)
 	seen = Symbol[]
 	lhs = Meta.quot(compile_lhs(rule.left, seen))
 	rhs = quote
+		# FIXME
 		# _lhs_expr = $(Meta.quot(lhs));
 		$(rule.right)
 	end

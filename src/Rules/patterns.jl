@@ -8,8 +8,8 @@ struct PatVar <: Pattern
 end
 
 # TODO parametrize by T?
-struct PatLiteral <: Pattern
-    val::Any
+struct PatLiteral{T} <: Pattern
+    val::T
 end
 
 
