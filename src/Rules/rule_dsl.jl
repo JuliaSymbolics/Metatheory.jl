@@ -18,22 +18,6 @@ function interp_dollar(ex::Expr, mod::Module)
     end
 end
 
-"""
-When creating a theory, type assertions in the left hand contain symbols.
-We want to replace the type symbols with the real type values, to fully support
-the subtyping mechanism during pattern matching.
-"""
-eval_types_in_assertions(x, mod::Module) = x
-function eval_types_in_assertions(ex::Expr, mod::Module)
-    if Meta.isexpr(ex, :(::))
-        !(ex.args[1] isa Symbol) && error("Type assertion is not on pattern variable")
-        ex.args[2] isa Type && (return ex)
-        Expr(:(::), ex.args[1], getfield(mod, ex.args[2]))
-    else 
-        Expr(ex.head, map(x -> eval_types_in_assertions(x, mod), ex.args)...)
-    end
-end
-
 
 """
 Construct a `Rule` from a quoted expression.
@@ -41,21 +25,17 @@ You can also use the [`@rule`] macro to
 create a `Rule`.
 """
 function Rule(e::Expr; mod::Module=@__MODULE__)
-    e = rmlines(copy(e))
-    e = interp_dollar(e, mod)
     op = gethead(e)
 
     # TODO catch this fancy error
     RuleType = rule_sym_map[op]
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
-    # TODO move this to the macro
-    l = df_walk(x -> eval_types_in_assertions(x, mod), l; skip_call=true)
     
-    lhs = Pattern(l)
+    lhs = Pattern(l, mod)
     rhs = r
     
     if RuleType <: SymbolicRule
-        rhs = Pattern(rhs)
+        rhs = Pattern(rhs, mod)
     end
     
     # TODO Fix this
@@ -66,6 +46,9 @@ end
 
 
 macro rule(e)
+    e = macroexpand(__module__, e)
+    e = rmlines(copy(e))
+    e = interp_dollar(e, __module__)
     Rule(e; mod=__module__)
 end
 
@@ -74,6 +57,7 @@ end
 macro theory(e)
     e = macroexpand(__module__, e)
     e = rmlines(e)
+    e = interp_dollar(e, __module__)
     if Meta.isexpr(e, :block)
         Vector{Rule}(e.args .|> x -> Rule(x; mod=__module__))
     else

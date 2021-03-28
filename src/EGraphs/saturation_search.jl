@@ -68,7 +68,7 @@ function search_rule!(g::EGraph, r::MultiPatRewriteRule, id::Int64, matches::Mat
             # @show sub
             isempty(sub) && continue
             for i ∈ ids
-                ematch(g, pat, i; sub=sub, buf=newbuf)
+                ematch(g, pat, i, sub, newbuf)
             end
         end
         buf = copy(newbuf)

@@ -8,7 +8,7 @@ function instantiate(pat::PatVar, sub::Sub, rule::Rule)
     end
 end
 
-function instantiate(pat::PatLiteral, sub::Sub, rule::Rule)
+function instantiate(pat::PatLiteral{T}, sub::Sub, rule::Rule) where T
     pat.val
 end
 

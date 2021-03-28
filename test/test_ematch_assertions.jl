@@ -1,8 +1,8 @@
 @testset "Type Assertions in Ematcher" begin
     some_theory = @theory begin
         a * b => b * a
-        a::$Number * b::$Number => matched(a,b)
-        a::$Int64 * b::$Int64 => specific(a,b)
+        a::Number * b::Number => matched(a,b)
+        a::Int64 * b::Int64 => specific(a,b)
         a * (b * c) => (a * b) * c
     end
 

@@ -92,3 +92,17 @@ struct DynamicRule <: Rule
 end
 
 ==(a::DynamicRule, b::DynamicRule) = (a.left == b.left) && (a.right == b.right)
+
+# TODO develop
+struct PruningDynamicRule <: Rule 
+    rule::DynamicRule
+end
+
+==(a::PruningDynamicRule, b::PruningDynamicRule) = (a.rule == b.rule)
+
+# TODO develop
+struct PruningRewriteRule <: SymbolicRule 
+    rule::RewriteRule
+end
+
+==(a::PruningRewriteRule, b::PruningRewriteRule) = (a.rule == b.rule)

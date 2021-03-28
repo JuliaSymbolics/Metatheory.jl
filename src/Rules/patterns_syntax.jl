@@ -59,7 +59,7 @@ end
 """
 Recursively convert an [`Expr`](@ref) to a [`Pattern`](@ref) 
 """
-function Pattern(ex::Expr)
+function Pattern(ex::Expr, mod=@__MODULE__)
     ex = preprocess(ex)
     head = gethead(ex)
     args = getargs(ex)
@@ -68,16 +68,20 @@ function Pattern(ex::Expr)
     n = length(args)
     patargs = Vector{Pattern}(undef, n)
     for i ∈ 1:n
-        @inbounds patargs[i] = Pattern(args[i])
+        @inbounds patargs[i] = Pattern(args[i], mod)
     end
 
     # is a Type assertion 
     if head == :(::) && meta.iscall == false
         v = patargs[1]
         t = patargs[2]
-        if v isa PatVar && t isa PatLiteral
-            return PatTypeAssertion(v, t.val)
+        ty = Union{}
+        if t isa PatVar
+            ty = getfield(mod, t.var)
+        elseif t isa PatLiteral{<:Type}
+            ty = t.val
         end
+        return PatTypeAssertion(v, ty)
     end
 
     if head == :(...) && meta.iscall == false
@@ -91,11 +95,11 @@ function Pattern(ex::Expr)
     PatTerm(head, patargs, meta)
 end
 
-function Pattern(x::Symbol)
+function Pattern(x::Symbol, mod=@__MODULE__)
     PatVar(x)
 end
 
-function Pattern(x::QuoteNode)
+function Pattern(x::QuoteNode, mod=@__MODULE__)
     if x.value isa Symbol
         PatLiteral(x.value) 
     else
@@ -104,7 +108,7 @@ function Pattern(x::QuoteNode)
 end
 
 # Generic fallback
-function Pattern(ex)
+function Pattern(ex, mod=@__MODULE__)
     ex = preprocess(ex)
 
     if istree(ex)
@@ -115,17 +119,17 @@ function Pattern(ex)
         n = length(args)
         patargs = Vector{Pattern}(undef, n)
         for i ∈ 1:n
-            @inbounds patargs[i] = makepat(args[i])
+            @inbounds patargs[i] = Pattern(args[i], mod)
         end
         PatTerm(head, patargs, meta)
     end
     PatLiteral(ex)
 end
 
-function Pattern(p::Pattern)
+function Pattern(p::Pattern, mod=@__MODULE__)
     p 
 end
 
 macro pat(ex)
-    Pattern(ex)
+    Pattern(ex, __module__)
 end

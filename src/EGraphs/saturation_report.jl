@@ -28,7 +28,6 @@ const EmptyTimeData = (time=0.0, bytes=0, gctime=0.0)
 
 
 mutable struct Report
-    # TODO move this to a custom type
     reason::Union{ReportReasons.ReportReason, Nothing}
     egraph::EGraph
     iterations::Int
