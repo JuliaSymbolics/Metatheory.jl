@@ -1,8 +1,13 @@
 # Code Structure
 
 `src/`: Source Code for Metatheory.jl
+- `Rules`: This module contains core definition for rewrite rules and patterns
+  - `patterns.jl`: Pattern type definitions for various pattern matching backends.
+  - `patterns_syntax.jl`: Julia expressions to Patterns and pretty-printing patterns.
+  - `rule_types.jl`: Definition of `Rule` subtypes for rewrite rules. 
+  - `rule_dsl.jl`: Surface DSL for defining rules. 
+  - `rule_cache.jl`: Contains definition of global dynamic rule function cache. 
 - `TermInterface.jl`: Definition of the interface for using custom term types in Metatheory. Implementation for `Expr` and fallback.
-- `rule.jl`: Definition of `Rule` type for rewrite rules. Utility functions and macros for handling rules. Contains definition of global dynamic rule function cache.
 - `rgf.jl`: Utility functions for handling and generating Runtime Generated Functions 
 - `EGraphs/`: Code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
   - `enode.jl`: Definition of `ENode` type, constructors
@@ -12,7 +17,9 @@
   - `abstractanalysis.jl`: Definition of `AbstractAnalysis` interface
   - `analysis.jl`: Core algorithms for analyzing egraphs.
   - `extraction.jl`: Core algorithms for `ExtractionAnalysis`, extracting terms from egraphs.
-  - `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs. Search, application and instantiation of matching results.
+  - `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs. 
+  - `saturation_search.jl`: Search phase of equality saturation. Uses multiple-dispatch on `Rule`s
+  - `saturation_apply.jl`: Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results.
   - `saturation_params.jl`: Definition of `SaturationParams` type, parameters for equality saturation
   - `saturation_report.jl`: Definition of the type for displaying equality saturation execution reports.
   - `equality.jl`: utility functions and macros to check equality of terms in egraphs.
