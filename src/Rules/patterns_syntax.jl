@@ -19,10 +19,10 @@ function Base.show(io::IO, x::PatTerm)
     n = length(x.args)
     if x.head isa Symbol 
         if Base.isbinaryoperator(x.head) && n == 2
-            print(io, x.args[1], x.head, x.args[2])
+            print(io, "(", x.args[1], x.head, x.args[2], ")")
             return
         elseif Base.isunaryoperator(x.head) && n == 1
-            print(io, x.head, x.args[1])
+            print(io, "(", x.head, x.args[1], ")")
             return
         end
     end
