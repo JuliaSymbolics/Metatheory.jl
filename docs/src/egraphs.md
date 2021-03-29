@@ -78,12 +78,22 @@ according to the theory. The following example returns true.
 
 ### Configurable Parameters
 
-[`saturate!`](@ref) can accept an additional parameter of type
-[`SaturationParams`](@ref) to configure the equality saturation algorithm.
-The documentation for the configurable parameters is available in the [`SaturationParams`](@ref) API docstring.
+[`EGraphs.saturate!`](@ref) can accept an additional parameter of type
+[`EGraphs.SaturationParams`](@ref) to configure the equality saturation algorithm.
+The documentation for the configurable parameters is available in the [`EGraphs.SaturationParams`](@ref) API docstring.
 
 ```julia
 # create the saturation params
 params = SaturationParams(timeout=10, eclasslimit=4000)
 saturate!(egraph, theory, params)
+```
+
+
+## API Docs
+
+
+```@autodocs
+Modules = [Metatheory.EGraphs]
+Public = true
+Pages = ["egg.jl", "saturation.jl"]
 ```

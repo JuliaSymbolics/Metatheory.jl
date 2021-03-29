@@ -27,8 +27,16 @@ create a `Rule`.
 function Rule(e::Expr; mod::Module=@__MODULE__, prune=false)
     op = gethead(e)
 
-    # TODO catch this fancy error
-    RuleType = rule_sym_map[op]
+    RuleType = Union{}
+    try 
+        RuleType = rule_sym_map[op]
+    catch e
+        if e isa KeyError
+            error("Unknown Rule operator $op")
+        else
+            rethrow(e)
+        end
+    end
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
     lhs = Pattern(l, mod)

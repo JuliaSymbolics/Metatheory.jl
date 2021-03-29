@@ -17,7 +17,7 @@ end
 
 
 """
-Generates the [`RuntimeGeneratedFunction`](@ref) corresponding to the right hand
+Generates a [`RuntimeGeneratedFunction`](https://github.com/SciML/RuntimeGeneratedFunctions.jl/) corresponding to the right hand
 side of a `:dynamic` [`Rule`](@ref).
 """
 function genrhsfun(r::DynamicRule, mod::Module)

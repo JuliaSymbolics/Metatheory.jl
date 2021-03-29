@@ -47,7 +47,7 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
     extractnode(cn, extractor)
 end
 
-# TODO document how to extract
+# TODO document how to extract for custom types
 # TODO maybe extractor can just be the array of extracted children?
 function extractnode(n::ENode{Expr}, extractor::Function)::Expr
     expr_args = []
