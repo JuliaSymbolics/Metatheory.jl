@@ -64,37 +64,69 @@ numpages = {29},
 keywords = {e-graphs, equality saturation}
 }
 
+
+
+
 @article{bezanson2017julia,
-  title={Julia: A fresh approach to numerical computing},
-  author={Bezanson, Jeff and Edelman, Alan and Karpinski, Stefan and Shah, Viral B},
-  journal={SIAM review},
-  volume={59},
-  number={1},
-  pages={65--98},
-  year={2017},
-  doi = {10.1137/141000671},
-  publisher={SIAM}
+author = {Bezanson, Jeff and Edelman, Alan and Karpinski, Stefan and Shah, Viral B.},
+title = {Julia: A Fresh Approach to Numerical Computing},
+journal = {SIAM Review},
+volume = {59},
+number = {1},
+pages = {65-98},
+year = {2017},
+doi = {10.1137/141000671},
+
+URL = { 
+        https://doi.org/10.1137/141000671
+    
+},
+eprint = { 
+        https://doi.org/10.1137/141000671
+    
 }
 
-
+}
 
 
 @article{belyakova2020world,
-  title={World Age in Julia},
-  author={Belyakova, Julia and Chung, Benjamin and Gelinas, Jack and Nash, Jameson and Tate, Ross and Vitek, Jan},
-  year={2020}
+author = {Belyakova, Julia and Chung, Benjamin and Gelinas, Jack and Nash, Jameson and Tate, Ross and Vitek, Jan},
+title = {World Age in Julia: Optimizing Method Dispatch in the Presence of Eval},
+year = {2020},
+issue_date = {November 2020},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {4},
+number = {OOPSLA},
+url = {https://doi.org/10.1145/3428275},
+doi = {10.1145/3428275},
+abstract = {Dynamic programming languages face semantic and performance challenges in the presence of features, such as eval, that can inject new code into a running program. The Julia programming language introduces the novel concept of world age to insulate optimized code from one of the most disruptive side-effects of eval: changes to the definition of an existing function. This paper provides the first formal semantics of world age in a core calculus named juliette, and shows how world age enables compiler optimizations, such as inlining, in the presence of eval. While Julia also provides programmers with the means to bypass world age, we found that this mechanism is not used extensively: a static analysis of over 4,000 registered Julia packages shows that only 4-9% of packages bypass world age. This suggests that Julia's semantics aligns with programmer expectations.},
+journal = {Proc. ACM Program. Lang.},
+month = nov,
+articleno = {207},
+numpages = {26},
+keywords = {compilation, dynamic languages, eval, method dispatch}
 }
 
 @article{zappa2018julia,
-  title={Julia subtyping: a rational reconstruction},
-  author={Zappa Nardelli, Francesco and Belyakova, Julia and Pelenitsyn, Artem and Chung, Benjamin and Bezanson, Jeff and Vitek, Jan},
-  journal={Proceedings of the ACM on Programming Languages},
-  volume={2},
-  number={OOPSLA},
-  pages={1--27},
-  year={2018},
-  publisher={ACM New York, NY, USA}
+author = {Zappa Nardelli, Francesco and Belyakova, Julia and Pelenitsyn, Artem and Chung, Benjamin and Bezanson, Jeff and Vitek, Jan},
+title = {Julia Subtyping: A Rational Reconstruction},
+year = {2018},
+issue_date = {November 2018},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {2},
+number = {OOPSLA},
+url = {https://doi.org/10.1145/3276483},
+doi = {10.1145/3276483},
+abstract = {Programming languages that support multiple dispatch rely on an expressive notion of subtyping to specify method applicability. In these languages, type annotations on method declarations are used to select, out of a potentially large set of methods, the one that is most appropriate for a particular tuple of arguments. Julia is a language for scientific computing built around multiple dispatch and an expressive subtyping relation. This paper provides the first formal definition of Julia's subtype relation and motivates its design. We validate our specification empirically with an implementation of our definition that we compare against the existing Julia implementation on a collection of real-world programs. Our subtype implementation differs on 122 subtype tests out of 6,014,476. The first 120 differences are due to a bug in Julia that was fixed once reported; the remaining 2 are under discussion.},
+journal = {Proc. ACM Program. Lang.},
+month = oct,
+articleno = {113},
+numpages = {27},
+keywords = {Subtyping, Multiple Dispatch}
 }
+
 
 @article{panchekha2015automatically,
 author = {Panchekha, Pavel and Sanchez-Stern, Alex and Wilcox, James R. and Tatlock, Zachary},
