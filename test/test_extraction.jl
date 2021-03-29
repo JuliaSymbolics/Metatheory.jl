@@ -73,7 +73,7 @@ end
     # for i ∈ 1:100
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
-    addanalysis!(G, NumberFold)
+    analyze!(G, NumberFold)
 	params=SaturationParams(timeout=15)
     saturate!(G, comm_monoid, params)
 

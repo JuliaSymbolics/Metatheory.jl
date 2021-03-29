@@ -34,7 +34,6 @@ export EGraph
 export merge!
 export in_same_class
 export addexpr!
-export addanalysis!
 export rebuild!
 export prune!
 

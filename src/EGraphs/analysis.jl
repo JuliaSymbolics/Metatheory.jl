@@ -1,11 +1,3 @@
-function addanalysis!(g::EGraph, an::Type{<:AbstractAnalysis})
-    push!(g.analyses, an)
-    if !islazy(an)
-        analyze!(g, an)
-    end
-end
-
-
 analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, id::Int64) =
     analyze!(g, an, reachable(g, id))
 
@@ -35,7 +27,7 @@ function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
             # pass = make_pass(G, analysis, find(G,id))
 
             # if pass !== missing
-            if pass !== getdata(eclass, an, missing)
+            if !isequal(pass, getdata(eclass, an, missing))
                 setdata!(eclass, an, pass)
                 did_something = true
                 push!(g.dirty, id)

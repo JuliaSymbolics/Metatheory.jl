@@ -62,7 +62,6 @@ analyze!(G, NumberFold)
 # exit(0)
 
 @testset "Basic Constant Folding Example - Commutative Monoid" begin
-    # addanalysis!(G, NumberFold())
     @test (true == @areequalg G comm_monoid 3 * 4 12)
 
     @test (true == @areequalg G comm_monoid 3 * 4 12 4*3  6*2)
@@ -72,7 +71,7 @@ end
 @testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
-    addanalysis!(G, NumberFold)
+    analyze!(G, NumberFold)
     @test (true == @areequalg G comm_monoid (3 * a) * (4 * b) (12*a)*b ((6*2)*b)*a)
 end
 
@@ -81,7 +80,7 @@ end
     # addexpr!(G, 12)
     saturate!(G, comm_monoid)
     addexpr!(G, :(a * 2))
-    addanalysis!(G, NumberFold)
+    analyze!(G, NumberFold)
     saturate!(G, comm_monoid)
 
     # display(G.classes); println()
@@ -92,7 +91,7 @@ end
 
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
-    addanalysis!(G, NumberFold)
+    analyze!(G, NumberFold)
     params=SaturationParams(timeout=15)
     @test areequal(G, comm_monoid, :((3 * a) * (4 * b)), :((12*a)*b),
         :(((6*2)*b)*a); params=params)

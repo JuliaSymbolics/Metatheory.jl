@@ -44,8 +44,7 @@ query = :(a * (b * c))
 
 G = EGraph( query )
 @time saturate!(G, theory)
-extractor = addanalysis!(G, ExtractionAnalysis, astsize)
-ex = extract!(G, extractor)
+ex = extract!(G, astsize)
 println( "Best found: $ex")
 
 rust_code =
