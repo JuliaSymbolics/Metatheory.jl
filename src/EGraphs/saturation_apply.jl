@@ -47,25 +47,35 @@ function apply_rule!(g::EGraph, rule::SymbolicRule,
         match::Match, matches::MatchesBuf, rep::Report,  mod::Module)
     (_, pat, sub, id) = match
     rinst = instantiate(pat, sub, rule)
-    rc = addexpr!(g, rinst).id
-    merge!(g, id, rc)
+    rc = addexpr!(g, rinst)
+    if canprune(typeof(rule)) && rule.prune 
+        prune!(g, id, rc)
+    else
+        merge!(g, id, rc.id)
+    end
     return (true, nothing)
 end
+
 
 function apply_rule!(g::EGraph, rule::DynamicRule, 
         match::Match, matches::MatchesBuf, rep::Report,  mod::Module)
     (_, pat, sub, id) = match
-    lc = id
     f = Rules.getrhsfun(rule, mod)
     actual_params = map(rule.patvars) do x
         (eclass, literal) = sub[x]
         literal !== nothing ? literal : eclass
     end
-    r = f(geteclass(g, lc), g, actual_params...)
+    r = f(geteclass(g, id), g, actual_params...)
     rc = addexpr!(g, r)
-    merge!(g,lc,rc.id)
+
+    if canprune(typeof(rule)) && rule.prune 
+        prune!(g, id, rc)
+    else
+        merge!(g, id, rc.id)
+    end
     return (true, nothing)
 end
+
 
 using .ReportReasons
 function eqsat_apply!(g::EGraph, matches::MatchesBuf,
@@ -91,6 +101,9 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
 
         rule=match[1]
         writestep!(scheduler, rule)
+        if find(g, match[4]) ∈ g.pruned
+            return rep
+        end
         (ok, nrep) = apply_rule!(g, rule, match, matches, rep, mod)
         if !ok 
             return nrep 

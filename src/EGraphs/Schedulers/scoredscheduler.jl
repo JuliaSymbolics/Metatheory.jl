@@ -61,6 +61,7 @@ function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::
         # println("$rule HAS SCORE $((cl, cr))")
         if cl > cr
             w = 1   # reduces complexity
+            fuel = Inf
         elseif cr > cl
             w = 3   # augments complexity
         else

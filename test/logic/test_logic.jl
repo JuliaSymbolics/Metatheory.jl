@@ -1,70 +1,14 @@
-# Metatheory.options[:printiter] = true
-using Metatheory
-using Metatheory.EGraphs
-using Metatheory.Classic
-using Test
+include("prop_logic_theory.jl")
+include("prover.jl")
 
-or_alg = @theory begin
-    ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
-    (p ∨ q)             ==  (q ∨ p)
-    (p ∨ p)             =>  p
-    (p ∨ true)          =>  true
-    (p ∨ false)         =>  p
-end
+ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
+@test prove(t, ex, 3, 7)
 
-and_alg = @theory begin
-    ((p ∧ q) ∧ r)       ==  (p ∧ (q ∧ r))
-    (p ∧ q)             ==  (q ∧ p)
-    (p ∧ p)             =>  p
-    (p ∧ true)          =>  p
-    (p ∧ false)         =>  false
-end
-
-comb = @theory begin
-    # DeMorgan
-    ¬(p ∨ q)            ==  (¬p ∧ ¬q)
-    ¬(p ∧ q)            ==  (¬p ∨ ¬q)
-    # distrib
-    (p ∧ (q ∨ r))       ==  ((p ∧ q) ∨ (p ∧ r))
-    (p ∨ (q ∧ r))       ==  ((p ∨ q) ∧ (p ∨ r))
-    # absorb
-    (p ∧ (p ∨ q))       =>  p
-    (p ∨ (p ∧ q))       =>  p
-    # complement
-    (p ∧ (¬p ∨ q))      =>  p ∧ q
-    (p ∨ (¬p ∧ q))      =>  p ∨ q
-end
-
-negt = @theory begin
-    (p ∧ ¬p)            =>  false
-    (p ∨ ¬(p))          =>  true
-    ¬(¬p)               ==  p
-end
-
-impl = @theory begin
-    (p == ¬p)           =>  false
-    (p == p)            =>  true
-    (p == q)            =>  (¬p ∨ q) ∧ (¬q ∨ p)
-    (p => q)            =>  (¬p ∨ q)
-end
-
-fold = @theory begin
-    (p::Bool == q::Bool)    |>     (p == q)
-    (p::Bool ∨ q::Bool)     |>     (p || q)
-    (p::Bool => q::Bool)    |>     ((p || q) == q)
-    (p::Bool ∧ q::Bool)     |>     (p && q)
-    ¬(p::Bool)              |>     (!p)
-end
-
-# t = or_alg ∪ and_alg ∪ neg_alg ∪ demorgan ∪ and_or_distrib ∪
-#     absorption ∪ calc
-
-t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 
 @test @areequal t true ((¬p == p) == false)
 @test @areequal t true ((¬p == ¬p) == true)
 @test @areequal t true ((¬p ∨ ¬p) == ¬p) (¬p ∨ p) ¬(¬p ∧ p)
-@test @areequal t true ((p => (p ∨ p)) == true)
+@test @areequal t true ((p => (p ∨ p)))
 @test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
 
 # Frege's theorem
@@ -87,31 +31,6 @@ t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 # @test @areequal (t ∪ [@rule :p => true]) true (((p => q) ∧ (r => s)) ∧ (p ∨ r)) => (q ∨ s)
 
 # @test areequal(t, true, :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s)))
-
-function prove(t, ex, steps)
-    params = SaturationParams(timeout=8, eclasslimit=5000, 
-        scheduler=Schedulers.ScoredScheduler , schedulerparams=(8,2, Schedulers.exprsize))
-    hist = UInt64[]
-    push!(hist, hash(ex))
-    for i ∈ 1:steps
-        g = EGraph(ex)
-        saturate!(g, t, params)
-        ex = extract!(g, astsize)
-        println(ex)
-        if !TermInterface.istree(ex)
-            return ex
-        end
-        if hash(ex) ∈ hist
-            println("loop detected")
-            return ex
-        end
-        push!(hist, hash(ex))
-    end
-    return ex
-end
-
-ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
-@test prove(t, ex, 3)
 
 # using Metatheory.EGraphs.Schedulers
 # Metatheory.options.verbose = true
