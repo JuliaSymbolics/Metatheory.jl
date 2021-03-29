@@ -57,35 +57,30 @@ the `rewrite` function.
 
 ##### Step 1: Simplification with EGraphs
 
-```jldoctest simpl
+```@example classic
 using Metatheory
 using Metatheory.EGraphs
+using Metatheory.Classic
 using Metatheory.Library
+
+@metatheory_init ()
 
 comm_monoid = commutative_monoid(:(*), 1);
 start_expr = :( (a * (1 * (2σ)) * (b * σ + (c * 1)) ) );
 g = EGraph(start_expr);
-extractor = addanalysis!(g, ExtractionAnalysis, astsize);
 saturate!(g, comm_monoid);
-simplified = extract!(g, extractor)
-
-# output
-:(a * (σ * 2) * (σ * b + c))
-
+simplified = extract!(g, astsize)
 ```
 
 ##### Step 2: Moving σ to the right
-```jldoctest simpl
+```@example classic
 moveright = @theory begin
-	:σ * a 				=> a*:σ
+	:σ * a 			=> a*:σ
 	(a * :σ) * b 	=> (a * b) * :σ
 	(:σ * a) * b 	=> (a * b) * :σ
 end;
 
-simplified = rewrite(simplified, moveright);
-
-# output
-:((a * (2 * :σ)) * (b * :σ + c))
+simplified = rewrite(simplified, moveright)
 ```
 
 #### Assignment to variables during rewriting.
@@ -101,7 +96,7 @@ which behave similarly to pointers in other languages such as C or OCaml.
 **Note**: due to nondeterminism, it is unrecommended to assign values to
 `Ref`s when using the **EGraph** backend!
 
-```julia
+```@example classic
 safe_var = 0
 ref_var = Ref{Real}(0)
 
@@ -113,8 +108,7 @@ end
 rewrite(:(safe), reft; order=:inner, m=@__MODULE__)
 rewrite(:(ref), reft; order=:inner, m=@__MODULE__)
 
-safe_var == 0
-ref_var[] == π
+(safe_var, ref_var[])
 ```
 
 ### A Tiny Imperative Programming Language Interpreter
@@ -130,3 +124,13 @@ by reusing the Julia AST data structure, and therefore efficiently reusing
 the Julia parser for our new toy language.
 
 See this [test file](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/test/test_while_interpreter.jl).
+
+## API Docs
+
+```@meta
+CurrentModule = Metatheory
+```
+
+```@autodocs
+Modules = [Metatheory.Classic]
+```

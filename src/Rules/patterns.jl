@@ -1,18 +1,40 @@
-# TODO document custom types as patterns
-
+"""
+Abstract type representing a pattern used in all the various pattern matching backends. 
+You can use the `Pattern` constructor to recursively convert an `Expr` (or any type satisfying [`Metatheory.TermInterface`](@ref)) to a [`Pattern`](@ref).
+"""
 abstract type Pattern end
 
 # TODO implement debrujin indexing?
+"""
+Pattern variables will first match on any subterm
+and instantiate the substitution to that subterm. 
+"""
 struct PatVar <: Pattern
     var::Symbol
 end
 
-# TODO parametrize by T?
+"""
+A pattern literal will match only against an instance of itself.
+Example:
+```julia
+PatLiteral(2)
+```
+Will match only against values that are equal (using `Base.(==)`) to 2.
+
+```julia
+PatLiteral(:a)
+```
+Will match only against instances of the literal symbol `:a`.
+"""
 struct PatLiteral{T} <: Pattern
     val::T
 end
 
-
+"""
+Type assertions on a [`PatVar`](@ref), will match if and only if 
+the type of the matched term for the pattern variable `var` is a subtype 
+of `type`.
+"""
 struct PatTypeAssertion <: Pattern
     var::PatVar
     type::Type
@@ -22,13 +44,22 @@ struct PatSplatVar <: Pattern
     var::PatVar
 end
 
-# only available in EGraphs
+"""
+This type of pattern will match if and only if 
+the two subpatterns exist in the same equivalence class,
+in the e-graph on which the matching is performed.
+**Can be used only in the e-graphs backend**
+"""
 struct PatEquiv <: Pattern
     left::Pattern
     right::Pattern
 end
 
-
+"""
+Term patterns will match
+on terms of the same `arity` and with the same 
+function symbol (`head`).
+"""
 struct PatTerm <: Pattern
     head::Any
     args::Vector{Pattern}

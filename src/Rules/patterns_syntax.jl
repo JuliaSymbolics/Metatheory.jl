@@ -56,9 +56,7 @@ end
 
 # ======================= READING ====================
 
-"""
-Recursively convert an [`Expr`](@ref) to a [`Pattern`](@ref) 
-"""
+
 function Pattern(ex::Expr, mod=@__MODULE__)
     ex = preprocess(ex)
     head = gethead(ex)

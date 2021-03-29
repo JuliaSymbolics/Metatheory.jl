@@ -1,4 +1,18 @@
-using Documenter, Metatheory
+using Documenter
+using Metatheory
+
+using Metatheory.EGraphs
+using Metatheory.Rules
+using Metatheory.Classic
+using Metatheory.Library
+
+
+for m ∈ [Metatheory]
+    for i ∈ propertynames(m)
+       xxx = getproperty(m, i)
+       println(xxx)
+    end
+ end
 
 makedocs(
     modules = [Metatheory],
@@ -8,8 +22,10 @@ makedocs(
         "theories.md"
         "egraphs.md"
         "analysis.md"
+        "extraction.md"
+        "schedulers.md"
         "classic.md"
-        "api.md"
+        "options.md"
     ])
 
 deploydocs(repo = "github.com/0x0f0f0f/Metatheory.jl.git")
