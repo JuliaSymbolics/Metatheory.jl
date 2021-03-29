@@ -28,6 +28,7 @@ mutable struct EGraph
     memo::HashCons             # memo
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
+    pruned::Vector{Int64}
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
@@ -45,6 +46,7 @@ EGraph() = EGraph(
     ClassMem(),
     HashCons(),
     # ParentMem(),
+    Vector{Int64}(),
     Vector{Int64}(),
     0,
     Analyses(),
@@ -196,6 +198,9 @@ the two e-classes as equal.
 function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     id_a = find(g, a)
     id_b = find(g, b)
+    id_a ∈ g.pruned && return id_a
+    id_b ∈ g.pruned && return id_b
+     
     id_a == id_b && return id_a
     to = union!(g.uf, id_a, id_b)
 
@@ -206,7 +211,6 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     push!(g.dirty, to)
 
     from_class = g.classes[from]
-    from_class.id = from
     to_class = g.classes[to]
     to_class.id = to
 
@@ -222,22 +226,33 @@ function in_same_class(g::EGraph, a, b)
     find(g, a) == find(g, b)
 end
 
+function prune!(g::EGraph, a::Int64, b::EClass)
+    id_a = find(g, a)
+    # union!(g.uf, id_a, b.id)
+    b.id = id_a
+    g.classes[id_a] = b
+    push!(g.dirty, id_a)
+    push!(g.pruned, id_a)
+    return id_a
+end
+
 """
 This function restores invariants and executes
 upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(egraph::EGraph)
-    while !isempty(egraph.dirty)
+function rebuild!(g::EGraph)
+    while !isempty(g.dirty)
         # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
-        todo = unique(egraph.dirty)
-        empty!(egraph.dirty)
+        todo = unique(g.dirty)
+        empty!(g.dirty)
         for x ∈ todo
-            repair!(egraph, x)
+            repair!(g, x)
         end
     end
 
+    g.pruned = unique([find(g,id) for id ∈ g.pruned])
     # for (node, id) ∈ egraph.memo
     #     egraph.memo[node] = find(egraph, id)
     # #     sym = node.head
@@ -250,8 +265,8 @@ function rebuild!(egraph::EGraph)
     #     egraph.symcache[sym] = unique(ids .|> x -> find(egraph, x))
     # end
 
-    if egraph.root != 0
-        egraph.root = find(egraph, egraph.root)
+    if g.root != 0
+        g.root = find(g, g.root)
     end
 
     # for i ∈ 1:length(egraph.uf)

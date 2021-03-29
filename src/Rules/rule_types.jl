@@ -6,13 +6,19 @@
 # To use a type assertion pattern, add `::T` after
 # a pattern variable in the `left_hand` of a rule.
 # """
-
+using Parameters
 
 import Base.==
 
 abstract type Rule end
+# Must override
+==(a::Rule, b::Rule) = false
+==(a::Rule, b::Rule) = false
+canprune(r::Type{<:Rule}) = false
+canprune(r::T) where {T<:Rule}= canprune(T)
+
+
 abstract type SymbolicRule <: Rule end
-==(a::SymbolicRule, b::SymbolicRule) = (a.left == b.left) && (a.right == b.right)
 
 """
 Rules defined as `left_hand => right_hand` are
@@ -32,7 +38,11 @@ Rule(:(a * b => b * a))
 struct RewriteRule <: SymbolicRule 
     left::Pattern
     right::Pattern
+    prune::Bool
+    RewriteRule(l, r) = new(l,r,false)
+    RewriteRule(l,r,p) = new(l,r,p)
 end
+canprune(t::Type{RewriteRule}) = true
 
 # =============================================================================
 
@@ -49,6 +59,7 @@ end
 
 abstract type BidirRule <: SymbolicRule end
 ==(a::BidirRule, b::BidirRule) = (a.left == b.left) && (a.right == b.right)
+
 
 """
 This type of *anti*-rules is used for checking contradictions in the EGraph
@@ -88,21 +99,11 @@ struct DynamicRule <: Rule
     left::Pattern
     right::Any
     patvars::Vector{PatVar} # useful set of pattern variables
-    DynamicRule(l::Pattern, r) = new(l, r, unique(patvars(l)))
+    prune::Bool
+    DynamicRule(l::Pattern, r, prune) = new(l, r, unique(patvars(l)), prune)
+    DynamicRule(l, r) = new(l,r,false)
 end
+canprune(t::Type{DynamicRule}) = true
 
 ==(a::DynamicRule, b::DynamicRule) = (a.left == b.left) && (a.right == b.right)
 
-# TODO develop
-struct PruningDynamicRule <: Rule 
-    rule::DynamicRule
-end
-
-==(a::PruningDynamicRule, b::PruningDynamicRule) = (a.rule == b.rule)
-
-# TODO develop
-struct PruningRewriteRule <: SymbolicRule 
-    rule::RewriteRule
-end
-
-==(a::PruningRewriteRule, b::PruningRewriteRule) = (a.rule == b.rule)
