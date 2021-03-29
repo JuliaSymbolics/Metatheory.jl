@@ -87,7 +87,9 @@ find(g::EGraph, a::EClass)::Int64 = find_root!(g.uf, a.id)
 function geteclass(g::EGraph, a::Int64)::EClass
     id = find(g, a)
     ec = g.classes[id]
-    ec.id = id
+    # @show ec.id id a
+    # @assert ec.id == id
+    # ec.id = id
     ec
 end
 # geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
@@ -209,7 +211,7 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     to_class.id = to
 
     # I (was) the troublesome line!
-    g.classes[to] = union!(from_class, to_class)
+    g.classes[to] = union(to_class, from_class)
     delete!(g.classes, from)
     g.numclasses -= 1
 

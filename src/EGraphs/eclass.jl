@@ -46,17 +46,16 @@ function addparent!(a::EClass, n::ENode, id::Int64)
 end
 
 function Base.union(to::EClass, from::EClass)
-    EClass(to.id, from.nodes ∪ to.nodes, from.parents ∪ to.parents, from.data ∪ to.data)
+    EClass(to.id, vcat(from.nodes, to.nodes), 
+        vcat(from.parents, to.parents), 
+        if to.data !== nothing && from.data !== nothing
+            join_analysis_data(to.data, from.data)
+        elseif to.data === nothing
+            from.data
+        else nothing end)
 end
 
 function Base.union!(to::EClass, from::EClass)
-    # TODO FIXME THOSE WERE UNIONS! how to fix this?
-    # now nodes list contain duplicates, but using 
-    # vcat here HALVENS the memory usage of the whole tests
-    # maybe use this?
-    # insert_and_dedup!(v::Vector, x) = (splice!(v, searchsorted(v,x), [x]); v)
-    # calling unique! in repair seems to work!! 
-
     to.nodes = vcat(to.nodes, from.nodes)
     to.parents = vcat(to.parents, from.parents)
     if to.data !== nothing && from.data !== nothing
