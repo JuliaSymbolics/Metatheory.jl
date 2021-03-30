@@ -16,26 +16,33 @@ Base.show(io::IO, x::PatSplatVar) = print(io, x.var, "...")
 Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
 
 function Base.show(io::IO, x::PatTerm)
-    n = length(x.args)
-    if x.head isa Symbol 
-        if Base.isbinaryoperator(x.head) && n == 2
-            print(io, "(", x.args[1], x.head, x.args[2], ")")
-            return
-        elseif Base.isunaryoperator(x.head) && n == 1
-            print(io, "(", x.head, x.args[1], ")")
-            return
-        end
+    if x.metadata !== nothing && haskey(x.metadata, :iscall) && x.metadata.iscall
+        print(io, Expr(:call, x.head, x.args...))
+    else 
+        print(io, Expr(x.head, x.args...))
     end
 
-    print(io, x.head)
-    print(io, "(")
-    for i ∈ 1:n
-        @inbounds print(io, x.args[i])
-        if i < n
-            print(io, ",")
-        end
-    end
-    print(io, ")")
+    # show(io, Expr(x.head, x.args...))
+    # n = length(x.args)
+    # if x.head isa Symbol 
+    #     if Base.isbinaryoperator(x.head) && n == 2
+    #         print(io, "(", x.args[1], x.head, x.args[2], ")")
+    #         return
+    #     elseif Base.isunaryoperator(x.head) && n == 1
+    #         print(io, "(", x.head, x.args[1], ")")
+    #         return
+    #     end
+    # end
+
+    # print(io, x.head)
+    # print(io, "(")
+    # for i ∈ 1:n
+    #     @inbounds print(io, x.args[i])
+    #     if i < n
+    #         print(io, ",")
+    #     end
+    # end
+    # print(io, ")")
 end
 
 function Base.show(io::IO, x::PatAllTerm)

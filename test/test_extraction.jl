@@ -106,8 +106,9 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 
 @testset "Complex Extraction" begin
 	G = EGraph(:(log(e) * log(e)))
-	params=SaturationParams(timeout=7)
+	params=SaturationParams(timeout=8)
 	saturate!(G, t, params)
+	# display(G.classes);println()
 	@test extract!(G, astsize) == 1
 
 	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))

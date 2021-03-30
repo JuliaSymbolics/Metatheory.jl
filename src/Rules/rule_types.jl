@@ -13,7 +13,6 @@ import Base.==
 abstract type Rule end
 # Must override
 ==(a::Rule, b::Rule) = false
-==(a::Rule, b::Rule) = false
 canprune(r::Type{<:Rule}) = false
 canprune(r::T) where {T<:Rule}= canprune(T)
 

@@ -18,8 +18,11 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
 
     readstep!(scheduler)
 
-
-    search_stats = @timed eqsat_search!(g, theory, scheduler)
+    if options.multithreading 
+        search_stats = @timed eqsat_search_threaded!(g, theory, scheduler)
+    else 
+        search_stats = @timed eqsat_search!(g, theory, scheduler)
+    end
     matches = search_stats.value
     report.search_stats = report.search_stats + discard_value(search_stats)
 
@@ -81,7 +84,7 @@ function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
         tot_report = tot_report + report
 
         # report.reason == :matchlimit && break
-        if report.reason isa Union{ConditionSatisfied, Contradiction, Saturated}
+        if !(report.reason isa Nothing)
             break
         end
 

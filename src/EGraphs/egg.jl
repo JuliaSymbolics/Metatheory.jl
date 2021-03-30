@@ -11,7 +11,7 @@ an EGraph
 const ClassMem = Dict{Int64,EClass}
 const HashCons = Dict{ENode,Int64}
 const Analyses = Set{Type{<:AbstractAnalysis}}
-const SymbolCache = Dict{Any, Vector{Int64}}
+const SymbolCache = Dict{Any, Set{Int64}}
 
 
 
@@ -22,7 +22,7 @@ for implementation details
 """
 mutable struct EGraph
     """stores the equality relations over e-class ids"""
-    uf::IntDisjointSets
+    uf::IntDisjointSet
     """map from eclass id to eclasses"""
     classes::ClassMem
     memo::HashCons             # memo
@@ -41,8 +41,9 @@ mutable struct EGraph
     numnodes::Int
 end
 
-EGraph() = EGraph(
-    IntDisjointSets(0),
+function EGraph()
+    EGraph(
+    IntDisjointSet(Int64[]),
     ClassMem(),
     HashCons(),
     # ParentMem(),
@@ -54,8 +55,7 @@ EGraph() = EGraph(
     0,
     0
 )
-
-
+end
 function EGraph(e)
     g = EGraph()
     rootclass = addexpr!(g, e)
@@ -82,8 +82,10 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-find(g::EGraph, a::Int64)::Int64 = find_root!(g.uf, a)
-find(g::EGraph, a::EClass)::Int64 = find_root!(g.uf, a.id)
+find(g::EGraph, a::Int64)::Int64 = find_root(g.uf, a)
+#FIXME
+# find(g::EGraph, a::Int64)::Int64 = _find_root_normal(g.uf, a)
+find(g::EGraph, a::EClass)::Int64 = find(g, a.id)
 
 
 function geteclass(g::EGraph, a::Int64)::EClass
@@ -133,7 +135,7 @@ function add!(g::EGraph, n::ENode)::EClass
     # cache the eclass for the symbol for faster matching
     # sym = n.head
     # if !haskey(g.symcache, sym)
-    #     g.symcache[sym] = Int64[]
+    #     g.symcache[sym] = Set{Int64}()
     # end
     # push!(g.symcache[sym], id)
 
@@ -261,13 +263,15 @@ function rebuild!(g::EGraph)
     # #     end
     # #     push!(egraph.symcache[sym], id)
     # end
-    # for (sym, ids) ∈ egraph.symcache
-    #     egraph.symcache[sym] = unique(ids .|> x -> find(egraph, x))
+    # for (sym, ids) ∈ g.symcache
+    #     g.symcache[sym] = Set{Int64}(map(collect(ids)) do x find(g, x) end)
     # end
 
     if g.root != 0
         g.root = find(g, g.root)
     end
+
+    normalize!(g.uf)
 
     # for i ∈ 1:length(egraph.uf)
     #     find_root!(egraph.uf, i)
@@ -293,6 +297,7 @@ function rebuild!(g::EGraph)
     # end
     # display(egraph.classes); println()
     # @show egraph.dirty
+
 end
 
 function repair!(g::EGraph, id::Int64)
