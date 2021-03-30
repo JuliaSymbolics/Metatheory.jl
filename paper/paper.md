@@ -41,7 +41,7 @@ Metatheory.jl offers a concise macro system to define *theories*: composable blo
 This approach, however, suffers from the usual problems of rewriting systems. For example, even trivial equational rules such as commutativity may lead to non-terminating systems and thus need to be adjusted by some sort of structuring or rewriting order, which is known to require extensive user reasoning.
 
 
-The other back-end for Metatheory.jl, the core of our contribution, is designed so that it does not require the user to reason about rewriting order. To do so it relies on equality saturation on *e-graphs*, the state-of-the-art technique adapted from the `egg` Rust library @egg.
+The other back-end for Metatheory.jl, the core of our contribution, is designed so that it does not require the user to reason about rewriting order. To do so it relies on equality saturation on *e-graphs*, the state-of-the-art technique adapted from the `egg` Rust library [@egg].
 
 *E-graphs* can compactly represent many equivalent expressions and programs. Provided with a theory of rewriting rules, defined in pure Julia, the *equality saturation* process iteratively executes an e-graph-specific pattern matcher and inserts the matched substitutions. Since e-graphs can contain loops, infinite derivations can be represented compactly and it is not required that the described rewrite system be terminating or confluent.
 
