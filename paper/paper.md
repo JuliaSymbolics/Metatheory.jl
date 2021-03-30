@@ -37,16 +37,16 @@ rewrite theories in Metatheory.jl can bear a strong structural and visual resemb
 
 # Summary
 
-Metatheory.jl offers a concise macro system to define *theories*: composable blocks of rewriting rules that can be executed through two, highly composable, rewriting backends. The first is based on standard rewriting, built on top of the pattern matcher developed in [@matchcore].
+Metatheory.jl offers a concise macro system to define *theories*: composable blocks of rewriting rules that can be executed through two, highly composable, rewriting backends. The first is based on standard rewriting, built on top of the pattern matcher developed in @matchcore.
 This approach, however, suffers from the usual problems of rewriting systems. For example, even trivial equational rules such as commutativity may lead to non-terminating systems and thus need to be adjusted by some sort of structuring or rewriting order, which is known to require extensive user reasoning.
 
 
-The other back-end for Metatheory.jl, the core of our contribution, is designed so that it does not require the user to reason about rewriting order. To do so it relies on equality saturation on *e-graphs*, the state-of-the-art technique adapted from the `egg` Rust library [@egg].
+The other back-end for Metatheory.jl, the core of our contribution, is designed so that it does not require the user to reason about rewriting order. To do so it relies on equality saturation on *e-graphs*, the state-of-the-art technique adapted from the `egg` Rust library @egg.
 
 *E-graphs* can compactly represent many equivalent expressions and programs. Provided with a theory of rewriting rules, defined in pure Julia, the *equality saturation* process iteratively executes an e-graph-specific pattern matcher and inserts the matched substitutions. Since e-graphs can contain loops, infinite derivations can be represented compactly and it is not required that the described rewrite system be terminating or confluent.
 
 The saturation process relies on the definition of e-graphs to include *rebuilding*, i.e. the automatic process of propagation and maintenance of congruence closures.
-One of the core contributions of [@egg] is a delayed e-graph rebuilding process that is executed at the end of each saturation step, whereas previous definitions of e-graphs in the literature included rebuilding after every rewrite operation.
+One of the core contributions of @egg is a delayed e-graph rebuilding process that is executed at the end of each saturation step, whereas previous definitions of e-graphs in the literature included rebuilding after every rewrite operation.
 Provided with *equality saturation*, users can efficiently derive (and analyze) all possible equivalent expressions contained in an e-graph. The saturation process can be required to stop prematurely as soon as chosen properties about the e-graph and its expressions are proved. This latter back-end based on *e-graphs* is suitable for partial evaluators, symbolic mathematics, static analysis, theorem proving and superoptimizers.
 
 <!-- The other back-end for Metatheory.jl, the core of our contribution, is designed to not require the user to reason about rewriting order by employing equality saturation on e-graphs. This backend allows programmers to define equational theories in pure Julia without worrying about rule ordering and structuring, by relying on state-of-the-art techniques for equality saturation over *e-graphs* adapted from the `egg` Rust library [@egg].
@@ -60,7 +60,7 @@ the first implementation of generic and extensible e-graphs [@nelson1980fast]; t
 Differently from the original Rust implementation of `egg`, which handles expressions defined as Rust strings and data structures, our system directly manipulates homoiconic Julia expressions, and can therefore fully leverage the Julia subtyping mechanism [@zappa2018julia], allowing programmers to build expressions containing not only symbols but all kinds of Julia values.
 This permits rewriting and analyses to be efficiently based on runtime data contained in expressions. Most importantly, users can -- and are encouraged to -- include type assertions in the left-hand side of rewriting rules in theories.
 
-One of the project goals of Metatheory.jl, beyond being easy to use and composable, is to be fast and efficient. Both the first-class pattern matching system and the generation of e-graph analyses from theories rely on RuntimeGeneratedFunctions.jl [@rgf], generating callable functions at runtime that efficiently bypass Julia's world age problem [@belyakova2020world] with the full performance of a standard Julia anonymous function.
+One of the project goals of Metatheory.jl, beyond being easy to use and composable, is to be fast and efficient. Both the first-class pattern matching system and the generation of e-graph analyses from theories rely on RuntimeGeneratedFunctions.jl [@rgf], generating callable functions at runtime that efficiently bypass Julia's world age problem (explained and formalized in @belyakova2020world) with the full performance of a standard Julia anonymous function.
 
 
 ## Analyses and Extraction
@@ -138,7 +138,7 @@ ex = extract!(g, astsize)
 # Conclusion
 
 Many applications of equality saturation to advanced optimization tasks have been recently published. Herbie [@panchekha2015automatically]
-is a tool for automatically improving the precision of floating point expressions, which recently switched to `egg` as the core rewriting backend. However, Herbie requires interoperation and conversion of expressions between different languages and libraries. In [@yang2021equality], the authors used `egg` to superoptimize tensor signal flow graphs describing neural networks.  Implementing similar case studies in pure Julia would make valid research contributions on their own. We are confident that a well-integrated and homoiconic equality saturation engine in pure Julia will permit exploration of many new metaprogramming applications, and allow them to be implemented in an elegant, performant and concise way. Code for Metatheory.jl is available in [@metatheory], or at [https://github.com/0x0f0f0f/Metatheory.jl](https://github.com/0x0f0f0f/Metatheory.jl).
+is a tool for automatically improving the precision of floating point expressions, which recently switched to `egg` as the core rewriting backend. However, Herbie requires interoperation and conversion of expressions between different languages and libraries. In @yang2021equality, the authors used `egg` to superoptimize tensor signal flow graphs describing neural networks.  Implementing similar case studies in pure Julia would make valid research contributions on their own. We are confident that a well-integrated and homoiconic equality saturation engine in pure Julia will permit exploration of many new metaprogramming applications, and allow them to be implemented in an elegant, performant and concise way. Code for Metatheory.jl is available in @metatheory, or at [https://github.com/0x0f0f0f/Metatheory.jl](https://github.com/0x0f0f0f/Metatheory.jl).
 
 # Acknowledgements
 
