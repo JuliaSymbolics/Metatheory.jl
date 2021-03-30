@@ -10,12 +10,10 @@ tags:
 authors:
   - name: Alessandro Cheli #^[Custom footnotes for e.g. denoting who the corresponding author is can be included like this.]
     orcid: 0000-0002-8122-9469
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)
+    affiliation: 1 # (Multiple affiliations must be quoted)
 affiliations:
- - name: Undergraduate Student, University of Pisa
+ - name: University of Pisa, Pisa, Italy
    index: 1
- - name: Independent Researcher
-   index: 2
 date: 11 February 2021
 bibliography: paper.bib
 
