@@ -12,6 +12,10 @@ Global configurable options for Metatheory.
     Print iteration numbers in equality saturation
     """
     printiter::Bool = false
+    """
+    Allow for multi-threading 
+    """
+    multithreading::Bool = false
 end
 
 

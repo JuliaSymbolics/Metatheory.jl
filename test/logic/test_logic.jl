@@ -1,6 +1,9 @@
 include("prop_logic_theory.jl")
 include("prover.jl")
 
+using Test
+
+
 ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 @test prove(t, ex, 3, 7)
 
@@ -19,6 +22,19 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 
 # Consensus theorem
 @test @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z))   ((x ∧ y) ∨ (¬x ∧ z))
+
+# Multithreading 
+# Metatheory.options.verbose = true
+# Metatheory.options.printiter = false 
+# Metatheory.options.multithreading = false
+
+# ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
+# @timev prove(t, ex, 1, 20, 12000)
+
+# Metatheory.options.multithreading = true
+# ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
+# @timev prove(t, ex, 1, 20, 12000)
+
 
 # @timev areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬x ∧ z)))
 # @timev areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬babo ∧ z)))

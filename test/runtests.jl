@@ -4,11 +4,12 @@ using Metatheory.EGraphs
 using Metatheory.Library
 using Metatheory.Util
 
-using DataStructures
+# using DataStructures
 using Test
 
 Metatheory.options.verbose = false
 Metatheory.options.printiter = false
+Metatheory.options.multithreading = false
 
 @metatheory_init ()
 
@@ -30,7 +31,6 @@ ts = Test.FallbackTestSet
       include("test_reductions.jl")
       include("test_taylor.jl")
       include("test_while_superinterpreter.jl")
-      include("test_cat.jl")
       include("test_inequality.jl")
       include("test_custom_types.jl")
       include("test_multipat.jl")
@@ -41,7 +41,8 @@ ts = Test.FallbackTestSet
       include("logic/test_logic.jl")
       include("cas/test_infer.jl")
       include("cas/test_cas.jl")
-
+      include("category/test_cat.jl")
+      
 
 
       # exported consistency test

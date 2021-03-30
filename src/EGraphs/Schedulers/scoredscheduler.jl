@@ -1,6 +1,6 @@
 mutable struct ScoredSchedulerEntry
-    capacity::Int
-    fuel::Int
+    capacity::Number
+    fuel::Number
     bantime::Int
     banremaining::Int
     weight::Int          # bantime multiplier, low = good
@@ -27,11 +27,17 @@ end
 
 shouldskip(s::ScoredScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
 
-function exprsize(e)
-    if !(e isa Expr)
-        return 1
-    end
+exprsize(a) = 1
 
+function exprsize(e::PatTerm) 
+    c = 1 + length(e.args)
+    for a ∈ e.args
+        c += exprsize(a)
+    end
+    return c
+end
+
+function exprsize(e::Expr)
     start = Meta.isexpr(e, :call) ? 2 : 1
 
     c = 1 + length(e.args[start:end])
@@ -52,16 +58,18 @@ function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::
 
     # These numbers seem to fit
     for rule ∈ theory
+        if rule isa DynamicRule
+            w = 2
+            data[rule] = ScoredSchedulerEntry(fuel, fuel, bantime, 0, w)
+            continue
+        end
         (l, r) = rule.left, rule.right
-        l = l |> cleanast_rec |> remove_assertions |> unquote_sym
-        r = r |> cleanast_rec |> remove_assertions |> unquote_sym
 
         cl = complexity(l)
         cr = complexity(r)
         # println("$rule HAS SCORE $((cl, cr))")
         if cl > cr
             w = 1   # reduces complexity
-            fuel = Inf
         elseif cr > cl
             w = 3   # augments complexity
         else

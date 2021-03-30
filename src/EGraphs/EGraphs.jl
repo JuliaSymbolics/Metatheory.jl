@@ -26,6 +26,10 @@ export hasdata
 export getdata
 export setdata!
 
+include("intdisjointmap.jl")
+export IntDisjointSet
+export in_same_set
+
 include("egg.jl")
 export find
 export geteclass

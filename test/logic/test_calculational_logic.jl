@@ -65,6 +65,10 @@ end
 
 t = calc ∪ fold
 
+g = EGraph(:(((¬p == p) == false)))
+saturate!(g, t)
+extract!(g, astsize)
+
 @test @areequal t true ((¬p == p) == false)
 @test @areequal t true ((¬p == ¬p) == true)
 @test @areequal t true ((¬p ∨ ¬p) == ¬p) (¬p ∨ p) ¬(¬p ∧ p)

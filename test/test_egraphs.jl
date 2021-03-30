@@ -1,8 +1,7 @@
 
 # ENV["JULIA_DEBUG"] = Metatheory
 
-
-## SPAZZATURA
+using Metatheory.EGraphs: in_same_set, find_root
 
 @testset "Merging" begin
     testexpr = :((a * 2)/2)
@@ -29,7 +28,7 @@ end
     @test in_same_set(G.uf, c_id, t1.id)
     @test in_same_set(G.uf, t2.id, t1.id)
     # println(find_root!(G.uf, t2.id))
-    @test find_root!(G.uf, t2.id) == 4
+    # @test find_root(G.uf, t2.id) == 4
     rebuild!(G)
     # f(a,b) = f(a,c)
     # display(G.classes); println()

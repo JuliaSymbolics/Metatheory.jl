@@ -4,29 +4,23 @@ using Metatheory.Util
 # Description here:
 # https://www.philipzucker.com/metatheory-progress/
 
-v = Metatheory.options[:verbose]
-pit = Metatheory.options[:printiter]
-Metatheory.options[:verbose] = true
-Metatheory.options[:printiter] = true
+Metatheory.options.verbose = false
+Metatheory.options.printiter = false
 
 # https://github.com/AlgebraicJulia/Catlab.jl/blob/ce2fde9c63a8aab65cf2a7697f43cd24e5e00b3a/src/theories/Monoidal.jl#L127
 
 cat_rules = @theory begin
-    f ⋅ id(b) => f
-    id(a) ⋅ f => f
-
-    #f => f ⋅ id(dom(type(f)))
-    #f => id(cod(type(f))) ⋅ f
+    # f ⋅ id(b) => f
+    # id(a) ⋅ f => f
+    f => f ⋅ id(dom(type(f)))
+    f => id(cod(type(f))) ⋅ f
 
     a ⊗ₒ munit() => a
     munit() ⊗ₒ a => a
 
-    #a => a ⊗ₒ munit()
-    #a => munit() ⊗ₒ a
-
+    a => a ⊗ₒ munit()
+    a => munit() ⊗ₒ a
     f ⋅ (g ⋅ h) == (f ⋅ g) ⋅ h
-
-
 end
 
 monoidal_rules = @theory begin
@@ -36,19 +30,8 @@ monoidal_rules = @theory begin
     f ⊗ₘ (h ⊗ₘ j) == (f ⊗ₘ h) ⊗ₘ j
     id(a ⊗ₒ b) == id(a) ⊗ₘ id(b)
 
-    (f ⊗ₘ p) ⋅ (g ⊗ₘ q) |>
-    # future metatheory macros will clean this up
-    begin
-        fcod = addexpr!(_egraph, :(cod(type($f))))
-        gdom = addexpr!(_egraph, :(dom(type($g))))
-        pcod = addexpr!(_egraph, :(cod(type($p))))
-        qdom = addexpr!(_egraph, :(dom(type($q))))
-        if (fcod == gdom && pcod == qdom)
-            :(($f ⋅ $g) ⊗ₘ ($p ⋅ $q))
-        else
-            :(($f ⊗ₘ $p) ⋅ ($g ⊗ₘ $q))
-        end
-    end
+    $( MultiPatRewriteRule(@pat((f ⊗ₘ p) ⋅ (g ⊗ₘ q)), @pat((f ⋅ g) ⊗ₘ (p ⋅ q)), 
+        [PatEquiv(@pat(cod(type(f))), @pat(dom(type(g)))), PatEquiv(@pat(cod(type(p))), @pat(dom(type(q))))]) )
 
     (f ⋅ g) ⊗ₘ (p ⋅ q) => (f ⊗ₘ p) ⋅ (g ⊗ₘ q)
 end
@@ -60,26 +43,12 @@ sym_rules = @theory begin
     (σ(a, b) ⊗ₘ id(c)) ⋅ (id(b) ⊗ₘ σ(a, c)) == σ(a, b ⊗ₒ c)
     (id(a) ⊗ₘ σ(b, c)) ⋅ (σ(a, c) ⊗ₘ id(b)) == σ(a ⊗ₒ b, c)
 
-    (f ⊗ₘ h) ⋅ σ(a, b) |> begin
-        fcod = addexpr!(_egraph, :(cod(type($f)))).id
-        hcod = addexpr!(_egraph, :(cod(type($h)))).id
-        if fcod == a && hcod == b
-            :(σ(dom(type($f)), dom(type($h))) ⋅ ($h ⊗ₘ $f))
-        else
-            :(($f ⊗ₘ $h) ⋅ σ($a, $b))
-        end
-    end
+    $( MultiPatRewriteRule(@pat((f ⊗ₘ h) ⋅ σ(a, b)), @pat(σ(dom(type(f)), dom(type(h))) ⋅ (h ⊗ₘ f)),
+        [PatEquiv(@pat(cod(type(f))), @pat(a)), PatEquiv(@pat(cod(type(h))), @pat(b))]) )
 
 
-    σ(c, d) ⋅ (h ⊗ₘ f) |> begin
-        fdom = addexpr!(_egraph, :(dom(type($f)))).id
-        hdom = addexpr!(_egraph, :(dom(type($h)))).id
-        if fdom == c && hdom == d
-            :(($f ⊗ₘ $h) ⋅ σ(cod(type($f)), cod(type($h))))
-        else
-            :(σ($c, $d) ⋅ ($h ⊗ₘ $f))
-        end
-    end
+    $( MultiPatRewriteRule(@pat(σ(c, d) ⋅ (h ⊗ₘ f)), @pat((f ⊗ₘ h) ⋅ σ(cod(type(f)), cod(type(h)))),
+        [PatEquiv(@pat(dom(type(f))), PatVar(:c)), PatEquiv(@pat(dom(type(f))), PatVar(:d))]))
 
     # these rules arer not catlab
     σ(a, munit()) == id(a)
@@ -91,13 +60,11 @@ end
 
 
 diag_rules = @theory begin
-
     Δ(a) ⋅ (⋄(a) ⊗ₘ id(a)) == id(a)
     Δ(a) ⋅ (id(a) ⊗ₘ ⋄(a)) == id(a)
     Δ(a) ⋅ σ(a, a) == Δ(a)
 
     (Δ(a) ⊗ₘ Δ(b)) ⋅ (id(a) ⊗ₘ σ(a, b) ⊗ₘ id(b)) == Δ(a ⊗ₒ b)
-
 
     Δ(a) ⋅ (Δ(a) ⊗ₘ id(a)) == Δ(a) ⋅ (id(a) ⊗ₘ Δ(a))
     ⋄(a ⊗ₒ b) == ⋄(a) ⊗ₘ ⋄(b)
@@ -108,19 +75,8 @@ end
 
 
 cart_rules = @theory begin
-
-    Δ(a) ⋅ (f ⊗ₘ k) |> begin
-        a_id = find(_egraph, a)
-        if (
-            addexpr!(_egraph, :(dom(type($f)))).id == a_id &&
-            addexpr!(_egraph, :(dom(type($k)))).id == a_id
-        )
-            :(pair($f, $k))
-        else
-            :(Δ($a) ⋅ ($f ⊗ₘ $k))
-        end
-    end
-
+    $( MultiPatRewriteRule(@pat(Δ(a) ⋅ (f ⊗ₘ k)), @pat(pair(f,k)), 
+        [PatEquiv(@pat(dom(type(f))), @pat(dom(type(k))))]))
 
     pair(f, k) == Δ(dom(type(f))) ⋅ (f ⊗ₘ k)
     proj1(a, b) == id(a) ⊗ₘ ⋄(b)
@@ -132,9 +88,6 @@ cart_rules = @theory begin
     f ⋅ Δ(b) => Δ(dom(type(f))) ⋅ (f ⊗ₘ f)
     Δ(a) ⋅ (f ⊗ₘ f) => f ⋅ Δ(cod(type(f)))
 end
-
-
-
 
 
 typing_rules = @theory begin
@@ -160,14 +113,23 @@ rules = typing_rules ∪ cat_rules ∪ monoidal_rules ∪ sym_rules ∪ diag_rul
 # A goofy little helper macro
 # Taking inspiration from Lean/Dafny/Agda
 using Metatheory.Util
+using Metatheory.EGraphs.Schedulers
 macro calc(e...)
     theory = eval(e[1])
     e = rmlines(e[2])
     @assert e.head == :block
 
+    trues = Bool[]
+
     for (a, b) in zip(e.args[1:end-1], e.args[2:end])
         # println(a, " =? ", b)
-        eq = @time areequal(theory, a, b; timeout = 9)
+        params = SaturationParams(
+            timeout=12, 
+            eclasslimit=8000,
+            scheduler=SimpleScheduler
+            )
+        eq = @time areequal(theory, a, b; params=params)
+        push!(trues, eq)
         println(eq)
         #  WOULD WORK IF COST FUNCTION IS SIMILARITY TO OTHER FUN
         # if !eq
@@ -191,16 +153,8 @@ macro calc(e...)
         #     end
         # end
     end
+    all(trues)
 end
-
-# Get the Julia motor hummin'
-@calc rules begin
-
-    ((⋄(a) ⊗ₘ ⋄(b)) ⋅ σ(munit(), munit()))
-    (σ(a, b) ⋅ (⋄(b) ⊗ₘ ⋄(a)))
-
-end
-
 
 @calc rules begin
     id(a ⊗ₒ b)
@@ -227,11 +181,9 @@ end
     pair(proj1(a, b), proj2(a, b))
 end
 
-# shorter proof also accepted
+# shorter proof not quite there
 @calc rules begin
     id(a ⊗ₒ b)
     pair(proj1(a, b), proj2(a, b))
 end
 
-Metatheory.options[:verbose] = v
-Metatheory.options[:printiter] = pit

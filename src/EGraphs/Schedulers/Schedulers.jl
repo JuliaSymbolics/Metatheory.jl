@@ -5,6 +5,7 @@ include("../../docstrings.jl")
 import ..Rule
 import ..EGraph
 using ..Util
+using ..Rules
 
 include("./abstractscheduler.jl")
 include("./backoffscheduler.jl")

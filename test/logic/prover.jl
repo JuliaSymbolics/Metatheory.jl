@@ -1,11 +1,9 @@
 using Metatheory
 using Metatheory.EGraphs
 using Metatheory.Classic
-using Test
 
-
-function prove(t, ex, steps=1, timeout=10)
-    params = SaturationParams(timeout=timeout, eclasslimit=5000, 
+function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
+    params = SaturationParams(timeout=timeout, eclasslimit=eclasslimit, 
         scheduler=Schedulers.ScoredScheduler, schedulerparams=(8,2, Schedulers.exprsize))
     hist = UInt64[]
     push!(hist, hash(ex))

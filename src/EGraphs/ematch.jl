@@ -23,14 +23,36 @@ requires no extension to the substitution; the other case relies on Match to fin
 substitutions that match the first term to the first E-node.
 """
 function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int64}, sub::Sub, buf::SubBuf)::SubBuf
-    if length(t) == 0 || length(v) == 0
-        if !isempty(sub)
-            push!(buf, sub)
+    lt = length(t)
+    lv = length(v)
+
+    !(lt == lv) && (return buf)
+
+    # currbuf = buf
+    currbuf = SubBuf()
+    push!(currbuf, sub)
+
+    j = 1
+    last_j = j
+
+    for i ∈ 1:lt
+        # newbuf = SubBuf()
+        until = length(currbuf)
+        last_j = j
+        while j <= until
+            currsub = currbuf[j]
+            ematchstep(e, t[i], v[i], currsub, currbuf, nothing)
+            j+=1
         end
-    else
-        for sub1 in ematchstep(e, t[1], v[1], sub, SubBuf(), nothing)
-            ematchlist(e, (@view t[2:end]), (@view v[2:end]), sub1, buf)
-        end
+        # currbuf = newbuf        
+    end
+
+    # println(j)
+    # println(currbuf[last_j+1:end])
+    # println(currbuf[j:end])
+
+    for sub1 ∈ (@view currbuf[j:end]) 
+        push!(buf, sub1)
     end
     return buf
 end
@@ -42,7 +64,7 @@ function ematchstep(g::EGraph, t::PatVar, v::Int64, sub::Sub, buf::SubBuf, lit=n
             push!(buf, sub)
         end
     else
-        push!(buf, Base.ImmutableDict(sub, t => (geteclass(g, find(g, v)), lit)))
+        push!(buf, Base.ImmutableDict(sub, t => (geteclass(g, v), lit)))
     end
     return buf
 end
@@ -52,13 +74,15 @@ function ematchstep(g::EGraph, t::PatLiteral, v::Int64, sub::Sub, buf::SubBuf, l
     ec = geteclass(g, v)
     for n in ec
         if arity(n) == 0 && t.val == n.head
-            if haskey(sub, t)
-                if find(g, first(sub[t])) == ec.id
-                    push!(buf, sub)
-                end
-            else
+            # if haskey(sub, t)
+                # if find(g, first(sub[t])) == ec.id
+                    # push!(buf, sub)
+                    # break
+                # end
+            # else
                 push!(buf, Base.ImmutableDict(sub, t => (ec, n.head)))
-            end
+                break
+            # end
         end
     end
     return buf
@@ -111,7 +135,6 @@ function ematchstep(g::EGraph, t::PatAllTerm, v::Int64, sub::Sub, buf::SubBuf, l
     for n in ec
         (arity(n) > 0) && arity(t) == arity(n) || continue
         if haskey(sub, t.head)
-            @show sub[t.head]
             if find(g, first(sub[t.head])) == find(g, v)
                 ematchlist(g, t.args, n.args, sub, buf)
             end
