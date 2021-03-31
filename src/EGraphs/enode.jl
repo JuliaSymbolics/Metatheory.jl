@@ -10,7 +10,7 @@ import Base.ImmutableDict
 struct ENode{X}
     head::Any
     args::Vector{Int64}
-    metadata::Union{Nothing, NamedTuple}
+    metadata::NamedTuple
     hash::Ref{UInt} # hash cache
     ENode{T}(h, a, m) where T = new{T}(h, a, m, Ref{UInt}(0))
 end
@@ -46,9 +46,12 @@ function Base.hash(t::ENode{T}, salt::UInt) where {T}
 end
 
 TermInterface.arity(n::ENode) = length(n.args)
+TermInterface.getmetadata(n::ENode) = n.metadata
 
+function enodetype(x::ENode{T}) where T
+    T
+end
 
-# string representation of the rule
 function Base.show(io::IO, x::ENode)
     print(io, "(", x.head)
     n = arity(x)

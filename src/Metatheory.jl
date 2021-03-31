@@ -19,7 +19,6 @@ include("Util/Util.jl")
 using .Util
 export Util
 
-# TODO document this interface
 include("TermInterface.jl")
 using .TermInterface
 export TermInterface
@@ -30,7 +29,6 @@ export @metatheory_init
 include("Rules/Rules.jl")
 using .Rules
 export Rules
-# TODO re-export? ugly?
 include("Rules/exports.jl")
 
 include("Classic/Classic.jl")

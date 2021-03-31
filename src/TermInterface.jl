@@ -1,3 +1,7 @@
+"""
+This module contains function definitions
+for using custom types as Terms.
+"""
 module TermInterface
 
 using ..Util
@@ -17,7 +21,7 @@ preprocess(e::Expr) = cleanast(e)
 gethead(e) = e
 getargs(e) = []
 istree(a) = false
-getmetadata(e) = nothing
+getmetadata(e) = (;) # empty NamedTuple
 arity(e) = 0 # optional
 preprocess(e) = e
 

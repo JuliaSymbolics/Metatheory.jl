@@ -38,18 +38,11 @@ hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
 ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
-# let's create an egraph 
-g = EGraph(ex)
-
-# let's create an example theory
-t = @theory begin 
-    # this way, z will be a regular expr
-    # f(g(2), a) => z(a)
-    # we can use dynamic rules to construct values of type MyExpr
-    f(g(2), a) |> MyExpr(:z, [a])
+function EGraphs.instantiateterm(pat::PatTerm,  T::Type{MyExpr}, 
+    meta::NamedTuple, sub::Sub, rule::Rule)
+    # TODO how to set meta?
+    MyExpr(pat.head, map(x -> instantiate(x, sub, rule), pat.args), meta.foo, meta.bar, meta.baz)
 end
-
-saturate!(g, t; mod=@__MODULE__)
 
 # Define an extraction method dispatching on MyExpr
 function EGraphs.extractnode(n::ENode{MyExpr}, extractor::Function)
@@ -64,5 +57,24 @@ function EGraphs.extractnode(n::ENode{MyExpr}, extractor::Function)
     return MyExpr(n.head, ret_args, foo, bar, baz)
 end
 
-expected = MyExpr(:z, Any[MyExpr(:h, Any[4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
-@test extract!(g, astsize) == expected
+# let's create an egraph 
+g = EGraph(ex)
+
+# let's create an example theory
+t = @theory begin 
+    # this way, z will be a regular expr
+    # f(g(2), a) => z(a)
+    # we can use dynamic rules to construct values of type MyExpr
+    # f(g(2), a) |> MyExpr(:z, [a])
+
+    # terms in the RHS inherit the type of terms in the lhs
+    f(g(2), a) => f(a)
+end
+
+saturate!(g, t; mod=@__MODULE__)
+
+
+
+
+expected = MyExpr(:f, Any[MyExpr(:h, Any[4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+extract!(g, astsize)

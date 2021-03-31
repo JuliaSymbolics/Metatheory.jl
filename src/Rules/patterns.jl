@@ -4,6 +4,9 @@ You can use the `Pattern` constructor to recursively convert an `Expr` (or any t
 """
 abstract type Pattern end
 
+import Base.==
+==(a::Pattern, b::Pattern) = false
+
 # TODO implement debrujin indexing?
 """
 Pattern variables will first match on any subterm
@@ -12,6 +15,7 @@ and instantiate the substitution to that subterm.
 struct PatVar <: Pattern
     var::Symbol
 end
+==(a::PatVar, b::PatVar) = (a.var == b.var)
 
 """
 A pattern literal will match only against an instance of itself.
@@ -29,6 +33,7 @@ Will match only against instances of the literal symbol `:a`.
 struct PatLiteral{T} <: Pattern
     val::T
 end
+==(a::PatLiteral, b::PatLiteral) = (a.val == b.val)
 
 """
 Type assertions on a [`PatVar`](@ref), will match if and only if 
@@ -39,10 +44,15 @@ struct PatTypeAssertion <: Pattern
     var::PatVar
     type::Type
 end
+function ==(a::PatTypeAssertion, b::PatTypeAssertion)
+    (a.var == b.var) && (a.type == b.type)
+end
 
 struct PatSplatVar <: Pattern
     var::PatVar
 end
+==(a::PatSplatVar, b::PatSplatVar) = (a.var == b.var)
+
 
 """
 This type of pattern will match if and only if 
@@ -54,6 +64,9 @@ struct PatEquiv <: Pattern
     left::Pattern
     right::Pattern
 end
+function ==(a::PatEquiv, b::PatEquiv)
+    (a.left == b.left) && (a.right == b.right)
+end
 
 """
 Term patterns will match
@@ -63,10 +76,13 @@ function symbol (`head`).
 struct PatTerm <: Pattern
     head::Any
     args::Vector{Pattern}
-    metadata::Union{Nothing, NamedTuple}
+    metadata::NamedTuple
 end
 TermInterface.arity(p::PatTerm) = length(p.args)
-PatTerm(head, args) = PatTerm(head, args, nothing)
+PatTerm(head, args) = PatTerm(head, args, (;))
+function ==(a::PatTerm, b::PatTerm)
+    (a.head == b.head) && all(a.args .== b.args) && (a.metadata == b.metadata)
+end
 
 """
 This pattern type matches on a function application 
@@ -77,10 +93,13 @@ example to match arbitrary function calls.
 struct PatAllTerm <: Pattern
     head::PatVar
     args::Vector{Pattern}
-    metadata::Union{Nothing, NamedTuple}
+    metadata::NamedTuple
 end
 TermInterface.arity(p::PatAllTerm) = length(p.args)
-PatAllTerm(head, args) = PatAllTerm(head, args, nothing)
+PatAllTerm(head, args) = PatAllTerm(head, args, (;))
+function ==(a::PatAllTerm, b::PatAllTerm)
+    (a.head == b.head) && all(a.args .== b.args) && (a.metadata == b.metadata)
+end
 
 # collect pattern variables in a set of symbols
 patvars(p::PatLiteral; s=PatVar[]) = s 

@@ -1,6 +1,3 @@
-
-# const MatchesBuf = Dict{Rule,Set{Sub}}
-
 import ..options
 import ..@log
 
@@ -38,7 +35,7 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
     # end
     # println(" diff length $(length(matches))")
 
-    apply_stats = @timed eqsat_apply!(g, matches, scheduler, report, mod, params)
+    apply_stats =  @timed eqsat_apply!(g, matches, scheduler, report, mod, params)
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
