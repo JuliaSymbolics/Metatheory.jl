@@ -10,16 +10,14 @@ Metatheory.options.printiter = false
 # https://github.com/AlgebraicJulia/Catlab.jl/blob/ce2fde9c63a8aab65cf2a7697f43cd24e5e00b3a/src/theories/Monoidal.jl#L127
 
 cat_rules = @theory begin
-    # f ⋅ id(b) => f
-    # id(a) ⋅ f => f
-    f => f ⋅ id(dom(type(f)))
-    f => id(cod(type(f))) ⋅ f
+    f ⋅ id(b) => f
+    id(a) ⋅ f => f
+    f == f ⋅ id(cod(type(f)))
+    f == id(dom(type(f))) ⋅ f
 
-    a ⊗ₒ munit() => a
-    munit() ⊗ₒ a => a
+    a ⊗ₒ munit() == a
+    munit() ⊗ₒ a == a
 
-    a => a ⊗ₒ munit()
-    a => munit() ⊗ₒ a
     f ⋅ (g ⋅ h) == (f ⋅ g) ⋅ h
 end
 
@@ -128,7 +126,12 @@ macro calc(e...)
             eclasslimit=8000,
             scheduler=SimpleScheduler
             )
-        eq = @time areequal(theory, a, b; params=params)
+        g = EGraph()
+        ta = addexpr!(g, :(type(a)))
+        tao = addexpr!(g, :(:ob))
+        merge!(g, ta.id, tao.id)
+
+        eq = @time areequal(g, theory, a, b; params=params)
         push!(trues, eq)
         println(eq)
         #  WOULD WORK IF COST FUNCTION IS SIMILARITY TO OTHER FUN
@@ -187,3 +190,31 @@ end
     pair(proj1(a, b), proj2(a, b))
 end
 
+@calc rules begin
+    id(a ⊗ₒ b)
+    id(a) ⊗ₘ id(b)
+    (Δ(a) ⋅ (id(a) ⊗ₘ ⋄(a))) ⊗ₘ id(b)
+    (Δ(a) ⋅ (id(a) ⊗ₘ ⋄(a))) ⊗ₘ (Δ(b) ⋅ (⋄(b) ⊗ₘ id(b)))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ ((id(a) ⊗ₘ ⋄(a)) ⊗ₘ (⋄(b) ⊗ₘ id(b)))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ (id(a) ⊗ₘ (⋄(a) ⊗ₘ ⋄(b)) ⊗ₘ id(b))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ (id(a) ⊗ₘ ((⋄(a) ⊗ₘ ⋄(b)) ⋅ σ(munit(), munit())) ⊗ₘ id(b))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ ((id(a) ⊗ₘ (σ(a, b) ⋅ (⋄(b) ⊗ₘ ⋄(a))) ⊗ₘ id(b)))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ ((id(a) ⊗ₘ (σ(a, b) ⋅ (⋄(b) ⊗ₘ ⋄(a))) ⊗ₘ id(b)))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ ((id(a) ⋅ id(a)) ⊗ₘ (σ(a, b) ⋅ (⋄(b) ⊗ₘ ⋄(a))) ⊗ₘ id(b))
+    (Δ(a) ⊗ₘ Δ(b)) ⋅ ((id(a) ⊗ₘ σ(a, b) ⊗ₘ id(b)) ⋅ (id(a) ⊗ₘ (⋄(b) ⊗ₘ ⋄(a)) ⊗ₘ id(b)))
+    Δ(a ⊗ₒ b) ⋅ (id(a) ⊗ₘ (⋄(b) ⊗ₘ ⋄(a)) ⊗ₘ id(b))
+    Δ(a ⊗ₒ b) ⋅ (id(a) ⊗ₘ (⋄(b) ⊗ₘ ⋄(a)) ⊗ₘ id(b))
+    Δ(a ⊗ₒ b) ⋅ (proj1(a, b) ⊗ₘ proj2(a, b))
+    pair(proj1(a, b), proj2(a, b))
+end
+
+Metatheory.options.verbose = true
+Metatheory.options.printiter = true
+Metatheory.options.multithreading = false
+
+G = EGraph( :(pair(proj1(a, b), proj2(a, b))))
+params = SaturationParams(timeout=5)
+saturate!(G, rules, params )
+ex = extract!(G, astsize)
+
+G.classes

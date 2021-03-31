@@ -43,7 +43,7 @@ end
 
 function EGraph()
     EGraph(
-    IntDisjointSet(Int64[]),
+    IntDisjointSet(),
     ClassMem(),
     HashCons(),
     # ParentMem(),
@@ -255,17 +255,6 @@ function rebuild!(g::EGraph)
     end
 
     g.pruned = unique([find(g,id) for id ∈ g.pruned])
-    # for (node, id) ∈ egraph.memo
-    #     egraph.memo[node] = find(egraph, id)
-    # #     sym = node.head
-    # #     if !haskey(egraph.symcache, sym)
-    # #         egraph.symcache[sym] = Int64[]
-    # #     end
-    # #     push!(egraph.symcache[sym], id)
-    # end
-    # for (sym, ids) ∈ g.symcache
-    #     g.symcache[sym] = Set{Int64}(map(collect(ids)) do x find(g, x) end)
-    # end
 
     if g.root != 0
         g.root = find(g, g.root)

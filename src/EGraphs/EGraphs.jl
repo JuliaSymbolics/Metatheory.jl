@@ -45,6 +45,11 @@ export prune!
 include("analysis.jl")
 export analyze!
 
+include("substitution.jl")
+export Sub
+export instantiate
+export instantiateterm
+
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers

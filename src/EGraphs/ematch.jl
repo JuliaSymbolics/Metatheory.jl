@@ -5,12 +5,6 @@
 
 # ematching seems to be faster without spawning tasks
 
-# we keep a pair of EClass, Any in substitutions because
-# when evaluating dynamic rules we also want to know
-# what was the value of a matched literal
-const Sub = Base.ImmutableDict{Any, Tuple{EClass, Any}}
-const SubBuf = Vector{Sub}
-
 # https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
 # page 48
 """
@@ -29,22 +23,17 @@ function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int
     !(lt == lv) && (return buf)
 
     # currbuf = buf
-    currbuf = SubBuf()
-    push!(currbuf, sub)
+    currbuf = [sub]
 
     j = 1
-    last_j = j
-
     for i ∈ 1:lt
         # newbuf = SubBuf()
         until = length(currbuf)
-        last_j = j
         while j <= until
             currsub = currbuf[j]
-            ematchstep(e, t[i], v[i], currsub, currbuf, nothing)
+            ematchstep(e, t[i], v[i], currsub, currbuf)
             j+=1
         end
-        # currbuf = newbuf        
     end
 
     # println(j)
@@ -58,31 +47,25 @@ function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int
 end
 
 # Tries to match on a pattern variable
-function ematchstep(g::EGraph, t::PatVar, v::Int64, sub::Sub, buf::SubBuf, lit=nothing)::SubBuf
-    if haskey(sub, t)
-        if find(g, first(sub[t])) == find(g, v)
+function ematchstep(g::EGraph, t::PatVar, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
+    if haseclass(sub, t)
+        if find(g, geteclass(sub, t)) == find(g, v)
             push!(buf, sub)
         end
     else
-        push!(buf, Base.ImmutableDict(sub, t => (geteclass(g, v), lit)))
+        nsub = seteclass(sub, t, geteclass(g, v))
+        push!(buf, nsub)
     end
     return buf
 end
 
 # Tries to match on literals
-function ematchstep(g::EGraph, t::PatLiteral, v::Int64, sub::Sub, buf::SubBuf, lit=nothing)::SubBuf
+function ematchstep(g::EGraph, t::PatLiteral, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
     ec = geteclass(g, v)
     for n in ec
         if arity(n) == 0 && t.val == n.head
-            # if haskey(sub, t)
-                # if find(g, first(sub[t])) == ec.id
-                    # push!(buf, sub)
-                    # break
-                # end
-            # else
-                push!(buf, Base.ImmutableDict(sub, t => (ec, n.head)))
-                break
-            # end
+            push!(buf, sub)
+            break
         end
     end
     return buf
@@ -90,12 +73,13 @@ end
 
 
 # tries to match on type assertions
-function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub::Sub, buf::SubBuf, lit=nothing)::SubBuf
+function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
     ec = geteclass(g, v)
     for n in ec
         if arity(n) == 0
             !(typeof(n.head) <: t.type) && continue
-            ematchstep(g, t.var, v, sub, buf, n.head)
+            nsub = setliteral(sub, t.var, n.head)
+            ematchstep(g, t.var, v, nsub, buf)
             continue
         end
     end
@@ -103,7 +87,7 @@ function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub::Sub, buf::Sub
 end
 
 # PATEQUIV mechanism
-function ematchstep(g::EGraph, t::PatEquiv, v::Int64, sub::Sub, buf::SubBuf, lit=nothing)::SubBuf
+function ematchstep(g::EGraph, t::PatEquiv, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
     buf1 = SubBuf()
     buf2 = SubBuf()
 
@@ -120,26 +104,28 @@ function ematchstep(g::EGraph, t::PatEquiv, v::Int64, sub::Sub, buf::SubBuf, lit
     return buf 
 end
 
-# tries to match on composite expressions
-function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub::Sub, buf::SubBuf, lit=nothing)::SubBuf
+function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
     ec = geteclass(g, v)
     for n in ec
         (arity(n) > 0) && n.head == t.head && arity(t) == arity(n) || continue
-         ematchlist(g, t.args, n.args, sub, buf)
+        nsub = settermtype(sub, t.head, enodetype(n), getmetadata(n))
+        ematchlist(g, t.args, n.args, nsub, buf)
     end
     return buf
 end
 
-function ematchstep(g::EGraph, t::PatAllTerm, v::Int64, sub::Sub, buf::SubBuf, lit=nothing)::SubBuf
+function ematchstep(g::EGraph, t::PatAllTerm, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
     ec = geteclass(g, v)
     for n in ec
         (arity(n) > 0) && arity(t) == arity(n) || continue
-        if haskey(sub, t.head)
-            if find(g, first(sub[t.head])) == find(g, v)
-                ematchlist(g, t.args, n.args, sub, buf)
+        println(n)
+        nsub = settermtype(sub, t.head, enodetype(n), getmetadata(n))
+        if haseclass(nsub, t.head)
+            if find(g, geteclass(nsub, t.head)) == find(g, v)
+                ematchlist(g, t.args, n.args, nsub, buf)
             end
         else
-            nsub = Base.ImmutableDict(sub, t.head => (geteclass(g, find(g, v)), lit))
+            nsub = seteclass(nsub, t.head, geteclass(g, v))
             ematchlist(g, t.args, n.args, nsub, buf)
         end
     end

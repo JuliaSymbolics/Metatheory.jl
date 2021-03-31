@@ -1,33 +1,4 @@
 
-function instantiate(pat::PatVar, sub::Sub, rule::Rule)
-    if haskey(sub, pat)
-        (eclass, lit) = sub[pat]
-        return (lit !== nothing ? lit : eclass)
-    else
-        error("unbound pattern variable $pat in rule $rule")
-    end
-end
-
-function instantiate(pat::PatLiteral{T}, sub::Sub, rule::Rule) where T
-    pat.val
-end
-
-function instantiate(pat::PatTypeAssertion, sub::Sub, rule::Rule)
-    instantiate(pat.var, sub, rule)
-end
-
-function instantiate(pat::PatTerm, sub::Sub, rule::Rule)
-    # TODO support custom types here!
-    # similarterm ? ask Shashi
-    meta = pat.metadata
-    if meta !== nothing && meta.iscall
-        Expr(:call, pat.head, map(x -> instantiate(x, sub, rule), pat.args)...)
-    else
-        Expr(pat.head, map(x -> instantiate(x, sub, rule), pat.args)...)
-    end
-end
-
-
 function apply_rule!(g::EGraph, rule::UnequalRule,
         match::Match, matches::MatchesBuf, rep::Report, mod::Module)
     (_, pat, sub, id) = match
@@ -61,10 +32,7 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
         match::Match, matches::MatchesBuf, rep::Report,  mod::Module)
     (_, pat, sub, id) = match
     f = Rules.getrhsfun(rule, mod)
-    actual_params = map(rule.patvars) do x
-        (eclass, literal) = sub[x]
-        literal !== nothing ? literal : eclass
-    end
+    actual_params = [instantiate(x, sub, rule) for x in rule.patvars]
     r = f(geteclass(g, id), g, actual_params...)
     rc = addexpr!(g, r)
 
@@ -92,14 +60,15 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
             return rep
         end
 
-        #     if params.stopwhen()
-        #         @log "Halting requirement satisfied"
-        #         rep.reason = ConditionSatisfied()
-        #         return rep
-        #     end
-        # end
+        if params.stopwhen()
+            @log "Halting requirement satisfied"
+            rep.reason = ConditionSatisfied()
+            return rep
+        end
+
 
         rule=match[1]
+        # println("applied $rule")
         writestep!(scheduler, rule)
         if find(g, match[4]) ∈ g.pruned
             return rep

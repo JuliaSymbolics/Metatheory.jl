@@ -1,14 +1,17 @@
 struct IntDisjointSet
     parents::Vector{Int64}
+    normalized::Ref{Bool}
 end
 
-IntDisjointSet() = IntDisjointSet(Vector{Int64}[])
+IntDisjointSet() = IntDisjointSet(Vector{Int64}[], Ref(true))
 Base.length(x::IntDisjointSet) = length(x.parents)
 
 function Base.push!(x::IntDisjointSet)
+    x.normalized[] = false
     push!(x.parents, -1)
     length(x)
 end
+
 function find_root(x::IntDisjointSet, i::Int64)
     while x.parents[i] >= 0
         i = x.parents[i]
@@ -24,6 +27,7 @@ function Base.union!(x::IntDisjointSet, i::Int64, j::Int64)
     pi = find_root(x, i)
     pj = find_root(x, j)
     if pi != pj
+        x.normalized[] = false
         isize = -x.parents[pi]
         jsize = -x.parents[pj]
         if isize > jsize # swap to make size of i less than j
@@ -43,6 +47,7 @@ function normalize!(x::IntDisjointSet)
             x.parents[i] = pi
         end
     end
+    x.normalized[] = true
 end
 
 # If normalized we don't even need a loop here.

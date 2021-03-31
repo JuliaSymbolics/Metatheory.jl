@@ -68,18 +68,6 @@ function search_rule!(g::EGraph, r::BidirRule, id::Int64,
     end
 end
 
-function Base.show(io::IO, s::Sub)
-    print(io, "Sub[")
-    kvs = collect(s)
-    n = length(kvs)
-    for i ∈ 1:n
-        print(io, kvs[i][1], " => ", kvs[i][2][1].id)
-        if i < n 
-            print(io, ",")
-        end
-    end
-    print(io, "]")
-end
 
 function search_rule!(g::EGraph, r::MultiPatRewriteRule,
     id::Int64, matches::MatchesBuf, mlock::ReentrantLock)
@@ -97,7 +85,7 @@ function search_rule!(g::EGraph, r::MultiPatRewriteRule,
         while !isempty(buf)
             sub = pop!(buf)
             # @show sub
-            isempty(sub) && continue
+            # isempty(sub) && continue
             for i ∈ ids
                 ematch(g, pat, i, sub, newbuf)
             end
