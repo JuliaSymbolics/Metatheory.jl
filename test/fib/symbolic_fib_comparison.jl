@@ -25,8 +25,8 @@ using Metatheory.EGraphs
 @metatheory_init ()
 
 const fibo = @theory begin
-    x::$Int + y::$Int |> x+y
-    fib(n::$Int) |> (n < 2 ? n : :(fib($(n-1)) + fib($(n-2))))
+    x::Int + y::Int |> x+y
+    fib(n::Int) |> (n < 2 ? n : :(fib($(n-1)) + fib($(n-2))))
 end;
 
 function compute_fib(n)

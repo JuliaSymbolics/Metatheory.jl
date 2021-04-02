@@ -56,8 +56,8 @@ end
 	symbol_monoid = @theory begin
 		a ⋅ :ε => a
 		:ε ⋅ a => a
-		a::$Symbol => a
-		a::$Symbol ⋅ b::$Symbol |> Symbol(String(a) * String(b))
+		a::Symbol => a
+		a::Symbol ⋅ b::Symbol |> Symbol(String(a) * String(b))
 		i |> error("unsupported ", i)
 	end;
 
@@ -70,11 +70,11 @@ end
 
 @testset "Calculator" begin
 	calculator = @theory begin
-		x::$Number ⊕ y::$Number |> x + y
-		x::$Number ⊗ y::$Number |> x * y
-		x::$Number ⊖ y::$Number |> x ÷ y
-		x::$Symbol => x
-		x::$Number => x
+		x::Number ⊕ y::Number |> x + y
+		x::Number ⊗ y::Number |> x * y
+		x::Number ⊖ y::Number |> x ÷ y
+		x::Symbol => x
+		x::Number => x
 	end;
 	a = 10
 
@@ -85,7 +85,7 @@ end
 @testset "Type assertions and destructuring" begin
     # let's try type assertions and destructuring
     t = @theory begin
-        f(a::$Number) => a
+        f(a::Number) => a
         f(a...) => a
     end
 
@@ -111,7 +111,7 @@ end
 
     t = @theory begin
         # maps
-        a::$Number * b::$Number |> a * b
+        a::Number * b::Number |> a * b
     end
     @test rewrite(:(3 * 1), t) == 3
 end
@@ -133,8 +133,8 @@ car = Car()
 
 @testset "Subtyping" begin
 	t = @theory begin
-		a::$AirVehicle * b => "flies"
-		a::$GroundVehicle * b => "doesnt_fly"
+		a::AirVehicle * b => "flies"
+		a::GroundVehicle * b => "doesnt_fly"
 	end
 
 	sf = rewrite(:($airpl * c), t; m=@__MODULE__)
@@ -334,16 +334,16 @@ end
 	@test ref_var[] == π
 end;
 
-dollart = @theory begin
-	# dollars are interpolated at rule creation time?
-	$(Expr(:call, :foo, :bar)) => :match
-	:x + $(3+2) => :weeee
-end
+# dollart = @theory begin
+# 	# dollars are interpolated at rule creation time?
+# 	$(Expr(:call, :foo, :bar)) => :match
+# 	:x + $(3+2) => :weeee
+# end
 
-@testset "Dollar Escapes" begin
-	r1 = rewrite(:(foo(bar)), dollart; m=@__MODULE__)
-	r2 = rewrite(:(x + 5), dollart; m=@__MODULE__)
+# @testset "Dollar Escapes" begin
+# 	r1 = rewrite(:(foo(bar)), dollart; m=@__MODULE__)
+# 	r2 = rewrite(:(x + 5), dollart; m=@__MODULE__)
 
-	@test r1 == :match
-	@test r2 == :weeee
-end;
+# 	@test r1 == :match
+# 	@test r2 == :weeee
+# end;

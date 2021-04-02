@@ -17,6 +17,10 @@ Test.FallbackTestSet(desc) = Test.FallbackTestSet()
 
 ts = Test.FallbackTestSet
 
+falseormissing(x) = 
+    x === missing || !x
+
+
 @testset ts "Metatheory Tests" begin
    @timev begin
       include("test_egraphs.jl")

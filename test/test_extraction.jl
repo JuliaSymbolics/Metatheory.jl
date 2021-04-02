@@ -3,7 +3,7 @@ using MatchCore
 comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin
-	a::$Number * b::$Number |> a * b
+	a::Number * b::Number |> a * b
 end
 
 t = comm_monoid ∪ fold_mul
@@ -25,7 +25,7 @@ t = comm_monoid ∪ fold_mul
 end
 
 fold_add = @theory begin
-	a::$Number + b::$Number |> a + b
+	a::Number + b::Number |> a + b
 end
 
 @testset "Extraction 2" begin

@@ -61,7 +61,7 @@ end
 macro rule(e)
     e = macroexpand(__module__, e)
     e = rmlines(copy(e))
-    e = interp_dollar(e, __module__)
+    # e = interp_dollar(e, __module__)
     Rule(e; mod=__module__)
 end
 
@@ -73,7 +73,7 @@ Can only be used with the equality saturation *e-graphs* backend.
 macro pruningrule(e)
     e = macroexpand(__module__, e)
     e = rmlines(copy(e))
-    e = interp_dollar(e, __module__)
+    # e = interp_dollar(e, __module__)
     r = Rule(e; mod=__module__, prune=true)
 end
 
@@ -82,7 +82,7 @@ end
 macro theory(e)
     e = macroexpand(__module__, e)
     e = rmlines(e)
-    e = interp_dollar(e, __module__)
+    # e = interp_dollar(e, __module__)
     if Meta.isexpr(e, :block)
         Vector{Rule}(e.args .|> x -> Rule(x; mod=__module__))
     else

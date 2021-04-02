@@ -95,8 +95,8 @@ function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
             break
         end
 
-        if params.stopwhen() 
-            tot_report.reason = ConditionSatisfied()
+        if reached(g, params.goal)
+            tot_report.reason = GoalReached()
             break
         end
     end

@@ -52,17 +52,18 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+))
     @test true == (@areequal t a+inv(a) 0 (x*y)+inv(x*y) 1*0 )
 end
 
+
 @testset "Basic Equalities - False statements" begin
-    @test false == (@areequal t (a * b) + (a * c) a*(b+a))
-    @test false == (@areequal t (a * c) + (a * c) a*(b+c) )
-    @test false == (@areequal t a*(c*c) c*(1*(d*a)) )
-    @test false == (@areequal t c+(b*(c*d)) ((d*c)*b)+a )
-    @test false == (@areequal t (x+y)*(a+c) ((a*(x+y)) + b*(x+y)) )
-    @test false == (@areequal t ((x*(a+b)) + y*(a+b)) (x+y)*(a+c) )
-    @test false == (@areequal t (((x*a + x*b) + y*a) + y*b) (x+y)*(a+x) )
-    @test false == (@areequal t a+(b*(c*a)) ((d*c)*b)+a )
-    @test false == (@areequal t a+inv(a) a )
-    @test false == (@areequal t (x*y)+inv(x*y) 1 )
+    @test falseormissing(@areequal t (a * b) + (a * c) a*(b+a))
+    @test falseormissing(@areequal t (a * c) + (a * c) a*(b+c) )
+    @test falseormissing(@areequal t a*(c*c) c*(1*(d*a)) )
+    @test falseormissing(@areequal t c+(b*(c*d)) ((d*c)*b)+a )
+    @test falseormissing(@areequal t (x+y)*(a+c) ((a*(x+y)) + b*(x+y)) )
+    @test falseormissing(@areequal t ((x*(a+b)) + y*(a+b)) (x+y)*(a+c) )
+    @test falseormissing(@areequal t (((x*a + x*b) + y*a) + y*b) (x+y)*(a+x) )
+    @test falseormissing(@areequal t a+(b*(c*a)) ((d*c)*b)+a )
+    @test falseormissing(@areequal t a+inv(a) a )
+    @test falseormissing(@areequal t (x*y)+inv(x*y) 1 )
 end
 
 # Issue 21

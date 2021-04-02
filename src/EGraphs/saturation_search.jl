@@ -75,6 +75,7 @@ function search_rule!(g::EGraph, r::MultiPatRewriteRule,
     if isempty(buf)
         return 
     end
+    # TODO use ematchlist?
     pats_todo = reverse(copy(r.pats))
     while !isempty(pats_todo)
         pat = pop!(pats_todo)
