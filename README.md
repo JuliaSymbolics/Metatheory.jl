@@ -20,7 +20,7 @@ Our library provides a simple, algebraically composable interface to help scient
 
 ## Recommended Readings - Selected Publications
 
-- The [Metatheory.jl introductory paper](https://github.com/openjournals/joss-papers/blob/joss.03078/joss.03078/10.21105.joss.03078.pdf) gives a brief high level overview on the library and its functionalities.
+- The [Metatheory.jl introductory paper](https://joss.theoj.org/papers/10.21105/joss.03078#) gives a brief high level overview on the library and its functionalities.
 - The Julia Manual [metaprogramming section](https://docs.julialang.org/en/v1/manual/metaprogramming/) is fundamental to understand what homoiconic expression manipulation is and how it happens in Julia.
 - [egg: Fast and Extensible Equality Saturation](https://dl.acm.org/doi/pdf/10.1145/3434304) contains the definition of *E-Graphs* on which Metatheory.jl's equality saturation rewriting backend is based. This is a strongly recommended reading.
 
