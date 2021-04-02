@@ -72,7 +72,7 @@ end
 
     # println("==========================================")
 
-    @test false == @areequal_tag SymMonCat sigma(A,B)⋅sigma(A,B)   1(A⊗B)
+    @test falseormissing(@areequal_tag SymMonCat sigma(A,B)⋅sigma(A,B)   1(A⊗B))
     @test @areequal_tag SymMonCat sigma(A,B) σ(A,B).(A⊗B→B⊗A)
     @test @areequal_tag SymMonCat sigma(A,B)⋅sigma(B,A) 1(A⊗B)
     @test @areequal_tag SymMonCat sigma(B,A)⋅sigma(A,B) 1(B⊗A)

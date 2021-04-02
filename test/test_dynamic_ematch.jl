@@ -3,7 +3,7 @@ comm_monoid = @theory begin
     a * b => b * a
     a * 1 => a
     a * (b * c) => (a * b) * c
-    a::$Number * b::$Number |> a*b
+    a::Number * b::Number |> a*b
 end
 
 G = EGraph(:(3 * 4))

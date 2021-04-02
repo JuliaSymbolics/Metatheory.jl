@@ -60,9 +60,9 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
             return rep
         end
 
-        if params.stopwhen()
-            @log "Halting requirement satisfied"
-            rep.reason = ConditionSatisfied()
+        if reached(g, params.goal)
+            @log "Goal reached"
+            rep.reason = GoalReached()
             return rep
         end
 

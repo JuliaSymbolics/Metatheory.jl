@@ -9,6 +9,7 @@ Configurable Parameters for the equality saturation process.
     # sizeout::Int = 2^14
     matchlimit::Int = 5000
     eclasslimit::Int = 5000
+    goal::Union{Nothing, SaturationGoal} = nothing
     stopwhen::Function = ()->false
     scheduler::Type{<:AbstractScheduler} = BackoffScheduler
     schedulerparams::Tuple=()

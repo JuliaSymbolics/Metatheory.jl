@@ -238,6 +238,7 @@ function prune!(g::EGraph, a::Int64, b::EClass)
     return id_a
 end
 
+# TODO new rebuilding from egg
 """
 This function restores invariants and executes
 upwards merging in an [`EGraph`](@ref). See

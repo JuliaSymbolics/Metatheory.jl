@@ -13,9 +13,10 @@ struct Timeout <: ReportReason end
 Base.show(io::IO, x::Timeout) = print(io, "Iteration Timeout")
 export Timeout
 
-struct ConditionSatisfied <: ReportReason end
-Base.show(io::IO, x::ConditionSatisfied) = print(io, "Halting condition satisfied")
-export ConditionSatisfied
+
+struct GoalReached <: ReportReason end
+Base.show(io::IO, x::GoalReached) = print(io, "Goal reached")
+export GoalReached
 
 struct Contradiction <: ReportReason end
 Base.show(io::IO, x::Contradiction) = print(io, "Equality Contradiction detected")
