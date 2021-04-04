@@ -38,9 +38,16 @@ struct RewriteRule <: SymbolicRule
     left::Pattern
     right::Pattern
     prune::Bool
-    RewriteRule(l, r) = new(l,r,false)
-    RewriteRule(l,r,p) = new(l,r,p)
+    patvars::Vector{Symbol}
+    RewriteRule(l, r) = RewriteRule(l,r,false)
+    function RewriteRule(l,r,p)
+        pvars = patvars(l) ∪ patvars(r)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
+        new(l,r,p,pvars)
+    end
 end
+
 canprune(t::Type{RewriteRule}) = true
 
 # =============================================================================
@@ -51,6 +58,19 @@ struct MultiPatRewriteRule <: SymbolicRule
     right::Pattern
     # additional lhs patterns
     pats::Vector{Pattern}
+    patvars::Vector{Symbol}
+    function MultiPatRewriteRule(l,r,pats)
+        pvars = patvars(l) ∪ patvars(r)
+
+        for p ∈ pats
+            union!(pvars, patvars(p))
+            setindex!(p, pvars)
+        end
+        setindex!(l, pvars)
+        setindex!(r, pvars)
+        
+        new(l,r,pats,pvars)
+    end
 end
 ==(a::MultiPatRewriteRule, b::MultiPatRewriteRule) = a.left == b.left && 
     all(a.pats .== b.pats) && (a.right == b.right)
@@ -68,6 +88,13 @@ backend. If two terms, corresponding to the left and right hand side of an
 struct UnequalRule <: BidirRule 
     left::Pattern
     right::Pattern
+    patvars::Vector{Symbol}
+    function UnequalRule(l,r)
+        pvars = patvars(l) ∪ patvars(r)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
+        new(l,r,pvars)
+    end
 end
 
 """
@@ -78,6 +105,13 @@ Rule(:(a * b == b * a))
 struct EqualityRule <: BidirRule 
     left::Pattern
     right::Pattern
+    patvars::Vector{Symbol}
+    function EqualityRule(l,r)
+        pvars = patvars(l) ∪ patvars(r)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
+        new(l,r,pvars)
+    end
 end
 
 """
@@ -97,9 +131,13 @@ Rule(:(a::Number * b::Number |> a*b))
 struct DynamicRule <: Rule 
     left::Pattern
     right::Any
-    patvars::Vector{PatVar} # useful set of pattern variables
+    patvars::Vector{Symbol} # useful set of pattern variables
     prune::Bool
-    DynamicRule(l::Pattern, r, prune) = new(l, r, unique(patvars(l)), prune)
+    function DynamicRule(l::Pattern, r, prune) 
+        pvars = unique(patvars(l))
+        setindex!(l, pvars)
+        new(l, r, pvars, prune)
+    end
     DynamicRule(l, r) = new(l,r,false)
 end
 canprune(t::Type{DynamicRule}) = true

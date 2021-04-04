@@ -72,6 +72,9 @@ end
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
     analyze!(G, NumberFold)
+    # saturate!(G, comm_monoid)
+    # display(G.classes); println()
+    # @test (true == @areequalg G comm_monoid (12*a)*b ((6*2)*b)*a)
     @test (true == @areequalg G comm_monoid (3 * a) * (4 * b) (12*a)*b ((6*2)*b)*a)
 end
 

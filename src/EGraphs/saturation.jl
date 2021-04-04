@@ -70,7 +70,6 @@ function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
     match_hist = MatchesBuf()
     tot_report = Report()
 
-    # GC.enable(false)
     while true
         curr_iter+=1
 

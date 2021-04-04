@@ -48,12 +48,14 @@ end
 
 # Tries to match on a pattern variable
 function ematchstep(g::EGraph, t::PatVar, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
-    if haseclass(sub, t)
-        if find(g, geteclass(sub, t)) == find(g, v)
+    if haseclassid(sub, t)
+        if find(g, geteclassid(sub, t)) == find(g, v)
             push!(buf, sub)
         end
     else
-        nsub = seteclass(sub, t, geteclass(g, v))
+        # nsub = seteclass(sub, t, geteclass(g, v))
+        nsub = copy(sub)
+        seteclassid!(nsub, t, find(g, v))
         push!(buf, nsub)
     end
     return buf
@@ -75,10 +77,14 @@ end
 # tries to match on type assertions
 function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub::Sub, buf::SubBuf)::SubBuf
     ec = geteclass(g, v)
-    for n in ec
+    nnodes = length(ec.nodes)
+    for i in 1:nnodes
+        n = ec.nodes[i]
         if arity(n) == 0
             !(typeof(n.head) <: t.type) && continue
-            nsub = setliteral(sub, t.var, n.head)
+            # nsub = copy(sub)
+            nsub = sub
+            setliteral!(nsub, t.var, i)
             ematchstep(g, t.var, v, nsub, buf)
             continue
         end
@@ -120,19 +126,22 @@ function ematchstep(g::EGraph, t::PatAllTerm, v::Int64, sub::Sub, buf::SubBuf)::
         (arity(n) > 0) && arity(t) == arity(n) || continue
         println(n)
         nsub = settermtype(sub, t.head, enodetype(n), getmetadata(n))
-        if haseclass(nsub, t.head)
-            if find(g, geteclass(nsub, t.head)) == find(g, v)
+        if haseclassid(nsub, t.head)
+            if find(g, geteclassid(nsub, t.head)) == find(g, v)
                 ematchlist(g, t.args, n.args, nsub, buf)
             end
         else
-            nsub = seteclass(nsub, t.head, geteclass(g, v))
+            nsub = copy(sub) 
+            seteclassid!(nsub, t.head, find(g, v))
             ematchlist(g, t.args, n.args, nsub, buf)
         end
     end
     return buf
 end
 
-function ematch(g::EGraph, pat::Pattern, id::Int64, sub=Sub(), buf=SubBuf())
+function ematch(g::EGraph, pat::Pattern, id::Int64, sub::Sub, buf=SubBuf())
+    # println(pat)
+    # sub = copy(sub)
     ematchstep(g, pat, id, sub, buf)
     # @show pat
     # println.(buf)
