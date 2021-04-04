@@ -21,8 +21,7 @@ Generates a [`RuntimeGeneratedFunction`](https://github.com/SciML/RuntimeGenerat
 side of a `:dynamic` [`Rule`](@ref).
 """
 function genrhsfun(r::DynamicRule, mod::Module)
-    patvars = map(x -> x.var, r.patvars)
-    params = Expr(:tuple, :_lhs_expr, :_egraph, patvars...)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, r.patvars...)
     ex = :($params -> $(r.right))
     closure_generator(mod, ex)
 end

@@ -38,10 +38,10 @@ hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
 ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
-function EGraphs.instantiateterm(pat::PatTerm,  T::Type{MyExpr}, 
+function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, 
     meta::NamedTuple, sub::Sub, rule::Rule)
     # TODO how to set meta?
-    MyExpr(pat.head, map(x -> instantiate(x, sub, rule), pat.args), meta.foo, meta.bar, meta.baz)
+    MyExpr(pat.head, map(x -> instantiate(g, x, sub, rule), pat.args), meta.foo, meta.bar, meta.baz)
 end
 
 # Define an extraction method dispatching on MyExpr

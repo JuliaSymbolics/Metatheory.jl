@@ -7,15 +7,23 @@ abstract type Pattern end
 import Base.==
 ==(a::Pattern, b::Pattern) = false
 
-# TODO implement debrujin indexing?
 """
 Pattern variables will first match on any subterm
 and instantiate the substitution to that subterm. 
 """
-struct PatVar <: Pattern
+mutable struct PatVar <: Pattern
     var::Symbol
+    idx::Int
 end
 ==(a::PatVar, b::PatVar) = (a.var == b.var)
+PatVar(var) = PatVar(var, -1)
+
+
+struct PatVarIndex <: Pattern
+    idx::Int
+end
+==(a::PatVarIndex, b::PatVarIndex) = (a.idx == b.idx)
+
 
 """
 A pattern literal will match only against an instance of itself.
@@ -101,23 +109,55 @@ function ==(a::PatAllTerm, b::PatAllTerm)
     (a.head == b.head) && all(a.args .== b.args) && (a.metadata == b.metadata)
 end
 
-# collect pattern variables in a set of symbols
-patvars(p::PatLiteral; s=PatVar[]) = s 
-patvars(p::PatVar; s=PatVar[]) = push!(s, p)
-patvars(p::PatTypeAssertion; s=PatVar[]) = patvars(p.var; s=s)
-patvars(p::PatSplatVar; s=PatVar[]) = patvars(p.var; s=s)
+"""
+Collects pattern variables appearing in a pattern into a vector of symbols
+"""
+patvars(p::PatLiteral; s=Symbol[]) = s 
+patvars(p::PatVar; s=Symbol[]) = push!(s, p.var)
+patvars(p::PatTypeAssertion; s=Symbol[]) = patvars(p.var; s=s)
+patvars(p::PatSplatVar; s=Symbol[]) = patvars(p.var; s=s)
+function patvars(p::PatEquiv; s=Symbol[])
+    patvars(p.left; s)
+    patvars(p.right; s)    
+end
 
-function patvars(p::PatTerm; s=PatVar[])
+function patvars(p::PatTerm; s=Symbol[])
     for x ∈ p.args 
         patvars(x; s)
     end
     return s
 end 
 
-function patvars(p::PatAllTerm; s=PatVar[])
-    push!(s, p.head)
+function patvars(p::PatAllTerm; s=Symbol[])
+    push!(s, p.head.var)
     for x ∈ p.args 
         patvars(x; s)
     end
     return s
+end 
+
+setindex!(p::PatLiteral, pvars) = nothing 
+function setindex!(p::PatVar, pvars)
+    p.idx = findfirst((==)(p.var), pvars)
+end
+setindex!(p::PatTypeAssertion, pvars) = setindex!(p.var, pvars)
+setindex!(p::PatSplatVar, pvars) = setindex!(p.var, pvars)
+
+
+function setindex!(p::PatEquiv, pvars)
+    setindex!(p.left, pvars)
+    setindex!(p.right, pvars)
+end 
+
+function setindex!(p::PatTerm, pvars)
+    for x ∈ p.args 
+        setindex!(x, pvars)
+    end
+end 
+
+function setindex!(p::PatAllTerm, pvars)
+    setindex!(p.head, pvars)
+    for x ∈ p.args 
+        setindex!(x, pvars)
+    end
 end 
