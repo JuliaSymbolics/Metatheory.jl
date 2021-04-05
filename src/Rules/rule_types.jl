@@ -42,6 +42,7 @@ struct RewriteRule <: SymbolicRule
     RewriteRule(l, r) = RewriteRule(l,r,false)
     function RewriteRule(l,r,p)
         pvars = patvars(l) ∪ patvars(r)
+        # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
         new(l,r,p,pvars)
@@ -66,6 +67,7 @@ struct MultiPatRewriteRule <: SymbolicRule
             union!(pvars, patvars(p))
             setindex!(p, pvars)
         end
+        # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
         
@@ -91,6 +93,7 @@ struct UnequalRule <: BidirRule
     patvars::Vector{Symbol}
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
+        # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
         new(l,r,pvars)
@@ -108,6 +111,7 @@ struct EqualityRule <: BidirRule
     patvars::Vector{Symbol}
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
+        # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
         new(l,r,pvars)
@@ -135,6 +139,7 @@ struct DynamicRule <: Rule
     prune::Bool
     function DynamicRule(l::Pattern, r, prune) 
         pvars = unique(patvars(l))
+        # sort!(pvars)
         setindex!(l, pvars)
         new(l, r, pvars, prune)
     end
