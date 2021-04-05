@@ -9,15 +9,15 @@ struct Sub
     # classes::ImmutableDict{PatVar, EClass}
     classes::Vector{Int64}
     literals::Vector{Int}
-    termtypes::ImmutableDict{Any, Tuple{Type, NamedTuple}}
+    termtypes::LittleDict{Any, Tuple{Type, NamedTuple}}
 end
 
 function Base.copy(s::Sub)
-    Sub(copy(s.classes), copy(s.literals), s.termtypes)
+    Sub(copy(s.classes), copy(s.literals), copy(s.termtypes))
 end
 
 function Sub(nvars)
-    Sub(fill(-1, nvars), fill(-1, nvars), ImmutableDict{Any, Tuple{Type, NamedTuple}}())
+    Sub(fill(-1, nvars), fill(-1, nvars), LittleDict{Any, Tuple{Type, NamedTuple}}())
 end
 Base.isempty(sub::Sub) = isempty(sub.classes)
 
@@ -43,8 +43,12 @@ end
 
 hastermtype(sub::Sub, p::Any) = haskey(sub.termtypes, p)
 gettermtype(sub::Sub, p::Any) = sub.termtypes[p]
-function settermtype(sub::Sub, p::Any, x::Type, meta::NamedTuple)::Sub
-    Sub(sub.classes, sub.literals, ImmutableDict(sub.termtypes, p => (x, meta)))
+# function settermtype(sub::Sub, p::Any, x::Type, meta::NamedTuple)::Sub
+#     Sub(sub.classes, sub.literals, ImmutableDict(sub.termtypes, p => (x, meta)))
+# end
+
+function settermtype!(sub::Sub, p::Any, x::Type, meta::NamedTuple)
+    sub.termtypes[p] = (x, meta)
 end
 
 function Base.show(io::IO, s::Sub)

@@ -27,26 +27,19 @@ monoidal_rules = @theory begin
     a ⊗ₒ (b ⊗ₒ c) == (a ⊗ₒ b) ⊗ₒ c
     f ⊗ₘ (h ⊗ₘ j) == (f ⊗ₘ h) ⊗ₘ j
     id(a ⊗ₒ b) == id(a) ⊗ₘ id(b)
-
-    $( MultiPatRewriteRule(@pat((f ⊗ₘ p) ⋅ (g ⊗ₘ q)), @pat((f ⋅ g) ⊗ₘ (p ⋅ q)), 
-        [PatEquiv(@pat(cod(type(f))), @pat(dom(type(g)))), PatEquiv(@pat(cod(type(p))), @pat(dom(type(q))))]) )
-
     (f ⋅ g) ⊗ₘ (p ⋅ q) => (f ⊗ₘ p) ⋅ (g ⊗ₘ q)
 end
 
+push!(monoidal_rules,
+    MultiPatRewriteRule(@pat((f ⊗ₘ p) ⋅ (g ⊗ₘ q)), @pat((f ⋅ g) ⊗ₘ (p ⋅ q)), 
+        [PatEquiv(@pat(cod(type(f))), @pat(dom(type(g)))), PatEquiv(@pat(cod(type(p))), @pat(dom(type(q))))]) 
+)
 
 
 sym_rules = @theory begin
     σ(a, b) ⋅ σ(b, a) == id(a ⊗ₒ b)
     (σ(a, b) ⊗ₘ id(c)) ⋅ (id(b) ⊗ₘ σ(a, c)) == σ(a, b ⊗ₒ c)
     (id(a) ⊗ₘ σ(b, c)) ⋅ (σ(a, c) ⊗ₘ id(b)) == σ(a ⊗ₒ b, c)
-
-    $( MultiPatRewriteRule(@pat((f ⊗ₘ h) ⋅ σ(a, b)), @pat(σ(dom(type(f)), dom(type(h))) ⋅ (h ⊗ₘ f)),
-        [PatEquiv(@pat(cod(type(f))), @pat(a)), PatEquiv(@pat(cod(type(h))), @pat(b))]) )
-
-
-    $( MultiPatRewriteRule(@pat(σ(c, d) ⋅ (h ⊗ₘ f)), @pat((f ⊗ₘ h) ⋅ σ(cod(type(f)), cod(type(h)))),
-        [PatEquiv(@pat(dom(type(f))), PatVar(:c)), PatEquiv(@pat(dom(type(f))), PatVar(:d))]))
 
     # these rules arer not catlab
     σ(a, munit()) == id(a)
@@ -55,6 +48,14 @@ sym_rules = @theory begin
 
 end
 
+push!(sym_rules, 
+    MultiPatRewriteRule(@pat((f ⊗ₘ h) ⋅ σ(a, b)), @pat(σ(dom(type(f)), dom(type(h))) ⋅ (h ⊗ₘ f)),
+        [PatEquiv(@pat(cod(type(f))), @pat(a)), PatEquiv(@pat(cod(type(h))), @pat(b))]),
+
+
+    MultiPatRewriteRule(@pat(σ(c, d) ⋅ (h ⊗ₘ f)), @pat((f ⊗ₘ h) ⋅ σ(cod(type(f)), cod(type(h)))),
+    [PatEquiv(@pat(dom(type(f))), PatVar(:c)), PatEquiv(@pat(dom(type(f))), PatVar(:d))])
+)
 
 
 diag_rules = @theory begin
@@ -73,8 +74,6 @@ end
 
 
 cart_rules = @theory begin
-    $( MultiPatRewriteRule(@pat(Δ(a) ⋅ (f ⊗ₘ k)), @pat(pair(f,k)), 
-        [PatEquiv(@pat(dom(type(f))), @pat(dom(type(k))))]))
 
     pair(f, k) == Δ(dom(type(f))) ⋅ (f ⊗ₘ k)
     proj1(a, b) == id(a) ⊗ₘ ⋄(b)
@@ -86,6 +85,11 @@ cart_rules = @theory begin
     f ⋅ Δ(b) => Δ(dom(type(f))) ⋅ (f ⊗ₘ f)
     Δ(a) ⋅ (f ⊗ₘ f) => f ⋅ Δ(cod(type(f)))
 end
+
+push!(cart_rules, 
+MultiPatRewriteRule(@pat(Δ(a) ⋅ (f ⊗ₘ k)), @pat(pair(f,k)), 
+[PatEquiv(@pat(dom(type(f))), @pat(dom(type(k))))])
+)
 
 
 typing_rules = @theory begin
@@ -123,8 +127,8 @@ macro calc(e...)
         # println(a, " =? ", b)
         params = SaturationParams(
             timeout=12, 
-            eclasslimit=8000,
-            scheduler=SimpleScheduler
+            eclasslimit=12000,
+            scheduler=BackoffScheduler
             )
         g = EGraph()
         ta = addexpr!(g, :(type(a)))
@@ -132,7 +136,7 @@ macro calc(e...)
         merge!(g, ta.id, tao.id)
 
         eq = @time areequal(g, theory, a, b; params=params)
-        push!(trues, eq)
+        push!(trues, (eq !== missing) && eq)
         println(eq)
         #  WOULD WORK IF COST FUNCTION IS SIMILARITY TO OTHER FUN
         # if !eq
@@ -213,7 +217,7 @@ Metatheory.options.printiter = true
 Metatheory.options.multithreading = false
 
 G = EGraph( :(pair(proj1(a, b), proj2(a, b))))
-params = SaturationParams(timeout=5)
+params = SaturationParams(timeout=10)
 saturate!(G, rules, params )
 ex = extract!(G, astsize)
 
