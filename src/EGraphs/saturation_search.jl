@@ -38,8 +38,7 @@ end
 
 function search_rule!(g::EGraph, r::SymbolicRule, id::Int64, 
     matches::MatchesBuf, mlock::ReentrantLock)
-    sub = Sub(length(r.patvars))
-    for sub in ematch(g, r.left, id, sub)
+    for sub in ematch(g, r.left, id)
         lock(mlock) do
             push!(matches, (r, r.right, sub, id))
         end
@@ -48,8 +47,7 @@ end
 
 function search_rule!(g::EGraph, r::DynamicRule, id::Int64, 
     matches::MatchesBuf, mlock::ReentrantLock)
-    sub = Sub(length(r.patvars))
-    for sub in ematch(g, r.left, id, sub)
+    for sub in ematch(g, r.left, id)
         lock(mlock) do
             push!(matches, (r, nothing, sub, id))
         end
@@ -58,13 +56,12 @@ end
 
 function search_rule!(g::EGraph, r::BidirRule, id::Int64, 
     matches::MatchesBuf, mlock::ReentrantLock)
-    sub = Sub(length(r.patvars))
-    for sub in ematch(g, r.left, id, sub)
+    for sub in ematch(g, r.left, id)
         lock(mlock) do
             push!(matches, (r, r.right, sub, id))
         end
     end
-    for sub in ematch(g, r.right, id, sub)
+    for sub in ematch(g, r.right, id)
         lock(mlock) do
             push!(matches, (r, r.left, sub, id))
         end
@@ -74,8 +71,7 @@ end
 
 function search_rule!(g::EGraph, r::MultiPatRewriteRule,
     id::Int64, matches::MatchesBuf, mlock::ReentrantLock)
-    sub = Sub(length(r.patvars))
-    buf = ematch(g, r.left, id, sub)
+    buf = ematch(g, r.left, id)
     if isempty(buf)
         return 
     end

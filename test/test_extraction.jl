@@ -18,10 +18,11 @@ t = comm_monoid ∪ fold_mul
 	params=SaturationParams(timeout=15)
     saturate!(G, t, params)
     extr = extract!(G, astsize)
-
+	println(extr)
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
-		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12)
+		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12) || 
+		extr == :(b * (a * 12))
 end
 
 fold_add = @theory begin
@@ -96,7 +97,7 @@ powers = @theory begin
 end
 logids = @theory begin
 	log(a^n) => n * log(a)
-	log(x * y) => log(x) * log(y)
+	log(x * y) => log(x) + log(y)
 	log(1) => 0
 	log(:e) => 1
 	:e^(log(x)) => x

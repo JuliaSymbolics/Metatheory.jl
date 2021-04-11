@@ -9,7 +9,8 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 @profview prove(t, ex, 2, 7)
 
 
-using Metatheory
+using Metatheory    
+using Metatheory.Classic
 @metatheory_init ()
 using Metatheory.EGraphs
 using Metatheory.Library
@@ -26,8 +27,8 @@ end
 rep(:a, :*, 3)
 
 Mid = @theory begin 
-    a * :ε => :ε
-    :ε * a => :ε
+    a * :ε => a
+    :ε * a => a
 end 
 
 Massoc = @theory begin
@@ -38,23 +39,29 @@ end
 
 T = [
     @rule :b*:B => :ε
-    RewriteRule(Pattern(rep(:(:a), :*, 2)), Pattern(:(:ε)))
-    RewriteRule(Pattern(rep(:(:b), :*, 3)), Pattern(:(:ε)))
+    @rule :a*:a => :ε
+    @rule :b*:b*:b => :ε
+    @rule :B * :B => :B
     RewriteRule(Pattern(rep(:(:a*:b), :*, 7)), Pattern(:(:ε)))
     RewriteRule(Pattern(rep(:(:a*:b*:a*:B), :*, 5)), Pattern(:(:ε)))
 ]
 
 G = Mid∪Massoc∪T
-expr = :(a*b*a*a*a*b*b*b*a*B*B*B*B*a)
+expr = :(a*b* a*a*a * b*b*b * a * B*B*B*B * a)
 
+ex = expr
 g = EGraph(expr)
-params = SaturationParams(timeout=5)
-@profview saturate!(g, G, params)
+params = SaturationParams(timeout=8, scheduler=BackoffScheduler, schedulerparams=(128,4))#, scheduler=SimpleScheduler)
+@timev saturate!(g, G, params)
 ex = extract!(g, astsize)
-rewrite(ex, Mid)
+println(ex)
+rewrite(ex, Mid) |> println
 
+another_expr = :(b*B)
+g = EGraph(another_expr)
+@timev saturate!(g, G, params)
 
-another_expr = :(a*a*a*a)
+# another_expr = :(a*a*a*a)
 some_eclass = addexpr!(g, another_expr)
-g.root = some_eclass.id
+# g.root = some_eclass.id
 ex = extract!(g, astsize)

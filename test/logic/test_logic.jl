@@ -3,9 +3,12 @@ include("prover.jl")
 
 using Test
 
+# Metatheory.options.printiter = true
+# Metatheory.options.verbose = true
+
 
 ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
-@test prove(t, ex, 3, 7)
+@test prove(t, ex, 2, 10, 5000)
 
 
 @test @areequal t true ((¬p == p) == false)

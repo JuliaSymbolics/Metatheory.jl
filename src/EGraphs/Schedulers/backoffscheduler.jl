@@ -28,12 +28,15 @@ shouldskip(s::BackoffScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
 
 
 function BackoffScheduler(g::EGraph, theory::Vector{<:Rule})
-    BackoffScheduler(g, theory, 8, 2)
+    # BackoffScheduler(g, theory, 128, 4)
+    BackoffScheduler(g, theory, 1000, 5)
 end
 
 function BackoffScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int)
     gsize = length(G.uf)
     data = Dict{Rule, BackoffSchedulerEntry}()
+
+    # println(fuel, bantime)
 
     # These numbers seem to fit
     for rule ∈ theory
@@ -66,6 +69,7 @@ end
 function writestep!(s::BackoffScheduler, rule::Rule)
     rd = s.data[rule]
 
+    # println(rd.fuel)
     # decrement fuel, ban rule if fuel is empty
     rd.fuel -= 1
     if rd.fuel == 0

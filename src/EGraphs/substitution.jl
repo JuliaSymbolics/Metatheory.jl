@@ -7,38 +7,61 @@ import Base.ImmutableDict
 
 struct Sub 
     # classes::ImmutableDict{PatVar, EClass}
-    classes::Vector{Int64}
-    literals::Vector{Int}
-    termtypes::LittleDict{Any, Tuple{Type, NamedTuple}}
+    classes::ImmutableDict{PatVar, Int64}
+    literals::ImmutableDict{PatVar, Int}
+    termtypes::ImmutableDict{Any, Tuple{Type, NamedTuple}}
+    # cache::Dict{Pattern, Vector{Int64}}
+end
+
+function Sub() 
+    # classes::ImmutableDict{PatVar, EClass}
+    Sub(
+        ImmutableDict{PatVar, Int64}(),
+        ImmutableDict{PatVar, Int}(),
+        ImmutableDict{Any, Tuple{Type, NamedTuple}}(),
+        # Dict{Pattern, Vector{Int64}}()
+    )
+    # cache::Dict{Pattern, Vector{Int64}}
 end
 
 function Base.copy(s::Sub)
-    Sub(copy(s.classes), copy(s.literals), copy(s.termtypes))
+    Sub(copy(s.classes), copy(s.literals), copy(s.termtypes))# copy(s.cache))
 end
 
-function Sub(nvars)
-    Sub(fill(-1, nvars), fill(-1, nvars), LittleDict{Any, Tuple{Type, NamedTuple}}())
-end
+# function Sub(nvars)
+#     Sub(fill(-1, nvars), fill(-1, nvars), LittleDict{Any, Tuple{Type, NamedTuple}}())#, Dict{PatTerm, Vector{Int64}}())
+# end
 Base.isempty(sub::Sub) = isempty(sub.classes)
 
-
-haseclassid(sub::Sub, p::PatVar) = (sub.classes[p.idx] != -1)
-geteclassid(sub::Sub, p::PatVar) = sub.classes[p.idx]
-# function seteclass(sub::Sub, p::PatVarIndex, c::EClass)::Sub
-#     Sub(ImmutableDict(sub.classes, p => c), sub.literals, sub.termtypes)
+# function hascachedpat(sub::Sub, p::Pattern, id::Int64)
+#     return haskey(sub.cache, p) && id ∈ sub.cache[p]
 # end
-function seteclassid!(sub::Sub, p::PatVar, id::Int64)
-    sub.classes[p.idx] = id
-end
-
-hasliteral(sub::Sub, p::PatVar) = (sub.literals[p.idx] !== -1)
-getliteral(sub::Sub, p::PatVar) = sub.literals[p.idx]
-# function setliteral(sub::Sub, p::PatVar, x)::Sub
-#     Sub(sub.classes, ImmutableDict(sub.literals, p => x), sub.termtypes)
+# function addcachedpat(sub::Sub, p::Pattern, id::Int64)
+#     if !haskey(sub.cache, p) 
+#         sub.cache[p] = Int64[]
+#     end
+#     if !hascachedpat(sub, p, id)
+#         push!(sub.cache[p], id)
+#     end
 # end
-function setliteral!(sub::Sub, p::PatVar, position::Int)
-    sub.literals[p.idx] = position
+
+haseclassid(sub::Sub, p::PatVar) = haskey(sub.classes, p)
+geteclassid(sub::Sub, p::PatVar) = sub.classes[p]
+function seteclassid(sub::Sub, p::PatVar, c::Int64)::Sub
+    Sub(ImmutableDict(sub.classes, p => c), sub.literals, sub.termtypes)
 end
+# function seteclassid!(sub::Sub, p::PatVar, id::Int64)
+#     sub.classes[p.idx] = id
+# end
+
+hasliteral(sub::Sub, p::PatVar) = haskey(sub.literals, p)
+getliteral(sub::Sub, p::PatVar) = sub.literals[p]
+function setliteral(sub::Sub, p::PatVar, x)::Sub
+    Sub(sub.classes, ImmutableDict(sub.literals, p => x), sub.termtypes)
+end
+# function setliteral!(sub::Sub, p::PatVar, position::Int)
+#     sub.literals[p.idx] = position
+# end
 
 
 hastermtype(sub::Sub, p::Any) = haskey(sub.termtypes, p)
@@ -47,8 +70,8 @@ gettermtype(sub::Sub, p::Any) = sub.termtypes[p]
 #     Sub(sub.classes, sub.literals, ImmutableDict(sub.termtypes, p => (x, meta)))
 # end
 
-function settermtype!(sub::Sub, p::Any, x::Type, meta::NamedTuple)
-    sub.termtypes[p] = (x, meta)
+function settermtype(sub::Sub, p::Any, x::Type, meta::NamedTuple)
+    Sub(sub.classes, sub.literals, ImmutableDict(sub.termtypes, p => (x, meta)))
 end
 
 function Base.show(io::IO, s::Sub)
@@ -97,7 +120,7 @@ function instantiate(g::EGraph, pat::PatLiteral{T}, sub::Sub, rule::Rule) where 
 end
 
 function instantiate(g::EGraph, pat::PatTypeAssertion, sub::Sub, rule::Rule)
-    instantiate(g, pat.var, sub, rule)
+    instantiate(g, pat.name, sub, rule)
 end
 
 # # TODO CUSTOMTYPES document how to for custom types
@@ -124,4 +147,3 @@ function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
         instantiateterm(g, pat, Expr, pat.metadata, sub, rule)
     end
 end
-
