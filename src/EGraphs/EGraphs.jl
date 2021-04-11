@@ -50,7 +50,8 @@ export Sub
 export instantiate
 export instantiateterm
 
-include("ematch.jl")
+# include("ematch.jl")
+include("new_ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers

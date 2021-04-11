@@ -32,11 +32,11 @@ mutable struct EGraph
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
-    """
-    a cache mapping function symbols to e-classes that
-    contain e-nodes with that function symbol.
-    """
-    symcache::SymbolCache
+    # """
+    # a cache mapping function symbols to e-classes that
+    # contain e-nodes with that function symbol.
+    # """
+    # symcache::SymbolCache
     numclasses::Int
     numnodes::Int
 end
@@ -51,7 +51,7 @@ function EGraph()
     Vector{Int64}(),
     0,
     Analyses(),
-    SymbolCache(),
+    # SymbolCache(),
     0,
     0
 )
@@ -97,11 +97,13 @@ function geteclass(g::EGraph, a::Int64)::EClass
     ec
 end
 # geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
-
+Base.getindex(g::EGraph, i::Int64) = geteclass(g, a)
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
+
+
 
 function canonicalize!(g::EGraph, e::EClass)
     e.id = find(g, e.id)
@@ -132,14 +134,6 @@ function add!(g::EGraph, n::ENode)::EClass
     g.classes[id] = classdata
     g.numclasses += 1
 
-    # cache the eclass for the symbol for faster matching
-    # sym = n.head
-    # if !haskey(g.symcache, sym)
-    #     g.symcache[sym] = Set{Int64}()
-    # end
-    # push!(g.symcache[sym], id)
-
-    # make analyses for new enode
     for an ∈ g.analyses
         if !islazy(an)
             setdata!(classdata, an, make(an, g, n))
@@ -179,19 +173,6 @@ function addexpr!(g::EGraph, se)::EClass
 
     return add!(g, ENode(e))
 end
-
-
-# """
-# Canonicalize an [`ENode`](@ref) and reset it from the memo.
-# """
-# function clean_enode!(g::EGraph, t::ENode, to::Int64)
-#     # delete!(g.memo, t)
-#     # println("removed $t")
-#     nt = canonicalize(g, t)
-#     # println("added $t $to")
-#     g.memo[nt] = to
-#     return t
-# end
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
