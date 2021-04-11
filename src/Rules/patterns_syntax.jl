@@ -1,6 +1,6 @@
 # ======================= SHOWING ====================
 
-Base.show(io::IO, x::PatVar) = print(io, x.var)
+Base.show(io::IO, x::PatVar) = print(io, x.name)
 
 function Base.show(io::IO, x::PatLiteral)
     if x.val isa Symbol 
