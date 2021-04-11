@@ -97,7 +97,7 @@ function geteclass(g::EGraph, a::Int64)::EClass
     ec
 end
 # geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
-Base.getindex(g::EGraph, i::Int64) = geteclass(g, a)
+Base.getindex(g::EGraph, i::Int64) = geteclass(g, i)
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
