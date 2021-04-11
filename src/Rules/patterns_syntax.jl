@@ -11,7 +11,7 @@ end
 
 Base.show(io::IO, x::PatTypeAssertion) = print(io, x.var, "::", x.type)
 
-Base.show(io::IO, x::PatSplatVar) = print(io, x.var, "...")
+Base.show(io::IO, x::PatSplatVar) = print(io, x.name, "...")
 
 Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
 
@@ -82,7 +82,7 @@ function Pattern(ex::Expr, mod=@__MODULE__)
         t = patargs[2]
         ty = Union{}
         if t isa PatVar
-            ty = getfield(mod, t.var)
+            ty = getfield(mod, t.name)
         elseif t isa PatLiteral{<:Type}
             ty = t.val
         end

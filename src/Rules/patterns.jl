@@ -1,3 +1,5 @@
+using AutoHashEquals
+
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
 You can use the `Pattern` constructor to recursively convert an `Expr` (or any type satisfying [`Metatheory.TermInterface`](@ref)) to a [`Pattern`](@ref).
@@ -11,18 +13,9 @@ import Base.==
 Pattern variables will first match on any subterm
 and instantiate the substitution to that subterm. 
 """
-mutable struct PatVar <: Pattern
-    var::Symbol
-    idx::Int
+@auto_hash_equals struct PatVar <: Pattern
+    name::Symbol
 end
-==(a::PatVar, b::PatVar) = (a.var == b.var)
-PatVar(var) = PatVar(var, -1)
-
-
-struct PatVarIndex <: Pattern
-    idx::Int
-end
-==(a::PatVarIndex, b::PatVarIndex) = (a.idx == b.idx)
 
 
 """
@@ -38,28 +31,24 @@ PatLiteral(:a)
 ```
 Will match only against instances of the literal symbol `:a`.
 """
-struct PatLiteral{T} <: Pattern
+@auto_hash_equals struct PatLiteral{T} <: Pattern
     val::T
 end
-==(a::PatLiteral, b::PatLiteral) = (a.val == b.val)
 
 """
 Type assertions on a [`PatVar`](@ref), will match if and only if 
 the type of the matched term for the pattern variable `var` is a subtype 
 of `type`.
 """
-struct PatTypeAssertion <: Pattern
+@auto_hash_equals struct PatTypeAssertion <: Pattern
     var::PatVar
     type::Type
 end
-function ==(a::PatTypeAssertion, b::PatTypeAssertion)
-    (a.var == b.var) && (a.type == b.type)
-end
 
-struct PatSplatVar <: Pattern
+
+@auto_hash_equals struct PatSplatVar <: Pattern
     var::PatVar
 end
-==(a::PatSplatVar, b::PatSplatVar) = (a.var == b.var)
 
 
 """
@@ -68,12 +57,9 @@ the two subpatterns exist in the same equivalence class,
 in the e-graph on which the matching is performed.
 **Can be used only in the e-graphs backend**
 """
-struct PatEquiv <: Pattern
+@auto_hash_equals struct PatEquiv <: Pattern
     left::Pattern
     right::Pattern
-end
-function ==(a::PatEquiv, b::PatEquiv)
-    (a.left == b.left) && (a.right == b.right)
 end
 
 """
@@ -81,16 +67,13 @@ Term patterns will match
 on terms of the same `arity` and with the same 
 function symbol (`head`).
 """
-struct PatTerm <: Pattern
+@auto_hash_equals struct PatTerm <: Pattern
     head::Any
     args::Vector{Pattern}
     metadata::NamedTuple
 end
 TermInterface.arity(p::PatTerm) = length(p.args)
 PatTerm(head, args) = PatTerm(head, args, (;))
-function ==(a::PatTerm, b::PatTerm)
-    (a.head == b.head) && all(a.args .== b.args) && (a.metadata == b.metadata)
-end
 
 """
 This pattern type matches on a function application 
@@ -98,22 +81,19 @@ but instead of strictly matching on a head symbol,
 it has a pattern variable as head. It can be used for 
 example to match arbitrary function calls.
 """
-struct PatAllTerm <: Pattern
+@auto_hash_equals struct PatAllTerm <: Pattern
     head::PatVar
     args::Vector{Pattern}
     metadata::NamedTuple
 end
 TermInterface.arity(p::PatAllTerm) = length(p.args)
 PatAllTerm(head, args) = PatAllTerm(head, args, (;))
-function ==(a::PatAllTerm, b::PatAllTerm)
-    (a.head == b.head) && all(a.args .== b.args) && (a.metadata == b.metadata)
-end
 
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatLiteral; s=Symbol[]) = s 
-patvars(p::PatVar; s=Symbol[]) = push!(s, p.var)
+patvars(p::PatVar; s=Symbol[]) = push!(s, p.name)
 patvars(p::PatTypeAssertion; s=Symbol[]) = patvars(p.var; s=s)
 patvars(p::PatSplatVar; s=Symbol[]) = patvars(p.var; s=s)
 function patvars(p::PatEquiv; s=Symbol[])
@@ -129,35 +109,10 @@ function patvars(p::PatTerm; s=Symbol[])
 end 
 
 function patvars(p::PatAllTerm; s=Symbol[])
-    push!(s, p.head.var)
+    push!(s, p.head.name)
     for x ∈ p.args 
         patvars(x; s)
     end
     return s
 end 
 
-setindex!(p::PatLiteral, pvars) = nothing 
-function setindex!(p::PatVar, pvars)
-    p.idx = findfirst((==)(p.var), pvars)
-end
-setindex!(p::PatTypeAssertion, pvars) = setindex!(p.var, pvars)
-setindex!(p::PatSplatVar, pvars) = setindex!(p.var, pvars)
-
-
-function setindex!(p::PatEquiv, pvars)
-    setindex!(p.left, pvars)
-    setindex!(p.right, pvars)
-end 
-
-function setindex!(p::PatTerm, pvars)
-    for x ∈ p.args 
-        setindex!(x, pvars)
-    end
-end 
-
-function setindex!(p::PatAllTerm, pvars)
-    setindex!(p.head, pvars)
-    for x ∈ p.args 
-        setindex!(x, pvars)
-    end
-end 

@@ -76,14 +76,15 @@ extract!(g, astsize)
 @test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
 
 # Frege's theorem
-params = SaturationParams(timeout=12, eclasslimit=5000)
+params = SaturationParams(timeout=12, eclasslimit=5000, schedulerparams=(1000, 5))
 @test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); params=params)
 
 # Demorgan's
 @test @areequal t true (¬(p ∨ q) == (¬p ∧ ¬q))
 
 # Consensus theorem
-@test_skip @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z))   ((x ∧ y) ∨ (¬x ∧ z))
+# @test_skip
+areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬x ∧ z)); params=params)
 
 
 # TODO proof strategies?

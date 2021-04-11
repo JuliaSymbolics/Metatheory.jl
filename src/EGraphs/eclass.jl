@@ -102,3 +102,15 @@ function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
     # a.data[x] = value
     a.data = AnalysisData(a.data, x, value)
 end
+
+function funs(a::EClass)
+    map(a.nodes) do x 
+        x.head 
+    end
+end
+
+function funs_arity(a::EClass)
+    map(a.nodes) do x 
+        (x.head, arity(x))
+    end
+end

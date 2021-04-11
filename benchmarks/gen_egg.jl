@@ -2,11 +2,10 @@ using Pkg
 using Metatheory
 using Metatheory.EGraphs
 
-to_sexpr_pattern(e::QuoteNode) = e.value
-to_sexpr_pattern(e::Symbol) = "?$e"
-function to_sexpr_pattern(e::Expr)
-    @assert e.head == :call
-    e1 = join([e.args[1] ;  to_sexpr_pattern.(e.args[2:end])], ' ')
+to_sexpr_pattern(p::PatLiteral) = p.val
+to_sexpr_pattern(p::PatVar) = "?$(p.name)"
+function to_sexpr_pattern(p::PatTerm)
+    e1 = join([p.head ;  to_sexpr_pattern.(p.args)], ' ')
     "($e1)"
 end
 

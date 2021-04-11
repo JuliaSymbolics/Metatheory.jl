@@ -4,11 +4,13 @@ using Metatheory.Classic
 
 function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
     params = SaturationParams(timeout=timeout, eclasslimit=eclasslimit, 
-        scheduler=Schedulers.ScoredScheduler, schedulerparams=(8,2, Schedulers.exprsize))
+        scheduler=Schedulers.ScoredScheduler, schedulerparams=(1000,5, Schedulers.exprsize))
     hist = UInt64[]
     push!(hist, hash(ex))
     for i ∈ 1:steps
         g = EGraph(ex)
+        goal=EqualityGoal(g, [true, geteclass(g, g.root)])
+        params.goal = goal
         saturate!(g, t, params)
         ex = extract!(g, astsize)
         println(ex)

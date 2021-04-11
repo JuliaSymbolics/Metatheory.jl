@@ -33,8 +33,7 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
         rep::Report,  mod::Module)
     (_, pat, sub, id) = match
     f = Rules.getrhsfun(rule, mod)
-    actual_params = [instantiate(g, PatVar(rule.patvars[i], i), sub, rule) 
-        for i in 1:length(rule.patvars)]
+    actual_params = [instantiate(g, PatVar(v), sub, rule) for v in rule.patvars]
     r = f(geteclass(g, id), g, actual_params...)
     rc = addexpr!(g, r)
     prune = canprune(typeof(rule)) && rule.prune 
@@ -71,10 +70,15 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
 
         rule=match[1]
         # println("applied $rule")
-        writestep!(scheduler, rule)
         if find(g, match[4]) ∈ g.pruned
             return rep
         end
+        
+        if shouldskip(scheduler, rule)
+            continue
+        end
+        writestep!(scheduler, rule)
+
         (ok, nrep) = apply_rule!(g, rule, match, matches, unions, rep, mod)
         if !ok 
             return nrep 

@@ -49,7 +49,8 @@ function exprsize(e::Expr)
 end
 
 function ScoredScheduler(g::EGraph, theory::Vector{<:Rule})
-    ScoredScheduler(g, theory, 8, 2, exprsize)
+    ScoredScheduler(g, theory, 1000, 5, exprsize)
+    # ScoredScheduler(g, theory, 8, 2, exprsize)
 end
 
 function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int, complexity::Function)

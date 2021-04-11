@@ -10,11 +10,11 @@ using MatchCore
 # if it's the first time seeing p, add it to the "seen symbols" Set
 # insert a :& expression only if p has been seen before
 function compile_lhs(p::PatVar, seen)
-	if p.var ∉ seen 
-		push!(seen, p.var)
-		return dollar(p.var)
+	if p.name ∉ seen 
+		push!(seen, p.name)
+		return dollar(p.name)
 	else
-		return dollar(amp(p.var))
+		return dollar(amp(p.name))
 	end
 end
 
@@ -22,9 +22,9 @@ function compile_lhs(p::PatLiteral{T}, seen) where T
 	p.val
 end
 compile_lhs(p::PatTypeAssertion, seen) = 
-	dollar(Expr(:(::), p.var.var, p.type))
+	dollar(Expr(:(::), p.var.name, p.type))
 compile_lhs(p::PatSplatVar, seen) = 
-	dollar(Expr(:(...), p.var.var))
+	dollar(Expr(:(...), p.var.name))
 
 
 function compile_lhs(p::PatTerm, seen)
@@ -38,14 +38,14 @@ end
 
 
 
-compile_rhs(p::PatVar) = dollar(p.var)
+compile_rhs(p::PatVar) = dollar(p.name)
 function compile_rhs(p::PatLiteral{T}) where T
     p.val
 end
 compile_rhs(p::PatTypeAssertion) = 
-	dollar(Expr(:(::), p.var.var, p.type))
+	dollar(Expr(:(::), p.var.name, p.type))
 compile_rhs(p::PatSplatVar) = 
-	dollar(Expr(:(...), p.var.var))
+	dollar(Expr(:(...), p.var.name))
 
 
 function compile_rhs(p::PatTerm)

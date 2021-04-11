@@ -34,7 +34,7 @@ variables.
 Rule(:(a * b => b * a))
 ```
 """
-struct RewriteRule <: SymbolicRule 
+@auto_hash_equals struct RewriteRule <: SymbolicRule 
     left::Pattern
     right::Pattern
     prune::Bool
@@ -43,18 +43,15 @@ struct RewriteRule <: SymbolicRule
     function RewriteRule(l,r,p)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
         new(l,r,p,pvars)
     end
 end
-
 canprune(t::Type{RewriteRule}) = true
 
 # =============================================================================
 
 # Only the last LHS is rewritten
-struct MultiPatRewriteRule <: SymbolicRule 
+@auto_hash_equals struct MultiPatRewriteRule <: SymbolicRule 
     left::Pattern
     right::Pattern
     # additional lhs patterns
@@ -65,37 +62,28 @@ struct MultiPatRewriteRule <: SymbolicRule
 
         for p ∈ pats
             union!(pvars, patvars(p))
-            setindex!(p, pvars)
         end
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
-        
         new(l,r,pats,pvars)
     end
 end
-==(a::MultiPatRewriteRule, b::MultiPatRewriteRule) = a.left == b.left && 
-    all(a.pats .== b.pats) && (a.right == b.right)
+
 
 
 abstract type BidirRule <: SymbolicRule end
-==(a::BidirRule, b::BidirRule) = (a.left == b.left) && (a.right == b.right)
-
 
 """
 This type of *anti*-rules is used for checking contradictions in the EGraph
 backend. If two terms, corresponding to the left and right hand side of an
 *anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
 """
-struct UnequalRule <: BidirRule 
+@auto_hash_equals struct UnequalRule <: BidirRule 
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
         new(l,r,pvars)
     end
 end
@@ -105,15 +93,13 @@ end
 Rule(:(a * b == b * a))
 ```
 """
-struct EqualityRule <: BidirRule 
+@auto_hash_equals struct EqualityRule <: BidirRule 
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
         new(l,r,pvars)
     end
 end
@@ -132,7 +118,7 @@ Dynamic rule
 Rule(:(a::Number * b::Number |> a*b))
 ```
 """
-struct DynamicRule <: Rule 
+@auto_hash_equals struct DynamicRule <: Rule 
     left::Pattern
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
@@ -140,12 +126,8 @@ struct DynamicRule <: Rule
     function DynamicRule(l::Pattern, r, prune) 
         pvars = unique(patvars(l))
         # sort!(pvars)
-        setindex!(l, pvars)
         new(l, r, pvars, prune)
     end
     DynamicRule(l, r) = new(l,r,false)
 end
 canprune(t::Type{DynamicRule}) = true
-
-==(a::DynamicRule, b::DynamicRule) = (a.left == b.left) && (a.right == b.right)
-
