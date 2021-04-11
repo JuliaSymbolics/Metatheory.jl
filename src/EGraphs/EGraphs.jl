@@ -45,10 +45,13 @@ export prune!
 include("analysis.jl")
 export analyze!
 
-include("substitution.jl")
-export Sub
-export instantiate
-export instantiateterm
+# include("substitution.jl")
+# export Sub
+# export instantiate
+# export instantiateterm
+
+include("new_sub.jl")
+
 
 # include("ematch.jl")
 include("new_ematch.jl")

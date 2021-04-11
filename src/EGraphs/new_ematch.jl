@@ -1,36 +1,59 @@
 using AutoHashEquals
 
+const Register = Symbol
+
 @auto_hash_equals struct ENodePat
-    head::Symbol
-    args::Vector{Symbol}
+    head::Any
+    args::Vector{Register}
 end
 
 @auto_hash_equals struct Bind 
-    eclass::Symbol
+    reg::Register
     enodepat::ENodePat
 end
 
 @auto_hash_equals struct CheckClassEq
-    eclass1::Symbol
-    eclass2::Symbol
+    left::Register
+    right::Register
 end
+
+@auto_hash_equals struct Check
+    reg::Register
+    val::Any
+end
+
+@auto_hash_equals struct CheckType
+    reg::Register
+    type::Any
+end
+
 
 @auto_hash_equals struct Yield
     yields::Dict{Symbol, Symbol}
 end
 
-function compile_pat(eclass, p::PatTerm, ctx)
-    a = [gensym() for i in 1:length(p.args) ]
-    return vcat(  Bind(eclass, ENodePat(p.head, a)) , [compile_pat(eclass, p2, ctx) for (eclass , p2) in zip(a, p.args)]...)
+function compile_pat(reg, p::PatTerm, ctx)
+    a = [gensym() for i in 1:length(p.args)]
+    binder = Bind(reg, ENodePat(p.head, a))
+    return vcat( binder, [compile_pat(reg, p2, ctx) for (reg, p2) in zip(a, p.args)]...)
 end
 
-function compile_pat(eclass, p::PatVar, ctx)
+function compile_pat(reg, p::PatVar, ctx)
     if haskey(ctx, p.name)
-        return CheckClassEq(eclass, ctx[p.name])
+        return CheckClassEq(reg, ctx[p.name])
     else
-        ctx[p.name] = eclass
+        ctx[p.name] = reg
         return []
     end
+end
+
+# TODO works also for ground terms (?)!
+# function compile_pat(reg, p::PatLiteral, ctx)
+#     return Check(reg, p.val)
+# end
+
+function compile_pat(reg, p::PatLiteral, ctx)
+    return Bind(reg, ENodePat(p.val, []))
 end
 
 function compile_pat(p::Pattern)
@@ -40,34 +63,60 @@ function compile_pat(p::Pattern)
     return vcat(insns, Yield(ctx)), ctx
 end
 
-function interp_unstaged(G, program, ctx, buf) 
-    if length(insns) == 0
-        return 
+
+# =============================================================
+# ================== INTERPRETER ==============================
+# =============================================================
+
+
+
+function interp_unstaged(g, instr::Yield, rest, σ, buf) 
+    push!( buf, Dict([key => σ[val] for (key, val) in instr.yields]))
+end
+
+function interp_unstaged(g, instr::CheckClassEq, rest, σ, buf) 
+    if σ[instr.left] == σ[instr.right]
+        next(g, rest, σ, buf)
     end
-    instr = insns[1]
-    prog_tail = insns[2:end]
-    if instr isa Bind
-        for enode in G[ctx[insn.eclass]] 
-            if enode.head == insn.enodepat.head && length(enode.args) == length(insn.enodepat.args)
-                for (n,v) in enumerate(insn.enodepat.args)
-                    ctx[v] = enode.args[n]
-                end
-                interp_unstaged(G,  insns, ctx, buf)
-            end
+end
+
+function interp_unstaged(g, instr::Check, rest, σ, buf) 
+    id, literal = σ[instr.reg]
+    eclass = geteclass(g, id)
+    for n in eclass.nodes 
+        if arity(n) == 0 && n.head == instr.val
+            # TODO bind literal here??
+            next(g, rest, σ, buf)
         end
-    elseif insn isa Yield
-        push!( buf, [key => ctx[val] for (key, val) in insn.yields])
-    elseif insn isa CheckClassEq
-        if ctx[insn.eclass1] == ctx[insn.eclass2]
-            interp_unstaged(G, insns, ctx, buf)
+    end 
+end
+
+
+function interp_unstaged(g, instr::Bind, rest, σ, buf) 
+    ecid, literal = σ[instr.reg]
+    for enode in g[ecid] 
+        if enode.head == instr.enodepat.head && length(enode.args) == length(instr.enodepat.args)
+            for (n,v) in enumerate(instr.enodepat.args)
+                σ[v] = (enode.args[n], -1)
+            end
+            next(g, rest, σ, buf)
         end
     end
 end
 
+function next(g, rest, σ, buf)
+    if length(rest) == 0 
+        return nothing 
+    end 
+    return interp_unstaged(g, rest[1], rest[2:end], σ, buf)
+end
+
 function interp_unstaged(g::EGraph, program, id)
-    buf = []
-    ctx = Dict{Symbol,Int64}([:start => id])
-    interp_unstaged(g::EGraph, program, ctx, buf)
+    buf = Sub[]
+    # memory: a memory value is a tuple (eclassid, enodeposition)
+    σ = Dict{Symbol,Tuple{Int64,Int64}}([:start => (id, -1)])
+    
+    next(g, program, σ, buf)
     return buf
 end
 
