@@ -73,8 +73,6 @@ end
 
 saturate!(g, t; mod=@__MODULE__)
 
-
-
-
 expected = MyExpr(:f, Any[MyExpr(:h, Any[4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
-extract!(g, astsize)
+
+@test expected == extract!(g, astsize)

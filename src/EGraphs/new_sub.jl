@@ -4,6 +4,7 @@ haseclassid(sub::Sub, p::PatVar) = haskey(sub, p.name)
 geteclassid(sub::Sub, p::PatVar) = first(sub[p.name])
 
 hasliteral(sub::Sub, p::PatVar) = haseclassid(sub, p) && last(sub[p.name]) > 0
+getliteral(sub::Sub, p::PatVar) = last(sub[p.name])
 
 ## ====================== Instantiation =======================
 

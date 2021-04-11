@@ -1,3 +1,9 @@
+# TODO make it work for every pattern type
+# TODO make it yield enodes only: ping pavel and marisa
+# TODO STAGE IT! FASTER!
+# TODO make it linear, use vectors and positions instead of arrays
+# for register memory and for substitutions
+
 using AutoHashEquals
 
 const Register = Symbol
@@ -47,6 +53,15 @@ function compile_pat(reg, p::PatVar, ctx)
     end
 end
 
+function compile_pat(reg, p::PatTypeAssertion, ctx)
+    if haskey(ctx, p.var.name)
+        return CheckClassEq(reg, ctx[p.var.name])
+    else
+        ctx[p.var.name] = reg
+        return CheckType(reg, p.type)
+    end
+end
+
 # TODO works also for ground terms (?)!
 # function compile_pat(reg, p::PatLiteral, ctx)
 #     return Check(reg, p.val)
@@ -59,7 +74,7 @@ end
 function compile_pat(p::Pattern)
     ctx = Dict()
     insns = compile_pat(:start, p, ctx)
-    println("compiled pattern ctx is $ctx")
+    # println("compiled pattern ctx is $ctx")
     return vcat(insns, Yield(ctx)), ctx
 end
 
@@ -80,12 +95,24 @@ function interp_unstaged(g, instr::CheckClassEq, rest, σ, buf)
     end
 end
 
-function interp_unstaged(g, instr::Check, rest, σ, buf) 
+# function interp_unstaged(g, instr::Check, rest, σ, buf) 
+#     id, literal = σ[instr.reg]
+#     eclass = geteclass(g, id)
+#     for n in eclass.nodes 
+#         if arity(n) == 0 && n.head == instr.val
+#             # TODO bind literal here??
+#             next(g, rest, σ, buf)
+#         end
+#     end 
+# end
+
+function interp_unstaged(g, instr::CheckType, rest, σ, buf) 
     id, literal = σ[instr.reg]
     eclass = geteclass(g, id)
-    for n in eclass.nodes 
-        if arity(n) == 0 && n.head == instr.val
+    for (i, n) in enumerate(eclass.nodes)
+        if arity(n) == 0 && typeof(n.head) <: instr.type
             # TODO bind literal here??
+            σ[instr.reg] = (id, i)
             next(g, rest, σ, buf)
         end
     end 
@@ -94,10 +121,10 @@ end
 
 function interp_unstaged(g, instr::Bind, rest, σ, buf) 
     ecid, literal = σ[instr.reg]
-    for enode in g[ecid] 
-        if enode.head == instr.enodepat.head && length(enode.args) == length(instr.enodepat.args)
-            for (n,v) in enumerate(instr.enodepat.args)
-                σ[v] = (enode.args[n], -1)
+    for n in g[ecid] 
+        if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
+            for (i,v) in enumerate(instr.enodepat.args)
+                σ[v] = (n.args[i], -1)
             end
             next(g, rest, σ, buf)
         end
@@ -123,6 +150,6 @@ end
 function ematch(g::EGraph, p::Pattern, id::Int64)
     program, _ = compile_pat(p)
     out = interp_unstaged(g, program, id)
-    println(out)
+    # println(out)
     return out
 end

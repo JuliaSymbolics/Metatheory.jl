@@ -20,7 +20,7 @@ function apply_rule!(g::EGraph, rule::SymbolicRule,
         match::Match, matches::MatchesBuf, unions::UnionBuf, 
         rep::Report,  mod::Module)
     (_, pat, sub, id) = match
-    println(sub)
+    # println(sub)
     rinst = instantiate(g, pat, sub, rule)
     rc = addexpr!(g, rinst)
     prune = canprune(typeof(rule)) && rule.prune 
