@@ -46,11 +46,11 @@ include("analysis.jl")
 export analyze!
 
 # include("substitution.jl")
-# export Sub
 # export instantiate
 # export instantiateterm
 
 include("new_sub.jl")
+export Sub
 
 
 # include("ematch.jl")
