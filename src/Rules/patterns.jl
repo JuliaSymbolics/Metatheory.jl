@@ -13,9 +13,12 @@ import Base.==
 Pattern variables will first match on any subterm
 and instantiate the substitution to that subterm. 
 """
-@auto_hash_equals struct PatVar <: Pattern
+mutable struct PatVar <: Pattern
     name::Symbol
+    idx::Int
 end
+==(a::PatVar, b::PatVar) = (a.name == b.name)
+PatVar(var) = PatVar(var, -1)
 
 
 """
@@ -116,3 +119,29 @@ function patvars(p::PatAllTerm; s=Symbol[])
     return s
 end 
 
+
+setindex!(p::PatLiteral, pvars) = nothing 
+function setindex!(p::PatVar, pvars)
+    p.idx = findfirst((==)(p.name), pvars)
+end
+setindex!(p::PatTypeAssertion, pvars) = setindex!(p.var, pvars)
+setindex!(p::PatSplatVar, pvars) = setindex!(p.var, pvars)
+
+
+function setindex!(p::PatEquiv, pvars)
+    setindex!(p.left, pvars)
+    setindex!(p.right, pvars)
+end 
+
+function setindex!(p::PatTerm, pvars)
+    for x ∈ p.args 
+        setindex!(x, pvars)
+    end
+end 
+
+function setindex!(p::PatAllTerm, pvars)
+    setindex!(p.head, pvars)
+    for x ∈ p.args 
+        setindex!(x, pvars)
+    end
+end 

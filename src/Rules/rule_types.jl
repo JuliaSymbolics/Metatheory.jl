@@ -43,6 +43,8 @@ Rule(:(a * b => b * a))
     function RewriteRule(l,r,p)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
         new(l,r,p,pvars)
     end
 end
@@ -63,6 +65,8 @@ canprune(t::Type{RewriteRule}) = true
         for p ∈ pats
             union!(pvars, patvars(p))
         end
+        setindex!(l, pvars)
+        setindex!(r, pvars)
         # sort!(pvars)
         new(l,r,pats,pvars)
     end
@@ -84,6 +88,8 @@ backend. If two terms, corresponding to the left and right hand side of an
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
         new(l,r,pvars)
     end
 end
@@ -100,6 +106,8 @@ Rule(:(a * b == b * a))
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
         new(l,r,pvars)
     end
 end
@@ -126,6 +134,7 @@ Rule(:(a::Number * b::Number |> a*b))
     function DynamicRule(l::Pattern, r, prune) 
         pvars = unique(patvars(l))
         # sort!(pvars)
+        setindex!(l, pvars)
         new(l, r, pvars, prune)
     end
     DynamicRule(l, r) = new(l,r,false)
