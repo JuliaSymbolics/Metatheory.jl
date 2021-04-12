@@ -8,6 +8,7 @@ end
 
 t = comm_monoid ∪ fold_mul
 
+
 @testset "Extraction 1 - Commutative Monoid" begin
     G = EGraph(:(3 * 4))
     saturate!(G, t)

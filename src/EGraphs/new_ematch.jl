@@ -6,58 +6,70 @@
 
 using AutoHashEquals
 
-const Register = Symbol
+abstract type Instruction end 
+
+const Program = Vector{Instruction}
+
+const Register = Int32
 
 @auto_hash_equals struct ENodePat
     head::Any
-    args::Vector{Register}
+    # args::Vector{Register} 
+    args::UnitRange{Register}
 end
 
-@auto_hash_equals struct Bind 
+@auto_hash_equals struct Bind <: Instruction
     reg::Register
     enodepat::ENodePat
 end
 
-@auto_hash_equals struct CheckClassEq
+@auto_hash_equals struct CheckClassEq <: Instruction
     left::Register
     right::Register
 end
 
-@auto_hash_equals struct Check
+@auto_hash_equals struct Check <: Instruction
     reg::Register
     val::Any
 end
 
-@auto_hash_equals struct CheckType
+@auto_hash_equals struct CheckType <: Instruction
     reg::Register
     type::Any
 end
 
 
-@auto_hash_equals struct Yield
-    yields::Dict{Symbol, Symbol}
+@auto_hash_equals struct Yield <: Instruction
+    yields::Vector{Register}
 end
 
-function compile_pat(reg, p::PatTerm, ctx)
-    a = [gensym() for i in 1:length(p.args)]
+function compile_pat(reg, p::PatTerm, ctx, count)
+    # a = [gensym() for i in 1:length(p.args)]
+    c = count[]
+    a = c:(c+length(p.args) - 1)
+
+    # println(a)
+    # @assert length(a) == length(p.args)
+
+    count[] = c + length(p.args)
     binder = Bind(reg, ENodePat(p.head, a))
-    return vcat( binder, [compile_pat(reg, p2, ctx) for (reg, p2) in zip(a, p.args)]...)
+    return vcat( binder, [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]...)
 end
 
-function compile_pat(reg, p::PatVar, ctx)
-    if haskey(ctx, p.name)
-        return CheckClassEq(reg, ctx[p.name])
+function compile_pat(reg, p::PatVar, ctx, count)
+    if ctx[p.idx] != -1
+        return CheckClassEq(reg, ctx[p.idx])
     else
-        ctx[p.name] = reg
+        ctx[p.idx] = reg
         return []
     end
 end
 
-function compile_pat(reg, p::PatTypeAssertion, ctx)
-    if haskey(ctx, p.var.name)
-        return CheckClassEq(reg, ctx[p.var.name])
+function compile_pat(reg, p::PatTypeAssertion, ctx, count)
+    if ctx[p.var.idx] != -1
+        return CheckClassEq(reg, ctx[p.var.idx])
     else
-        ctx[p.var.name] = reg
+        ctx[p.var.idx] = reg
         return CheckType(reg, p.type)
     end
 end
@@ -67,15 +79,23 @@ end
 #     return Check(reg, p.val)
 # end
 
-function compile_pat(reg, p::PatLiteral, ctx)
-    return Bind(reg, ENodePat(p.val, []))
+function compile_pat(reg, p::PatLiteral, ctx, count)
+    return Bind(reg, ENodePat(p.val, 0:-1))
 end
 
+# EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
 function compile_pat(p::Pattern)
-    ctx = Dict()
-    insns = compile_pat(:start, p, ctx)
+    pvars = patvars(p)
+    nvars = length(pvars)
+
+    count = Ref(2)
+    ctx = fill(-1, nvars)
+
+    # println("compiling pattern $p")
+    # println(pvars)
+    insns = compile_pat(1, p, ctx, count)
     # println("compiled pattern ctx is $ctx")
-    return vcat(insns, Yield(ctx)), ctx
+    return vcat(insns, Yield(ctx)), ctx, count[]
 end
 
 
@@ -86,7 +106,7 @@ end
 
 
 function interp_unstaged(g, instr::Yield, rest, σ, buf) 
-    push!( buf, Dict([key => σ[val] for (key, val) in instr.yields]))
+    push!( buf, [σ[reg] for reg in instr.yields])
 end
 
 function interp_unstaged(g, instr::CheckClassEq, rest, σ, buf) 
@@ -111,7 +131,6 @@ function interp_unstaged(g, instr::CheckType, rest, σ, buf)
     eclass = geteclass(g, id)
     for (i, n) in enumerate(eclass.nodes)
         if arity(n) == 0 && typeof(n.head) <: instr.type
-            # TODO bind literal here??
             σ[instr.reg] = (id, i)
             next(g, rest, σ, buf)
         end
@@ -135,21 +154,35 @@ function next(g, rest, σ, buf)
     if length(rest) == 0 
         return nothing 
     end 
-    return interp_unstaged(g, rest[1], rest[2:end], σ, buf)
+    return interp_unstaged(g, rest[1], @view(rest[2:end]), σ, buf)
 end
 
-function interp_unstaged(g::EGraph, program, id)
-    buf = Sub[]
-    # memory: a memory value is a tuple (eclassid, enodeposition)
-    σ = Dict{Symbol,Tuple{Int64,Int64}}([:start => (id, -1)])
-    
-    next(g, program, σ, buf)
-    return buf
+# Global Right Hand Side function cache for dynamic rules.
+# Now we're talking.
+# TODO use a LRUCache?
+const EMATCH_PROG_CACHE = IdDict{Pattern, Tuple{Program, Int64}}()
+const EMATCH_PROG_CACHE_LOCK = ReentrantLock()
+
+function getprogram(p::Pattern)
+    lock(EMATCH_PROG_CACHE_LOCK) do
+        if !haskey(EMATCH_PROG_CACHE, p)
+            # println("cache miss!")
+            program, ctx, σsize = compile_pat(p)
+            EMATCH_PROG_CACHE[p] = (program, σsize)
+        end
+        return EMATCH_PROG_CACHE[p]
+    end
 end
+
 
 function ematch(g::EGraph, p::Pattern, id::Int64)
-    program, _ = compile_pat(p)
-    out = interp_unstaged(g, program, id)
-    # println(out)
-    return out
+    buf = Sub[]
+
+    program, σsize = getprogram(p) 
+
+    σ = fill((-1,-1), σsize)
+    σ[1] = (id, -1)
+    next(g, program, σ, buf)
+    # println(buf)
+    return buf
 end
