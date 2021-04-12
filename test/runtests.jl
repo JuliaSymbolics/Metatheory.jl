@@ -7,7 +7,7 @@ using Metatheory.Util
 # using DataStructures
 using Test
 
-Metatheory.options.verbose = false
+Metatheory.options.verbose = true
 Metatheory.options.printiter = false
 Metatheory.options.multithreading = false
 

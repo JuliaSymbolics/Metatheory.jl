@@ -7,21 +7,29 @@ Represents a rule scheduler for the equality saturation process
 abstract type AbstractScheduler end
 
 """
-Should return true if the e-graph can be said to be saturated
+Should return `true` if the e-graph can be said to be saturated
+```
+cansaturate(s::AbstractScheduler)
+```
 """
-cansaturate(s::AbstractScheduler)::Bool = error("not implemented")
+function cansaturate end 
 
 """
-Should return true if the rule `r` should be skipped
+Should return `false` if the rule `r` should be skipped
+```
+cansearch(s::AbstractScheduler, r::Rule)
+```
 """
-shouldskip(s::AbstractScheduler, r::Rule) = error("not implemented")
+function cansearch end
 
 """
-This function is called **before** pattern matching on the e-graph
+This function is called **after** pattern matching on the e-graph,
+informs the scheduler about the yielded matches.
+Returns `false` if the matches should not be yielded and ignored. 
+```
+inform!(s::AbstractScheduler, iteration, r::Rule, matches)
+```
 """
-readstep!(s::AbstractScheduler) = nothing
+function inform! end
 
-"""
-This function is called **after** pattern matching on the e-graph
-"""
-writestep!(s::AbstractScheduler, r::Rule) = nothing
+function setiter! end

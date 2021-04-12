@@ -7,13 +7,13 @@ using .Schedulers
 """
 Core algorithm of the library: the equality saturation step.
 """
-function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
+function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, curr_iter, mod::Module,
         scheduler::AbstractScheduler, match_hist::MatchesBuf, params::SaturationParams)
 
     report = Report(g)
     instcache = Dict{Rule, Dict{Sub, Int64}}()
 
-    readstep!(scheduler)
+    setiter!(scheduler, curr_iter)
 
     if options.multithreading 
         search_stats = @timed eqsat_search_threaded!(g, theory, scheduler)
@@ -35,7 +35,7 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, mod::Module,
     # end
     # println(" diff length $(length(matches))")
 
-    apply_stats =  @timed eqsat_apply!(g, matches, scheduler, report, mod, params)
+    apply_stats =  @timed eqsat_apply!(g, matches, report, mod, params)
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
@@ -75,7 +75,7 @@ function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
 
         options.printiter && @info("iteration ", curr_iter)
 
-        report, egraph = eqsat_step!(g, theory, mod, sched, match_hist, params)
+        report, egraph = eqsat_step!(g, theory, curr_iter, mod, sched, match_hist, params)
 
         tot_report = tot_report + report
 
