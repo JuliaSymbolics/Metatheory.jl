@@ -19,7 +19,7 @@ This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
 struct BackoffScheduler <: AbstractScheduler
-    data::Dict{Rule, BackoffSchedulerEntry}
+    data::IdDict{Rule, BackoffSchedulerEntry}
     G::EGraph
     theory::Vector{<:Rule}
 end
@@ -34,7 +34,7 @@ end
 
 function BackoffScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int)
     gsize = length(G.uf)
-    data = Dict{Rule, BackoffSchedulerEntry}()
+    data = IdDict{Rule, BackoffSchedulerEntry}()
 
     # println(fuel, bantime)
 

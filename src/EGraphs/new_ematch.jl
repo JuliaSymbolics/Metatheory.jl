@@ -131,6 +131,10 @@ function reset(m::Machine, g, program, memsize, id)
     m.g = g
     m.program = program
 
+    if memsize > DEFAULT_MEM_SIZE
+        error("E-Matching Virtual Machine Memory Overflow")
+    end
+
     for i ∈ 1:DEFAULT_MEM_SIZE
         m.σ[i] = (-1,-1)
     end
@@ -174,17 +178,6 @@ function (m::Machine)(instr::CheckClassEq)
     end
     backtrack(m)
 end
-
-# function interp_unstaged(g, instr::Check, rest, σ, buf) 
-#     id, literal = σ[instr.reg]
-#     eclass = geteclass(g, id)
-#     for n in eclass.nodes 
-#         if arity(n) == 0 && n.head == instr.val
-#             # TODO bind literal here??
-#             next(g, rest, σ, buf)
-#         end
-#     end 
-# end
 
 function (m::Machine)(instr::CheckType) 
     id, literal = m.σ[instr.reg]
@@ -243,13 +236,18 @@ function getprogram(p::Pattern)
     end
 end
 
-MAIN_MACHINE = Machine()
+MACHINES = Machine[] 
+
+function __init__() 
+    global MACHINES = map(x -> Machine(), 1:Threads.nthreads())
+end
 
 function ematch(g::EGraph, p::Pattern, id::Int64)
-    program, memsize = getprogram(p) 
-    reset(MAIN_MACHINE, g, program, memsize, id)
+    program, memsize = getprogram(p)
+    tid = Threads.threadid() 
+    reset(MACHINES[tid], g, program, memsize, id)
     # machine = Machine(g, program, σsize, id)
-    buf = MAIN_MACHINE()
+    buf = MACHINES[tid]()
     # println(buf)
     buf
 end
