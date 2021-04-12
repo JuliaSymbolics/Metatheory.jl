@@ -20,7 +20,7 @@ This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
 struct ScoredScheduler <: AbstractScheduler
-    data::Dict{Rule, ScoredSchedulerEntry}
+    data::IdDict{Rule, ScoredSchedulerEntry}
     G::EGraph
     theory::Vector{<:Rule}
 end
@@ -55,7 +55,7 @@ end
 
 function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int, complexity::Function)
     gsize = length(G.uf)
-    data = Dict{Rule, ScoredSchedulerEntry}()
+    data = IdDict{Rule, ScoredSchedulerEntry}()
 
     # These numbers seem to fit
     for rule ∈ theory

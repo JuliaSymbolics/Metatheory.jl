@@ -6,6 +6,9 @@
 # To use a type assertion pattern, add `::T` after
 # a pattern variable in the `left_hand` of a rule.
 # """
+
+# TODO HASH CACHING!
+
 using Parameters
 
 import Base.==
