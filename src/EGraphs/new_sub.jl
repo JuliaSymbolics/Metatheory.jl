@@ -1,10 +1,11 @@
-const Sub = Dict{Symbol, Tuple{Int64, Int64}}
+# Vector of (eclassid, position_of_literal_in_eclass_nodes)
+const Sub = Vector{Tuple{Int64, Int64}}
 
-haseclassid(sub::Sub, p::PatVar) = haskey(sub, p.name)
-geteclassid(sub::Sub, p::PatVar) = first(sub[p.name])
+haseclassid(sub::Sub, p::PatVar) = first(sub[p.idx]) >= 0
+geteclassid(sub::Sub, p::PatVar) = first(sub[p.idx])
 
-hasliteral(sub::Sub, p::PatVar) = haseclassid(sub, p) && last(sub[p.name]) > 0
-getliteral(sub::Sub, p::PatVar) = last(sub[p.name])
+hasliteral(sub::Sub, p::PatVar) = last(sub[p.idx]) > 0
+getliteral(sub::Sub, p::PatVar) = last(sub[p.idx])
 
 ## ====================== Instantiation =======================
 
@@ -54,6 +55,7 @@ function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
         # (T, meta) = gettermtype(sub, pat.head)
         # instantiateterm(g, pat, T, meta, sub, rule)
     # else 
+    # dump(pat)
     instantiateterm(g, pat, Expr, sub, rule)
     # end
 end

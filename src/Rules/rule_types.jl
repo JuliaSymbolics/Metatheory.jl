@@ -132,7 +132,7 @@ Rule(:(a::Number * b::Number |> a*b))
     patvars::Vector{Symbol} # useful set of pattern variables
     prune::Bool
     function DynamicRule(l::Pattern, r, prune) 
-        pvars = unique(patvars(l))
+        pvars = patvars(l)
         # sort!(pvars)
         setindex!(l, pvars)
         new(l, r, pvars, prune)

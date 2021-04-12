@@ -95,29 +95,34 @@ PatAllTerm(head, args) = PatAllTerm(head, args, (;))
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
 """
-patvars(p::PatLiteral; s=Symbol[]) = s 
-patvars(p::PatVar; s=Symbol[]) = push!(s, p.name)
-patvars(p::PatTypeAssertion; s=Symbol[]) = patvars(p.var; s=s)
-patvars(p::PatSplatVar; s=Symbol[]) = patvars(p.var; s=s)
-function patvars(p::PatEquiv; s=Symbol[])
-    patvars(p.left; s)
-    patvars(p.right; s)    
+patvars(p::PatLiteral, s) = s 
+patvars(p::PatVar, s) = push!(s, p.name)
+patvars(p::PatTypeAssertion, s) = patvars(p.var, s)
+patvars(p::PatSplatVar, s) = patvars(p.var, s)
+function patvars(p::PatEquiv, s)
+    patvars(p.left, s)
+    patvars(p.right, s)    
 end
 
-function patvars(p::PatTerm; s=Symbol[])
+function patvars(p::PatTerm, s)
     for x ∈ p.args 
-        patvars(x; s)
+        patvars(x, s)
     end
     return s
 end 
 
-function patvars(p::PatAllTerm; s=Symbol[])
+function patvars(p::PatAllTerm, s)
     push!(s, p.head.name)
     for x ∈ p.args 
-        patvars(x; s)
+        patvars(x, s)
     end
     return s
 end 
+
+function patvars(p::Pattern)
+    unique(patvars(p, Symbol[]))
+end 
+
 
 
 setindex!(p::PatLiteral, pvars) = nothing 

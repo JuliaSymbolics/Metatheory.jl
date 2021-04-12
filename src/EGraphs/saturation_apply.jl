@@ -34,7 +34,7 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
         rep::Report,  mod::Module)
     (_, pat, sub, id) = match
     f = Rules.getrhsfun(rule, mod)
-    actual_params = [instantiate(g, PatVar(v), sub, rule) for v in rule.patvars]
+    actual_params = [instantiate(g, PatVar(v, i), sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, id), g, actual_params...)
     rc = addexpr!(g, r)
     prune = canprune(typeof(rule)) && rule.prune 
