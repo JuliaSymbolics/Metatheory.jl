@@ -28,10 +28,6 @@ end
     right::Register
 end
 
-@auto_hash_equals struct Check <: Instruction
-    reg::Register
-    val::Any
-end
 
 @auto_hash_equals struct CheckType <: Instruction
     reg::Register
@@ -95,7 +91,7 @@ function compile_pat(p::Pattern)
     # println(pvars)
     insns = compile_pat(1, p, ctx, count)
     # println("compiled pattern ctx is $ctx")
-    return vcat(insns, Yield(ctx)), ctx, count[]
+    return vcat(insns, Yield(ctx)), count[]
 end
 
 
@@ -103,16 +99,80 @@ end
 # ================== INTERPRETER ==============================
 # =============================================================
 
-
-
-function interp_unstaged(g, instr::Yield, rest, σ, buf) 
-    push!( buf, [σ[reg] for reg in instr.yields])
+mutable struct Machine
+    g::EGraph 
+    program::Program
+    # register memory 
+    σ::Vector{Tuple{Int64, Int64}}
+    pc::Int64
+    # enode position in currently opened eclass 
+    position::Int64
+    # stack of instruction_id, enode_position
+    bstack::Vector{Tuple{Int64, Int64}}
+    # output buffer
+    buf::Vector{Sub}
 end
 
-function interp_unstaged(g, instr::CheckClassEq, rest, σ, buf) 
-    if σ[instr.left] == σ[instr.right]
-        next(g, rest, σ, buf)
+const DEFAULT_MEM_SIZE = 1024
+function Machine() 
+    m = Machine(
+        EGraph(), # egraph
+        Program(), # program 
+        fill((-1,-1), 1024), # memory
+        1, # pc
+        1, # position
+        Tuple{Int64,Int64}[], # bstack
+        Sub[]
+    )
+    return m 
+end
+
+function reset(m::Machine, g, program, memsize, id) 
+    m.g = g
+    m.program = program
+
+    for i ∈ 1:DEFAULT_MEM_SIZE
+        m.σ[i] = (-1,-1)
     end
+    m.σ[1] = (id, -1)
+
+    m.pc = 1
+    m.position = 1
+    empty!(m.bstack)
+    empty!(m.buf)
+
+    return m 
+end
+
+function (m::Machine)()
+    while m.pc != -1
+        # run the current instruction
+        m(m.program[m.pc])
+    end
+    return m.buf
+end
+
+function backtrack(m::Machine)
+    if isempty(m.bstack)
+        m.pc = -1
+    else 
+        pc, pos = pop!(m.bstack)
+        m.pc = pc 
+        m.position = pos
+    end
+end
+
+function (m::Machine)(instr::Yield) 
+    push!(m.buf, [m.σ[reg] for reg in instr.yields])
+    backtrack(m)
+end
+
+function (m::Machine)(instr::CheckClassEq) 
+    if m.σ[instr.left] == m.σ[instr.right]
+        m.pc += 1
+        return 
+    end
+    backtrack(m)
 end
 
 # function interp_unstaged(g, instr::Check, rest, σ, buf) 
@@ -126,36 +186,45 @@ end
 #     end 
 # end
 
-function interp_unstaged(g, instr::CheckType, rest, σ, buf) 
-    id, literal = σ[instr.reg]
-    eclass = geteclass(g, id)
-    for (i, n) in enumerate(eclass.nodes)
+function (m::Machine)(instr::CheckType) 
+    id, literal = m.σ[instr.reg]
+    eclass = m.g[id]
+    i = m.position
+
+    if i ∈ 1:length(eclass.nodes)
+        push!(m.bstack, (m.pc, i+1))
+        n = eclass.nodes[i]
+
         if arity(n) == 0 && typeof(n.head) <: instr.type
-            σ[instr.reg] = (id, i)
-            next(g, rest, σ, buf)
-        end
-    end 
-end
-
-
-function interp_unstaged(g, instr::Bind, rest, σ, buf) 
-    ecid, literal = σ[instr.reg]
-    for n in g[ecid] 
-        if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
-            for (i,v) in enumerate(instr.enodepat.args)
-                σ[v] = (n.args[i], -1)
-            end
-            next(g, rest, σ, buf)
+            m.σ[instr.reg] = (id, i)
+            m.pc += 1
+            m.position = 1
+            return
         end
     end
+    backtrack(m)
 end
 
-function next(g, rest, σ, buf)
-    if length(rest) == 0 
-        return nothing 
-    end 
-    return interp_unstaged(g, rest[1], @view(rest[2:end]), σ, buf)
+
+function (m::Machine)(instr::Bind) 
+    ecid, literal = m.σ[instr.reg]
+    eclass = m.g[ecid]
+
+    if m.position ∈ 1:length(eclass.nodes)
+        push!(m.bstack, (m.pc, m.position+1))
+        n = eclass.nodes[m.position]
+        if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
+            for (j,v) in enumerate(instr.enodepat.args)
+                m.σ[v] = (n.args[j], -1)
+            end
+            m.pc += 1
+            m.position = 1
+            return 
+        end
+    end
+    backtrack(m)
 end
+
 
 # Global Right Hand Side function cache for dynamic rules.
 # Now we're talking.
@@ -167,22 +236,20 @@ function getprogram(p::Pattern)
     lock(EMATCH_PROG_CACHE_LOCK) do
         if !haskey(EMATCH_PROG_CACHE, p)
             # println("cache miss!")
-            program, ctx, σsize = compile_pat(p)
+            program, σsize = compile_pat(p)
             EMATCH_PROG_CACHE[p] = (program, σsize)
         end
         return EMATCH_PROG_CACHE[p]
     end
 end
 
+MAIN_MACHINE = Machine()
 
 function ematch(g::EGraph, p::Pattern, id::Int64)
-    buf = Sub[]
-
-    program, σsize = getprogram(p) 
-
-    σ = fill((-1,-1), σsize)
-    σ[1] = (id, -1)
-    next(g, program, σ, buf)
+    program, memsize = getprogram(p) 
+    reset(MAIN_MACHINE, g, program, memsize, id)
+    # machine = Machine(g, program, σsize, id)
+    buf = MAIN_MACHINE()
     # println(buf)
-    return buf
+    buf
 end
