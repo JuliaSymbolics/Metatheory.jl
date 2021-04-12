@@ -1,7 +1,6 @@
 # TODO make it work for every pattern type
 # TODO make it yield enodes only: ping pavel and marisa
 # TODO STAGE IT! FASTER!
-# TODO make it linear, use vectors and positions instead of arrays
 # for register memory and for substitutions
 
 using AutoHashEquals
@@ -39,17 +38,33 @@ end
     yields::Vector{Register}
 end
 
+@auto_hash_equals struct Filter <: Instruction
+    reg::Register
+    head::Any
+    arity::Int
+end
+
 function compile_pat(reg, p::PatTerm, ctx, count)
     # a = [gensym() for i in 1:length(p.args)]
     c = count[]
     a = c:(c+length(p.args) - 1)
 
+    # println(p)
     # println(a)
-    # @assert length(a) == length(p.args)
+    filters = [] 
+    for (i, child) in enumerate(p.args) 
+        if child isa PatTerm
+            push!(filters, Filter(a[i], child.head, arity(child)))
+        end
+    end
+    # println(filters)
 
     count[] = c + length(p.args)
     binder = Bind(reg, ENodePat(p.head, a))
-    return vcat( binder, [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]...)
+    rest = [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]
+
+    return vcat(binder, filters, rest...)
+    # return vcat(binder, rest...)
 end
 
 function compile_pat(reg, p::PatVar, ctx, count)
@@ -198,6 +213,16 @@ function (m::Machine)(instr::CheckType)
     backtrack(m)
 end
 
+function (m::Machine)(instr::Filter)
+    id, _ = m.σ[instr.reg]
+    eclass = m.g[id]
+
+    if instr.head ∈ funs(eclass)
+        m.pc += 1
+        return 
+    end
+    backtrack(m)
+end
 
 function (m::Machine)(instr::Bind) 
     ecid, literal = m.σ[instr.reg]

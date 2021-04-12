@@ -8,6 +8,8 @@ abstract type Pattern end
 
 import Base.==
 ==(a::Pattern, b::Pattern) = false
+TermInterface.arity(p::Pattern) = 0
+
 
 """
 Pattern variables will first match on any subterm

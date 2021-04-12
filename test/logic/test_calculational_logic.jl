@@ -73,10 +73,13 @@ extract!(g, astsize)
 @test @areequal t true ((¬p == ¬p) == true)
 @test @areequal t true ((¬p ∨ ¬p) == ¬p) (¬p ∨ p) ¬(¬p ∧ p)
 @test @areequal t true ((p => (p ∨ p)) == true)
-@test @areequal t true ((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true
+params = SaturationParams(timeout=12, eclasslimit=10000, schedulerparams=(1000, 5))
+
+@test areequal(t, true, :(((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true); params=params)
 
 # Frege's theorem
-params = SaturationParams(timeout=12, eclasslimit=5000, schedulerparams=(1000, 5))
+params = SaturationParams(timeout=12, eclasslimit=8000, schedulerparams=(1000, 5))
+
 @test areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); params=params)
 
 # Demorgan's

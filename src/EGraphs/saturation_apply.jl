@@ -46,8 +46,7 @@ end
 
 using .ReportReasons
 function eqsat_apply!(g::EGraph, matches::MatchesBuf,
-        scheduler::AbstractScheduler, rep::Report,
-        mod::Module, params::SaturationParams)::Report
+        rep::Report, mod::Module, params::SaturationParams)::Report
     i = 0
 
     unions = UnionBuf()
@@ -74,11 +73,6 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
         if find(g, match[4]) ∈ g.pruned
             return rep
         end
-        
-        if shouldskip(scheduler, rule)
-            continue
-        end
-        writestep!(scheduler, rule)
 
         (ok, nrep) = apply_rule!(g, rule, match, matches, unions, rep, mod)
         if !ok 
