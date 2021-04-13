@@ -36,19 +36,17 @@ end
 #     get(g.symcache, p.val, [])
 # end
 
-function search_rule!(g::EGraph, r::SymbolicRule, id::Int64)
-    [(r, r.right, sub, id) for sub in ematch(g, r.left, id)] 
+function search_rule!(g::EGraph, r::SymbolicRule, id, buf)
+    append!(buf, [(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
 end
 
-function search_rule!(g::EGraph, r::DynamicRule, id::Int64)
-    [(r, nothing, sub, id) for sub in ematch(g, r.left, id)] 
+function search_rule!(g::EGraph, r::DynamicRule, id, buf)
+    append!(buf, [(r, nothing, sub, id) for sub in ematch(g, r.left, id)]) 
 end
 
-function search_rule!(g::EGraph, r::BidirRule, id::Int64)
-    vcat(
-        [(r, r.right, sub, id) for sub in ematch(g, r.left, id)],
-        [(r, r.left, sub, id) for sub in ematch(g, r.right, id)] 
-    )
+function search_rule!(g::EGraph, r::BidirRule, id, buf)
+    append!(buf, [(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
+    append!(buf, [(r, r.left, sub, id) for sub in ematch(g, r.right, id)])
 end
 
 
@@ -97,9 +95,8 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            new_matches = search_rule!(egraph, rule, id)
             lock(mlock) do 
-                matches = vcat(matches, new_matches)
+                search_rule!(egraph, rule, id, matches)
             end 
         end
     end
@@ -114,15 +111,16 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
             continue
         end
 
+        rule_matches = []
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            new_matches = search_rule!(egraph, rule, id)
-            can_yield = inform!(scheduler, rule, new_matches)
-            if can_yield 
-                lock(mlock) do
-                    matches = vcat(matches, new_matches)
-                end
+            search_rule!(egraph, rule, id, rule_matches)
+        end
+        can_yield = inform!(scheduler, rule, rule_matches)
+        if can_yield 
+            lock(mlock) do
+                append!(matches, rule_matches)
             end
         end
     end
@@ -142,8 +140,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            new_matches = search_rule!(egraph, rule, id)
-            matches = vcat(matches, new_matches)
+            search_rule!(egraph, rule, id, matches)
         end
     end
 
@@ -157,15 +154,17 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
             continue
         end
 
+        rule_matches = []
+
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            new_matches = search_rule!(egraph, rule, id)
-            # println(new_matches)
-            can_yield = inform!(scheduler, rule, new_matches)
-            if can_yield
-                matches = vcat(matches, new_matches)
-            end
+            search_rule!(egraph, rule, id, rule_matches)
+        end
+
+        can_yield = inform!(scheduler, rule, rule_matches)
+        if can_yield
+            append!(matches, rule_matches)
         end
     end
     return matches

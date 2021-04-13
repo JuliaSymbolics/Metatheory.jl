@@ -24,7 +24,7 @@ Construct a `Rule` from a quoted expression.
 You can also use the [`@rule`] macro to
 create a `Rule`.
 """
-function Rule(e::Expr; mod::Module=@__MODULE__, prune=false)
+function Rule(e::Expr; mod::Module=@__MODULE__)
     op = gethead(e)
 
     RuleType = Union{}
@@ -45,10 +45,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__, prune=false)
     if RuleType <: SymbolicRule
         rhs = Pattern(rhs, mod)
     end
-    
-    if canprune(RuleType)
-        return RuleType(lhs, rhs, prune)
-    end 
+
     
     return RuleType(lhs, rhs)
 end
@@ -63,18 +60,6 @@ macro rule(e)
     e = rmlines(copy(e))
     # e = interp_dollar(e, __module__)
     Rule(e; mod=__module__)
-end
-
-"""
-Generates a rule with the `prune` attribute set to true,
-which deletes all other nodes in an e-class when applied (pruning). 
-Can only be used with the equality saturation *e-graphs* backend.
-"""
-macro pruningrule(e)
-    e = macroexpand(__module__, e)
-    e = rmlines(copy(e))
-    # e = interp_dollar(e, __module__)
-    r = Rule(e; mod=__module__, prune=true)
 end
 
 # Theories can just be vectors of rules!

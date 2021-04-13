@@ -28,7 +28,6 @@ mutable struct EGraph
     memo::HashCons             # memo
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
-    pruned::Vector{Int64}
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
@@ -47,8 +46,7 @@ function EGraph()
     ClassMem(),
     HashCons(),
     # ParentMem(),
-    Vector{Int64}(),
-    Vector{Int64}(),
+    Int64[],
     0,
     Analyses(),
     # SymbolCache(),
@@ -181,8 +179,7 @@ the two e-classes as equal.
 function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     id_a = find(g, a)
     id_b = find(g, b)
-    id_a ∈ g.pruned && return id_a
-    id_b ∈ g.pruned && return id_b
+
      
     id_a == id_b && return id_a
     to = union!(g.uf, id_a, id_b)
@@ -209,15 +206,6 @@ function in_same_class(g::EGraph, a, b)
     find(g, a) == find(g, b)
 end
 
-function prune!(g::EGraph, a::Int64, b::EClass)
-    id_a = find(g, a)
-    # union!(g.uf, id_a, b.id)
-    b.id = id_a
-    g.classes[id_a] = b
-    push!(g.dirty, id_a)
-    push!(g.pruned, id_a)
-    return id_a
-end
 
 # TODO new rebuilding from egg
 """
@@ -235,8 +223,6 @@ function rebuild!(g::EGraph)
             repair!(g, x)
         end
     end
-
-    g.pruned = unique([find(g,id) for id ∈ g.pruned])
 
     if g.root != 0
         g.root = find(g, g.root)

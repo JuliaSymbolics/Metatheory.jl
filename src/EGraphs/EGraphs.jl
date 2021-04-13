@@ -39,7 +39,6 @@ export merge!
 export in_same_class
 export addexpr!
 export rebuild!
-export prune!
 
 
 include("analysis.jl")
