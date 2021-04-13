@@ -45,7 +45,7 @@ function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
         end
     end
 
-    rebuild!(g)
+    # rebuild!(g)
 
     # display(analysis.data); println()
 

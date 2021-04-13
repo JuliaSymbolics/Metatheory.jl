@@ -85,6 +85,5 @@ function simplify(ex; steps=4)
     
 end
 macro simplify(ex)
-
     Meta.quot(simplify(ex))
 end

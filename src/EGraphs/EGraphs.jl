@@ -30,7 +30,7 @@ include("intdisjointmap.jl")
 export IntDisjointSet
 export in_same_set
 
-include("egg.jl")
+include("egraph.jl")
 export find
 export geteclass
 export arity

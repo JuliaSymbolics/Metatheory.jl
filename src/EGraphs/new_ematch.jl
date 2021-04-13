@@ -1,7 +1,8 @@
 # TODO make it work for every pattern type
-# TODO make it yield enodes only: ping pavel and marisa
+# TODO make it yield enodes only? ping pavel and marisa
 # TODO STAGE IT! FASTER!
 # for register memory and for substitutions
+# TODO implement https://github.com/egraphs-good/egg/pull/74
 
 using AutoHashEquals
 
@@ -51,19 +52,21 @@ function compile_pat(reg, p::PatTerm, ctx, count)
 
     # println(p)
     # println(a)
-    filters = [] 
-    for (i, child) in enumerate(p.args) 
-        if child isa PatTerm
-            push!(filters, Filter(a[i], child.head, arity(child)))
-        end
-    end
+    # filters = [] 
+    # for (i, child) in enumerate(p.args) 
+    #     if child isa PatTerm
+    #         push!(filters, Filter(a[i], child.head, arity(child)))
+    #     end
+    # end
     # println(filters)
 
     count[] = c + length(p.args)
     binder = Bind(reg, ENodePat(p.head, a))
     rest = [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]
 
-    return vcat(binder, filters, rest...)
+    # return vcat(binder, filters, rest...)
+    return vcat(binder, rest...)
+
 end
 
 function compile_pat(reg, p::PatVar, ctx, count)
@@ -105,7 +108,7 @@ function compile_pat(p::Pattern)
     # println(pvars)
     insns = compile_pat(1, p, ctx, count)
     # println("compiled pattern ctx is $ctx")
-    return vcat(insns, Yield(ctx)), count[]
+    return vcat(insns, Yield(ctx)), ctx, count[]
 end
 
 
@@ -246,15 +249,15 @@ end
 # Global Right Hand Side function cache for dynamic rules.
 # Now we're talking.
 # TODO use a LRUCache?
-const EMATCH_PROG_CACHE = IdDict{Pattern, Tuple{Program, Int64}}()
+const EMATCH_PROG_CACHE = IdDict{Pattern, Tuple{Program, Vector{Int64}, Int64}}()
 const EMATCH_PROG_CACHE_LOCK = ReentrantLock()
 
 function getprogram(p::Pattern)
     lock(EMATCH_PROG_CACHE_LOCK) do
         if !haskey(EMATCH_PROG_CACHE, p)
             # println("cache miss!")
-            program, σsize = compile_pat(p)
-            EMATCH_PROG_CACHE[p] = (program, σsize)
+            program, ctx, memsize = compile_pat(p)
+            EMATCH_PROG_CACHE[p] = (program, ctx, memsize)
         end
         return EMATCH_PROG_CACHE[p]
     end
@@ -267,11 +270,12 @@ function __init__()
 end
 
 function ematch(g::EGraph, p::Pattern, id::Int64)
-    program, memsize = getprogram(p)
+    program, ctx, memsize = getprogram(p)
     tid = Threads.threadid() 
     reset(MACHINES[tid], g, program, memsize, id)
     # machine = Machine(g, program, σsize, id)
     buf = MACHINES[tid]()
+    
     # println(buf)
     buf
 end
