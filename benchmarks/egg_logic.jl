@@ -77,8 +77,8 @@ query = :(¬(((¬p ∨ q) ∧ (¬r ∨ s)) ∧ (p ∨ r)) ∨ (q ∨ s))
 
 ###########################################
 
-params = SaturationParams(timeout=22, eclasslimit=5000,
-    scheduler=ScoredScheduler, schedulerparams=(1000,5, Schedulers.exprsize))
+params = SaturationParams(timeout=22, eclasslimit=3051,
+    scheduler=ScoredScheduler)#, schedulerparams=(1000,5, Schedulers.exprsize))
 
 for i ∈ 1:2
     G = EGraph( query )

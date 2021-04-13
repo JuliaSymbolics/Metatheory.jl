@@ -44,6 +44,7 @@ function instantiateterm(g::EGraph, pat::PatTerm,  T::Type{Expr}, sub::Sub, rule
     end
 end
 
+# FIXME
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
     # println(sub)
     # for (pp, tt) ∈ sub.termtypes

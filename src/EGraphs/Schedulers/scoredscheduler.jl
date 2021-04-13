@@ -17,7 +17,7 @@ This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
 mutable struct ScoredScheduler <: AbstractScheduler
-    data::IdDict{Rule, BackoffSchedulerEntry}
+    data::IdDict{Rule, ScoredSchedulerEntry}
     G::EGraph
     theory::Vector{<:Rule}
     curr_iter::Int
@@ -48,7 +48,7 @@ end
 
 function ScoredScheduler(g::EGraph, theory::Vector{<:Rule})
     # BackoffScheduler(g, theory, 128, 4)
-    BackoffScheduler(g, theory, 1000, 5, exprsize)
+    ScoredScheduler(g, theory, 1000, 5, exprsize)
 end
 
 function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, match_limit::Int, ban_length::Int, complexity::Function)
@@ -93,7 +93,7 @@ function inform!(s::ScoredScheduler, rule::Rule, matches)
         ban_length = rd.ban_length * (rd.weight^rd.times_banned)
         rd.times_banned += 1
         rd.banned_until = s.curr_iter + ban_length
-        @info "banning rule $rule until $(rd.banned_until)!"
+        # @info "banning rule $rule until $(rd.banned_until)!"
         return false
     end
     return true

@@ -57,7 +57,7 @@ function simplify(ex; steps=4)
         scheduler=ScoredScheduler,
         eclasslimit=5000,
         timeout=7,
-        schedulerparams=(8,2, Schedulers.exprsize),
+        schedulerparams=(1000,5, Schedulers.exprsize),
         #stopwhen=stopwhen,
     )
     hist = UInt64[]
@@ -71,9 +71,10 @@ function simplify(ex; steps=4)
             return ex
         end
         if hash(ex) ∈ hist
-            println("loop detected")
+            println("loop detected $ex")
             return ex
         end
+        println(ex)
         push!(hist, hash(ex))
     end
     # println(res)

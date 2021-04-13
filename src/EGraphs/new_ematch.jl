@@ -64,7 +64,6 @@ function compile_pat(reg, p::PatTerm, ctx, count)
     rest = [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]
 
     return vcat(binder, filters, rest...)
-    # return vcat(binder, rest...)
 end
 
 function compile_pat(reg, p::PatVar, ctx, count)

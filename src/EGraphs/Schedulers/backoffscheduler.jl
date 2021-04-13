@@ -54,7 +54,7 @@ function inform!(s::BackoffScheduler, rule::Rule, matches)
         ban_length = rd.ban_length << rd.times_banned
         rd.times_banned += 1
         rd.banned_until = s.curr_iter + ban_length
-        @info "banning rule $rule until $(rd.banned_until)!"
+        # @info "banning rule $rule until $(rd.banned_until)!"
         return false
     end
     return true
