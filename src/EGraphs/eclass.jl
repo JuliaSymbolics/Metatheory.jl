@@ -1,10 +1,12 @@
 const AnalysisData = ImmutableDict{Type{<:AbstractAnalysis}, Any}
 
+# parametrize metadata by M
 mutable struct EClass
     id::Int64
     nodes::Vector{ENode}
     parents::Vector{Pair{ENode, Int64}}
     data::Union{Nothing, AnalysisData}
+    # data::M
 end
 EClass(id) = EClass(id, ENode[], Pair{ENode, Int64}[], nothing)
 EClass(id, nodes, parents) = EClass(id, nodes, parents, nothing)
@@ -56,8 +58,8 @@ function Base.union(to::EClass, from::EClass)
 end
 
 function Base.union!(to::EClass, from::EClass)
-    to.nodes = vcat(to.nodes, from.nodes)
-    to.parents = vcat(to.parents, from.parents)
+    append!(to.nodes, from.nodes)
+    append!(to.parents, from.parents)
     if to.data !== nothing && from.data !== nothing
         # merge!(to.data, from.data)
         # to.data = join_analysis_data(to.data, from.data)
@@ -96,7 +98,7 @@ function getdata(a::EClass, x::Type{<:AbstractAnalysis}, default)
     hasdata(a, x) ? a.data[x] : default
 end
 
-function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
+function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value) 
     # lazy allocation
     a.data === nothing && (a.data = AnalysisData())
     # a.data[x] = value

@@ -50,38 +50,6 @@ function search_rule!(g::EGraph, r::BidirRule, id, buf)
 end
 
 
-function search_rule!(g::EGraph, r::MultiPatRewriteRule)
-    buf = ematch(g, r.left, id)
-    if isempty(buf)
-        return 
-    end
-    # TODO use ematchlist?
-    pats_todo = reverse(copy(r.pats))
-    while !isempty(pats_todo)
-        pat = pop!(pats_todo)
-        # println("====================")
-        # @show pat
-        ids = cached_ids(g, pat)
-        newbuf = SubBuf()
-        while !isempty(buf)
-            sub = pop!(buf)
-            # @show sub
-            # isempty(sub) && continue
-            for i ∈ ids
-                ematch(g, pat, i)
-            end
-        end
-        buf = copy(newbuf)
-    end
-    for sub in buf
-        # println("FINALLY ", sub, " $id")
-        lock(mlock) do 
-            push!(matches, (r, r.right, sub, id))
-        end
-    end
-end
-
-
 function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
         scheduler::AbstractScheduler)::MatchesBuf
     matches = MatchesBuf()

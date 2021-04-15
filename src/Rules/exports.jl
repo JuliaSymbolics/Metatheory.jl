@@ -18,7 +18,6 @@ export BidirRule
 export EqualityRule
 export UnequalRule
 export DynamicRule
-export MultiPatRewriteRule
 
 # include("rules/rule_dsl.jl")
 export Rule
