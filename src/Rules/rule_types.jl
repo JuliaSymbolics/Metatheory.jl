@@ -50,27 +50,6 @@ end
 
 # =============================================================================
 
-# Only the last LHS is rewritten
-@auto_hash_equals struct MultiPatRewriteRule <: SymbolicRule 
-    left::Pattern
-    right::Pattern
-    # additional lhs patterns
-    pats::Vector{Pattern}
-    patvars::Vector{Symbol}
-    function MultiPatRewriteRule(l,r,pats)
-        pvars = patvars(l) ∪ patvars(r)
-
-        for p ∈ pats
-            union!(pvars, patvars(p))
-        end
-        setindex!(l, pvars)
-        setindex!(r, pvars)
-        # sort!(pvars)
-        new(l,r,pats,pvars)
-    end
-end
-
-
 
 abstract type BidirRule <: SymbolicRule end
 

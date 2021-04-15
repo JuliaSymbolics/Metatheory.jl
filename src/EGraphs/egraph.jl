@@ -195,7 +195,7 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     to_class.id = to
 
     # I (was) the troublesome line!
-    g.classes[to] = union(to_class, from_class)
+    g.classes[to] = union!(to_class, from_class)
     delete!(g.classes, from)
     g.numclasses -= 1
 
@@ -267,7 +267,7 @@ function repair!(g::EGraph, id::Int64)
     #     clean_enode!(g, p_enode, find(g, p_eclass))
     # end
 
-    new_parents = OrderedDict{ENode,Int64}()
+    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
         p_enode = canonicalize!(g, p_enode)
@@ -277,9 +277,10 @@ function repair!(g::EGraph, id::Int64)
             merge!(g, p_eclass, new_parents[p_enode])
         end
         n_id = find(g, p_eclass)
-        g.memo[p_enode] = n_id 
+        g.memo[p_enode] = n_id
         new_parents[p_enode] = n_id 
     end
+
     ecdata.parents = collect(new_parents)
     @debug "updated parents " id g.parents[id]
 
