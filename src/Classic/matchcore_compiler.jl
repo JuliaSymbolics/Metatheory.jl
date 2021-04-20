@@ -132,7 +132,7 @@ macro compile_theory(theory)
 end
 
 # TODO use LRU cache
-const MATCHCORE_FUNCTION_CACHE = Dict{Vector{<:Rule}, Function}()
+const MATCHCORE_FUNCTION_CACHE = IdDict{Vector{<:Rule}, Function}()
 const MATCHCORE_FUNCTION_CACHE_LOCK = ReentrantLock()
 
 function gettheoryfun(t::Vector{<:Rule}, m::Module)

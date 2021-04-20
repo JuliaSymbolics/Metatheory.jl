@@ -38,10 +38,9 @@ hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
 ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
-function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, 
-    meta::NamedTuple, sub::Sub, rule::Rule)
+function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, sub::Sub, rule::Rule)
     # TODO how to set meta?
-    MyExpr(pat.head, map(x -> instantiate(g, x, sub, rule), pat.args), meta.foo, meta.bar, meta.baz)
+    MyExpr(pat.head, map(x -> EGraphs.instantiate(g, x, sub, rule), pat.args), "", Complex[], Set{Int64}())
 end
 
 # Define an extraction method dispatching on MyExpr
@@ -73,8 +72,6 @@ end
 
 saturate!(g, t; mod=@__MODULE__)
 
-
-
-
 expected = MyExpr(:f, Any[MyExpr(:h, Any[4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
-extract!(g, astsize)
+
+@test expected == extract!(g, astsize)

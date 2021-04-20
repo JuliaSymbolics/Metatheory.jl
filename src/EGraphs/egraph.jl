@@ -28,15 +28,14 @@ mutable struct EGraph
     memo::HashCons             # memo
     """worklist for ammortized upwards merging"""
     dirty::Vector{Int64}
-    pruned::Vector{Int64}
     root::Int64
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
-    """
-    a cache mapping function symbols to e-classes that
-    contain e-nodes with that function symbol.
-    """
-    symcache::SymbolCache
+    # """
+    # a cache mapping function symbols to e-classes that
+    # contain e-nodes with that function symbol.
+    # """
+    # symcache::SymbolCache
     numclasses::Int
     numnodes::Int
 end
@@ -47,11 +46,10 @@ function EGraph()
     ClassMem(),
     HashCons(),
     # ParentMem(),
-    Vector{Int64}(),
-    Vector{Int64}(),
+    Int64[],
     0,
     Analyses(),
-    SymbolCache(),
+    # SymbolCache(),
     0,
     0
 )
@@ -97,11 +95,13 @@ function geteclass(g::EGraph, a::Int64)::EClass
     ec
 end
 # geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
-
+Base.getindex(g::EGraph, i::Int64) = geteclass(g, i)
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
+
+
 
 function canonicalize!(g::EGraph, e::EClass)
     e.id = find(g, e.id)
@@ -132,14 +132,6 @@ function add!(g::EGraph, n::ENode)::EClass
     g.classes[id] = classdata
     g.numclasses += 1
 
-    # cache the eclass for the symbol for faster matching
-    # sym = n.head
-    # if !haskey(g.symcache, sym)
-    #     g.symcache[sym] = Set{Int64}()
-    # end
-    # push!(g.symcache[sym], id)
-
-    # make analyses for new enode
     for an ∈ g.analyses
         if !islazy(an)
             setdata!(classdata, an, make(an, g, n))
@@ -180,19 +172,6 @@ function addexpr!(g::EGraph, se)::EClass
     return add!(g, ENode(e))
 end
 
-
-# """
-# Canonicalize an [`ENode`](@ref) and reset it from the memo.
-# """
-# function clean_enode!(g::EGraph, t::ENode, to::Int64)
-#     # delete!(g.memo, t)
-#     # println("removed $t")
-#     nt = canonicalize(g, t)
-#     # println("added $t $to")
-#     g.memo[nt] = to
-#     return t
-# end
-
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
@@ -200,8 +179,7 @@ the two e-classes as equal.
 function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     id_a = find(g, a)
     id_b = find(g, b)
-    id_a ∈ g.pruned && return id_a
-    id_b ∈ g.pruned && return id_b
+
      
     id_a == id_b && return id_a
     to = union!(g.uf, id_a, id_b)
@@ -217,7 +195,7 @@ function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
     to_class.id = to
 
     # I (was) the troublesome line!
-    g.classes[to] = union(to_class, from_class)
+    g.classes[to] = union!(to_class, from_class)
     delete!(g.classes, from)
     g.numclasses -= 1
 
@@ -228,15 +206,6 @@ function in_same_class(g::EGraph, a, b)
     find(g, a) == find(g, b)
 end
 
-function prune!(g::EGraph, a::Int64, b::EClass)
-    id_a = find(g, a)
-    # union!(g.uf, id_a, b.id)
-    b.id = id_a
-    g.classes[id_a] = b
-    push!(g.dirty, id_a)
-    push!(g.pruned, id_a)
-    return id_a
-end
 
 # TODO new rebuilding from egg
 """
@@ -254,8 +223,6 @@ function rebuild!(g::EGraph)
             repair!(g, x)
         end
     end
-
-    g.pruned = unique([find(g,id) for id ∈ g.pruned])
 
     if g.root != 0
         g.root = find(g, g.root)
@@ -300,7 +267,7 @@ function repair!(g::EGraph, id::Int64)
     #     clean_enode!(g, p_enode, find(g, p_eclass))
     # end
 
-    new_parents = OrderedDict{ENode,Int64}()
+    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,Int64}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
         p_enode = canonicalize!(g, p_enode)
@@ -310,9 +277,10 @@ function repair!(g::EGraph, id::Int64)
             merge!(g, p_eclass, new_parents[p_enode])
         end
         n_id = find(g, p_eclass)
-        g.memo[p_enode] = n_id 
+        g.memo[p_enode] = n_id
         new_parents[p_enode] = n_id 
     end
+
     ecdata.parents = collect(new_parents)
     @debug "updated parents " id g.parents[id]
 

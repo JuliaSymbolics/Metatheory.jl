@@ -18,12 +18,9 @@ export BidirRule
 export EqualityRule
 export UnequalRule
 export DynamicRule
-export MultiPatRewriteRule
-export canprune
 
 # include("rules/rule_dsl.jl")
 export Rule
 export Theory
 export @rule
 export @theory
-export @pruningrule

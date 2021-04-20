@@ -1,4 +1,4 @@
-const UnionBuf = Vector{Tuple{Bool, Int64, Int64}}
+const UnionBuf = Vector{Tuple{Int64, Int64}}
 
 function apply_rule!(g::EGraph, rule::UnequalRule,
         match::Match, matches::MatchesBuf, unions::UnionBuf,
@@ -20,10 +20,10 @@ function apply_rule!(g::EGraph, rule::SymbolicRule,
         match::Match, matches::MatchesBuf, unions::UnionBuf, 
         rep::Report,  mod::Module)
     (_, pat, sub, id) = match
+    # println(sub)
     rinst = instantiate(g, pat, sub, rule)
     rc = addexpr!(g, rinst)
-    prune = canprune(typeof(rule)) && rule.prune 
-    push!(unions, (prune, id, rc.id))
+    push!(unions, (id, rc.id))
     return (true, nothing)
 end
 
@@ -33,20 +33,18 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
         rep::Report,  mod::Module)
     (_, pat, sub, id) = match
     f = Rules.getrhsfun(rule, mod)
-    actual_params = [instantiate(g, PatVar(v), sub, rule) for v in rule.patvars]
+    actual_params = [instantiate(g, PatVar(v, i), sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, id), g, actual_params...)
     rc = addexpr!(g, r)
-    prune = canprune(typeof(rule)) && rule.prune 
 
-    push!(unions, (prune, id, rc.id))
+    push!(unions, (id, rc.id))
     return (true, nothing)
 end
 
 
 using .ReportReasons
 function eqsat_apply!(g::EGraph, matches::MatchesBuf,
-        scheduler::AbstractScheduler, rep::Report,
-        mod::Module, params::SaturationParams)::Report
+        rep::Report, mod::Module, params::SaturationParams)::Report
     i = 0
 
     unions = UnionBuf()
@@ -70,14 +68,6 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
 
         rule=match[1]
         # println("applied $rule")
-        if find(g, match[4]) ∈ g.pruned
-            return rep
-        end
-        
-        if shouldskip(scheduler, rule)
-            continue
-        end
-        writestep!(scheduler, rule)
 
         (ok, nrep) = apply_rule!(g, rule, match, matches, unions, rep, mod)
         if !ok 
@@ -89,12 +79,8 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
         # display(egraph.classes); println()
     end
 
-    for (prune, l,r) ∈ unions 
-        if prune 
-            prune!(g, l, geteclass(g, r))
-        else 
-            merge!(g, l, r)
-        end
+    for (l,r) ∈ unions 
+        merge!(g, l, r)
     end
     return rep
 end

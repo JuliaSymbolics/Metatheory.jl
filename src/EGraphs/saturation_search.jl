@@ -36,69 +36,17 @@ end
 #     get(g.symcache, p.val, [])
 # end
 
-function search_rule!(g::EGraph, r::SymbolicRule, id::Int64, 
-    matches::MatchesBuf, mlock::ReentrantLock)
-    for sub in ematch(g, r.left, id)
-        lock(mlock) do
-            push!(matches, (r, r.right, sub, id))
-        end
-    end
+function search_rule!(g::EGraph, r::SymbolicRule, id, buf)
+    append!(buf, [(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
 end
 
-function search_rule!(g::EGraph, r::DynamicRule, id::Int64, 
-    matches::MatchesBuf, mlock::ReentrantLock)
-    for sub in ematch(g, r.left, id)
-        lock(mlock) do
-            push!(matches, (r, nothing, sub, id))
-        end
-    end
+function search_rule!(g::EGraph, r::DynamicRule, id, buf)
+    append!(buf, [(r, nothing, sub, id) for sub in ematch(g, r.left, id)]) 
 end
 
-function search_rule!(g::EGraph, r::BidirRule, id::Int64, 
-    matches::MatchesBuf, mlock::ReentrantLock)
-    for sub in ematch(g, r.left, id)
-        lock(mlock) do
-            push!(matches, (r, r.right, sub, id))
-        end
-    end
-    for sub in ematch(g, r.right, id)
-        lock(mlock) do
-            push!(matches, (r, r.left, sub, id))
-        end
-    end
-end
-
-
-function search_rule!(g::EGraph, r::MultiPatRewriteRule,
-    id::Int64, matches::MatchesBuf, mlock::ReentrantLock)
-    buf = ematch(g, r.left, id)
-    if isempty(buf)
-        return 
-    end
-    # TODO use ematchlist?
-    pats_todo = reverse(copy(r.pats))
-    while !isempty(pats_todo)
-        pat = pop!(pats_todo)
-        # println("====================")
-        # @show pat
-        ids = cached_ids(g, pat)
-        newbuf = SubBuf()
-        while !isempty(buf)
-            sub = pop!(buf)
-            # @show sub
-            # isempty(sub) && continue
-            for i ∈ ids
-                ematch(g, pat, i, sub, newbuf)
-            end
-        end
-        buf = copy(newbuf)
-    end
-    for sub in buf
-        # println("FINALLY ", sub, " $id")
-        lock(mlock) do 
-            push!(matches, (r, r.right, sub, id))
-        end
-    end
+function search_rule!(g::EGraph, r::BidirRule, id, buf)
+    append!(buf, [(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
+    append!(buf, [(r, r.left, sub, id) for sub in ematch(g, r.right, id)])
 end
 
 
@@ -115,7 +63,9 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            search_rule!(egraph, rule, id, matches, mlock)
+            lock(mlock) do 
+                search_rule!(egraph, rule, id, matches)
+            end 
         end
     end
 
@@ -124,15 +74,22 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
     end
     Threads.@threads for rule ∈ other_rules
         # don't apply banned rules
-        if shouldskip(scheduler, rule)
+        if !cansearch(scheduler, rule)
             # println("skipping banned rule $rule")
             continue
         end
 
+        rule_matches = []
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            search_rule!(egraph, rule, id, matches, mlock)
+            search_rule!(egraph, rule, id, rule_matches)
+        end
+        can_yield = inform!(scheduler, rule, rule_matches)
+        if can_yield 
+            lock(mlock) do
+                append!(matches, rule_matches)
+            end
         end
     end
     return matches
@@ -142,7 +99,6 @@ end
 function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
     scheduler::AbstractScheduler)::MatchesBuf
     matches = MatchesBuf()
-    mlock = ReentrantLock()
 
     inequalities = filter(theory) do rule 
         rule isa UnequalRule
@@ -152,7 +108,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            search_rule!(egraph, rule, id, matches, mlock)
+            search_rule!(egraph, rule, id, matches)
         end
     end
 
@@ -161,15 +117,22 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
     end
     for rule ∈ other_rules
     # don't apply banned rules
-        if shouldskip(scheduler, rule)
+        if !cansearch(scheduler, rule)
         # println("skipping banned rule $rule")
             continue
         end
 
+        rule_matches = []
+
         ids = cached_ids(egraph, rule.left)
 
         for id ∈ ids
-            search_rule!(egraph, rule, id, matches, mlock)
+            search_rule!(egraph, rule, id, rule_matches)
+        end
+
+        can_yield = inform!(scheduler, rule, rule_matches)
+        if can_yield
+            append!(matches, rule_matches)
         end
     end
     return matches

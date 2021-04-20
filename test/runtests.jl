@@ -36,9 +36,11 @@ falseormissing(x) =
       include("test_taylor.jl")
       include("test_while_superinterpreter.jl")
       include("test_inequality.jl")
+      include("test_patequiv.jl")
+      # TODO
       include("test_custom_types.jl")
-      include("test_multipat.jl")
-      include("test_patallterm.jl")
+      # include("test_multipat.jl")
+      # include("test_patallterm.jl")
       # use cases
       include("fib/test_fibonacci.jl")
       include("logic/test_calculational_logic.jl")

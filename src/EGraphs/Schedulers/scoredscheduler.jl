@@ -1,13 +1,10 @@
 mutable struct ScoredSchedulerEntry
-    capacity::Number
-    fuel::Number
-    bantime::Int
-    banremaining::Int
-    weight::Int          # bantime multiplier, low = good
+    match_limit::Int
+    ban_length::Int
+    times_banned::Int
+    banned_until::Int
+    weight::Int
 end
-
-isbanned(d::ScoredSchedulerEntry)::Bool = d.banremaining > 0
-
 
 """
 A Rewrite Scheduler that implements exponential rule backoff.
@@ -19,13 +16,14 @@ will be banned next time.
 This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
-struct ScoredScheduler <: AbstractScheduler
-    data::Dict{Rule, ScoredSchedulerEntry}
+mutable struct ScoredScheduler <: AbstractScheduler
+    data::IdDict{Rule, ScoredSchedulerEntry}
     G::EGraph
     theory::Vector{<:Rule}
+    curr_iter::Int
 end
 
-shouldskip(s::ScoredScheduler, r::Rule)::Bool = s.data[r].banremaining > 0
+cansearch(s::ScoredScheduler, r::Rule)::Bool = s.curr_iter > s.data[r].banned_until
 
 exprsize(a) = 1
 
@@ -49,19 +47,18 @@ function exprsize(e::Expr)
 end
 
 function ScoredScheduler(g::EGraph, theory::Vector{<:Rule})
+    # BackoffScheduler(g, theory, 128, 4)
     ScoredScheduler(g, theory, 1000, 5, exprsize)
-    # ScoredScheduler(g, theory, 8, 2, exprsize)
 end
 
-function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::Int, complexity::Function)
+function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, match_limit::Int, ban_length::Int, complexity::Function)
     gsize = length(G.uf)
-    data = Dict{Rule, ScoredSchedulerEntry}()
+    data = IdDict{Rule, ScoredSchedulerEntry}()
 
-    # These numbers seem to fit
     for rule ∈ theory
         if rule isa DynamicRule
             w = 2
-            data[rule] = ScoredSchedulerEntry(fuel, fuel, bantime, 0, w)
+            data[rule] = ScoredSchedulerEntry(match_limit, ban_length, 0, 0, w)
             continue
         end
         (l, r) = rule.left, rule.right
@@ -77,38 +74,31 @@ function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, fuel::Int, bantime::
             w = 2   # complexity is equal
         end
         # println(w)
-        data[rule] = ScoredSchedulerEntry(fuel, fuel, bantime, 0, w)
+        data[rule] = ScoredSchedulerEntry(match_limit, ban_length, 0, 0, w)
     end
 
-    return ScoredScheduler(data, G, theory)
+    return ScoredScheduler(data, G, theory, 1)
 end
 
 # can saturate if there's no banned rule
-cansaturate(s::ScoredScheduler)::Bool = all(kv -> !isbanned(last(kv)), s.data)
+cansaturate(s::ScoredScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_until, s.data)
 
-function readstep!(s::ScoredScheduler)
-    for rule ∈ s.theory
-        rd = s.data[rule]
-        if rd.banremaining > 0
-            rd.banremaining -= 1
 
-            if rd.banremaining == 0
-                rd.bantime *= 1 + rd.weight
-                rd.capacity *= (4 - rd.weight)
-                rd.fuel = rd.capacity
-                # @info "unbanning rule" rule rd.weight rd.bantime rd.capacity
-            end
-        end
+function inform!(s::ScoredScheduler, rule::Rule, matches)
+    # println(s.data[rule])
+
+    rd = s.data[rule]
+    treshold = rd.match_limit * (rd.weight^rd.times_banned)
+    if length(matches) > treshold
+        ban_length = rd.ban_length * (rd.weight^rd.times_banned)
+        rd.times_banned += 1
+        rd.banned_until = s.curr_iter + ban_length
+        # @info "banning rule $rule until $(rd.banned_until)!"
+        return false
     end
+    return true
 end
 
-function writestep!(s::ScoredScheduler, rule::Rule)
-    rd = s.data[rule]
-
-    # decrement fuel, ban rule if fuel is empty
-    rd.fuel -= 1
-    if rd.fuel == 0
-        # @info "banning rule!" rule rd.weight rd.bantime rd.capacity
-        rd.banremaining = rd.bantime
-    end
+function setiter!(s::ScoredScheduler, curr_iter)
+    s.curr_iter = curr_iter
 end
