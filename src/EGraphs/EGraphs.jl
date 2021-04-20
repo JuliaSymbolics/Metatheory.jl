@@ -48,12 +48,12 @@ export analyze!
 # export instantiate
 # export instantiateterm
 
-include("new_sub.jl")
+include("subst.jl")
 export Sub
 
 
 # include("ematch.jl")
-include("new_ematch.jl")
+include("ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers

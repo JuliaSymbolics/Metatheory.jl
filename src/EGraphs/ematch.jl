@@ -1,253 +1,295 @@
-# https://www.philipzucker.com/egraph-2/
-# https://github.com/philzook58/EGraphs.jl/blob/main/src/matcher.jl
-# https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
-# TODO support destructuring
+# TODO make it work for every pattern type
+# TODO make it yield enodes only? ping pavel and marisa
+# TODO STAGE IT! FASTER!
+# for register memory and for substitutions
+# TODO implement https://github.com/egraphs-good/egg/pull/74
 
-# ematching seems to be faster without spawning tasks
+using AutoHashEquals
 
-# https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf
-# page 48
-"""
-From [https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf](https://www.hpl.hp.com/techreports/2003/HPL-2003-148.pdf)
-The iterator `ematchlist` matches a list of terms `t` to a list of E-nodes by first finding
-all substitutions that match the first term to the first E-node, and then extending
-each such substitution in all possible ways that match the remaining terms to
-the remaining E-nodes. The base case of this recursion is the empty list, which
-requires no extension to the substitution; the other case relies on Match to find the
-substitutions that match the first term to the first E-node.
-"""
-# function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int64}, sub::Sub, buf::SubBuf)::SubBuf
-#     lt = length(t)
-#     lv = length(v)
+abstract type Instruction end 
 
-#     !(lt == lv) && (return buf)
+const Program = Vector{Instruction}
 
-#     # currbuf = buf
-#     currbuf = [sub]
+const Register = Int32
 
-#     j = 1
-#     for i ∈ 1:lt
-#         # newbuf = SubBuf()
-#         until = length(currbuf)
-#         while j <= until
-#             currsub = currbuf[j]
-#             ematchstep(e, t[i], v[i], currsub, currbuf)
-#             j+=1
-#         end
-#     end
-
-#     # println(j)
-#     # println(currbuf[last_j+1:end])
-#     # println(currbuf[j:end])
-
-#     for sub1 ∈ (@view currbuf[j:end]) 
-#         push!(buf, sub1)
-#     end
-#     return buf
-# end
-
-function ematchlist(e::EGraph, t::AbstractVector{Pattern}, v::AbstractVector{Int64}, sub, buf::SubBuf)
-    lt = length(t)
-    lv = length(v)
-
-    lt != lv && (return false)
-    if lt == 0 || lv == 0
-        push!(buf, sub)
-        return 1
-    end 
-
-    lb = length(buf)
-    # buf1 = SubBuf()
-    
-    count1 = ematchstep(e, t[1], v[1], sub, buf)
-    count1 == 0 && (return 0)
-    
-    count2 = 0
-    for i ∈ (1:count1)
-        sub1 = popat!(buf, lb+1)
-        count2 += ematchlist(e, (@view t[2:end]), (@view v[2:end]), sub1, buf)
-    end
-    return count2
+@auto_hash_equals struct ENodePat
+    head::Any
+    # args::Vector{Register} 
+    args::UnitRange{Register}
 end
 
-# Tries to match on a pattern variable
-function ematchstep(g::EGraph, t::PatVar, v::Int64, sub, buf::SubBuf)
-    if haseclassid(sub, t)
-        if find(g, geteclassid(sub, t)) == find(g, v)
-            push!(buf, sub)
-            return 1 
-        end
-        return 0
+@auto_hash_equals struct Bind <: Instruction
+    reg::Register
+    enodepat::ENodePat
+end
+
+@auto_hash_equals struct CheckClassEq <: Instruction
+    left::Register
+    right::Register
+end
+
+
+@auto_hash_equals struct CheckType <: Instruction
+    reg::Register
+    type::Any
+end
+
+
+@auto_hash_equals struct Yield <: Instruction
+    yields::Vector{Register}
+    term_types::Dict{PatTerm, Register}
+end
+
+@auto_hash_equals struct Filter <: Instruction
+    reg::Register
+    head::Any
+    arity::Int
+end
+
+function compile_pat(reg, p::PatTerm, ctx, type_ctx, count)
+    # a = [gensym() for i in 1:length(p.args)]
+    c = count[]
+    a = c:(c+length(p.args) - 1)
+
+    if !haskey(type_ctx, p)
+        type_ctx[p] = reg
+    end
+
+
+    # println(p)
+    # println(a)
+    # filters = [] 
+    # for (i, child) in enumerate(p.args) 
+    #     if child isa PatTerm
+    #         push!(filters, Filter(a[i], child.head, arity(child)))
+    #     end
+    # end
+    # println(filters)
+
+    count[] = c + length(p.args)
+    binder = Bind(reg, ENodePat(p.head, a))
+    rest = [compile_pat(reg, p2, ctx, type_ctx, count) for (reg, p2) in zip(a, p.args)]
+
+    # return vcat(binder, filters, rest...)
+    return vcat(binder, rest...)
+
+end
+
+function compile_pat(reg, p::PatVar, ctx, type_ctx, count)
+    if ctx[p.idx] != -1
+        return CheckClassEq(reg, ctx[p.idx])
     else
-        # nsub = seteclass(sub, t, geteclass(g, v))
-        nsub = seteclassid(sub, t, find(g, v))
-        push!(buf, nsub)
-        return 1
+        ctx[p.idx] = reg
+        return []
     end
-    return 0
 end
 
-# Tries to match on literals
-function ematchstep(g::EGraph, t::PatLiteral, v::Int64, sub, buf::SubBuf)
-    ec = geteclass(g, v)
-    # if hascachedpat(sub, t, v)
-    #     push!(buf, sub)
-    #     return 1 
-    # end
-    for n in ec
-        if arity(n) == 0 && t.val == n.head
-            # addcachedpat(sub, t, ec.id)
-            push!(buf, sub)
-            return 1
+function compile_pat(reg, p::PatTypeAssertion, ctx, type_ctx, count)
+    if ctx[p.var.idx] != -1
+        return CheckClassEq(reg, ctx[p.var.idx])
+    else
+        ctx[p.var.idx] = reg
+        return CheckType(reg, p.type)
+    end
+end
+
+function compile_pat(reg, p::PatLiteral, ctx, type_ctx, count)
+    return Bind(reg, ENodePat(p.val, 0:-1))
+end
+
+function compile_pat(reg, p::PatEquiv, ctx, type_ctx, count)
+    return [compile_pat(reg, p.left, ctx, type_ctx, count), compile_pat(reg, p.right, ctx, type_ctx, count)]
+end
+
+# EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
+function compile_pat(p::Pattern)
+    pvars = patvars(p)
+    nvars = length(pvars)
+
+    count = Ref(2)
+    ctx = fill(-1, nvars)
+    type_ctx = Dict{PatTerm, Register}()
+
+    # println("compiling pattern $p")
+    # println(pvars)
+    insns = compile_pat(1, p, ctx, type_ctx, count)
+    # println("compiled pattern ctx is $ctx")
+    return vcat(insns, Yield(ctx, type_ctx)), ctx, count[]
+end
+
+
+# =============================================================
+# ================== INTERPRETER ==============================
+# =============================================================
+
+mutable struct Machine
+    g::EGraph 
+    program::Program
+    # eclass register memory 
+    σ::Vector{Tuple{Int64, Int64}}
+    # term type memory
+    τ::Vector{Type}
+    pc::Int64
+    # enode position in currently opened eclass 
+    position::Int64
+    # stack of instruction_id, enode_position
+    bstack::Vector{Tuple{Int64, Int64}}
+    # output buffer
+    buf::Vector{Sub}
+end
+
+const DEFAULT_MEM_SIZE = 1024
+function Machine() 
+    m = Machine(
+        EGraph(), # egraph
+        Program(), # program 
+        fill((-1,-1), DEFAULT_MEM_SIZE), # memory
+        fill(Nothing, DEFAULT_MEM_SIZE),
+        1, # pc
+        1, # position
+        Tuple{Int64,Int64}[], # bstack
+        Sub[]
+    )
+    return m 
+end
+
+function reset(m::Machine, g, program, memsize, id) 
+    m.g = g
+    m.program = program
+
+    if memsize > DEFAULT_MEM_SIZE
+        error("E-Matching Virtual Machine Memory Overflow")
+    end
+
+    for i ∈ 1:DEFAULT_MEM_SIZE
+        m.σ[i] = (-1,-1)
+        m.τ[i] = Nothing
+    end
+    m.σ[1] = (id, -1)
+
+    m.pc = 1
+    m.position = 1
+    empty!(m.bstack)
+    empty!(m.buf)
+
+    return m 
+end
+
+function (m::Machine)()
+    while m.pc != -1
+        # run the current instruction
+        m(m.program[m.pc])
+    end
+    return m.buf
+end
+
+function backtrack(m::Machine)
+    if isempty(m.bstack)
+        m.pc = -1
+    else 
+        pc, pos = pop!(m.bstack)
+        m.pc = pc 
+        m.position = pos
+    end
+end
+
+function (m::Machine)(instr::Yield)
+    ecs = [m.σ[reg] for reg in instr.yields]
+    typs = Dict([pat.head => m.τ[reg] for (pat, reg) in instr.term_types])
+    push!(m.buf, (ecs, typs))
+    backtrack(m)
+end
+
+function (m::Machine)(instr::CheckClassEq) 
+    if m.σ[instr.left] == m.σ[instr.right]
+        m.pc += 1
+        return 
+    end
+    backtrack(m)
+end
+
+function (m::Machine)(instr::CheckType) 
+    id, literal = m.σ[instr.reg]
+    eclass = m.g[id]
+    i = m.position
+
+    if i ∈ 1:length(eclass.nodes)
+        push!(m.bstack, (m.pc, i+1))
+        n = eclass.nodes[i]
+
+        if arity(n) == 0 && typeof(n.head) <: instr.type
+            m.σ[instr.reg] = (id, i)
+            m.pc += 1
+            m.position = 1
+            return
         end
     end
-    return 0
+    backtrack(m)
 end
 
+function (m::Machine)(instr::Filter)
+    id, _ = m.σ[instr.reg]
+    eclass = m.g[id]
 
-# tries to match on type assertions
-function ematchstep(g::EGraph, t::PatTypeAssertion, v::Int64, sub, buf::SubBuf)
-    ec = geteclass(g, v)
-    nnodes = length(ec.nodes)
-
-    # if hascachedpat(sub, t, ec.id)
-    #     println("SAVED!")
-    #     return true 
-    # end
-
-    count = 0
-
-    for i in 1:nnodes
-        n = ec.nodes[i]
-        if arity(n) == 0
-            !(typeof(n.head) <: t.type) && continue
-            nsub = setliteral(sub, t.var, i)
-            count += ematchstep(g, t.var, v, nsub, buf)
-            continue
-        end
+    if instr.head ∈ funs(eclass)
+        m.pc += 1
+        return 
     end
-    return count
+    backtrack(m)
 end
 
-# PATEQUIV mechanism
-function ematchstep(g::EGraph, t::PatEquiv, v::Int64, sub, buf::SubBuf)
-    # if hascachedpat(sub, t, v)
-    #     push!(buf, sub)
-    #     return 1 
-    # end
-    buf1 = SubBuf()
-    buf2 = SubBuf()
+function (m::Machine)(instr::Bind) 
+    ecid, literal = m.σ[instr.reg]
+    eclass = m.g[ecid]
 
-    count1 = ematchstep(g, t.left, v, sub, buf1)
+    if m.position ∈ 1:length(eclass.nodes)
+        push!(m.bstack, (m.pc, m.position+1))
+        n = eclass.nodes[m.position]
+        if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
+            m.τ[instr.reg] = enodetype(n)
 
-    count2 = 0
-    for sub1 ∈ buf1
-        count2 += ematchstep(g, t.right, v, sub1, buf2)
-    end
-
-    if count1 > 0 && count2 > 0
-        # addcachedpat(sub, t, v)
-        count = 0
-
-        cbuf = vcat(buf1, buf2)
-        for sub ∈ cbuf
-            push!(buf, sub)
-            count += 1
-        end
-        return count
-    end
-    return 0
-end
-
-function ematchstep(g::EGraph, t::PatTerm, v::Int64, sub, buf::SubBuf)
-    ec = geteclass(g, v)
-    # if hascachedpat(sub, t, ec.id)
-    #     # println("SAVED! $t")
-    #     return 0
-    # end
-
-    count = 0
-    for n in ec
-        (arity(n) > 0) && n.head == t.head && arity(t) == arity(n) || continue
-        
-        # Filter out to save unnecessary calls 
-        ok = true
-        for i ∈ 1:arity(n)
-            fpat = t.args[i]
-            ec = geteclass(g, n.args[i])
-            if fpat isa PatTerm
-                ok = ok && (fpat.head ∈ funs(ec))
-            elseif fpat isa PatLiteral
-                ok = ok && (fpat.val ∈ funs(ec))
+            for (j,v) in enumerate(instr.enodepat.args)
+                m.σ[v] = (n.args[j], -1)
             end
+            m.pc += 1
+            m.position = 1
+            return 
         end
-
-        if !ok 
-            # println("saved time")
-            continue
-        end
-        sub = settermtype(sub, t.head, enodetype(n), getmetadata(n))
-        count += ematchlist(g, t.args, n.args, sub, buf) 
     end
+    backtrack(m)
+end
+
+
+# Global Right Hand Side function cache for dynamic rules.
+# Now we're talking.
+# TODO use a LRUCache?
+const EMATCH_PROG_CACHE = IdDict{Pattern, Tuple{Program, Vector{Int64}, Int64}}()
+const EMATCH_PROG_CACHE_LOCK = ReentrantLock()
+
+function getprogram(p::Pattern)
+    lock(EMATCH_PROG_CACHE_LOCK) do
+        if !haskey(EMATCH_PROG_CACHE, p)
+            # println("cache miss!")
+            program, ctx, memsize = compile_pat(p)
+            EMATCH_PROG_CACHE[p] = (program, ctx, memsize)
+        end
+        return EMATCH_PROG_CACHE[p]
+    end
+end
+
+MACHINES = Machine[] 
+
+function __init__() 
+    global MACHINES = map(x -> Machine(), 1:Threads.nthreads())
+end
+
+function ematch(g::EGraph, p::Pattern, id::Int64)
+    program, ctx, memsize = getprogram(p)
+    tid = Threads.threadid() 
+    reset(MACHINES[tid], g, program, memsize, id)
+    # machine = Machine(g, program, σsize, id)
+    buf = MACHINES[tid]()
     
-    # if count > 0
-    #     addcachedpat(sub, t, ec.id)
-    # end
-
-    return count
-end
-
-function ematchstep(g::EGraph, t::PatAllTerm, v::Int64, sub, buf::SubBuf)
-    ec = geteclass(g, v)
-    # if hascachedpat(sub, t, ec.id)
-    #     # println("SAVED!")
-    #     return true 
-    # end
-
-    count = 0
-    for n in ec
-        (arity(n) > 0) && arity(t) == arity(n) || continue
-        # println(n)
-        nsub = settermtype(sub, t.head, enodetype(n), getmetadata(n))
-        if haseclassid(sub, t.head)
-            if find(g, geteclassid(sub, t.head)) != find(g, v)
-                continue
-            end
-        else
-            nsub = seteclassid(sub, t.head, find(g, v))
-        end
-
-        # Filter out to save unnecessary calls 
-        ok = true
-        for i ∈ 1:arity(n)
-            fpat = t.args[i]
-            ec = geteclass(g, n.args[i])
-            if fpat isa PatTerm
-                ok = ok && (fpat.head ∈ funs(ec))
-            elseif fpat isa PatLiteral
-                ok = ok && (fpat.val ∈ funs(ec))
-            end
-        end
-
-        if !ok 
-            # println("saved time")
-            continue
-        end
-
-        count += ematchlist(g, t.args, n.args, nsub, buf)
-    end
-
-    # if ok 
-    #     addcachedpat(sub, t, ec.id)
-    # end
-    return count
-end
-
-function ematch(g::EGraph, pat::Pattern, id::Int64, sub=Sub(), buf=SubBuf())
-    # println(pat)
-    # sub = copy(sub)
-    ematchstep(g, pat, id, sub, buf)
-    # @show pat
-    # println.(buf)
-    return buf
+    # println(buf)
+    buf
 end

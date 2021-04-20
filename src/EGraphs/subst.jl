@@ -1,5 +1,5 @@
 # Vector of (eclassid, position_of_literal_in_eclass_nodes)
-const Sub = Tuple{Vector{Tuple{Int64, Int64}}, LittleDict{Any, Type}}
+const Sub = Tuple{Vector{Tuple{Int64, Int64}}, Dict{Any, Type}}
 
 haseclassid(sub::Sub, p::PatVar) = first(sub[1][p.idx]) >= 0
 geteclassid(sub::Sub, p::PatVar) = first(sub[1][p.idx])
