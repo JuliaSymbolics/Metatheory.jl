@@ -21,7 +21,7 @@ function areequal(g::EGraph, t::Vector{<:Rule}, exprs...;
 
     report = saturate!(g, t, params; mod=mod)
 
-    # display(G.classes); println()
+    # display(g.classes); println()
     if !(report.reason isa Saturated) && !reached(g, goal)
         return missing # failed to prove
     end
