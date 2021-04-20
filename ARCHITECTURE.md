@@ -17,11 +17,12 @@
   - `abstractanalysis.jl`: Definition of `AbstractAnalysis` interface
   - `analysis.jl`: Core algorithms for analyzing egraphs.
   - `extraction.jl`: Core algorithms for `ExtractionAnalysis`, extracting terms from egraphs.
-  - `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs. 
-  - `saturation_search.jl`: Search phase of equality saturation. Uses multiple-dispatch on `Rule`s
-  - `saturation_apply.jl`: Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results.
-  - `saturation_params.jl`: Definition of `SaturationParams` type, parameters for equality saturation
-  - `saturation_report.jl`: Definition of the type for displaying equality saturation execution reports.
+  - `saturation:`: 
+    - `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs. 
+    - `search.jl`: Search phase of equality saturation. Uses multiple-dispatch on `Rule`s
+    - `apply.jl`: Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results.
+    - `params.jl`: Definition of `SaturationParams` type, parameters for equality saturation
+    - `report.jl`: Definition of the type for displaying equality saturation execution reports.
   - `equality.jl`: utility functions and macros to check equality of terms in egraphs.
   - `Schedulers/`: Module containing definition of Schedulers for equality saturation. 
 - `Classic/`: Classical deterministic rewriting backend using MatchCore.jl
