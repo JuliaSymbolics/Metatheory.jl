@@ -1,11 +1,15 @@
 # Vector of (eclassid, position_of_literal_in_eclass_nodes)
-const Sub = Vector{Tuple{Int64, Int64}}
+const Sub = Tuple{Vector{Tuple{Int64, Int64}}, LittleDict{Any, Type}}
 
-haseclassid(sub::Sub, p::PatVar) = first(sub[p.idx]) >= 0
-geteclassid(sub::Sub, p::PatVar) = first(sub[p.idx])
+haseclassid(sub::Sub, p::PatVar) = first(sub[1][p.idx]) >= 0
+geteclassid(sub::Sub, p::PatVar) = first(sub[1][p.idx])
 
-hasliteral(sub::Sub, p::PatVar) = last(sub[p.idx]) > 0
-getliteral(sub::Sub, p::PatVar) = last(sub[p.idx])
+hasliteral(sub::Sub, p::PatVar) = last(sub[1][p.idx]) > 0
+getliteral(sub::Sub, p::PatVar) = last(sub[1][p.idx])
+
+hastermtype(sub::Sub, p::Any) = haskey(sub[2], p)
+gettermtype(sub::Sub, p::Any) = sub[2][p]
+
 
 ## ====================== Instantiation =======================
 
@@ -52,11 +56,13 @@ function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
     #     println("$pat $(hash(pat))")
     #     println(pp == pat)
     # end
-    # if hastermtype(sub, pat.head)
-        # (T, meta) = gettermtype(sub, pat.head)
-        # instantiateterm(g, pat, T, meta, sub, rule)
-    # else 
-    # dump(pat)
-    instantiateterm(g, pat, Expr, sub, rule)
-    # end
+    if hastermtype(sub, pat.head)
+        T = gettermtype(sub, pat.head)
+        # println(T)
+        instantiateterm(g, pat, T, sub, rule)
+    else 
+        # dump(pat)
+        # println("$pat has no type in $sub")
+        instantiateterm(g, pat, Expr, sub, rule)
+    end
 end

@@ -37,6 +37,7 @@ end
 
 @auto_hash_equals struct Yield <: Instruction
     yields::Vector{Register}
+    term_types::LittleDict{PatTerm, Register}
 end
 
 @auto_hash_equals struct Filter <: Instruction
@@ -45,10 +46,15 @@ end
     arity::Int
 end
 
-function compile_pat(reg, p::PatTerm, ctx, count)
+function compile_pat(reg, p::PatTerm, ctx, type_ctx, count)
     # a = [gensym() for i in 1:length(p.args)]
     c = count[]
     a = c:(c+length(p.args) - 1)
+
+    if !haskey(type_ctx, p)
+        type_ctx[p] = reg
+    end
+
 
     # println(p)
     # println(a)
@@ -62,14 +68,14 @@ function compile_pat(reg, p::PatTerm, ctx, count)
 
     count[] = c + length(p.args)
     binder = Bind(reg, ENodePat(p.head, a))
-    rest = [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]
+    rest = [compile_pat(reg, p2, ctx, type_ctx, count) for (reg, p2) in zip(a, p.args)]
 
     # return vcat(binder, filters, rest...)
     return vcat(binder, rest...)
 
 end
 
-function compile_pat(reg, p::PatVar, ctx, count)
+function compile_pat(reg, p::PatVar, ctx, type_ctx, count)
     if ctx[p.idx] != -1
         return CheckClassEq(reg, ctx[p.idx])
     else
@@ -78,7 +84,7 @@ function compile_pat(reg, p::PatVar, ctx, count)
     end
 end
 
-function compile_pat(reg, p::PatTypeAssertion, ctx, count)
+function compile_pat(reg, p::PatTypeAssertion, ctx, type_ctx, count)
     if ctx[p.var.idx] != -1
         return CheckClassEq(reg, ctx[p.var.idx])
     else
@@ -87,13 +93,12 @@ function compile_pat(reg, p::PatTypeAssertion, ctx, count)
     end
 end
 
-# TODO works also for ground terms (?)!
-# function compile_pat(reg, p::PatLiteral, ctx)
-#     return Check(reg, p.val)
-# end
-
-function compile_pat(reg, p::PatLiteral, ctx, count)
+function compile_pat(reg, p::PatLiteral, ctx, type_ctx, count)
     return Bind(reg, ENodePat(p.val, 0:-1))
+end
+
+function compile_pat(reg, p::PatEquiv, ctx, type_ctx, count)
+    return [compile_pat(reg, p.left, ctx, type_ctx, count), compile_pat(reg, p.right, ctx, type_ctx, count)]
 end
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
@@ -103,12 +108,13 @@ function compile_pat(p::Pattern)
 
     count = Ref(2)
     ctx = fill(-1, nvars)
+    type_ctx = LittleDict{PatTerm, Register}()
 
     # println("compiling pattern $p")
     # println(pvars)
-    insns = compile_pat(1, p, ctx, count)
+    insns = compile_pat(1, p, ctx, type_ctx, count)
     # println("compiled pattern ctx is $ctx")
-    return vcat(insns, Yield(ctx)), ctx, count[]
+    return vcat(insns, Yield(ctx, type_ctx)), ctx, count[]
 end
 
 
@@ -119,8 +125,10 @@ end
 mutable struct Machine
     g::EGraph 
     program::Program
-    # register memory 
+    # eclass register memory 
     σ::Vector{Tuple{Int64, Int64}}
+    # term type memory
+    τ::Vector{Type}
     pc::Int64
     # enode position in currently opened eclass 
     position::Int64
@@ -135,7 +143,8 @@ function Machine()
     m = Machine(
         EGraph(), # egraph
         Program(), # program 
-        fill((-1,-1), 1024), # memory
+        fill((-1,-1), DEFAULT_MEM_SIZE), # memory
+        fill(Nothing, DEFAULT_MEM_SIZE),
         1, # pc
         1, # position
         Tuple{Int64,Int64}[], # bstack
@@ -154,6 +163,7 @@ function reset(m::Machine, g, program, memsize, id)
 
     for i ∈ 1:DEFAULT_MEM_SIZE
         m.σ[i] = (-1,-1)
+        m.τ[i] = Nothing
     end
     m.σ[1] = (id, -1)
 
@@ -183,8 +193,10 @@ function backtrack(m::Machine)
     end
 end
 
-function (m::Machine)(instr::Yield) 
-    push!(m.buf, [m.σ[reg] for reg in instr.yields])
+function (m::Machine)(instr::Yield)
+    ecs = [m.σ[reg] for reg in instr.yields]
+    typs = LittleDict([pat.head => m.τ[reg] for (pat, reg) in instr.term_types])
+    push!(m.buf, (ecs, typs))
     backtrack(m)
 end
 
@@ -234,6 +246,8 @@ function (m::Machine)(instr::Bind)
         push!(m.bstack, (m.pc, m.position+1))
         n = eclass.nodes[m.position]
         if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
+            m.τ[instr.reg] = enodetype(n)
+
             for (j,v) in enumerate(instr.enodepat.args)
                 m.σ[v] = (n.args[j], -1)
             end
