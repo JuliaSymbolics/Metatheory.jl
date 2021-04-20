@@ -30,7 +30,7 @@ include("intdisjointmap.jl")
 export IntDisjointSet
 export in_same_set
 
-include("egg.jl")
+include("egraph.jl")
 export find
 export geteclass
 export arity
@@ -39,18 +39,21 @@ export merge!
 export in_same_class
 export addexpr!
 export rebuild!
-export prune!
 
 
 include("analysis.jl")
 export analyze!
 
-include("substitution.jl")
-export Sub
-export instantiate
-export instantiateterm
+# include("substitution.jl")
+# export instantiate
+# export instantiateterm
 
-include("ematch.jl")
+include("new_sub.jl")
+export Sub
+
+
+# include("ematch.jl")
+include("new_ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers

@@ -6,6 +6,9 @@
 # To use a type assertion pattern, add `::T` after
 # a pattern variable in the `left_hand` of a rule.
 # """
+
+# TODO HASH CACHING!
+
 using Parameters
 
 import Base.==
@@ -13,8 +16,6 @@ import Base.==
 abstract type Rule end
 # Must override
 ==(a::Rule, b::Rule) = false
-canprune(r::Type{<:Rule}) = false
-canprune(r::T) where {T<:Rule}= canprune(T)
 
 
 abstract type SymbolicRule <: Rule end
@@ -37,37 +38,17 @@ Rule(:(a * b => b * a))
 @auto_hash_equals struct RewriteRule <: SymbolicRule 
     left::Pattern
     right::Pattern
-    prune::Bool
     patvars::Vector{Symbol}
-    RewriteRule(l, r) = RewriteRule(l,r,false)
-    function RewriteRule(l,r,p)
+    function RewriteRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
-        new(l,r,p,pvars)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
+        new(l,r,pvars)
     end
 end
-canprune(t::Type{RewriteRule}) = true
 
 # =============================================================================
-
-# Only the last LHS is rewritten
-@auto_hash_equals struct MultiPatRewriteRule <: SymbolicRule 
-    left::Pattern
-    right::Pattern
-    # additional lhs patterns
-    pats::Vector{Pattern}
-    patvars::Vector{Symbol}
-    function MultiPatRewriteRule(l,r,pats)
-        pvars = patvars(l) ∪ patvars(r)
-
-        for p ∈ pats
-            union!(pvars, patvars(p))
-        end
-        # sort!(pvars)
-        new(l,r,pats,pvars)
-    end
-end
-
 
 
 abstract type BidirRule <: SymbolicRule end
@@ -84,6 +65,8 @@ backend. If two terms, corresponding to the left and right hand side of an
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
         new(l,r,pvars)
     end
 end
@@ -100,6 +83,8 @@ Rule(:(a * b == b * a))
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
+        setindex!(l, pvars)
+        setindex!(r, pvars)
         new(l,r,pvars)
     end
 end
@@ -122,12 +107,10 @@ Rule(:(a::Number * b::Number |> a*b))
     left::Pattern
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
-    prune::Bool
-    function DynamicRule(l::Pattern, r, prune) 
-        pvars = unique(patvars(l))
+    function DynamicRule(l, r) 
+        pvars = patvars(l)
         # sort!(pvars)
-        new(l, r, pvars, prune)
+        setindex!(l, pvars)
+        new(l, r, pvars)
     end
-    DynamicRule(l, r) = new(l,r,false)
 end
-canprune(t::Type{DynamicRule}) = true

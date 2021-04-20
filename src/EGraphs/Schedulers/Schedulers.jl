@@ -18,8 +18,8 @@ export BackoffScheduler
 export ScoredScheduler
 
 export cansaturate
-export shouldskip
-export readstep!
-export writestep!
+export cansearch
+export inform!
+export setiter!
 
 end

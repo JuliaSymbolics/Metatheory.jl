@@ -7,13 +7,14 @@ using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 using Metatheory.TermInterface
 
+@metatheory_init
 
 mult_t = commutative_monoid(:(*), 1)
 plus_t = commutative_monoid(:(+), 0)
 
 minus_t = @theory begin
     # TODO Jacques Carette's post in zulip chat
-    @pruningrule a - a       => 0
+    a - a       => 0
     a - b       => a + (-1*b)
     -a          => -1 * a
     a + (-b)    => a + (-1*b)
@@ -23,8 +24,9 @@ end
 mulplus_t = @theory begin
     # TODO FIXME this rules improves performance and avoids commutative
     # explosion of the egraph
-    @pruningrule 0 * a => 0
-    @pruningrule a * 0       => 0
+    a + a => 2 * a
+    0 * a => 0
+    a * 0       => 0
     a * (b + c) == ((a*b) + (a*c))
     a + (b * a) => ((b+1)*a)
 end
@@ -34,9 +36,9 @@ pow_t = @theory begin
     x^n * x^m   == x^(n+m)
     (x * y)^z   == x^z * y^z
     (x^p)^q     == x^(p*q)
-    @pruningrule x^0         => 1
-    @pruningrule 0^x         => 0
-    @pruningrule 1^x         => 1
+    x^0         => 1
+    0^x         => 0
+    1^x         => 1
     x^1         => x
     x * x       => x^2
     inv(x)      == x^(-1)
@@ -66,11 +68,11 @@ end
 
 # Dynamic rules
 fold_t = @theory begin
-    @pruningrule -(a::Number)            |> -a
-    @pruningrule a::Number + b::Number   |> a + b
-    @pruningrule a::Number * b::Number   |> a * b
-    @pruningrule a::Number ^ b::Number   |> begin b < 0 && a isa Int && (a = float(a)) ; a^b end
-    @pruningrule a::Number / b::Number   |> a/b
+    -(a::Number)            |> -a
+    a::Number + b::Number   |> a + b
+    a::Number * b::Number   |> a * b
+    a::Number ^ b::Number   |> begin b < 0 && a isa Int && (a = float(a)) ; a^b end
+    a::Number / b::Number   |> a/b
 end
 
 using Calculus: differentiate

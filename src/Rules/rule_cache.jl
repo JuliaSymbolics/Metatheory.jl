@@ -1,7 +1,7 @@
 # Global Right Hand Side function cache for dynamic rules.
 # Now we're talking.
-# TODO use a LRUCache
-const RHS_FUNCTION_CACHE = Dict{Tuple{DynamicRule, Module}, Function}()
+# TODO use a LRUCache?
+const RHS_FUNCTION_CACHE = IdDict{Tuple{DynamicRule, Module}, Function}()
 const RHS_FUNCTION_CACHE_LOCK = ReentrantLock()
 
 function getrhsfun(r::DynamicRule, m::Module)
