@@ -16,11 +16,7 @@ Base.show(io::IO, x::PatSplatVar) = print(io, x.name, "...")
 Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
 
 function Base.show(io::IO, x::PatTerm)
-    if x.metadata !== nothing && haskey(x.metadata, :iscall) && x.metadata.iscall
-        print(io, Expr(:call, x.head, x.args...))
-    else 
-        print(io, Expr(x.head, x.args...))
-    end
+    print(io, Expr(x.head, x.args...))
 
     # show(io, Expr(x.head, x.args...))
     # n = length(x.args)
@@ -48,7 +44,7 @@ end
 function Base.show(io::IO, x::PatAllTerm)
     n = length(x.args)
 
-    # TODO change me
+    # TODO change me ?
     print(io, "~", x.head)
     print(io, "(")
     for i ∈ 1:n
@@ -76,8 +72,10 @@ function Pattern(ex::Expr, mod=@__MODULE__)
         @inbounds patargs[i] = Pattern(args[i], mod)
     end
 
-    # is a Type assertion 
-    if head == :(::) && meta.iscall == false
+    if head == :call
+        # println(:aaa)
+        patargs[1] = PatLiteral(args[1])
+    elseif head == :(::)
         v = patargs[1]
         t = patargs[2]
         ty = Union{}
@@ -87,9 +85,7 @@ function Pattern(ex::Expr, mod=@__MODULE__)
             ty = t.val
         end
         return PatTypeAssertion(v, ty)
-    end
-
-    if head == :(...) && meta.iscall == false
+    elseif head == :(...)
         v = patargs[1]
         if v isa PatVar
             return PatSplatVar(v)
@@ -115,7 +111,6 @@ end
 # Generic fallback
 function Pattern(ex, mod=@__MODULE__)
     ex = preprocess(ex)
-
     if istree(ex)
         head = gethead(ex)
         args = getargs(ex)
@@ -126,6 +121,7 @@ function Pattern(ex, mod=@__MODULE__)
         for i ∈ 1:n
             @inbounds patargs[i] = Pattern(args[i], mod)
         end
+
         PatTerm(head, patargs, meta)
     end
     PatLiteral(ex)

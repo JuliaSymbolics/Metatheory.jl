@@ -11,18 +11,22 @@ function EGraphs.make(an::Type{NumberFold}, g::EGraph, n::ENode)
     # @show n
     n.head isa Number && return n.head
 
-    if arity(n) == 2
-        l = geteclass(g, n.args[1])
-        r = geteclass(g, n.args[2])
+    op_times = addexpr!(g, :*)
+    op_plus = addexpr!(g, :+)
+
+    if n.head == :call && arity(n) == 3
+        op = geteclass(g, n.args[1])
+        l = geteclass(g, n.args[2])
+        r = geteclass(g, n.args[3])
         ldata = getdata(l, an, nothing)
         rdata = getdata(r, an, nothing)
 
         # @show ldata rdata
 
         if ldata isa Number && rdata isa Number
-            if n.head == :*
+            if in_same_class(g, op, op_times)
                 return ldata * rdata
-            elseif n.head == :+
+            elseif in_same_class(g, op, op_plus)
                 return ldata + rdata
             end
         end

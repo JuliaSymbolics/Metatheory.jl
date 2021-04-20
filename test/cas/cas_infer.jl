@@ -26,15 +26,16 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
         return t
     end
 
-    # T isa Expr
-    sym = n.head
-
-    if !(n.metadata.iscall)
+    if !(n.head == :call)
         # println("$n is not a call")
         t = Any
         # println("analyzed type of $n is $t")
         return t
     end
+
+    # T isa Expr
+    sym = extract!(g, astsize; root=n.args[1])
+    rest_of_args = (@view n.args[2:end])
 
     if !(sym isa Symbol)
         # println("head $sym is not a symbol")
@@ -44,7 +45,7 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
     end
 
     symval = getfield(@__MODULE__, sym)
-    child_classes = map(x -> geteclass(g, x), n.args)
+    child_classes = map(x -> geteclass(g, x), rest_of_args)
     child_types = Tuple(map(x -> getdata(x, an, Any), child_classes))
 
     # println("symval $symval")
@@ -62,7 +63,7 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
     t = Core.Compiler.return_type(symval, child_types)
 
     if t == Union{}
-        throw(MethodError(symval, child_types...))
+        throw(MethodError(symval, child_types))
     end
     # println("analyzed type of $n is $t")
     return t

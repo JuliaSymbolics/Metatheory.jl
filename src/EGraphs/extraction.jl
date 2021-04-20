@@ -50,20 +50,7 @@ end
 # TODO CUSTOMTYPES document how to for custom types
 # TODO maybe extractor can just be the array of extracted children?
 function extractnode(n::ENode{Expr}, extractor::Function)::Expr
-    expr_args = []
-    expr_head = n.head
-
-    if n.metadata.iscall
-        push!(expr_args, n.head)
-        expr_head = :call
-    end
-
-    for a ∈ n.args
-        # id == a && (error("loop in extraction"))
-        push!(expr_args, extractor(a))
-    end
-
-    return Expr(expr_head, expr_args...)
+    return Expr(n.head, map(extractor, n.args)...)
 end
 
 function extractnode(n::ENode{T}, extractor::Function) where T
