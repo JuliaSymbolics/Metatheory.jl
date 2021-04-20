@@ -58,23 +58,20 @@ include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers
 
-include("saturation_goal.jl")
+include("saturation/goal.jl")
 export SaturationGoal
 export EqualityGoal
 export reached
-
-include("saturation_reason.jl")
+include("saturation/reason.jl")
 export ReportReasons
-
-include("saturation_report.jl")
-include("saturation_params.jl")
+include("saturation/report.jl")
+include("saturation/params.jl")
 export SaturationParams
-
-include("saturation_search.jl")
-include("saturation_apply.jl")
-
-include("saturation.jl")
+include("saturation/search.jl")
+include("saturation/apply.jl")
+include("saturation/saturation.jl")
 export saturate!
+
 include("equality.jl")
 export areequal
 export @areequal
