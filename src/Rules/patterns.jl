@@ -19,7 +19,10 @@ mutable struct PatVar <: Pattern
     name::Symbol
     idx::Int
 end
-==(a::PatVar, b::PatVar) = (a.name == b.name)
+function ==(a::PatVar, b::PatVar)
+    # (a.name == b.name)
+    a.idx == b.idx
+end
 PatVar(var) = PatVar(var, -1)
 
 
