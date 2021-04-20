@@ -1,13 +1,18 @@
 # This file contains specification and implementation 
 # Of the homoiconic DSL for defining rules and theories 
+using MatchCore
 
-const rule_sym_map = Dict{Symbol, Type}(
-    :(=>) => RewriteRule,
-    :(|>) => DynamicRule,
-    :(==) => EqualityRule,
-    :(!=) => UnequalRule,
-    :(≠) => UnequalRule
-)
+function rule_sym_map(ex)
+    @smatch ex begin 
+        :($a => $b) => RewriteRule
+        :($a |> $b) => DynamicRule
+        :($a == $b) => EqualityRule
+        :($a != $b) => UnequalRule
+        :($a ≠ $b) => UnequalRule
+        _ => error("Cannot parse rule from $ex")
+    end
+end
+
 
 interp_dollar(x, mod::Module) = x
 function interp_dollar(ex::Expr, mod::Module)
@@ -26,17 +31,7 @@ create a `Rule`.
 """
 function Rule(e::Expr; mod::Module=@__MODULE__)
     op = gethead(e)
-
-    RuleType = Union{}
-    try 
-        RuleType = rule_sym_map[op]
-    catch e
-        if e isa KeyError
-            error("Unknown Rule operator $op")
-        else
-            rethrow(e)
-        end
-    end
+    RuleType = rule_sym_map(e)
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
     lhs = Pattern(l, mod)

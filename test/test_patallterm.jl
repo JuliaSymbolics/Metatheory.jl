@@ -9,7 +9,7 @@ using Metatheory.EGraphs.Schedulers
 @metatheory_init ()
 
 t = [
-    RewriteRule(PatAllTerm(PatVar(:f), [PatVar(:a), PatVar(:b)], (;iscall=true)), PatLiteral(:matched))
+    RewriteRule(PatTerm(:call, PatVar(:f), [PatVar(:a), PatVar(:b)]), PatLiteral(:matched))
 ]
 
 g = EGraph(:(foo(bar)))

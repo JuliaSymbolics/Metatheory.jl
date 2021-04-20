@@ -16,12 +16,17 @@ end
 #testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))
 
 @testset "Simple congruence - rebuilding" begin
-    testexpr = :(f(a,b) + f(a,c))
-    G = EGraph(testexpr)
-    t1 = addexpr!(G, :b)
+    G = EGraph()
+    ec1 = addexpr!(G, :(f(a,b)))
+    ec2 = addexpr!(G, :(f(a,c)))
 
+    testexpr = :(f(a,b) + f(a,c))
+    
+    testec = addexpr!(G, testexpr)
+
+    t1 = addexpr!(G, :b)
     t2 = addexpr!(G, :c)
-    # display(G.classes); println()
+    display(G.classes); println()
 
     c_id = merge!(G, t2.id, t1.id)
     # display(G.classes); println()
@@ -39,7 +44,7 @@ end
     #     dump.(ec.nodes)
     # end
 
-    @test in_same_set(G.uf, 5, 3)
+    @test in_same_set(G.uf, ec1.id, ec2.id)
 end
 
 

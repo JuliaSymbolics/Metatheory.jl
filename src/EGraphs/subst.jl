@@ -40,12 +40,7 @@ end
 
 # # TODO CUSTOMTYPES document how to for custom types
 function instantiateterm(g::EGraph, pat::PatTerm,  T::Type{Expr}, sub::Sub, rule::Rule)
-    meta = pat.metadata
-    if meta !== nothing && meta.iscall
-        Expr(:call, pat.head, map(x -> instantiate(g, x, sub, rule), pat.args)...)
-    else
-        Expr(pat.head, map(x -> instantiate(g, x, sub, rule), pat.args)...)
-    end
+    Expr(pat.head, map(x -> instantiate(g, x, sub, rule), pat.args)...)
 end
 
 # FIXME

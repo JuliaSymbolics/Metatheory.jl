@@ -29,11 +29,7 @@ compile_lhs(p::PatSplatVar, seen) =
 
 function compile_lhs(p::PatTerm, seen)
 	cargs = map(x -> compile_lhs(x, seen), p.args)
-	if p.metadata !== nothing && p.metadata.iscall == true 
-		Expr(:call, p.head, cargs...)
-	else
-		Expr(p.head, cargs...)
-	end
+	Expr(p.head, cargs...)
 end
 
 
@@ -50,11 +46,7 @@ compile_rhs(p::PatSplatVar) =
 
 function compile_rhs(p::PatTerm)
 	cargs =  map(x -> compile_rhs(x), p.args)
-	if p.metadata !== nothing && p.metadata.iscall == true 
-		Expr(:call, p.head, cargs...)
-	else
-		Expr(p.head, cargs...)
-	end
+	Expr(p.head, cargs...)
 end
 
 # Compile rules from Metatheory format to MatchCore format

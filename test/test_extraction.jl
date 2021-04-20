@@ -197,3 +197,20 @@ end
 
 	@test res == resclassic
 end
+
+
+@testset "No arguments" begin 
+	ex = :(f());
+	g = EGraph(ex);
+	@test :(f()) == extract!(g, astsize)
+
+	ex = :(f() + g())
+
+	t = @theory begin
+		f() + g() => h()
+	end;
+
+	_, ex2 = @extract ex t astsize;
+
+    @test ex2 == :(h())
+end

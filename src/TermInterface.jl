@@ -10,10 +10,13 @@ using Base.Meta
 # TODO document this interface for extending for custom types
 # Interface for Expr. Implement these methods for your own type to
 # Use it instead of Expr in egraphs!
-gethead(e::Expr) = isexpr(e, :call) ? e.args[1] : e.head
-getargs(e::Expr) = @view e.args[(isexpr(e, :call) ? 2 : 1):end]
+# gethead(e::Expr) = isexpr(e, :call) ? e.args[1] : e.head
+gethead(e::Expr) = e.head
+# getargs(e::Expr) = @view e.args[(isexpr(e, :call) ? 2 : 1):end]
+getargs(e::Expr) = e.args
 istree(e::Expr) = true
-getmetadata(e::Expr) = (iscall=isexpr(e, :call),)
+# getmetadata(e::Expr) = (iscall=isexpr(e, :call),)
+getmetadata(e::Expr) = (;)
 arity(e::Expr) = length(getargs(e)) # optional
 preprocess(e::Expr) = cleanast(e)
 
@@ -22,7 +25,7 @@ gethead(e) = e
 getargs(e) = []
 istree(a) = false
 getmetadata(e) = (;) # empty NamedTuple
-arity(e) = 0 # optional
+arity(e) = length(getargs(e)) # optional
 preprocess(e) = e
 
 export gethead

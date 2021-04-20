@@ -11,7 +11,7 @@ struct MyExpr
     # will be EGraphs.EClass! Additional manipulation 
     # is needed for custom term types with stricter arg types
     # args::Vector{Union{Int, MyExpr}}
-    args::Vector{Union{Int, MyExpr, EClass}}
+    args::Vector{Any}
     # additional metadata
     foo::String
     bar::Vector{Complex}
@@ -34,13 +34,24 @@ TermInterface.getmetadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
 TermInterface.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
 
 # f(g(2), h(4)) with some metadata in h
-hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
-ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
+hcall = MyExpr(:call, [:h, 4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
+ex = MyExpr(:call, [:f, MyExpr(:call, [:g, 2]), hcall])
 
 
 function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, sub::Sub, rule::Rule)
-    # TODO how to set meta?
-    MyExpr(pat.head, map(x -> EGraphs.instantiate(g, x, sub, rule), pat.args), "", Complex[], Set{Int64}())
+    head = pat.head
+    args_start = 1
+    # if pat.head == :call 
+    #     pl = pat.args[1]
+    #     head = pl.val
+    #     args_start = 2
+    # end
+
+    args = map(x -> EGraphs.instantiate(g, x, sub, rule), (@view pat.args[args_start:end]))
+
+    res = MyExpr(head, args, "", Complex[], Set{Int64}())
+    println(res)
+    res
 end
 
 # Define an extraction method dispatching on MyExpr
@@ -72,6 +83,10 @@ end
 
 saturate!(g, t; mod=@__MODULE__)
 
-expected = MyExpr(:f, Any[MyExpr(:h, Any[4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+display(g.classes)
 
-@test expected == extract!(g, astsize)
+expected = MyExpr(:call, [:f, MyExpr(:call, [:h, 4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+
+extracted = extract!(g, astsize)
+
+@test expected == extracted
