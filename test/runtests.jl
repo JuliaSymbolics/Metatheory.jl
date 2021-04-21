@@ -48,6 +48,7 @@ falseormissing(x) =
       include("cas/test_infer.jl")
       include("cas/test_cas.jl")
       include("category/test_cat.jl")
+      include("category/test_zx_rule.jl")
       
 
 
