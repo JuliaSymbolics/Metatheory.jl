@@ -61,9 +61,9 @@ function EGraph(e)
     g
 end
 
-function canonicalize(g::EGraph, n::ENode{T}) where T
+function canonicalize(g::EGraph, n::ENode{T,M}) where {T,M}
     new_args = map(x -> find(g, x), n.args)
-    ENode{T}(n.head, new_args, n.metadata)
+    ENode{T,M}(n.head, new_args, n.metadata)
 end
 
 

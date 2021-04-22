@@ -64,7 +64,6 @@ function Pattern(ex::Expr, mod=@__MODULE__)
     ex = preprocess(ex)
     head = gethead(ex)
     args = getargs(ex)
-    meta = getmetadata(ex)
 
     n = length(args)
     patargs = Vector{Pattern}(undef, n)
@@ -93,7 +92,7 @@ function Pattern(ex::Expr, mod=@__MODULE__)
     end
 
 
-    PatTerm(head, patargs, meta)
+    PatTerm(head, patargs)
 end
 
 function Pattern(x::Symbol, mod=@__MODULE__)
@@ -114,7 +113,6 @@ function Pattern(ex, mod=@__MODULE__)
     if istree(ex)
         head = gethead(ex)
         args = getargs(ex)
-        meta = getmetadata(ex)
 
         n = length(args)
         patargs = Vector{Pattern}(undef, n)
@@ -122,7 +120,7 @@ function Pattern(ex, mod=@__MODULE__)
             @inbounds patargs[i] = Pattern(args[i], mod)
         end
 
-        PatTerm(head, patargs, meta)
+        PatTerm(head, patargs)
     end
     PatLiteral(ex)
 end

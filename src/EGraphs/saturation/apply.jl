@@ -82,5 +82,6 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
     for (l,r) ∈ unions 
         merge!(g, l, r)
     end
+    
     return rep
 end
