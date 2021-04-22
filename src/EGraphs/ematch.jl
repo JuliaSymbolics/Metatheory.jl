@@ -246,7 +246,7 @@ function (m::Machine)(instr::Bind)
         push!(m.bstack, (m.pc, m.position+1))
         n = eclass.nodes[m.position]
         if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
-            m.τ[instr.reg] = enodetype(n)
+            m.τ[instr.reg] = termtype(n)
 
             for (j,v) in enumerate(instr.enodepat.args)
                 m.σ[v] = (n.args[j], -1)
