@@ -16,29 +16,12 @@ Base.show(io::IO, x::PatSplatVar) = print(io, x.name, "...")
 Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
 
 function Base.show(io::IO, x::PatTerm)
-    print(io, Expr(x.head, x.args...))
-
-    # show(io, Expr(x.head, x.args...))
-    # n = length(x.args)
-    # if x.head isa Symbol 
-    #     if Base.isbinaryoperator(x.head) && n == 2
-    #         print(io, "(", x.args[1], x.head, x.args[2], ")")
-    #         return
-    #     elseif Base.isunaryoperator(x.head) && n == 1
-    #         print(io, "(", x.head, x.args[1], ")")
-    #         return
-    #     end
-    # end
-
-    # print(io, x.head)
-    # print(io, "(")
-    # for i ∈ 1:n
-    #     @inbounds print(io, x.args[i])
-    #     if i < n
-    #         print(io, ",")
-    #     end
-    # end
-    # print(io, ")")
+    if x.head == :call
+        @assert x.args[1] isa PatLiteral
+        print(io, Expr(x.head, x.args[1].val, x.args[2:end]...))
+    else 
+        print(io, Expr(x.head, x.args...))
+    end
 end
 
 function Base.show(io::IO, x::PatAllTerm)

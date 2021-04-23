@@ -39,6 +39,9 @@ export merge!
 export in_same_class
 export addexpr!
 export rebuild!
+export settermtype
+export gettermtype
+export hastermtype
 
 
 include("analysis.jl")

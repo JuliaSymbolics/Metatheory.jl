@@ -12,7 +12,7 @@ const ClassMem = Dict{Int64,EClass}
 const HashCons = Dict{ENode,Int64}
 const Analyses = Set{Type{<:AbstractAnalysis}}
 const SymbolCache = Dict{Any, Set{Int64}}
-
+const TermTypes = Dict{Tuple{Any, Int64}, Type}
 
 
 """
@@ -36,6 +36,7 @@ mutable struct EGraph
     # contain e-nodes with that function symbol.
     # """
     # symcache::SymbolCache
+    termtypes::TermTypes
     numclasses::Int
     numnodes::Int
 end
@@ -50,6 +51,7 @@ function EGraph()
     0,
     Analyses(),
     # SymbolCache(),
+    TermTypes(),
     0,
     0
 )
@@ -61,19 +63,16 @@ function EGraph(e)
     g
 end
 
-function canonicalize(g::EGraph, n::ENode{T,M}) where {T,M}
-    new_args = map(x -> find(g, x), n.args)
-    ENode{T,M}(n.head, new_args, n.metadata)
+function settermtype(g::EGraph, f, ar, T)
+    g.termtypes[(f,ar)] = T
 end
 
+function hastermtype(g::EGraph, f, ar)
+    haskey(g.termtypes, (f,ar))
+end
 
-function canonicalize!(g::EGraph, n::ENode)
-    for i ∈ 1:arity(n)
-        n.args[i] = find(g, n.args[i])
-    end
-    n.hash[] = UInt(0)
-    return n
-    # n.args = map(x -> find(g, x), n.args)
+function gettermtype(g::EGraph, f, ar)
+    g.termtypes[(f,ar)]
 end
 
 
@@ -101,7 +100,19 @@ Base.getindex(g::EGraph, i::Int64) = geteclass(g, i)
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
+function canonicalize(g::EGraph, n::ENode{T,M}) where {T,M}
+    new_args = map(x -> find(g, x), n.args)
+    ENode{T,M}(n.head, new_args, n.metadata)
+end
 
+function canonicalize!(g::EGraph, n::ENode)
+    for i ∈ 1:arity(n)
+        n.args[i] = find(g, n.args[i])
+    end
+    n.hash[] = UInt(0)
+    return n
+    # n.args = map(x -> find(g, x), n.args)
+end
 
 function canonicalize!(g::EGraph, e::EClass)
     e.id = find(g, e.id)
