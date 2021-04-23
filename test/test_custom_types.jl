@@ -38,20 +38,8 @@ hcall = MyExpr(:call, [:h, 4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
 ex = MyExpr(:call, [:f, MyExpr(:call, [:g, 2]), hcall])
 
 
-function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, sub::Sub, rule::Rule)
-    head = pat.head
-    args_start = 1
-    # if pat.head == :call 
-    #     pl = pat.args[1]
-    #     head = pl.val
-    #     args_start = 2
-    # end
-
-    args = map(x -> EGraphs.instantiate(g, x, sub, rule), (@view pat.args[args_start:end]))
-
-    res = MyExpr(head, args, "", Complex[], Set{Int64}())
-    println(res)
-    res
+function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, children)
+    MyExpr(pat.head, children, "", Complex[], Set{Int64}())
 end
 
 # Define an extraction method dispatching on MyExpr
@@ -69,6 +57,18 @@ end
 
 # let's create an egraph 
 g = EGraph(ex)
+
+# ========== !!! ============= !!! ===============
+# ========== !!! ============= !!! ===============
+# ========== !!! ============= !!! ===============
+
+settermtype(g, :f, 2, MyExpr)
+settermtype(g, :f, 1, MyExpr)
+settermtype(g, :g, 1, MyExpr)
+
+# ========== !!! ============= !!! ===============
+# ========== !!! ============= !!! ===============
+# ========== !!! ============= !!! ===============
 
 # let's create an example theory
 t = @theory begin 
