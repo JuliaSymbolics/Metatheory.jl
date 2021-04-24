@@ -42,9 +42,9 @@ T = [
     @rule :b*:B => :ε
     @rule :a*:a => :ε
     @rule :b*:b*:b => :ε
-    @rule :B * :B => :B
+    # @rule :B * :B => :B
     RewriteRule(Pattern(rep(:(:a*:b), :*, 7)), Pattern(:(:ε)))
-    RewriteRule(Pattern(rep(:(:a*:b*:a*:B), :*, 5)), Pattern(:(:ε)))
+    RewriteRule(Pattern(rep(:(:a*:b*:a*:B), :*, 12)), Pattern(:(:ε)))
 ]
 
 G = Mid∪Massoc∪T
