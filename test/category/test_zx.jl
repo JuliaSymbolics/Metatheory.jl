@@ -1,3 +1,4 @@
+using Test
 using Metatheory
 using Metatheory.EGraphs
 using Metatheory.Library
@@ -40,13 +41,19 @@ function otimes(a::ZXTerm, b::ZXTerm)
     return ZXTerm{input_size, output_size}(:(⊗), [a, b])
 end
 
+struct ZXType 
+    ninput
+    noutput
+    phase
+end
+
 using Metatheory.TermInterface
 TermInterface.gethead(t::ZXTerm) = :call
 TermInterface.getargs(t::ZXTerm) = [t.head, t.args...]
 TermInterface.istree(t::ZXTerm) = true
 function TermInterface.getmetadata(t::ZXTerm{I, O}) where {I, O}
-    t.head in (:X, :Z) && return (; :ninput => I, :noutput => O, :phase => t.args[])
-    return (; :ninput => I, :noutput => O)
+    t.head in (:X, :Z) && return ZXType(I, O, t.args[])
+    return ZXType(I, O, nothing)
 end
 TermInterface.arity(t::ZXTerm) = length(getargs(t))
 
@@ -55,22 +62,19 @@ struct ZXAnalysis <: AbstractAnalysis end
 function EGraphs.make(an::Type{ZXAnalysis}, g::EGraph, n::ENode{T}) where T
     sym = n.head
     if !(T <: ZXTerm)
-        t = sym
-        return t
+        (T <: Number) && return eval(sym)
+        return sym
     end
+    return getmetadata(n)
+end
+EGraphs.join(an::Type{ZXAnalysis}, from, to) = from
+function EGraphs.join(an::Type{ZXAnalysis}, from::ZXType, to::ZXType)
+    @assert from.ninput == to.ninput && from.noutput == to.noutput
+    !isnothing(from.phase) && return from
+    return to
+end
 
-    nmeta = getmetadata(n)
-    return nmeta
-end
-function EGraphs.join(an::Type{ZXAnalysis}, from, to)
-    if haskey(from, :ninput) && haskey(from, :noutput)
-        @assert haskey(to, :ninput) && haskey(to, :noutput)
-        @assert from.ninput == to.ninput && from.noutput == to.noutput
-        return (; :ninput => to.ninput, :noutput => to.noutput)
-    end
-    return from
-end
-EGraphs.islazy(x::Type{ZXAnalysis}) = true
+EGraphs.islazy(x::Type{ZXAnalysis}) = false
 
 function infer(t::ZXTerm)
     g = EGraph(t)
@@ -82,7 +86,4 @@ h = hadamard()
 c = compose(otimes(h, zspider(1, 1, pi)), otimes(id(1), zspider(1, 2, 0)))
 G = EGraph(c)
 
-noutput(c)
-
-analyze!(G, ZXAnalysis)
-@test infer(c).ninput == ninput(c) && infer(c).noutput == noutput(c)
+@test infer(c) == ZXType(2, 3, nothing)
