@@ -9,7 +9,9 @@ abstract type Pattern end
 import Base.==
 ==(a::Pattern, b::Pattern) = false
 TermInterface.arity(p::Pattern) = 0
-
+function isground(p::Pattern)
+    false
+end
 
 """
 Pattern variables will first match on any subterm
@@ -42,6 +44,9 @@ Will match only against instances of the literal symbol `:a`.
 @auto_hash_equals struct PatLiteral{T} <: Pattern
     val::T
 end
+function isground(p::PatLiteral)
+    true
+end
 
 """
 Type assertions on a [`PatVar`](@ref), will match if and only if 
@@ -70,6 +75,10 @@ in the e-graph on which the matching is performed.
     right::Pattern
 end
 
+function isground(p::PatEquiv)
+   isground(p.left) && isground(p.right)
+end
+
 """
 Term patterns will match
 on terms of the same `arity` and with the same 
@@ -79,8 +88,12 @@ function symbol (`head`).
     head::Any
     args::Vector{Pattern}
 end
+TermInterface.gethead(p::PatTerm) = p.head
 TermInterface.arity(p::PatTerm) = length(p.args)
-PatTerm(head, args) = PatTerm(head, args, (;))
+
+function isground(p::PatTerm)
+    mapreduce(isground, (&), p.args)
+end
 
 """
 This pattern type matches on a function application 
@@ -93,7 +106,11 @@ example to match arbitrary function calls.
     args::Vector{Pattern}
 end
 TermInterface.arity(p::PatAllTerm) = length(p.args)
-PatAllTerm(head, args) = PatAllTerm(head, args, (;))
+
+
+# ==============================================
+# ================== PATTERN VARIABLES =========
+# ==============================================
 
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
@@ -126,7 +143,9 @@ function patvars(p::Pattern)
     unique(patvars(p, Symbol[]))
 end 
 
-
+# ==============================================
+# ================== DEBRUJIN INDEXING =========
+# ==============================================
 
 setindex!(p::PatLiteral, pvars) = nothing 
 function setindex!(p::PatVar, pvars)

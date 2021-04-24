@@ -36,26 +36,31 @@ mutable struct EGraph
     # contain e-nodes with that function symbol.
     # """
     # symcache::SymbolCache
+    default_termtype::Type
     termtypes::TermTypes
+    ground_term_pattern_memo::Dict{Pattern, EClassId}
     numclasses::Int
     numnodes::Int
 end
 
 function EGraph()
     EGraph(
-    IntDisjointSet(),
-    ClassMem(),
-    HashCons(),
-    # ParentMem(),
-    Int64[],
-    0,
-    Analyses(),
-    # SymbolCache(),
-    TermTypes(),
-    0,
-    0
-)
+        IntDisjointSet(),
+        ClassMem(),
+        HashCons(),
+        # ParentMem(),
+        Int64[],
+        0,
+        Analyses(),
+        # SymbolCache(),
+        Expr,
+        TermTypes(),
+        Dict{Pattern, EClassId}(),
+        0,
+        0
+    )
 end
+
 function EGraph(e)
     g = EGraph()
     rootclass = addexpr!(g, e)
@@ -67,12 +72,16 @@ function settermtype(g::EGraph, f, ar, T)
     g.termtypes[(f,ar)] = T
 end
 
-function hastermtype(g::EGraph, f, ar)
-    haskey(g.termtypes, (f,ar))
+function settermtype(g::EGraph, T)
+    g.default_termtype = T
 end
 
 function gettermtype(g::EGraph, f, ar)
-    g.termtypes[(f,ar)]
+    if haskey(g.termtypes, (f,ar))
+        g.termtypes[(f,ar)]
+    else 
+        g.default_termtype
+    end
 end
 
 
@@ -100,9 +109,12 @@ Base.getindex(g::EGraph, i::Int64) = geteclass(g, i)
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
-function canonicalize(g::EGraph, n::ENode{T,M}) where {T,M}
-    new_args = map(x -> find(g, x), n.args)
-    ENode{T,M}(n.head, new_args, n.metadata)
+function canonicalize(g::EGraph, n::ENode{T}) where {T}
+    if arity(n) > 0
+        new_args = map(x -> find(g, x), n.args)
+        return ENode{T}(n.head, new_args, n.metadata)
+    end 
+    return n
 end
 
 function canonicalize!(g::EGraph, n::ENode)
@@ -116,6 +128,14 @@ end
 
 function canonicalize!(g::EGraph, e::EClass)
     e.id = find(g, e.id)
+end
+
+function lookup(g::EGraph, n::ENode)
+    cc = canonicalize(g, n)
+    if !haskey(g.memo, cc)
+        return nothing
+    end
+    return find(g, g.memo[cc])
 end
 
 """
