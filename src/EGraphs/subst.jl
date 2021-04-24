@@ -41,7 +41,6 @@ function instantiateterm(g::EGraph, pat::PatTerm,  T::Type{Expr}, children)
 end
 
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
-    T = Expr
     f = pat.head
     ar = arity(pat)
     if pat.head == :call 
@@ -49,10 +48,8 @@ function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
         f = pat.args[1].val
         ar = ar-1
     end
-    if hastermtype(g, f, ar)
-        T = gettermtype(g, f, ar)
-    end
 
+    T = gettermtype(g, f, ar)
     children = map(x -> instantiate(g, x, sub, rule), pat.args)
     instantiateterm(g, pat, T, children)
 end

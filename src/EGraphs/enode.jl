@@ -7,19 +7,19 @@ import Base.ImmutableDict
 #     id::Int64
 # end
 
-struct ENode{T, M}
+struct ENode{T}
     head::Any
     args::Vector{Int64}
-    metadata::M
+    metadata::Any
     hash::Ref{UInt} # hash cache
-    ENode{T,M}(h, a, m) where {T,M} = new{T,M}(h, a, m, Ref{UInt}(0))
+    ENode{T}(h, a, m) where {T} = new{T}(h, a, m, Ref{UInt}(0))
 end
 
 function ENode(e, c_ids::AbstractVector{Int64})
     # @assert length(getargs(e)) == length(c_ids)
     # static_args = MVector{length(c_ids), Int64}(c_ids...)
     m = getmetadata(e)
-    ENode{typeof(e), typeof(m)}(gethead(e), c_ids, m)
+    ENode{typeof(e)}(gethead(e), c_ids, m)
 end
 
 ENode(e) = ENode(e, Int64[])
@@ -30,7 +30,8 @@ ENode(a::ENode) =
 
 
 function Base.:(==)(a::ENode, b::ENode)
-    isequal(a.metadata, b.metadata) && isequal(a.args, b.args) && 
+    # isequal(a.metadata, b.metadata) && 
+    isequal(a.args, b.args) && 
     isequal(a.head, b.head)
 end
 
@@ -48,7 +49,7 @@ end
 
 TermInterface.arity(n::ENode) = length(n.args)
 TermInterface.getmetadata(n::ENode) = n.metadata
-TermInterface.metadatatype(n::ENode{T,M}) where {T,M} = M
+# TermInterface.metadatatype(n::ENode{T,M}) where {T,M} = M
 
 termtype(x::ENode{T}) where T = T
 

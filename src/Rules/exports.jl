@@ -9,6 +9,7 @@ export PatSplatVar
 export PatEquiv
 export patvars
 export @pat
+export isground
 
 # include("rules/rule_types.jl")
 export Rule

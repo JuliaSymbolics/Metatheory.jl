@@ -41,7 +41,6 @@ export addexpr!
 export rebuild!
 export settermtype
 export gettermtype
-export hastermtype
 
 
 include("analysis.jl")
@@ -56,6 +55,9 @@ export Sub
 
 
 # include("ematch.jl")
+include("ematch_compiler.jl")
+export Program
+export Instruction
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers

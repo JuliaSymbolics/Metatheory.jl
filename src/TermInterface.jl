@@ -16,7 +16,6 @@ gethead(e::Expr) = e.head
 getargs(e::Expr) = e.args
 istree(e::Expr) = true
 getmetadata(e::Expr) = nothing
-metadatatype(e::Expr) = Nothing
 arity(e::Expr) = length(getargs(e)) # optional
 preprocess(e::Expr) = cleanast(e)
 
@@ -25,7 +24,6 @@ gethead(e) = e
 getargs(e) = []
 istree(a) = false
 getmetadata(e) = nothing
-metadatatype(e) = Nothing
 arity(e) = length(getargs(e)) # optional
 preprocess(e) = e
 
@@ -33,7 +31,6 @@ export gethead
 export getargs
 export istree
 export getmetadata
-export metadatatype
 export preprocess
 export arity
 end
