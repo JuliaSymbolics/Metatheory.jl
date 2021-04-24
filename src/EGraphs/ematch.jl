@@ -101,10 +101,6 @@ function lookup_pat(g::EGraph, p::PatTerm)
     # println("looking up $p")
     @assert isground(p)
 
-    if haskey(g.ground_term_pattern_memo, p)
-        return find(g, g.ground_term_pattern_memo[p])
-    end
-
     f = p.head
     ar = arity(p)
     if p.head == :call 
@@ -122,9 +118,6 @@ function lookup_pat(g::EGraph, p::PatTerm)
         n = ENode{T}(p.head, ids, nothing)
         # println("ENode{$T} $n")
         ec = lookup(g, n)
-        if ec !== nothing 
-            g.ground_term_pattern_memo[p] = ec
-        end
         return ec
     else 
         return nothing 
@@ -132,14 +125,8 @@ function lookup_pat(g::EGraph, p::PatTerm)
 end
 
 function lookup_pat(g::EGraph, p::PatLiteral)
-    if haskey(g.ground_term_pattern_memo, p)
-        return find(g, g.ground_term_pattern_memo[p])
-    end
     # println("looking up literal $p")
     ec = lookup(g, ENode(p.val))
-    if ec !== nothing 
-        g.ground_term_pattern_memo[p] = ec
-    end
     return ec
 end
 

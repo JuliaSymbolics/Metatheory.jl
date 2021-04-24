@@ -38,7 +38,6 @@ mutable struct EGraph
     # symcache::SymbolCache
     default_termtype::Type
     termtypes::TermTypes
-    ground_term_pattern_memo::Dict{Pattern, EClassId}
     numclasses::Int
     numnodes::Int
 end
@@ -55,7 +54,6 @@ function EGraph()
         # SymbolCache(),
         Expr,
         TermTypes(),
-        Dict{Pattern, EClassId}(),
         0,
         0
     )
