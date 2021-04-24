@@ -15,8 +15,8 @@ gethead(e::Expr) = e.head
 # getargs(e::Expr) = @view e.args[(isexpr(e, :call) ? 2 : 1):end]
 getargs(e::Expr) = e.args
 istree(e::Expr) = true
-# getmetadata(e::Expr) = (iscall=isexpr(e, :call),)
-getmetadata(e::Expr) = (;)
+getmetadata(e::Expr) = nothing
+metadatatype(e::Expr) = Nothing
 arity(e::Expr) = length(getargs(e)) # optional
 preprocess(e::Expr) = cleanast(e)
 
@@ -24,7 +24,8 @@ preprocess(e::Expr) = cleanast(e)
 gethead(e) = e
 getargs(e) = []
 istree(a) = false
-getmetadata(e) = (;) # empty NamedTuple
+getmetadata(e) = nothing
+metadatatype(e) = Nothing
 arity(e) = length(getargs(e)) # optional
 preprocess(e) = e
 
@@ -32,6 +33,7 @@ export gethead
 export getargs
 export istree
 export getmetadata
+export metadatatype
 export preprocess
 export arity
 end
