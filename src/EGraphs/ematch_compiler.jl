@@ -1,6 +1,5 @@
 # TODO make it yield enodes only? ping pavel and marisa
 # TODO STAGE IT! FASTER!
-# TODO implement https://github.com/egraphs-good/egg/pull/74
 
 using AutoHashEquals
 
