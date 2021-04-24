@@ -78,7 +78,6 @@ function symbol (`head`).
 @auto_hash_equals struct PatTerm <: Pattern
     head::Any
     args::Vector{Pattern}
-    metadata::NamedTuple
 end
 TermInterface.arity(p::PatTerm) = length(p.args)
 PatTerm(head, args) = PatTerm(head, args, (;))
@@ -92,7 +91,6 @@ example to match arbitrary function calls.
 @auto_hash_equals struct PatAllTerm <: Pattern
     head::PatVar
     args::Vector{Pattern}
-    metadata::NamedTuple
 end
 TermInterface.arity(p::PatAllTerm) = length(p.args)
 PatAllTerm(head, args) = PatAllTerm(head, args, (;))

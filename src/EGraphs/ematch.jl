@@ -1,4 +1,3 @@
-# TODO make it work for every pattern type
 # TODO make it yield enodes only? ping pavel and marisa
 # TODO STAGE IT! FASTER!
 # for register memory and for substitutions
@@ -37,7 +36,6 @@ end
 
 @auto_hash_equals struct Yield <: Instruction
     yields::Vector{Register}
-    term_types::Dict{PatTerm, Register}
 end
 
 @auto_hash_equals struct Filter <: Instruction
@@ -46,15 +44,10 @@ end
     arity::Int
 end
 
-function compile_pat(reg, p::PatTerm, ctx, type_ctx, count)
+function compile_pat(reg, p::PatTerm, ctx, count)
     # a = [gensym() for i in 1:length(p.args)]
     c = count[]
     a = c:(c+length(p.args) - 1)
-
-    if !haskey(type_ctx, p)
-        type_ctx[p] = reg
-    end
-
 
     # println(p)
     # println(a)
@@ -68,14 +61,14 @@ function compile_pat(reg, p::PatTerm, ctx, type_ctx, count)
 
     count[] = c + length(p.args)
     binder = Bind(reg, ENodePat(p.head, a))
-    rest = [compile_pat(reg, p2, ctx, type_ctx, count) for (reg, p2) in zip(a, p.args)]
+    rest = [compile_pat(reg, p2, ctx, count) for (reg, p2) in zip(a, p.args)]
 
     # return vcat(binder, filters, rest...)
     return vcat(binder, rest...)
 
 end
 
-function compile_pat(reg, p::PatVar, ctx, type_ctx, count)
+function compile_pat(reg, p::PatVar, ctx, count)
     if ctx[p.idx] != -1
         return CheckClassEq(reg, ctx[p.idx])
     else
@@ -84,7 +77,7 @@ function compile_pat(reg, p::PatVar, ctx, type_ctx, count)
     end
 end
 
-function compile_pat(reg, p::PatTypeAssertion, ctx, type_ctx, count)
+function compile_pat(reg, p::PatTypeAssertion, ctx, count)
     if ctx[p.var.idx] != -1
         return CheckClassEq(reg, ctx[p.var.idx])
     else
@@ -93,12 +86,12 @@ function compile_pat(reg, p::PatTypeAssertion, ctx, type_ctx, count)
     end
 end
 
-function compile_pat(reg, p::PatLiteral, ctx, type_ctx, count)
+function compile_pat(reg, p::PatLiteral, ctx, count)
     return Bind(reg, ENodePat(p.val, 0:-1))
 end
 
-function compile_pat(reg, p::PatEquiv, ctx, type_ctx, count)
-    return [compile_pat(reg, p.left, ctx, type_ctx, count), compile_pat(reg, p.right, ctx, type_ctx, count)]
+function compile_pat(reg, p::PatEquiv, ctx, count)
+    return [compile_pat(reg, p.left, ctx, count), compile_pat(reg, p.right, ctx, count)]
 end
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
@@ -108,13 +101,12 @@ function compile_pat(p::Pattern)
 
     count = Ref(2)
     ctx = fill(-1, nvars)
-    type_ctx = Dict{PatTerm, Register}()
 
     # println("compiling pattern $p")
     # println(pvars)
-    insns = compile_pat(1, p, ctx, type_ctx, count)
+    insns = compile_pat(1, p, ctx, count)
     # println("compiled pattern ctx is $ctx")
-    return vcat(insns, Yield(ctx, type_ctx)), ctx, count[]
+    return vcat(insns, Yield(ctx)), ctx, count[]
 end
 
 
@@ -126,14 +118,9 @@ mutable struct Machine
     g::EGraph 
     program::Program
     # eclass register memory 
-    σ::Vector{Tuple{Int64, Int64}}
-    # term type memory
-    τ::Vector{Type}
-    pc::Int64
-    # enode position in currently opened eclass 
-    position::Int64
-    # stack of instruction_id, enode_position
-    bstack::Vector{Tuple{Int64, Int64}}
+    σ::Vector{EClassId}
+    # literals 
+    n::Vector{Union{Nothing,ENode}}
     # output buffer
     buf::Vector{Sub}
 end
@@ -143,11 +130,8 @@ function Machine()
     m = Machine(
         EGraph(), # egraph
         Program(), # program 
-        fill((-1,-1), DEFAULT_MEM_SIZE), # memory
-        fill(Nothing, DEFAULT_MEM_SIZE),
-        1, # pc
-        1, # position
-        Tuple{Int64,Int64}[], # bstack
+        fill(-1, DEFAULT_MEM_SIZE), # memory
+        fill(nothing, DEFAULT_MEM_SIZE), # memory
         Sub[]
     )
     return m 
@@ -161,102 +145,78 @@ function reset(m::Machine, g, program, memsize, id)
         error("E-Matching Virtual Machine Memory Overflow")
     end
 
-    for i ∈ 1:DEFAULT_MEM_SIZE
-        m.σ[i] = (-1,-1)
-        m.τ[i] = Nothing
-    end
-    m.σ[1] = (id, -1)
+    fill!(m.σ, -1)
+    fill!(m.n, nothing)
+    m.σ[1] = id
 
-    m.pc = 1
-    m.position = 1
-    empty!(m.bstack)
     empty!(m.buf)
 
     return m 
 end
 
+
 function (m::Machine)()
-    while m.pc != -1
-        # run the current instruction
-        m(m.program[m.pc])
-    end
+    m(m.program[1], 1)
     return m.buf
 end
 
-function backtrack(m::Machine)
-    if isempty(m.bstack)
-        m.pc = -1
-    else 
-        pc, pos = pop!(m.bstack)
-        m.pc = pc 
-        m.position = pos
-    end
+function next(m::Machine, pc)
+    m(m.program[pc+1], pc+1)
 end
 
-function (m::Machine)(instr::Yield)
+function (m::Machine)(instr::Yield, pc)
     ecs = [m.σ[reg] for reg in instr.yields]
-    typs = Dict([pat.head => m.τ[reg] for (pat, reg) in instr.term_types])
-    push!(m.buf, (ecs, typs))
-    backtrack(m)
+    nodes = [m.n[reg] for reg in instr.yields]
+    push!(m.buf, Sub(ecs, nodes))
+    return nothing
 end
 
-function (m::Machine)(instr::CheckClassEq) 
+function (m::Machine)(instr::CheckClassEq, pc) 
     if m.σ[instr.left] == m.σ[instr.right]
-        m.pc += 1
-        return 
+        next(m, pc)
     end
-    backtrack(m)
+    return nothing
 end
 
-function (m::Machine)(instr::CheckType) 
-    id, literal = m.σ[instr.reg]
+function (m::Machine)(instr::CheckType, pc) 
+    id = m.σ[instr.reg]
     eclass = m.g[id]
-    i = m.position
 
-    if i ∈ 1:length(eclass.nodes)
-        push!(m.bstack, (m.pc, i+1))
-        n = eclass.nodes[i]
-
+    for n in eclass 
         if arity(n) == 0 && typeof(n.head) <: instr.type
-            m.σ[instr.reg] = (id, i)
-            m.pc += 1
-            m.position = 1
-            return
+            m.σ[instr.reg] = id
+            m.n[instr.reg] = n
+            next(m, pc)
         end
     end
-    backtrack(m)
+
+    return nothing
 end
 
-function (m::Machine)(instr::Filter)
+function (m::Machine)(instr::Filter, pc)
     id, _ = m.σ[instr.reg]
     eclass = m.g[id]
 
     if instr.head ∈ funs(eclass)
-        m.pc += 1
-        return 
+        next(m, pc+1)
     end
-    backtrack(m)
+    return nothing
 end
 
-function (m::Machine)(instr::Bind) 
-    ecid, literal = m.σ[instr.reg]
+function (m::Machine)(instr::Bind, pc) 
+    ecid = m.σ[instr.reg]
     eclass = m.g[ecid]
 
-    if m.position ∈ 1:length(eclass.nodes)
-        push!(m.bstack, (m.pc, m.position+1))
-        n = eclass.nodes[m.position]
+    for n in eclass.nodes
         if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
-            m.τ[instr.reg] = enodetype(n)
-
+            m.n[instr.reg] = n
             for (j,v) in enumerate(instr.enodepat.args)
-                m.σ[v] = (n.args[j], -1)
+                m.σ[v] = n.args[j]
             end
-            m.pc += 1
-            m.position = 1
-            return 
+            next(m, pc)
         end
     end
-    backtrack(m)
+    return nothing
 end
 
 
@@ -272,6 +232,7 @@ function getprogram(p::Pattern)
             # println("cache miss!")
             program, ctx, memsize = compile_pat(p)
             EMATCH_PROG_CACHE[p] = (program, ctx, memsize)
+            return (program, ctx, memsize)
         end
         return EMATCH_PROG_CACHE[p]
     end

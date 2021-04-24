@@ -1,5 +1,7 @@
 const AnalysisData = ImmutableDict{Type{<:AbstractAnalysis}, Any}
 
+const EClassId = Int64
+
 # parametrize metadata by M
 mutable struct EClass
     id::Int64
