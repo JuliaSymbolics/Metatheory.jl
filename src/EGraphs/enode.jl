@@ -42,7 +42,7 @@ function Base.hash(t::ENode{T}, salt::UInt) where {T}
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
     h = t.hash[]
     !iszero(h) && return h
-    h′ = hash(t.args, hash(t.head, hash(T, salt)))
+    h′ = hash(t.args,  hash(t.metadata, hash(t.head, hash(T, salt))))
     t.hash[] = h′
     return h′
 end
