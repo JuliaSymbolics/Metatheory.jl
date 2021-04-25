@@ -38,6 +38,7 @@ mutable struct EGraph
     # symcache::SymbolCache
     default_termtype::Type
     termtypes::TermTypes
+    can_optimize_ground_terms::Bool
     numclasses::Int
     numnodes::Int
 end
@@ -54,6 +55,7 @@ function EGraph()
         # SymbolCache(),
         Expr,
         TermTypes(),
+        true,
         0,
         0
     )
@@ -160,6 +162,10 @@ function add!(g::EGraph, n::ENode)::EClass
     classdata = EClass(id, ENode[n], Pair{ENode, Int64}[])
     g.classes[id] = classdata
     g.numclasses += 1
+
+    if !isnothing(n.metadata)
+        g.can_optimize_ground_terms = false
+    end
 
     for an ∈ g.analyses
         if !islazy(an)
