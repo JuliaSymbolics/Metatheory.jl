@@ -171,17 +171,23 @@ function compile_pat!(reg, p::PatEquiv, prog)
 end
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
-function compile_pat(p::Pattern)
+function compile_pat(p::Pattern, can_optimize_ground)
     pvars = patvars(p)
     nvars = length(pvars)
 
-    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern, Register}())
 
-    # println("compiling pattern $p")
-    compile_ground!(1, p, prog)
-    # println("compiled ground pattern \n $prog")
-    prog.first_nonground = prog.memsize
-    prog.memsize+=1
+    if can_optimize_ground
+        # FIXME CUSTOM TERM TYPES IN LITERAL OPTIMIZATION
+        # this if would not be needed!!!
+        prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern, Register}())
+        # println("compiling pattern $p")
+        compile_ground!(1, p, prog)
+        # println("compiled ground pattern \n $prog")
+        prog.first_nonground = prog.memsize
+        prog.memsize+=1
+    else 
+        prog = Program(Instruction[], 1, 2, fill(-1, nvars), Dict{Pattern, Register}())
+    end
     compile_pat!(prog.first_nonground, p, prog)
     push!(prog.instructions, Yield(prog.regs))
     # println("compiled pattern $p to \n $prog")

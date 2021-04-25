@@ -160,18 +160,19 @@ end
 # Global Right Hand Side function cache for dynamic rules.
 # Now we're talking.
 # TODO use a LRUCache?
-const EMATCH_PROG_CACHE = IdDict{Pattern, Program}()
+# (pattern, can_optimize_ground) => program
+const EMATCH_PROG_CACHE = IdDict{Tuple{Pattern, Bool}, Program}()
 const EMATCH_PROG_CACHE_LOCK = ReentrantLock()
 
-function getprogram(p::Pattern)
+function getprogram(p::Pattern, can_optimize)
     lock(EMATCH_PROG_CACHE_LOCK) do
-        if !haskey(EMATCH_PROG_CACHE, p)
+        if !haskey(EMATCH_PROG_CACHE, (p, can_optimize))
             # println("cache miss!")
-            program = compile_pat(p)
-            EMATCH_PROG_CACHE[p] = program
+            program = compile_pat(p, can_optimize)
+            EMATCH_PROG_CACHE[(p, can_optimize)] = program
             return program
         end
-        return EMATCH_PROG_CACHE[p]
+        return EMATCH_PROG_CACHE[(p, can_optimize)]
     end
 end
 
@@ -182,7 +183,7 @@ function __init__()
 end
 
 function ematch(g::EGraph, p::Pattern, id::Int64)
-    program = getprogram(p)
+    program = getprogram(p, g.can_optimize_ground_terms)
     tid = Threads.threadid() 
     reset(MACHINES[tid], g, program, id)
     # machine = Machine(g, program, σsize, id)

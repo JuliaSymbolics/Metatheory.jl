@@ -6,9 +6,7 @@ end
 
 id_rule = @theory begin
     Z(θ) |> begin
-        c = addexpr!(_egraph, _lhs_expr)
-        analyze!(_egraph, Main.ZXAnalysis)
-        md = getdata(c, Main.ZXAnalysis)
+        md = getdata(_lhs_expr, Main.ZXAnalysis)
         if md.ninput == md.noutput == 1 && getdata(θ, Main.ZXAnalysis) == 0
             return Main.id(1)
         else
@@ -16,9 +14,7 @@ id_rule = @theory begin
         end
     end
     X(θ) |> begin
-        c = addexpr!(_egraph, _lhs_expr)
-        analyze!(_egraph, Main.ZXAnalysis)
-        md = getdata(c, Main.ZXAnalysis)
+        md = getdata(_lhs_expr, Main.ZXAnalysis)
         if md.ninput == md.noutput == 1 && getdata(θ, Main.ZXAnalysis) == 0
             return Main.id(1)
         else
@@ -29,9 +25,7 @@ end
 
 id_otimes_compose = @theory begin
     I() ⊗ I() |> begin
-        c = addexpr!(_egraph, _lhs_expr)
-        analyze!(_egraph, Main.ZXAnalysis)
-        md = getdata(c, Main.ZXAnalysis)
+        md = getdata(_lhs_expr, Main.ZXAnalysis)
         @assert md.ninput == md.noutput
         return Main.id(md.ninput)
     end
@@ -53,12 +47,13 @@ function EGraphs.extractnode(n::ENode{T}, extractor::Function) where {T <: ZXTer
     return ZXTerm{I, O}(extractor(n.args[1]), args)
 end
 
-function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{ZXTerm{I, O}}, sub::Sub, rule::Rule) where {I, O}
-    T(map(x -> EGraphs.instantiate(g, x, sub, rule), pat.args)...)
+function EGraphs.instantiateterm(g::EGraph, pat::PatTerm, T::Type{ZXTerm{I, O}}, children) where {I, O}
+    T(children...)
 end
 
 t = otimes(compose(h, h), compose(zspider(1, 1, 0), xspider(1, 1, 0)))
 G = EGraph(t)
-saturate!(G, ZXRules)
+analyze!(G, ZXAnalysis)
+saturate!(G, ZXRules, mod=@__MODULE__)
 t_ex = extract!(G, astsize)
 @test t_ex == id(2)

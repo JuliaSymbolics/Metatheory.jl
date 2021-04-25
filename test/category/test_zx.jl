@@ -62,7 +62,6 @@ struct ZXAnalysis <: AbstractAnalysis end
 function EGraphs.make(an::Type{ZXAnalysis}, g::EGraph, n::ENode{T}) where T
     sym = n.head
     if !(T <: ZXTerm)
-        (T <: Number) && return eval(sym)
         return sym
     end
     return getmetadata(n)
