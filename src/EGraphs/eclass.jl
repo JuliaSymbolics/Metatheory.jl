@@ -1,16 +1,14 @@
 const AnalysisData = ImmutableDict{Type{<:AbstractAnalysis}, Any}
 
-const EClassId = Int64
-
 # parametrize metadata by M
 mutable struct EClass
-    id::Int64
+    id::EClassId
     nodes::Vector{ENode}
-    parents::Vector{Pair{ENode, Int64}}
+    parents::Vector{Pair{ENode, EClassId}}
     data::Union{Nothing, AnalysisData}
     # data::M
 end
-EClass(id) = EClass(id, ENode[], Pair{ENode, Int64}[], nothing)
+EClass(id) = EClass(id, ENode[], Pair{ENode, EClassId}[], nothing)
 EClass(id, nodes, parents) = EClass(id, nodes, parents, nothing)
 
 # Interface for indexing EClass
@@ -42,11 +40,8 @@ end
 #     a.parents[n] = p
 # end
 
-function addparent!(a::EClass, n::ENode, id::Int64)
-    # if (n => id) ∉ a.parents 
-        push!(a.parents, (n => id))
-    # end
-    # a.parents[n] = id
+function addparent!(a::EClass, n::ENode, id::EClassId)
+    push!(a.parents, (n => id))
 end
 
 function Base.union(to::EClass, from::EClass)

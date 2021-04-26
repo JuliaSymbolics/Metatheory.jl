@@ -8,11 +8,11 @@ Abstract type representing an [`EGraph`](@ref) analysis,
 attaching values from a join semi-lattice domain to
 an EGraph
 """
-const ClassMem = Dict{Int64,EClass}
-const HashCons = Dict{ENode,Int64}
+const ClassMem = Dict{EClassId,EClass}
+const HashCons = Dict{ENode,EClassId}
 const Analyses = Set{Type{<:AbstractAnalysis}}
-const SymbolCache = Dict{Any, Set{Int64}}
-const TermTypes = Dict{Tuple{Any, Int64}, Type}
+const SymbolCache = Dict{Any, Set{EClassId}}
+const TermTypes = Dict{Tuple{Any, EClassId}, Type}
 
 
 """
@@ -22,13 +22,13 @@ for implementation details
 """
 mutable struct EGraph
     """stores the equality relations over e-class ids"""
-    uf::IntDisjointSet
+    uf::IntDisjointSets{EClassId}
     """map from eclass id to eclasses"""
     classes::ClassMem
     memo::HashCons             # memo
     """worklist for ammortized upwards merging"""
-    dirty::Vector{Int64}
-    root::Int64
+    dirty::Vector{EClassId}
+    root::EClassId
     """A vector of analyses associated to the EGraph"""
     analyses::Analyses
     # """
@@ -45,11 +45,12 @@ end
 
 function EGraph()
     EGraph(
-        IntDisjointSet(),
+        # IntDisjointSet(),
+        IntDisjointSets{EClassId}(0),
         ClassMem(),
         HashCons(),
         # ParentMem(),
-        Int64[],
+        EClassId[],
         0,
         Analyses(),
         # SymbolCache(),
@@ -88,13 +89,16 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-find(g::EGraph, a::Int64)::Int64 = find_root(g.uf, a)
-#FIXME
-# find(g::EGraph, a::Int64)::Int64 = _find_root_normal(g.uf, a)
-find(g::EGraph, a::EClass)::Int64 = find(g, a.id)
+# function find(g::EGraph, a::EClassId)::EClassId
+#     find_root_if_normal(g.uf, a)
+# end
+function find(g::EGraph, a::EClassId)::EClassId
+    find_root!(g.uf, a)
+end
+find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
 
-function geteclass(g::EGraph, a::Int64)::EClass
+function geteclass(g::EGraph, a::EClassId)::EClass
     id = find(g, a)
     ec = g.classes[id]
     # @show ec.id id a
@@ -102,8 +106,8 @@ function geteclass(g::EGraph, a::Int64)::EClass
     # ec.id = id
     ec
 end
-# geteclass(g::EGraph, a::EClass)::Int64 = geteclass()
-Base.getindex(g::EGraph, i::Int64) = geteclass(g, i)
+# geteclass(g::EGraph, a::EClass)::EClassId = geteclass()
+Base.getindex(g::EGraph, i::EClassId) = geteclass(g, i)
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
@@ -159,7 +163,7 @@ function add!(g::EGraph, n::ENode)::EClass
 
     g.memo[n] = id
 
-    classdata = EClass(id, ENode[n], Pair{ENode, Int64}[])
+    classdata = EClass(id, ENode[n], Pair{ENode, EClassId}[])
     g.classes[id] = classdata
     g.numclasses += 1
 
@@ -193,7 +197,7 @@ function addexpr!(g::EGraph, se)::EClass
     if istree(e)
         args = getargs(e)
         n = length(args)
-        class_ids = Vector{Int64}(undef, n)
+        class_ids = Vector{EClassId}(undef, n)
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
@@ -211,7 +215,7 @@ end
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
 """
-function Base.merge!(g::EGraph, a::Int64, b::Int64)::Int64
+function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
     id_a = find(g, a)
     id_b = find(g, b)
 
@@ -250,6 +254,8 @@ the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
 function rebuild!(g::EGraph)
+    # normalize!(g.uf)
+
     while !isempty(g.dirty)
         # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
         todo = unique(g.dirty)
@@ -263,7 +269,7 @@ function rebuild!(g::EGraph)
         g.root = find(g, g.root)
     end
 
-    normalize!(g.uf)
+    # normalize!(g.uf)
 
     # for i ∈ 1:length(egraph.uf)
     #     find_root!(egraph.uf, i)
@@ -292,9 +298,9 @@ function rebuild!(g::EGraph)
 
 end
 
-function repair!(g::EGraph, id::Int64)
+function repair!(g::EGraph, id::EClassId)
     id = find(g, id)
-    ecdata = g.classes[id]
+    ecdata = geteclass(g, id)
     ecdata.id = id
     @debug "repairing " id
 
@@ -302,7 +308,7 @@ function repair!(g::EGraph, id::Int64)
     #     clean_enode!(g, p_enode, find(g, p_eclass))
     # end
 
-    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,Int64}()
+    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
         p_enode = canonicalize!(g, p_enode)
@@ -355,10 +361,10 @@ end
 Recursive function that traverses an [`EGraph`](@ref) and
 returns a vector of all reachable e-classes from a given e-class id.
 """
-function reachable(g::EGraph, id::Int64)
+function reachable(g::EGraph, id::EClassId)
     id = find(g, id)
-    hist = Int64[id]
-    todo = Int64[id]
+    hist = EClassId[id]
+    todo = EClassId[id]
     while !isempty(todo)
         curr = find(g, pop!(todo))
         for n ∈ g.classes[curr]

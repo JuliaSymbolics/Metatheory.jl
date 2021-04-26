@@ -26,9 +26,9 @@ export hasdata
 export getdata
 export setdata!
 
-include("intdisjointmap.jl")
-export IntDisjointSet
-export in_same_set
+# include("intdisjointmap.jl")
+# export IntDisjointSet
+# export in_same_set
 
 include("egraph.jl")
 export find

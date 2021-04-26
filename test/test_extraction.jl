@@ -162,8 +162,8 @@ end
 # EXTRACTION BUG!
 
 function costfun(n::ENode, g::EGraph, an)
-	arity(n) != 2 && (return 1)
-	left = n.args[1]
+	arity(n) != 3 && (return 1)
+	left = n.args[2]
 	left_class = geteclass(g, left)
 	ENode(:a) ∈ left_class.nodes ? 1 : 100
 end

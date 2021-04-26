@@ -1,14 +1,3 @@
-# TODO place this doc 
-# """
-# Type assertions are supported in the left hand of rules
-# to match and access literal values both when using classic
-# rewriting and EGraph based rewriting.
-# To use a type assertion pattern, add `::T` after
-# a pattern variable in the `left_hand` of a rule.
-# """
-
-# TODO HASH CACHING!
-
 using Parameters
 
 import Base.==
@@ -35,30 +24,18 @@ variables.
 Rule(:(a * b => b * a))
 ```
 """
-struct RewriteRule <: SymbolicRule 
+@auto_hash_equals struct RewriteRule <: SymbolicRule 
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
-    hash::Ref{UInt}
     function RewriteRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars, Ref{UInt}(0))
+        new(l,r,pvars)
     end
 end
-
-function Base.hash(t::RewriteRule, salt::UInt)
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.left, hash(t.right, hash(t.patvars, salt)))
-    t.hash[] = h′
-    return h′
-end
-
-
 
 # =============================================================================
 
@@ -70,56 +47,35 @@ This type of *anti*-rules is used for checking contradictions in the EGraph
 backend. If two terms, corresponding to the left and right hand side of an
 *anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
 """
-struct UnequalRule <: BidirRule 
+@auto_hash_equals struct UnequalRule <: BidirRule 
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
-    hash::Ref{UInt}
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars, Ref{UInt}(0))
+        new(l,r,pvars)
     end
 end
-
-function Base.hash(t::UnequalRule, salt::UInt)
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.left, hash(t.right, hash(t.patvars, salt)))
-    t.hash[] = h′
-    return h′
-end
-
 
 """
 ```julia
 Rule(:(a * b == b * a))
 ```
 """
-struct EqualityRule <: BidirRule 
+@auto_hash_equals struct EqualityRule <: BidirRule 
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
-    hash::Ref{UInt}
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars, Ref{UInt}(0))
+        new(l,r,pvars)
     end
-end
-
-function Base.hash(t::EqualityRule, salt::UInt)
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.left, hash(t.right, hash(t.patvars, salt)))
-    t.hash[] = h′
-    return h′
 end
 
 """
@@ -136,24 +92,14 @@ Dynamic rule
 Rule(:(a::Number * b::Number |> a*b))
 ```
 """
-struct DynamicRule <: Rule 
+@auto_hash_equals struct DynamicRule <: Rule 
     left::Pattern
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
-    hash::Ref{UInt}
     function DynamicRule(l, r) 
         pvars = patvars(l)
         # sort!(pvars)
         setindex!(l, pvars)
-        new(l, r, pvars, Ref{UInt}(0))
+        new(l, r, pvars)
     end
-end
-
-function Base.hash(t::DynamicRule, salt::UInt)
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.left, hash(t.right, hash(t.patvars, salt)))
-    t.hash[] = h′
-    return h′
 end

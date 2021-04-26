@@ -52,15 +52,40 @@ end
 Type assertions on a [`PatVar`](@ref), will match if and only if 
 the type of the matched term for the pattern variable `var` is a subtype 
 of `type`.
+Type assertions are supported in the left hand of rules
+to match and access literal values both when using classic
+rewriting and EGraph based rewriting.
+To use a type assertion pattern, add `::T` after
+a pattern variable in the `left_hand` of a rule.
 """
 @auto_hash_equals struct PatTypeAssertion <: Pattern
     var::PatVar
     type::Type
+    hash::Ref{UInt}
+    PatTypeAssertion(v,t) = new(v, t, Ref{UInt}(0))
+end
+function Base.hash(t::PatTypeAssertion, salt::UInt)
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.var,  hash(t.type, salt))
+    t.hash[] = h′
+    return h′
 end
 
 
 @auto_hash_equals struct PatSplatVar <: Pattern
     var::PatVar
+    hash::Ref{UInt}
+    PatSplatVar(v) = new(v, Ref{UInt}(0))
+end
+function Base.hash(t::PatSplatVar, salt::UInt)
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.var, salt)
+    t.hash[] = h′
+    return h′
 end
 
 
@@ -70,9 +95,24 @@ the two subpatterns exist in the same equivalence class,
 in the e-graph on which the matching is performed.
 **Can be used only in the e-graphs backend**
 """
-@auto_hash_equals struct PatEquiv <: Pattern
+struct PatEquiv <: Pattern
     left::Pattern
     right::Pattern
+    hash::Ref{UInt}
+    PatEquiv(l,r) = new(l,r, Ref{UInt}(0))
+end
+
+function ==(a::PatEquiv, b::PatEquiv)
+    a.left == b.left && a.right == b.right
+end
+
+function Base.hash(t::PatEquiv, salt::UInt)
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.left,  hash(t.right, salt))
+    t.hash[] = h′
+    return h′
 end
 
 function isground(p::PatEquiv)
@@ -84,12 +124,23 @@ Term patterns will match
 on terms of the same `arity` and with the same 
 function symbol (`head`).
 """
-@auto_hash_equals struct PatTerm <: Pattern
+struct PatTerm <: Pattern
     head::Any
     args::Vector{Pattern}
+    hash::Ref{UInt}
+    PatTerm(h,args) = new(h,args, Ref{UInt}(0))
 end
 TermInterface.gethead(p::PatTerm) = p.head
 TermInterface.arity(p::PatTerm) = length(p.args)
+
+function Base.hash(t::PatTerm, salt::UInt)
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.head,  hash(t.args, salt))
+    t.hash[] = h′
+    return h′
+end
 
 function isground(p::PatTerm)
     mapreduce(isground, (&), p.args)
