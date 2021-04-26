@@ -1,4 +1,4 @@
-const Match = Tuple{Rule,Union{Nothing,Pattern},Sub,Int64}
+const Match = Tuple{Rule,Union{Nothing,Pattern},Sub,EClassId}
 const MatchesBuf = Vector{Match}
 
 function cached_ids(g::EGraph, p::Pattern)# ::Vector{Int64}

@@ -16,6 +16,7 @@ import ..@log
 
 include("enode.jl")
 export ENode
+export EClassId
 
 include("abstractanalysis.jl")
 export AbstractAnalysis
@@ -26,9 +27,9 @@ export hasdata
 export getdata
 export setdata!
 
-# include("intdisjointmap.jl")
-# export IntDisjointSet
-# export in_same_set
+include("intdisjointmap.jl")
+export IntDisjointSet
+export in_same_set
 
 include("egraph.jl")
 export find

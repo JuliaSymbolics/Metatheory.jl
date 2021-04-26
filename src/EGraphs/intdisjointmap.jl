@@ -1,29 +1,28 @@
-struct IntDisjointSet
-    parents::Vector{Int64}
+struct IntDisjointSet{T<:Integer}
+    parents::Vector{T}
     normalized::Ref{Bool}
 end
 
-IntDisjointSet() = IntDisjointSet(Vector{Int64}[], Ref(true))
+IntDisjointSet{T}() where {T<:Integer} = IntDisjointSet{T}(Vector{T}[], Ref(true))
 Base.length(x::IntDisjointSet) = length(x.parents)
 
-function Base.push!(x::IntDisjointSet)
-    x.normalized[] = false
-    push!(x.parents, -1)
-    length(x)
+function Base.push!(x::IntDisjointSet{T}) where {T}
+    push!(x.parents, convert(T, -1))
+    convert(T, length(x))
 end
 
-function find_root(x::IntDisjointSet, i::Int64)
+function find_root(x::IntDisjointSet{T}, i::T) where {T}
     while x.parents[i] >= 0
         i = x.parents[i]
     end
-    return i
+    return convert(T, i)
 end
 
-function in_same_set(x::IntDisjointSet, a::Int64, b::Int64)
+function in_same_set(x::IntDisjointSet{T}, a::T, b::T) where {T}
     find_root(x, a) == find_root(x, b)
 end
 
-function Base.union!(x::IntDisjointSet, i::Int64, j::Int64)
+function Base.union!(x::IntDisjointSet{T}, i::T, j::T) where {T}
     pi = find_root(x, i)
     pj = find_root(x, j)
     if pi != pj
@@ -37,27 +36,28 @@ function Base.union!(x::IntDisjointSet, i::Int64, j::Int64)
         x.parents[pj] -= isize # increase new size of pj
         x.parents[pi] = pj # set parent of pi to pj
     end
-    return pj
+    return convert(T, pj)
 end
 
-function normalize!(x::IntDisjointSet)
-    for i in length(x)
+function normalize!(x::IntDisjointSet{T}) where {T}
+    for i in convert(T, length(x))
         pi = find_root(x, i)
         if pi != i
-            x.parents[i] = pi
+            x.parents[i] = convert(T, pi)
         end
     end
     x.normalized[] = true
 end
 
 # If normalized we don't even need a loop here.
-function _find_root_normal(x::IntDisjointSet, i::Int64)
+function _find_root_normal(x::IntDisjointSet{T}, i::T) where {T}
     pi = x.parents[i]
     if pi < 0 # Is `i` a root?
         return i
     else
         return pi
     end
+    # return pi
 end
 
 function _in_same_set_normal(x::IntDisjointSet, a::Int64, b::Int64)

@@ -9,7 +9,7 @@ same equivalence class.
 """
 struct EqualityGoal <: SaturationGoal
     exprs::Vector{Any}
-    ids::Vector{Int64}
+    ids::Vector{EClassId}
     function EqualityGoal(exprs, eclasses) 
         @assert length(exprs) == length(eclasses) && length(exprs) != 0 
         new(exprs, eclasses)
@@ -18,7 +18,7 @@ end
 
 function EqualityGoal(g::EGraph, exprs)
     n = length(exprs)
-    ids = Vector{Int64}(undef, n)
+    ids = Vector{EClassId}(undef, n)
     for i ∈ 1:n
         ec = addexpr!(g, exprs[i])
         ids[i] = ec.id

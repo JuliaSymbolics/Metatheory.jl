@@ -58,7 +58,7 @@ rewriting and EGraph based rewriting.
 To use a type assertion pattern, add `::T` after
 a pattern variable in the `left_hand` of a rule.
 """
-@auto_hash_equals struct PatTypeAssertion <: Pattern
+struct PatTypeAssertion <: Pattern
     var::PatVar
     type::Type
     hash::Ref{UInt}
@@ -74,7 +74,7 @@ function Base.hash(t::PatTypeAssertion, salt::UInt)
 end
 
 
-@auto_hash_equals struct PatSplatVar <: Pattern
+struct PatSplatVar <: Pattern
     var::PatVar
     hash::Ref{UInt}
     PatSplatVar(v) = new(v, Ref{UInt}(0))

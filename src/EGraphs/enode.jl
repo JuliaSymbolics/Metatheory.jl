@@ -8,19 +8,19 @@ const EClassId = Int64
 #     id::Int64
 # end
 
-struct ENode{T}
+struct ENode{T, M}
     head::Any
     args::Vector{EClassId}
-    metadata::Any
+    metadata::M
     hash::Ref{UInt} # hash cache
-    ENode{T}(h, a, m) where {T} = new{T}(h, a, m, Ref{UInt}(0))
+    ENode{T,M}(h, a, m) where {T,M} = new{T,M}(h, a, m, Ref{UInt}(0))
 end
 
 function ENode(e, c_ids::AbstractVector{EClassId})
     # @assert length(getargs(e)) == length(c_ids)
     # static_args = MVector{length(c_ids), Int64}(c_ids...)
     m = getmetadata(e)
-    ENode{typeof(e)}(gethead(e), c_ids, m)
+    ENode{typeof(e), typeof(m)}(gethead(e), c_ids, m)
 end
 
 ENode(e) = ENode(e, EClassId[])
@@ -39,7 +39,7 @@ end
 # This optimization comes from SymbolicUtils
 # The hash of an enode is cached to avoid recomputing it.
 # Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(t::ENode{T}, salt::UInt) where {T}
+function Base.hash(t::ENode{T,M}, salt::UInt) where {T,M}
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
     h = t.hash[]
     !iszero(h) && return h
