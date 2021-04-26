@@ -1,4 +1,4 @@
-analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, id::Int64) =
+analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, id::EClassId) =
     analyze!(g, an, reachable(g, id))
 
 
@@ -11,7 +11,7 @@ end
 **WARNING**. This function is unstable.
 An [`EGraph`](@ref) can only contain one analysis of type `an`.
 """
-function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{Int64})
+function analyze!(g::EGraph, an::Type{<:AbstractAnalysis}, ids::Vector{EClassId})
     push!(g.analyses, an)
     ids = sort(ids)
     # @assert isempty(g.dirty)

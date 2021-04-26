@@ -63,3 +63,11 @@ end
 function _in_same_set_normal(x::IntDisjointSet, a::Int64, b::Int64)
     _find_root_normal(x, a) == _find_root_normal(x, b)
 end
+
+function find_root_if_normal(x::IntDisjointSet, i::Int64)
+    if x.normalized[] 
+        _find_root_normal(x, i)
+    else 
+        find_root(x, i)
+    end
+end

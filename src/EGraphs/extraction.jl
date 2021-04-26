@@ -34,7 +34,7 @@ join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : 
 
 islazy(a::Type{<:ExtractionAnalysis}) = true
 
-function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::Int64)
+function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
     eclass = geteclass(g, id)
     anval = getdata(eclass, an, missing)
     if anval === missing 

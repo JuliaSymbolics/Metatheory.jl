@@ -3,26 +3,27 @@ using Base.Meta
 
 import Base.ImmutableDict
 
+const EClassId = Int64
 # @auto_hash_equals struct EClass
 #     id::Int64
 # end
 
 struct ENode{T}
     head::Any
-    args::Vector{Int64}
+    args::Vector{EClassId}
     metadata::Any
     hash::Ref{UInt} # hash cache
     ENode{T}(h, a, m) where {T} = new{T}(h, a, m, Ref{UInt}(0))
 end
 
-function ENode(e, c_ids::AbstractVector{Int64})
+function ENode(e, c_ids::AbstractVector{EClassId})
     # @assert length(getargs(e)) == length(c_ids)
     # static_args = MVector{length(c_ids), Int64}(c_ids...)
     m = getmetadata(e)
     ENode{typeof(e)}(gethead(e), c_ids, m)
 end
 
-ENode(e) = ENode(e, Int64[])
+ENode(e) = ENode(e, EClassId[])
 
 ENode(a::ENode) =
     error("constructor of ENode called on enode. This should never happen")
@@ -30,7 +31,7 @@ ENode(a::ENode) =
 
 
 function Base.:(==)(a::ENode, b::ENode)
-    # isequal(a.metadata, b.metadata) && 
+    isequal(a.metadata, b.metadata) && 
     isequal(a.args, b.args) && 
     isequal(a.head, b.head)
 end

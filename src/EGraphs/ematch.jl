@@ -182,7 +182,7 @@ function __init__()
     global MACHINES = map(x -> Machine(), 1:Threads.nthreads())
 end
 
-function ematch(g::EGraph, p::Pattern, id::Int64)
+function ematch(g::EGraph, p::Pattern, id::EClassId)
     program = getprogram(p, g.can_optimize_ground_terms)
     tid = Threads.threadid() 
     reset(MACHINES[tid], g, program, id)
