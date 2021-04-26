@@ -8,8 +8,8 @@ using Metatheory.EGraphs: in_same_set, find_root
     testmatch = :(a << 1)
     G = EGraph(testexpr)
     t2 = addexpr!(G, testmatch)
-    merge!(G, t2.id, 3)
-    @test in_same_set(G.uf, t2.id, 3) == true
+    merge!(G, t2.id, EClassId(3))
+    @test in_same_set(G.uf, t2.id, EClassId(3)) == true
     # DOES NOT UPWARD MERGE
 end
 
@@ -57,8 +57,8 @@ end
     t1 = addexpr!(G, apply(6, f, :a))
     t2 = addexpr!(G, apply(9, f, :a))
 
-    c_id = merge!(G, t1.id, 1) # a == apply(6,f,a)
-    c2_id = merge!(G, t2.id, 1) # a == apply(9,f,a)
+    c_id = merge!(G, t1.id, EClassId(1)) # a == apply(6,f,a)
+    c2_id = merge!(G, t2.id, EClassId(1)) # a == apply(9,f,a)
 
     # display(G.classes); println()
 
@@ -70,18 +70,18 @@ end
     t4 = addexpr!(G, apply(7, f, :a))
 
     # f^m(a) = a = f^n(a) ⟹ f^(gcd(m,n))(a) = a
-    @test in_same_set(G.uf, t1.id, 1) == true
-    @test in_same_set(G.uf, t2.id, 1) == true
-    @test in_same_set(G.uf, t3.id, 1) == true
-    @test in_same_set(G.uf, t4.id, 1) == false
+    @test in_same_set(G.uf, t1.id, EClassId(1)) == true
+    @test in_same_set(G.uf, t2.id, EClassId(1)) == true
+    @test in_same_set(G.uf, t3.id, EClassId(1)) == true
+    @test in_same_set(G.uf, t4.id, EClassId(1)) == false
 
     # if m or n is prime, f(a) = a
     t5 = addexpr!(G, apply(11, f, :a))
     t6 = addexpr!(G, apply(1, f, :a))
-    c5_id = merge!(G, t5.id, 1) # a == apply(11,f,a)
+    c5_id = merge!(G, t5.id, EClassId(1)) # a == apply(11,f,a)
 
     rebuild!(G)
 
-    @test in_same_set(G.uf, t5.id, 1) == true
-    @test in_same_set(G.uf, t6.id, 1) == true
+    @test in_same_set(G.uf, t5.id, EClassId(1)) == true
+    @test in_same_set(G.uf, t6.id, EClassId(1)) == true
 end

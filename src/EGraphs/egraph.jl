@@ -22,7 +22,8 @@ for implementation details
 """
 mutable struct EGraph
     """stores the equality relations over e-class ids"""
-    uf::IntDisjointSets{EClassId}
+    # uf::IntDisjointSets{EClassId}
+    uf::IntDisjointSet
     """map from eclass id to eclasses"""
     classes::ClassMem
     memo::HashCons             # memo
@@ -45,8 +46,8 @@ end
 
 function EGraph()
     EGraph(
-        # IntDisjointSet(),
-        IntDisjointSets{EClassId}(0),
+        IntDisjointSet{EClassId}(),
+        # IntDisjointSets{EClassId}(0),
         ClassMem(),
         HashCons(),
         # ParentMem(),
@@ -93,7 +94,7 @@ Returns the canonical e-class id for a given e-class.
 #     find_root_if_normal(g.uf, a)
 # end
 function find(g::EGraph, a::EClassId)::EClassId
-    find_root!(g.uf, a)
+    find_root(g.uf, a)
 end
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
@@ -113,10 +114,10 @@ Base.getindex(g::EGraph, i::EClassId) = geteclass(g, i)
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
-function canonicalize(g::EGraph, n::ENode{T}) where {T}
+function canonicalize(g::EGraph, n::ENode{T,M}) where {T,M}
     if arity(n) > 0
         new_args = map(x -> find(g, x), n.args)
-        return ENode{T}(n.head, new_args, n.metadata)
+        return ENode{T,M}(n.head, new_args, n.metadata)
     end 
     return n
 end
@@ -264,12 +265,12 @@ function rebuild!(g::EGraph)
             repair!(g, x)
         end
     end
-
+    
     if g.root != 0
         g.root = find(g, g.root)
     end
-
-    # normalize!(g.uf)
+    
+    normalize!(g.uf)
 
     # for i ∈ 1:length(egraph.uf)
     #     find_root!(egraph.uf, i)

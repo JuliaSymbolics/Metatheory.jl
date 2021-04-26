@@ -1,4 +1,3 @@
-
 using Test
 using Metatheory    
 using Metatheory.Classic
@@ -32,7 +31,7 @@ T = [
     @rule :b*:B => :ε
     @rule :a*:a => :ε
     @rule :b*:b*:b => :ε
-    # @rule :B * :B => :B
+    @rule :B * :B => :B
     RewriteRule(Pattern(rep(:(:a*:b), :*, 7)), Pattern(:(:ε)))
     RewriteRule(Pattern(rep(:(:a*:b*:a*:B), :*, 12)), Pattern(:(:ε)))
 ]
@@ -45,13 +44,14 @@ g = EGraph(expr)
 params = SaturationParams(timeout=8, scheduler=BackoffScheduler)#, schedulerparams=(128,4))#, scheduler=SimpleScheduler)
 @timev saturate!(g, G, params)
 ex = extract!(g, astsize)
-println(ex)
-rewrite(ex, Mid) |> println
+@test ex == :ε
 
 another_expr = :(b*B)
 g = EGraph(another_expr)
-@timev saturate!(g, G, params)
+saturate!(g, G, params)
 
 another_expr = :(a*a*a*a)
 some_eclass = addexpr!(g, another_expr)
+saturate!(g, G, params)
 ex = extract!(g, astsize; root=some_eclass.id)
+@test ex == :ε

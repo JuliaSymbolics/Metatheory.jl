@@ -1,4 +1,4 @@
-const UnionBuf = Vector{Tuple{Int64, Int64}}
+const UnionBuf = Vector{Tuple{EClassId, EClassId}}
 
 function apply_rule!(g::EGraph, rule::UnequalRule,
         match::Match, matches::MatchesBuf, unions::UnionBuf,

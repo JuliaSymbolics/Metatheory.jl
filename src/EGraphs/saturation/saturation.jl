@@ -11,7 +11,7 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, curr_iter, mod::Module,
         scheduler::AbstractScheduler, match_hist::MatchesBuf, params::SaturationParams)
 
     report = Report(g)
-    instcache = Dict{Rule, Dict{Sub, Int64}}()
+    instcache = Dict{Rule, Dict{Sub, EClassId}}()
 
     setiter!(scheduler, curr_iter)
 
