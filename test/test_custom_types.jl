@@ -62,9 +62,9 @@ g = EGraph(ex)
 # ========== !!! ============= !!! ===============
 # ========== !!! ============= !!! ===============
 
-settermtype(g, :f, 2, MyExpr)
-settermtype(g, :f, 1, MyExpr)
-settermtype(g, :g, 1, MyExpr)
+settermtype!(g, :f, 2, MyExpr)
+settermtype!(g, :f, 1, MyExpr)
+settermtype!(g, :g, 1, MyExpr)
 
 # ========== !!! ============= !!! ===============
 # ========== !!! ============= !!! ===============

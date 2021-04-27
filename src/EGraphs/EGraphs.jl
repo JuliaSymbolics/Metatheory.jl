@@ -40,7 +40,7 @@ export merge!
 export in_same_class
 export addexpr!
 export rebuild!
-export settermtype
+export settermtype!
 export gettermtype
 
 
