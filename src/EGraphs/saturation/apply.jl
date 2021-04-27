@@ -32,9 +32,10 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
         match::Match, matches::MatchesBuf, unions::UnionBuf,
         rep::Report,  mod::Module)
     (_, pat, sub, id) = match
+    # println("APPLYING RULE $rule")
     f = Rules.getrhsfun(rule, mod)
     actual_params = [instantiate(g, PatVar(v, i), sub, rule) for (i, v) in enumerate(rule.patvars)]
-    r = f(geteclass(g, id), g, actual_params...)
+    r = f(geteclass(g, id), sub, g, actual_params...)
     rc = addexpr!(g, r)
 
     push!(unions, (id, rc.id))

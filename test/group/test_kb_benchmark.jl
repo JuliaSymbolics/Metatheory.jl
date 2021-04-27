@@ -1,11 +1,8 @@
 using Test
 using Metatheory    
-using Metatheory.Classic
 @metatheory_init ()
-using Metatheory.EGraphs
 using Metatheory.Library
 using Metatheory.Util
-using Metatheory.EGraphs.Schedulers
 
 Metatheory.options.printiter = true
 Metatheory.options.verbose = true

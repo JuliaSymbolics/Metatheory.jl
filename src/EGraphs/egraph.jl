@@ -52,7 +52,7 @@ function EGraph()
         HashCons(),
         # ParentMem(),
         EClassId[],
-        0,
+        -1,
         Analyses(),
         # SymbolCache(),
         Expr,
@@ -70,11 +70,11 @@ function EGraph(e)
     g
 end
 
-function settermtype(g::EGraph, f, ar, T)
+function settermtype!(g::EGraph, f, ar, T)
     g.termtypes[(f,ar)] = T
 end
 
-function settermtype(g::EGraph, T)
+function settermtype!(g::EGraph, T)
     g.default_termtype = T
 end
 
@@ -266,7 +266,7 @@ function rebuild!(g::EGraph)
         end
     end
     
-    if g.root != 0
+    if g.root != -1
         g.root = find(g, g.root)
     end
     

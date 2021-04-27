@@ -29,10 +29,11 @@ xdelete(A) = xdelete(A,0)
 xmerge(A) = xmerge(A,0)
 xcreate(A) = xcreate(A,0);
 
+import Catlab.Theories.Ob
 @syntax ZXCalculus{ObExpr,HomExpr} ZXCategory begin
-    otimes(A::Ob, B::Ob) = associate_unit(new(A,B), munit)
-    otimes(f::Hom, g::Hom) = associate(new(f,g))
-    compose(f::Hom, g::Hom) = associate(new(f,g; strict=true))
+    # otimes(A::Ob, B::Ob) = associate_unit(new(A,B), munit)
+    # otimes(f::Hom, g::Hom) = associate(new(f,g))
+    # compose(f::Hom, g::Hom) = associate(new(f,g; strict=true))
 end
 
 using Metatheory, Metatheory.EGraphs
@@ -51,8 +52,8 @@ struct ObType <: CatType
     mod
 end
 struct HomType <: CatType
-    codom
     dom
+    codom
     mod
 end
 
@@ -87,7 +88,7 @@ function EGraphs.extractnode(n::ENode{T}, extractor::Function) where {T <: HomEx
     @assert n.head == :call
     nargs = extractor.(n.args)
     nmeta = getmetadata(n)
-    return nmeta.mod.Hom{nargs[1]}(nargs[2:end], GATExpr[nmeta.codom, nmeta.dom])
+    return nmeta.mod.Hom{nargs[1]}(nargs[2:end], GATExpr[nmeta.dom, nmeta.codom])
 end
 
 # function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{H{K}}, sub::Sub, rule::Rule) where {H <: GATExpr, K}
@@ -97,18 +98,75 @@ end
 t = Metatheory.@theory begin
     compose(hadamard(A), hadamard(A)) |> 
     begin
-        analyze!(_egraph, Main.CatlabAnalysis)
         d = getdata(A, Main.CatlabAnalysis)
         return d.mod.id(d.ob)
     end
+    compose(f, id(B)) |> 
+    begin
+        bd = getdata(B, CatlabAnalysis)
+        fd = getdata(f, CatlabAnalysis)
+        if bd.ob == fd.codom
+            return f
+        else
+            error("TYPE ERROR!")
+            return _lhs_expr
+        end
+    end
+    compose(id(A), f) |> 
+    begin
+        ad = getdata(A, CatlabAnalysis)
+        fd = getdata(f, CatlabAnalysis)
+        if ad.ob == fd.dom
+            return f
+        else
+            error("TYPE ERROR!")
+            return _lhs_expr
+        end
+    end
 end
 
+t[2]
+
 A = Ob(ZXCalculus.Ob, :A)
+B = Ob(ZXCalculus.Ob, :B)
+f = Hom(:f, A, B)
 h = hadamard(A)
 c = h ⋅ h
 G = EGraph(c)
 infer(zdelete(A)).codom == A
 
-saturate!(G, t)
+analyze!(G, CatlabAnalysis)
+saturate!(G, t; mod=@__MODULE__)
 ex = extract!(G, astsize)
 ex == id(A)
+
+
+G = EGraph(f ⋅ id(B))
+analyze!(G, CatlabAnalysis)
+saturate!(G, t; mod=@__MODULE__)
+ex = extract!(G, astsize)
+ex == f
+
+x = id(A) ⋅ f ⋅ id(B)
+G = EGraph(x)
+analyze!(G, CatlabAnalysis)
+saturate!(G, t; mod=@__MODULE__)
+ex = extract!(G, astsize)
+ex == f
+
+using Catlab, Catlab.Theories
+using Catlab.WiringDiagrams, Catlab.Graphics
+using Catlab.Syntax
+
+A, B, C, D, E = Ob(FreeBiproductCategory, :A, :B, :C, :D, :E)
+f = Hom(:f, A, B)
+g = Hom(:g, B, C)
+h = Hom(:h, B, A)
+k = Hom(:k, C, B)
+x = id(A) ⋅ f ⋅ id(B)
+
+z = x ⊗ f ⊗ ((f ⊗ g) ⋅ braid(B,C) ⋅ (k ⊗ h) ⋅ (delete(B) ⊗ f))
+to_composejl(z; orientation=LeftToRight)
+
+drop = munit(FreeCompactClosedCategory.Ob)
+delete()
