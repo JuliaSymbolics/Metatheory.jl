@@ -59,7 +59,78 @@ function axiom_to_rule(theory, axiom)
     EqualityRule(lhs, rhs)
 end
 
+# base case
+function get_concrete_type_expr(theory, x::Symbol, axiom, loc_ctx = Dict{Code, Code}())
+    ctx = axiom.context
+    t = ctx[x]
+    t === :Ob && (t = x)
+    loc_ctx[x] = t
+    return t
+end
 
+const Code = Union{Symbol, Expr}
+
+function get_concrete_type_expr(theory, x::Expr, axiom, loc_ctx = Dict{Code, Code}())
+    #local context
+    ctx = axiom.context
+    # loc_ctx = Dict{Code, Code}()
+    @assert x.head == :call
+    f = x.args[1]
+    rest = x.args[2:end]
+    # recursion case - inductive step (?)
+    for a in rest
+        t = get_concrete_type_expr(theory, a, axiom, loc_ctx)
+        loc_ctx[a] = t
+
+        println("$a ~ $t")
+    end
+
+    loc_ctx[x] = gat_type_inference(theory, f, [loc_ctx[a] for a in rest])
+    println("$x ~ $(loc_ctx[x])")
+
+    # get the corresponding TermConstructor from theory.terms
+    # for each arg in `rest`, instantiate the term.params with term.context
+    # GAT.replace_types(Dict(:A => :Z), term)
+    # instantiate term.typ
+
+    # :(Hom(A,B)) instead of :(A \to B)
+
+    return loc_ctx[x]
+end
+
+function gat_type_inference(theory, head, args)
+    for t in theory.terms
+        t.name === head && return gat_type_inference(t, head, args)
+    end
+    @error "can not find $head in the theory"
+end
+
+function gat_type_inference(t::GAT.TermConstructor, head, args)
+    @assert length(t.params) == length(args) && t.name === head
+    bindings = Dict()
+    for i = 1:length(args)
+        template = t.context[t.params[i]]
+        template === :Ob && (template = t.params[i])
+        # @show template
+        update_bindings!(bindings, template, args[i])
+    end
+    # @show bindings
+    return GAT.replace_types(bindings, t).typ
+end
+function update_bindings!(bindings, template::Expr, target::Expr)
+    @assert length(template.args) == length(target.args)
+    for i = 1:length(template.args)
+        update_bindings!(bindings, template.args[i], target.args[i])
+    end
+end
+function update_bindings!(bindings, template::Symbol, target::Symbol)
+    bindings[template] = target
+end
+
+ax = tt.axioms[1]
+get_concrete_type_expr(tt, ax.left, ax)
+
+tag_expr(x, t) = :($x ~ $t)
 
 function tag_expr(theory, axiom, expr::Expr)
     # type == axiom.context[x]
@@ -71,7 +142,7 @@ function tag_expr(theory, axiom, expr::Expr)
         
 
         for (i, arg) in enumerate(rest)
-
+            # NOT FINISHED
         end 
 
 
