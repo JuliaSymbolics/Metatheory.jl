@@ -10,10 +10,14 @@ import Catlab.Theories: id, compose, otimes, ⋅, braid, σ, ⊗, Ob, Hom
 @syntax SMC{ObExpr,HomExpr} SymmetricMonoidalCategory begin
 end
 
-A, B, C = Ob(SMC, :A, :B, :C)
+A, B, C, D = Ob(SMC, :A, :B, :C, :D)
 X, Y, Z = Ob(SMC, :X, :Y, :Z)
 
 f = Hom(:f, A, B)
+g = Hom(:g, B, C)
+h = Hom(:h, C, D)
+
+
 
 function gat_to_expr(ex::ObExpr{:generator})
     @assert length(ex.args) == 1
@@ -32,9 +36,9 @@ function gat_to_expr(ex::HomExpr{H}) where {H}
 end
 
 function gat_to_expr(ex::HomExpr{:generator})
-    expr = Expr(:call, ex.args[1])
+    f = ex.args[1]
     type_ex = Expr(:call, :Hom, map(gat_to_expr, ex.type_args)...)
-    return Expr(:call, :~, expr, type_ex)
+    return Expr(:call, :~, f, type_ex)
 end
 
 
@@ -48,6 +52,9 @@ gat_to_expr(id(A ⊗ B))
 
 gat_to_expr(id(A) ⊗ id(B))
 
+gat_to_expr(compose(compose(f, g), h))
+
+gat_to_expr(f)
 
 tt = SMC.theory() |> theory
 
@@ -74,14 +81,14 @@ function get_concrete_type_expr(theory, x::Expr, axiom, loc_ctx = Dict{Code, Cod
     for a in rest
         t = get_concrete_type_expr(theory, a, axiom, loc_ctx)
         loc_ctx[a] = t
-        println("$a ~ $t")
+        # println("$a ~ $t")
     end
     # get the corresponding TermConstructor from theory.terms
     # for each arg in `rest`, instantiate the term.params with term.context
     # instantiate term.typ
 
     loc_ctx[x] = gat_type_inference(theory, f, [loc_ctx[a] for a in rest])
-    println("$x ~ $(loc_ctx[x])")
+    # println("$x ~ $(loc_ctx[x])")
     return loc_ctx[x]
 end
 
@@ -160,8 +167,22 @@ function axiom_to_rule(theory, axiom)
     EqualityRule(lhs, rhs)
 end
 
-[axiom_to_rule(tt, ax) for ax in tt.axioms]
+tt = theory(Category)
 
+tag_expr(tt.axioms[1].left, tt.axioms[1], tt) == gat_to_expr(compose(compose(f, g), h))
+
+
+using Catlab
+using Catlab.Theories
+using Metatheory
+using Metatheory.EGraphs
+
+tt = theory(Category)
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+expr = gat_to_expr(id(A) ⋅ id(A) ⋅ f ⋅ id(B))
+G = EGraph(expr)
+saturate!(G, rules)
+extract!(G, astsize) == :(f ~ Hom(A,B))
 # ====================================================
 # TEST 
 
