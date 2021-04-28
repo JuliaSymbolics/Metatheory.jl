@@ -27,13 +27,13 @@ end
 function gat_to_expr(ex::HomExpr{H}) where {H}
     @assert length(ex.type_args) == 2
     expr = Expr(:call, head(ex), map(gat_to_expr, ex.args)...)
-    type_ex = Expr(:call, :→, map(gat_to_expr, ex.type_args)...)
+    type_ex = Expr(:call, :Hom, map(gat_to_expr, ex.type_args)...)
     return Expr(:call, :~, expr, type_ex)
 end
 
 function gat_to_expr(ex::HomExpr{:generator})
     expr = Expr(:call, ex.args[1])
-    type_ex = Expr(:call, :→, map(gat_to_expr, ex.type_args)...)
+    type_ex = Expr(:call, :Hom, map(gat_to_expr, ex.type_args)...)
     return Expr(:call, :~, expr, type_ex)
 end
 
@@ -51,13 +51,6 @@ gat_to_expr(id(A) ⊗ id(B))
 
 tt = SMC.theory() |> theory
 
-function axiom_to_rule(theory, axiom)
-    lhs = tag_expr(theory, axiom, axiom.left) |> Pattern
-    rhs = tag_expr(theory, axiom, axiom.right) |> Pattern
-    op = axiom.name
-    @assert op == :(==)
-    EqualityRule(lhs, rhs)
-end
 
 # base case
 function get_concrete_type_expr(theory, x::Symbol, axiom, loc_ctx = Dict{Code, Code}())
@@ -81,20 +74,15 @@ function get_concrete_type_expr(theory, x::Expr, axiom, loc_ctx = Dict{Code, Cod
     for a in rest
         t = get_concrete_type_expr(theory, a, axiom, loc_ctx)
         loc_ctx[a] = t
-
-        println("$a ~ $t")
+        # println("$a ~ $t")
     end
-
-    loc_ctx[x] = gat_type_inference(theory, f, [loc_ctx[a] for a in rest])
-    println("$x ~ $(loc_ctx[x])")
 
     # get the corresponding TermConstructor from theory.terms
     # for each arg in `rest`, instantiate the term.params with term.context
-    # GAT.replace_types(Dict(:A => :Z), term)
     # instantiate term.typ
 
-    # :(Hom(A,B)) instead of :(A \to B)
-
+    loc_ctx[x] = gat_type_inference(theory, f, [loc_ctx[a] for a in rest])
+    # println("$x ~ $(loc_ctx[x])")
     return loc_ctx[x]
 end
 
@@ -123,55 +111,53 @@ function update_bindings!(bindings, template::Expr, target::Expr)
         update_bindings!(bindings, template.args[i], target.args[i])
     end
 end
-function update_bindings!(bindings, template::Symbol, target::Symbol)
+function update_bindings!(bindings, template, target)
     bindings[template] = target
 end
 
-ax = tt.axioms[1]
+
+function tag_expr(x::Expr, axiom, theory)
+    t = get_concrete_type_expr(theory, x, axiom)
+    start = x.head == :call ? 2 : 1 
+
+    nargs = Any[tag_expr(y, axiom, theory) for y in x.args[start:end]]
+
+    if start == 2
+        pushfirst!(nargs, x.args[1])
+    end
+
+    z = Expr(x.head, nargs...)
+
+    t === :Ob && (return z)
+    :($z ~ $t)
+end
+
+function tag_expr(x::Symbol, axiom, theory)
+    t = get_concrete_type_expr(theory, x, axiom)
+    t === :Ob && (return x)
+    return (t == x ? x : :($x ~ $t))
+end
+
+
+
+
+ax = tt.axioms[3]
 get_concrete_type_expr(tt, ax.left, ax)
 
-tag_expr(x, t) = :($x ~ $t)
-
-function tag_expr(theory, axiom, expr::Expr)
-    # type == axiom.context[x]
-    if Meta.isexpr(expr, :call)
-        f = expr.args[1]
-        rest = expr.args[2:end]
-
-        term = findfirst(x -> x.name == name && length(rest) == length(params), theory.terms)
-        
-
-        for (i, arg) in enumerate(rest)
-            # NOT FINISHED
-        end 
+tag_expr(ax.right, ax, tt)
 
 
-        ex = Expr(:call, f, 
-            map(x -> tag_expr(axiom, x), expr.args[2:end])...)
-        return ex
-    else 
-        return Expr(expr.head, 
-            map(x -> tag_expr(axiom, x), expr.args)...)
-    end
+function axiom_to_rule(theory, axiom)
+    lhs = tag_expr(axiom.left, axiom, tt) |> Pattern
+    rhs = tag_expr(axiom.right, axiom, tt) |> Pattern
+
+    println("$lhs == $rhs")
+    op = axiom.name
+    @assert op == :(==)
+    EqualityRule(lhs, rhs)
 end
 
-function tag_expr(axiom, x::Symbol)
-    type = axiom.context[x]
-    if type == :Ob 
-        return (x, :Ob) 
-    elseif Meta.isexpr(type, :call) && type.args[1] == :Hom
-        t = Expr(:call, :→, type.args[2:end]...)
-        return (x, t)
-    else 
-        error("unrecognized GAT type")
-    end
-end
-
-ax = tt.axioms[7]
-tag_expr(ax, ax.left)
-tag_expr(ax, ax.right)
-
-axiom_to_rule.(tt.axioms)
+[axiom_to_rule(tt, ax) for ax in tt.axioms]
 
 # ====================================================
 # TEST 
