@@ -74,15 +74,14 @@ function get_concrete_type_expr(theory, x::Expr, axiom, loc_ctx = Dict{Code, Cod
     for a in rest
         t = get_concrete_type_expr(theory, a, axiom, loc_ctx)
         loc_ctx[a] = t
-        # println("$a ~ $t")
+        println("$a ~ $t")
     end
-
     # get the corresponding TermConstructor from theory.terms
     # for each arg in `rest`, instantiate the term.params with term.context
     # instantiate term.typ
 
     loc_ctx[x] = gat_type_inference(theory, f, [loc_ctx[a] for a in rest])
-    # println("$x ~ $(loc_ctx[x])")
+    println("$x ~ $(loc_ctx[x])")
     return loc_ctx[x]
 end
 
@@ -103,7 +102,12 @@ function gat_type_inference(t::GAT.TermConstructor, head, args)
         update_bindings!(bindings, template, args[i])
     end
     # @show bindings
-    return GAT.replace_types(bindings, t).typ
+    r = GAT.replace_types(bindings, t)
+    if r.typ == :Ob 
+        return Expr(:call, head, args...)
+    else 
+        return r.typ
+    end
 end
 function update_bindings!(bindings, template::Expr, target::Expr)
     @assert length(template.args) == length(target.args)
@@ -128,13 +132,13 @@ function tag_expr(x::Expr, axiom, theory)
 
     z = Expr(x.head, nargs...)
 
-    t === :Ob && (return z)
+    (t === :Ob || t == x) && (return z)
     :($z ~ $t)
 end
 
 function tag_expr(x::Symbol, axiom, theory)
     t = get_concrete_type_expr(theory, x, axiom)
-    t === :Ob && (return x)
+    (t === :Ob || t == x) && (return x)
     return (t == x ? x : :($x ~ $t))
 end
 
@@ -144,8 +148,7 @@ end
 ax = tt.axioms[3]
 get_concrete_type_expr(tt, ax.left, ax)
 
-tag_expr(ax.right, ax, tt)
-
+tag_expr(:(id(otimes(A,A))), ax, tt) == gat_to_expr(id(otimes(A,A)))
 
 function axiom_to_rule(theory, axiom)
     lhs = tag_expr(axiom.left, axiom, tt) |> Pattern
