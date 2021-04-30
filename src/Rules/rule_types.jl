@@ -53,6 +53,10 @@ backend. If two terms, corresponding to the left and right hand side of an
     patvars::Vector{Symbol}
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
+        extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
+        if !isempty(extravars)
+            error("unbound pattern variables $extravars when creating bidirectional rule")
+        end
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
@@ -71,6 +75,10 @@ Rule(:(a * b == b * a))
     patvars::Vector{Symbol}
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
+        extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
+        if !isempty(extravars)
+            error("unbound pattern variables $extravars when creating bidirectional rule")
+        end
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
