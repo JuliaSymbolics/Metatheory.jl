@@ -98,7 +98,7 @@ function gen_rule(axiom::Catlab.GAT.AxiomConstructor, mod; righttoleft=false)
     l_pvars = patvars(lhs) 
     
     rhs = build_rhs(ax_right, l_pvars, mod)
-    println(rhs)
+    # println(rhs)
 
     lines = []
 
@@ -114,7 +114,7 @@ function gen_rule(axiom::Catlab.GAT.AxiomConstructor, mod; righttoleft=false)
         extr_var = extrsym(patvar)
         extr_expr = :($extr_var = extract!(_egraph, astsize; root=($patvar).id))
         push!(lines, extr_expr)
-        push!(lines, :(println($extr_var)))
+        # push!(lines, :(println($extr_var)))
 
 
         ctxval = axiom.context[patvar]
@@ -211,12 +211,13 @@ function simplify(ex, syntax)
     t = gen_theory(syntax)
     g = EGraph(ex)
     analyze!(g, CatlabAnalysis)
-    params=SaturationParams(timeout=1)
+    params=SaturationParams(timeout=3)
     saturate!(g, t, params; mod=@__MODULE__)
     extract!(g, astsize)
 end
 
 Metatheory.options.printiter = true
+Metatheory.options.verbose = true
 
 A, B, C = Ob(SMC, :A, :B, :C)
 f = Hom(:f, A, B)
@@ -224,7 +225,7 @@ f = Hom(:f, A, B)
 ex = f ⋅ id(B)
 simplify(ex, SMC) == f
 
-ex = id(A) ⋅ f ⋅ id(B)
+ex = id(A) ⋅ id(A) ⋅ f ⋅ id(B)
 simplify(ex, SMC) == f
 
 ex = σ(A,B) ⋅ σ(B,A)
@@ -239,10 +240,10 @@ using Catlab.Graphics
 l = (σ(C,B) ⊗ id(A)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,A) ⊗ id(C))
 r = (id(C) ⊗ σ(B,A)) ⋅ (σ(C,A) ⊗ id(B)) ⋅ (id(A) ⊗ σ(C,B))
 
-to_composejl(l)
-to_composejl(r)
+to_graphviz(l)
+to_graphviz(r)
 
-g = EGraph(ex)
+g = EGraph()
 analyze!(g, CatlabAnalysis)
 l_ec = addexpr!(g, l)
 r_ec = addexpr!(g, r)
@@ -251,15 +252,40 @@ in_same_class(g, l_ec, r_ec)
 
 saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
 
-extract!(g, astsize; root=l_ec.id)
-
-extract!(g, astsize; root=r_ec.id)
+ll = extract!(g, astsize; root=l_ec.id) 
+rr = extract!(g, astsize; root=r_ec.id) 
 
 # ======================================================
 # another test
 
-l = σ(C,B ⊗ A)
-r = σ(C ⊗ B, A)
+# WE HAVE TO REDEFINE THE SYNTAX TO AVOID ASSOCIATIVITY AND N-ARY FUNCTIONS
+import Catlab.Theories: id, compose, otimes, ⋅, braid, σ, ⊗, Ob, Hom, pair, proj1, proj2
+@syntax BPC{ObExpr,HomExpr} BiproductCategory begin
+end
+A, B, C = Ob(BPC, :A, :B, :C)
+f = Hom(:f, A, B)
+k = Hom(:k, B, C)
+
+
+l = Δ(A) ⋅ (delete(A) ⊗ id(A)) 
+r = id(A)
+
+
+g = EGraph(l)
+analyze!(g, CatlabAnalysis)
+
+
+saturate!(g, gen_theory(BPC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
+
+extract!(g, astsize)
+
+# ======================================================
+# another test
+
+l = σ(A, B ⊗ C)
+# r = σ(B,A) ⊗ id(C)
+r = (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(A,C))
+# r = σ(B ⊗ C, A)
 
 to_composejl(l)
 to_composejl(r)
@@ -269,7 +295,6 @@ analyze!(g, CatlabAnalysis)
 l_ec = addexpr!(g, l)
 r_ec = addexpr!(g, r)
 
-in_same_class(g, l_ec, r_ec)
 
 saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
 
@@ -282,8 +307,8 @@ extract!(g, astsize; root=r_ec.id)
 
 # ====================================================
 # TEST 
-
 cc = gen_theory(FreeCartesianCategory)
+
 A, B, C = Ob(FreeCartesianCategory, :A, :B, :C)
 f = Hom(:f, A, B)
 

@@ -158,12 +158,29 @@ get_concrete_type_expr(tt, ax.left, ax)
 tag_expr(:(id(otimes(A,A))), ax, tt) == gat_to_expr(id(otimes(A,A)))
 
 function axiom_to_rule(theory, axiom)
+    op = axiom.name
+    @assert op == :(==)
     lhs = tag_expr(axiom.left, axiom, tt) |> Pattern
     rhs = tag_expr(axiom.right, axiom, tt) |> Pattern
 
-    println("$lhs == $rhs")
-    op = axiom.name
-    @assert op == :(==)
+    pvars = patvars(lhs) ∪ patvars(rhs)
+    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs))
+    if !isempty(extravars)
+        println("EXTRA:", extravars)
+        println("LEFT:", patvars(lhs))
+        println("RIGHT:", patvars(lhs))
+
+        if extravars ⊆ patvars(lhs)
+            println("IS IN LEFT")
+            println(lhs)
+            println(rhs)
+            return RewriteRule(lhs, rhs)
+        else 
+            return RewriteRule(rhs, lhs)
+        end
+    end
+
+    # println("$lhs == $rhs")
     EqualityRule(lhs, rhs)
 end
 
@@ -183,124 +200,109 @@ expr = gat_to_expr(id(A) ⋅ id(A) ⋅ f ⋅ id(B))
 G = EGraph(expr)
 saturate!(G, rules)
 extract!(G, astsize) == :(f ~ Hom(A,B))
-# ====================================================
-# TEST 
 
-
-function simplify(ex, syntax)
-    t = gen_theory(syntax)
-    g = EGraph(ex)
-    analyze!(g, CatlabAnalysis)
-    params=SaturationParams(timeout=1)
-    saturate!(g, t, params; mod=@__MODULE__)
-    extract!(g, astsize)
-end
-
-Metatheory.options.printiter = true
-
-ex = f ⋅ id(B)
-simplify(ex, SMC) == f
-
-ex = id(A) ⋅ f ⋅ id(B)
-simplify(ex, SMC) == f
-
-ex = σ(A,B) ⋅ σ(B,A)
-simplify(ex, SMC) == id(A ⊗ B)
-
-
-# ======================================================
-# another test
-
-using Catlab.Graphics
-
+tt = theory(SymmetricMonoidalCategory)
 l = (σ(C,B) ⊗ id(A)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,A) ⊗ id(C))
 r = (id(C) ⊗ σ(B,A)) ⋅ (σ(C,A) ⊗ id(B)) ⋅ (id(A) ⊗ σ(C,B))
 
-to_graphviz(l)
-to_graphviz(r)
+rules = Rule[axiom_to_rule(tt, ax) for ax in tt.axioms] 
 
-g = EGraph()
-analyze!(g, CatlabAnalysis)
-l_ec = addexpr!(g, l)
-r_ec = addexpr!(g, r)
+l = gat_to_expr(l)
+r = gat_to_expr(r)
 
-in_same_class(g, l_ec, r_ec)
+# push!(rules, RewriteRule(Pattern(l), Pattern(r)))
+G = EGraph(l)
+addexpr!(G, r)
 
-saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
+saturate!(G, rules)
+extract!(G, astsize)
+areequal(G, rules, l, r)
 
-ll = extract!(g, astsize; root=l_ec.id) 
-rr = extract!(g, astsize; root=r_ec.id) 
+# ========================================================================================
 
-# ======================================================
-# another test
-
-# WE HAVE TO REDEFINE THE SYNTAX TO AVOID ASSOCIATIVITY AND N-ARY FUNCTIONS
-import Catlab.Theories: id, compose, otimes, ⋅, braid, σ, ⊗, Ob, Hom, pair, proj1, proj2
-@syntax BPC{ObExpr,HomExpr} BiproductCategory begin
-end
-A, B, C = Ob(BPC, :A, :B, :C)
+tt = theory(CartesianCategory)
+A, B, C, D = Ob(FreeCartesianCategory, :A, :B, :C, :D)
 f = Hom(:f, A, B)
-k = Hom(:k, B, C)
-
-
-l = Δ(A) ⋅ (delete(A) ⊗ id(A)) 
-r = id(A)
-
-
-g = EGraph(l)
-analyze!(g, CatlabAnalysis)
-
-
-saturate!(g, gen_theory(BPC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
-
-extract!(g, astsize)
-
-# ======================================================
-# another test
-
-l = σ(A, B ⊗ C)
-# r = σ(B,A) ⊗ id(C)
-r = (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(A,C))
-# r = σ(B ⊗ C, A)
-
-to_composejl(l)
-to_composejl(r)
-
-g = EGraph(ex)
-analyze!(g, CatlabAnalysis)
-l_ec = addexpr!(g, l)
-r_ec = addexpr!(g, r)
-
-
-saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
-
-extract!(g, astsize; root=l_ec.id)
-
-extract!(g, astsize; root=r_ec.id)
+g = Hom(:g, B, C)
+h = Hom(:h, C, D)
 
 
 
+l = pair(proj1(A, B), proj2(A, B))
+r = id(A ⊗ B)
+
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+
+l = gat_to_expr(l)
+r = gat_to_expr(r)
+
+G = EGraph(l)
+rc = addexpr!(G, r)
+
+# TODO identify the rules where there are more patvars on the lhs than the rhs 
+# and use regular rewrite rules instead of (==) rules
+saturate!(G, rules)
+extract!(G, astsize)
+extract!(G, astsize; root=rc.id)
+
+l = f ⋅ delete(B)
+
+G = EGraph(gat_to_expr(l))
+saturate!(G, rules)
+extract!(G, astsize)
+#TODO expr to gat
 
 # ====================================================
 # TEST 
-cc = gen_theory(FreeCartesianCategory)
+mu = FreeCartesianCategory.munit(FreeCartesianCategory.Ob)
 
-A, B, C = Ob(FreeCartesianCategory, :A, :B, :C)
-f = Hom(:f, A, B)
+l = σ(A, mu)
+r = id(A)
 
-g = EGraph()
-analyze!(g, CatlabAnalysis)
-ex = id(A) ⊗ id(B)
-to_composejl(ex)
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
 
-l_ec = addexpr!(g, ex)
-saturate!(g, cc, SaturationParams(timeout=2); mod=@__MODULE__)
-extract!(g, astsize; root=l_ec.id)
+l = gat_to_expr(l)
+r = gat_to_expr(r)
 
+G = EGraph(l)
+rc = addexpr!(G, r)
 
-ex = pair(proj1(A, B), proj2(A, B))
-to_composejl(ex)
-r_ec = addexpr!(g, ex)
-saturate!(g, cc; mod=@__MODULE__)
-extract!(g, astsize; root=r_ec.id)
+# TODO identify the rules where there are more patvars on the lhs than the rhs 
+# and use regular rewrite rules instead of (==) rules
+saturate!(G, rules)
+extract!(G, astsize; root=rc.id)
+extract!(G, astsize)
+
+l = σ(A, B) ⋅ σ(B, A)
+r = id(A ⊗ B)
+
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+
+l = gat_to_expr(l)
+r = gat_to_expr(r)
+
+G = EGraph(l)
+rc = addexpr!(G, r)
+
+# TODO identify the rules where there are more patvars on the lhs than the rhs 
+# and use regular rewrite rules instead of (==) rules
+saturate!(G, rules)
+extract!(G, astsize; root=rc.id) == extract!(G, astsize)
+
+l = σ(A, mu)
+r = id(A)
+
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+
+l = gat_to_expr(l)
+r = gat_to_expr(r)
+
+G = EGraph(l)
+rc = addexpr!(G, r)
+
+# TODO identify the rules where there are more patvars on the lhs than the rhs 
+# and use regular rewrite rules instead of (==) rules
+saturate!(G, rules)
+# extract!(G, astsize; root=rc.id) ==
+extract!(G, astsize)
 
