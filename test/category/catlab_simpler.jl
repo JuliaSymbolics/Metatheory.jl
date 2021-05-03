@@ -10,14 +10,6 @@ import Catlab.Theories: id, compose, otimes, ⋅, braid, σ, ⊗, Ob, Hom
 @syntax SMC{ObExpr,HomExpr} SymmetricMonoidalCategory begin
 end
 
-A, B, C, D = Ob(SMC, :A, :B, :C, :D)
-X, Y, Z = Ob(SMC, :X, :Y, :Z)
-
-f = Hom(:f, A, B)
-g = Hom(:g, B, C)
-h = Hom(:h, C, D)
-
-
 
 function gat_to_expr(ex::ObExpr{:generator})
     @assert length(ex.args) == 1
@@ -41,6 +33,12 @@ function gat_to_expr(ex::HomExpr{:generator})
     return Expr(:call, :~, f, type_ex)
 end
 
+A, B, C, D = Ob(SMC, :A, :B, :C, :D)
+X, Y, Z = Ob(SMC, :X, :Y, :Z)
+
+f = Hom(:f, A, B)
+g = Hom(:g, B, C)
+h = Hom(:h, C, D)
 
 gat_to_expr(x) = x
 
@@ -56,7 +54,6 @@ gat_to_expr(compose(compose(f, g), h))
 
 gat_to_expr(f)
 
-tt = SMC.theory() |> theory
 
 
 # base case
@@ -150,10 +147,8 @@ function tag_expr(x::Symbol, axiom, theory)
 end
 
 
-
-
+tt = SMC.theory() |> theory
 ax = tt.axioms[3]
-get_concrete_type_expr(tt, ax.left, ax)
 
 tag_expr(:(id(otimes(A,A))), ax, tt) == gat_to_expr(id(otimes(A,A)))
 
@@ -166,12 +161,7 @@ function axiom_to_rule(theory, axiom)
     pvars = patvars(lhs) ∪ patvars(rhs)
     extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs))
     if !isempty(extravars)
-        println("EXTRA:", extravars)
-        println("LEFT:", patvars(lhs))
-        println("RIGHT:", patvars(lhs))
-
         if extravars ⊆ patvars(lhs)
-            println("IS IN LEFT")
             println(lhs)
             println(rhs)
             return RewriteRule(lhs, rhs)
@@ -179,7 +169,6 @@ function axiom_to_rule(theory, axiom)
             return RewriteRule(rhs, lhs)
         end
     end
-
     # println("$lhs == $rhs")
     EqualityRule(lhs, rhs)
 end
@@ -188,6 +177,10 @@ tt = theory(Category)
 
 tag_expr(tt.axioms[1].left, tt.axioms[1], tt) == gat_to_expr(compose(compose(f, g), h))
 
+function gen_theory(t::Catlab.GAT.Theory)
+    [axiom_to_rule(t, ax) for ax in t.axioms]
+end
+
 
 using Catlab
 using Catlab.Theories
@@ -195,29 +188,47 @@ using Metatheory
 using Metatheory.EGraphs
 
 tt = theory(Category)
-rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+rules = gen_theory(tt)
 expr = gat_to_expr(id(A) ⋅ id(A) ⋅ f ⋅ id(B))
 G = EGraph(expr)
 saturate!(G, rules)
 extract!(G, astsize) == :(f ~ Hom(A,B))
 
 tt = theory(SymmetricMonoidalCategory)
-l = (σ(C,B) ⊗ id(A)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,A) ⊗ id(C))
-r = (id(C) ⊗ σ(B,A)) ⋅ (σ(C,A) ⊗ id(B)) ⋅ (id(A) ⊗ σ(C,B))
 
 rules = Rule[axiom_to_rule(tt, ax) for ax in tt.axioms] 
 
-l = gat_to_expr(l)
-r = gat_to_expr(r)
+push!(rules, EqualityRule( @pat(otimes(Hom(A, B), Hom(X, Y))), @pat(Hom(otimes(A, X), otimes(B, Y))) ))
+
+gats = [
+    (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,C) ⊗ id(A)),
+    σ(A, B ⊗ C) ⋅ (σ(B,C) ⊗ id(A)),
+    (id(A) ⊗ σ(B,C)) ⋅ σ(A, C⊗B),
+    (id(A) ⊗ σ(B,C)) ⋅ (σ(A,C) ⊗ id(B)) ⋅ (id(C) ⊗ σ(A,B))
+]
+
+gats = [
+    σ(A,B⊗C),
+    (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(A,C))
+]
+
+exprs = [gat_to_expr(i) for i in gats]
 
 # push!(rules, RewriteRule(Pattern(l), Pattern(r)))
-G = EGraph(l)
-addexpr!(G, r)
+G = EGraph()
+
+ecs = [addexpr!(G, i) for i in exprs]
+
+Metatheory.options.verbose = true
+Metatheory.options.printiter = true
+
+# BUG
+gat_to_expr(otimes(f, g))
 
 saturate!(G, rules)
-extract!(G, astsize)
-areequal(G, rules, l, r)
+extract!(G, astsize; root=ecs[2].id)
 
+in_same_class(G, ecs[1], ecs[2])
 # ========================================================================================
 
 tt = theory(CartesianCategory)
@@ -225,7 +236,6 @@ A, B, C, D = Ob(FreeCartesianCategory, :A, :B, :C, :D)
 f = Hom(:f, A, B)
 g = Hom(:g, B, C)
 h = Hom(:h, C, D)
-
 
 
 l = pair(proj1(A, B), proj2(A, B))
