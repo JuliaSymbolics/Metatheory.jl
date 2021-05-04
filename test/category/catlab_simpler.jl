@@ -66,7 +66,7 @@ function is_context_match(t, head, args)
     @show head
     @show args
     println(repeat("=", 30))
-    
+
     t.name !== head && return false
     n = length(t.params)
     n != length(args) && return false
@@ -89,11 +89,12 @@ function gat_type_inference(theory, head, args)
         if is_context_match(t, head, args)
             @show t, head, args
             return gat_type_inference(t, head, args)
+        end
     end
-end
     @show theory, head, args
     @error "can not find $(Expr(:call, head, args...)) in the theory"
 end
+
 function gat_type_inference(t::GAT.TermConstructor, head, args)
     @assert length(t.params) == length(args) && t.name === head
     bindings = Dict()
