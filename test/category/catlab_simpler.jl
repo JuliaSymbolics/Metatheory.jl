@@ -35,7 +35,8 @@ const Code = Union{Symbol, Expr}
 # an object A will be typed as Ob(A)
 function get_concrete_type_expr(theory, x::Symbol, ctx, type_tags = Dict{Code, Code}())
     t = ctx[x]
-    t === :Ob && (t = Expr(:call, :Ob, x))
+    # t === :Ob && (t = Expr(:call, :Ob, x))
+    t === :Ob && (t = x)
     type_tags[x] = t
     return t
 end
@@ -66,6 +67,8 @@ function is_context_match(t, head, args)
     @show head
     @show args
     println(repeat("=", 30))
+
+    # TODO fixme!
 
     t.name !== head && return false
     n = length(t.params)
@@ -106,11 +109,13 @@ function gat_type_inference(t::GAT.TermConstructor, head, args)
     end
     # @show bindings
     r = GAT.replace_types(bindings, t)
-    if r.typ == :Ob 
-        return Expr(:call, :Ob, Expr(:call, head, args...))
-    else 
+    # if r.typ == :Ob 
+    #     # return Expr(:call, :Ob, Expr(:call, head, args...))
+    #     Expr(:call, head, args...)
+    # else
+    @show(r.typ) 
         return r.typ
-    end
+    # end
 end
 function update_bindings!(bindings, template::Expr, target::Expr)
     for i = 1:length(template.args)
@@ -176,3 +181,25 @@ function gen_theory(t::Catlab.GAT.Theory)
 end
 
 
+
+# =========================================================
+# Utility Functions
+# =========================================================
+
+function Base.show(io::IO, a::Catlab.GAT.AxiomConstructor)
+    print(io, a.left)
+    print(io, ' ', a.name, ' ' )
+    print(io, a.right)
+    print(io, " where ")
+    n = length(a.context)
+    ctx = collect(a.context)
+    for i in 1:n
+        (k,v) = ctx[i]
+        print(io, "$k => $v")
+        if i !== n 
+            print(io, ", ")
+        end
+    end
+end
+
+ax
