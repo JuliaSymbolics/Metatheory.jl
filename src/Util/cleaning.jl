@@ -9,7 +9,7 @@ rmlines(a) = a
 """
 HARD FIX of n-arity of operators in `Expr` trees.
 """
-function binarize!(e, ops::Vector{Symbol})
+function binarize!(e, ops::Vector)
     if !(e isa Expr)
         return e
     end
