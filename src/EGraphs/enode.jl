@@ -54,8 +54,8 @@ TermInterface.getmetadata(n::ENode) = n.metadata
 
 termtype(x::ENode{T}) where T = T
 
-function Base.show(io::IO, x::ENode)
-    print(io, "(", x.head)
+function Base.show(io::IO, x::ENode{T}) where {T}
+    print(io, "{$T}(", x.head)
     n = arity(x)
     if n == 0
         print(io, ")")

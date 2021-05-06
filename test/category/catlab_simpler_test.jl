@@ -5,6 +5,8 @@ using Catlab.Syntax
 using Metatheory, Metatheory.EGraphs
 @metatheory_init ()
 
+using Test
+
 # ============================================================
 # GATExpr TO TAGGED EXPR
 # ============================================================
@@ -40,6 +42,11 @@ gat_to_expr(compose(compose(f, g), h))
 
 gat_to_expr(f)
 
+gat_to_expr(A ⊗ B)
+
+# BUG
+gat_to_expr(otimes(f, g))
+
 
 
 # ============================================================
@@ -52,9 +59,10 @@ X, Y, Z = Ob(SMC, :X, :Y, :Z)
 tt = theory(SymmetricMonoidalCategory) ; 
 ax = tt.axioms[10] ; 
 get_concrete_type_expr(tt, ax.left, ax.context)
+tag_expr(ax.left, ax, tt)
 ax = tt.axioms[4] 
 get_concrete_type_expr(tt, ax.left, ax.context)
-
+tag_expr(ax.left, ax, tt)
 
 tt = theory(Category)
 
@@ -78,20 +86,13 @@ rules = gen_theory(tt)
 expr = gat_to_expr(id(A) ⋅ id(A) ⋅ f ⋅ id(B))
 G = EGraph(expr)
 saturate!(G, rules)
-extract!(G, astsize)  == :(f ~ Hom(A,B))
+@test extract!(G, astsize)  == :(f ~ Hom(A,B))
 
 tt = theory(SymmetricMonoidalCategory)
 
 rules = Rule[axiom_to_rule(tt, ax) for ax in tt.axioms] 
 
-push!(rules, EqualityRule( @pat(otimes(Hom(A, B), Hom(X, Y))), @pat(Hom(otimes(A, X), otimes(B, Y))) ))
-
-gats = [
-    (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,C) ⊗ id(A)),
-    σ(A, B ⊗ C) ⋅ (σ(B,C) ⊗ id(A)),
-    (id(A) ⊗ σ(B,C)) ⋅ σ(A, C⊗B),
-    (id(A) ⊗ σ(B,C)) ⋅ (σ(A,C) ⊗ id(B)) ⋅ (id(C) ⊗ σ(A,B))
-]
+# push!(rules, EqualityRule( @pat(otimes(Hom(A, B), Hom(X, Y))), @pat(Hom(otimes(A, X), otimes(B, Y))) ))
 
 gats = [
     σ(A,B⊗C),
@@ -108,13 +109,40 @@ ecs = [addexpr!(G, i) for i in exprs]
 Metatheory.options.verbose = true
 Metatheory.options.printiter = true
 
-# BUG
-gat_to_expr(otimes(f, g))
 
 saturate!(G, rules)
 extract!(G, astsize; root=ecs[2].id)
 
-in_same_class(G, ecs[1], ecs[2])
+@test in_same_class(G, ecs[1], ecs[2])
+
+
+# YANG BAXTER EQUATION
+
+gats = [
+    (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,C) ⊗ id(A)),
+    σ(A, B ⊗ C) ⋅ (σ(B,C) ⊗ id(A)),
+    (id(A) ⊗ σ(B,C)) ⋅ σ(A, C⊗B),
+    (id(A) ⊗ σ(B,C)) ⋅ (σ(A,C) ⊗ id(B)) ⋅ (id(C) ⊗ σ(A,B))
+]
+
+exprs = [gat_to_expr(i) for i in gats]
+
+# push!(rules, RewriteRule(Pattern(l), Pattern(r)))
+G = EGraph()
+
+ecs = [addexpr!(G, i) for i in exprs]
+
+Metatheory.options.verbose = true
+Metatheory.options.printiter = true
+
+
+saturate!(G, rules, SaturationParams(timeout=1))
+extract!(G, astsize; root=ecs[2].id)
+
+[ in_same_class(G, ecs[i], ecs[i+1]) for i in 1:length(gats)-1 ]
+    
+
+
 # ========================================================================================
 
 tt = theory(CartesianCategory)

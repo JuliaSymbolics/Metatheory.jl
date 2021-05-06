@@ -25,3 +25,5 @@ export Rule
 export Theory
 export @rule
 export @theory
+export @methodrule
+export @methodtheory

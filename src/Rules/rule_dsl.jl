@@ -29,16 +29,16 @@ Construct a `Rule` from a quoted expression.
 You can also use the [`@rule`] macro to
 create a `Rule`.
 """
-function Rule(e::Expr; mod::Module=@__MODULE__)
+function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
     op = gethead(e)
     RuleType = rule_sym_map(e)
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
-    lhs = Pattern(l, mod)
+    lhs = Pattern(l, mod, resolve_fun)
     rhs = r
     
     if RuleType <: SymbolicRule
-        rhs = Pattern(rhs, mod)
+        rhs = Pattern(rhs, mod, resolve_fun)
     end
 
     
@@ -46,7 +46,7 @@ function Rule(e::Expr; mod::Module=@__MODULE__)
 end
 
 # fallback when defining theories and there's already a rule 
-function Rule(r::Rule; mod::Module=@__MODULE__)
+function Rule(r::Rule, mod::Module=@__MODULE__, resolve_fun=false)
     r
 end
 
@@ -54,7 +54,14 @@ macro rule(e)
     e = macroexpand(__module__, e)
     e = rmlines(copy(e))
     # e = interp_dollar(e, __module__)
-    Rule(e; mod=__module__)
+    Rule(e, __module__, false)
+end
+
+macro methodrule(e)
+    e = macroexpand(__module__, e)
+    e = rmlines(copy(e))
+    # e = interp_dollar(e, __module__)
+    Rule(e, __module__, true)
 end
 
 # Theories can just be vectors of rules!
@@ -64,7 +71,19 @@ macro theory(e)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
     if Meta.isexpr(e, :block)
-        Vector{Rule}(e.args .|> x -> Rule(x; mod=__module__))
+        Vector{Rule}(e.args .|> x -> Rule(x, __module__, false))
+    else
+        error("theory is not in form begin a => b; ... end")
+    end
+end
+
+# TODO document this puts the function as pattern head instead of symbols
+macro methodtheory(e)
+    e = macroexpand(__module__, e)
+    e = rmlines(e)
+    # e = interp_dollar(e, __module__)
+    if Meta.isexpr(e, :block)
+        Vector{Rule}(e.args .|> x -> Rule(x, __module__, true))
     else
         error("theory is not in form begin a => b; ... end")
     end

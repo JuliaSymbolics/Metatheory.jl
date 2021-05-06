@@ -43,7 +43,7 @@ end
 # ======================= READING ====================
 
 
-function Pattern(ex::Expr, mod=@__MODULE__)
+function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     ex = preprocess(ex)
     head = gethead(ex)
     args = getargs(ex)
@@ -51,12 +51,18 @@ function Pattern(ex::Expr, mod=@__MODULE__)
     n = length(args)
     patargs = Vector{Pattern}(undef, n)
     for i ∈ 1:n
-        @inbounds patargs[i] = Pattern(args[i], mod)
+        @inbounds patargs[i] = Pattern(args[i], mod, resolve_fun)
     end
 
     if head == :call
         # println(:aaa)
-        patargs[1] = PatLiteral(args[1])
+        if resolve_fun
+            fname = args[1]
+            f = mod.eval(fname)
+            patargs[1] = PatLiteral(f)
+        else
+            patargs[1] = PatLiteral(args[1])
+        end
     elseif head == :(::)
         v = patargs[1]
         t = patargs[2]
@@ -78,11 +84,11 @@ function Pattern(ex::Expr, mod=@__MODULE__)
     PatTerm(head, patargs)
 end
 
-function Pattern(x::Symbol, mod=@__MODULE__)
+function Pattern(x::Symbol, mod=@__MODULE__, resolve_fun=false)
     PatVar(x)
 end
 
-function Pattern(x::QuoteNode, mod=@__MODULE__)
+function Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false)
     if x.value isa Symbol
         PatLiteral(x.value) 
     else
@@ -91,7 +97,7 @@ function Pattern(x::QuoteNode, mod=@__MODULE__)
 end
 
 # Generic fallback
-function Pattern(ex, mod=@__MODULE__)
+function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
     ex = preprocess(ex)
     if istree(ex)
         head = gethead(ex)
@@ -100,7 +106,7 @@ function Pattern(ex, mod=@__MODULE__)
         n = length(args)
         patargs = Vector{Pattern}(undef, n)
         for i ∈ 1:n
-            @inbounds patargs[i] = Pattern(args[i], mod)
+            @inbounds patargs[i] = Pattern(args[i], mod, resolve_fun)
         end
 
         PatTerm(head, patargs)
@@ -108,10 +114,14 @@ function Pattern(ex, mod=@__MODULE__)
     PatLiteral(ex)
 end
 
-function Pattern(p::Pattern, mod=@__MODULE__)
+function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)
     p 
 end
 
 macro pat(ex)
-    Pattern(ex, __module__)
+    Pattern(ex, __module__, false)
+end
+
+macro pat(ex, resolve_fun::Bool)
+    Pattern(ex, __module__, resolve_fun)
 end
