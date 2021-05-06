@@ -49,7 +49,7 @@ function cleanblock(e)
     df_walk!(clean_block_step, e)
 end
 
-const binarize_ops = [:(+), :(*)]
+const binarize_ops = [:(+), :(*), (+), (*)]
 
 
 """

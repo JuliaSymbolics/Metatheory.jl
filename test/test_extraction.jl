@@ -159,8 +159,6 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	@test ex == :(5*log(a)) || ex == :(log(a)*5)
 end
 
-# EXTRACTION BUG!
-
 function costfun(n::ENode, g::EGraph, an)
 	arity(n) != 3 && (return 1)
 	left = n.args[2]
