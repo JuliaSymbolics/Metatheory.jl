@@ -27,46 +27,55 @@ end
 
 
 const Code = Union{Symbol, Expr}
+const TTags = Dict{Code, Tuple{Code, Symbol}}
 
 # ============================================================
 
 # infer type of morphisms and objects
 # a morphism f: A → B will be typed as f ~ Hom(A, B)
 # an object A will be typed as Ob(A)
-function get_concrete_type_expr(theory, x::Symbol, ctx, type_tags = Dict{Code, Code}())
+function get_concrete_type_expr(theory, x::Symbol, ctx, type_tags = TTags())
     t = ctx[x]
+    @show(t)
     # t === :Ob && (t = Expr(:call, :Ob, x))
-    t === :Ob && (t = x)
-    type_tags[x] = t
-    return t
+    if t === :Ob 
+        type_tags[x] = (x, t)
+        return (x, t)
+    else 
+        @assert t.args[1] == :Hom
+        type_tags[x] = (t, t.args[1])
+        return (t, t.args[1])
+    end
 end
-function get_concrete_type_expr(theory, x::Expr, ctx, type_tags = Dict{Code, Code}())
+
+function get_concrete_type_expr(theory, x::Expr, ctx, type_tags = TTags())
     @assert x.head == :call
     f = x.args[1]
     rest = x.args[2:end]
     # recursion case - inductive step (?)
     for a in rest
-        t = get_concrete_type_expr(theory, a, ctx, type_tags)
-        type_tags[a] = t
-        # println("$a ~ $t")
+        (t, sort) = get_concrete_type_expr(theory, a, ctx, type_tags)
+        type_tags[a] = (t, sort)
+        println("$a ~ $t")
     end
     # get the corresponding TermConstructor from theory.terms
     # for each arg in `rest`, instantiate the term.params with term.context
     # instantiate term.typ
 
-    type_tags[x] = gat_type_inference(theory, f, [type_tags[a] for a in rest])
+    (t, sort) = gat_type_inference(theory, f, [type_tags[a] for a in rest])
+    type_tags[x] = (t, sort)
     # println("$x ~ $(type_tags[x])")
-    return type_tags[x]
+    return (t, sort)
 end
 
 function is_context_match(t, head, args)
     # t isa TermConstructor
-    println(repeat("=", 30))
-    println("is_context_match")
-    @show t 
-    @show head
-    @show args
-    println(repeat("=", 30))
+    # println(repeat("=", 30))
+    # println("is_context_match")
+    # @show t 
+    # @show head
+    # @show args
+    # println(repeat("=", 30))
 
     # TODO fixme!
 
@@ -74,12 +83,14 @@ function is_context_match(t, head, args)
     n = length(t.params)
     n != length(args) && return false
     for i = 1:n
+        arg, sort = args[i]
+
         if t.context[t.params[i]] === :Ob 
-            if (args[i] isa Symbol) || args[i].args[1] !== :Ob
+            if sort !== :Ob
                 return false
             end
         else
-            if !(args[i] isa Symbol) && args[i].args[1] === :Ob
+            if sort === :Ob
                 return false
             end
         end
@@ -90,31 +101,39 @@ end
 function gat_type_inference(theory, head, args)
     for t in theory.terms
         if is_context_match(t, head, args)
-            @show t, head, args
+            # @show t, head, args
             return gat_type_inference(t, head, args)
         end
     end
-    @show theory, head, args
+    # @show theory, head, args
     @error "can not find $(Expr(:call, head, args...)) in the theory"
 end
 
 function gat_type_inference(t::GAT.TermConstructor, head, args)
     @assert length(t.params) == length(args) && t.name === head
     bindings = Dict()
+
+    println(args)
+    texprs = map(first, args)
+    sorts = map(last, args)
+
+
     for i = 1:length(args)
         template = t.context[t.params[i]]
         template === :Ob && (template = t.params[i])
         # @show template
-        update_bindings!(bindings, template, args[i])
+        update_bindings!(bindings, template, texprs[i])
     end
     # @show bindings
     r = GAT.replace_types(bindings, t)
-    # if r.typ == :Ob 
-    #     # return Expr(:call, :Ob, Expr(:call, head, args...))
+    if r.typ == :Ob 
+        return Expr(:call, head, texprs...), r.typ
+        #     # return Expr(:call, :Ob, Expr(:call, head, args...))
     #     Expr(:call, head, args...)
-    # else
-    @show(r.typ) 
-        return r.typ
+    else
+        @show(r.typ)
+        return r.typ, r.typ.args[1]
+    end
     # end
 end
 function update_bindings!(bindings, template::Expr, target::Expr)
@@ -128,7 +147,7 @@ end
 
 
 function tag_expr(x::Expr, axiom, theory)
-    t = get_concrete_type_expr(theory, x, axiom.context)
+    texpr, sort = get_concrete_type_expr(theory, x, axiom.context)
     start = x.head == :call ? 2 : 1 
 
     nargs = Any[tag_expr(y, axiom, theory) for y in x.args[start:end]]
@@ -139,15 +158,15 @@ function tag_expr(x::Expr, axiom, theory)
 
     z = Expr(x.head, nargs...)
 
-    (t === :Ob || t == x) && (return z)
-    :($z ~ $t)
+    (sort === :Ob) && (return z)
+    :($z ~ $texpr)
 end
 
 function tag_expr(x::Symbol, axiom, theory)
-    t = get_concrete_type_expr(theory, x, axiom.context)
-    (t === :Ob || t == x) && (return x)
-    return (t == x ? x : :($x ~ $t))
-    # :($x ~ $t)
+    (texpr, sort) = get_concrete_type_expr(theory, x, axiom.context)
+    (sort === :Ob) && (return x)
+    # return (t == x ? x : :($x ~ $t))
+    return :($x ~ $texpr)
 end
 
 # ============================================================
