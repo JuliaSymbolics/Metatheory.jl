@@ -42,6 +42,9 @@ end
 
 # ======================= READING ====================
 
+# Resolve `GlobalRef` instances to literals.
+resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
+resolve(gr) = gr
 
 function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     ex = preprocess(ex)
@@ -55,10 +58,8 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     end
 
     if head == :call
-        # println(:aaa)
         if resolve_fun
-            fname = args[1]
-            f = mod.eval(fname)
+            f = resolve(GlobalRef(mod, args[1]))
             patargs[1] = PatLiteral(f)
         else
             patargs[1] = PatLiteral(args[1])
