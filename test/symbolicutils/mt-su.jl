@@ -1,6 +1,6 @@
 using SymbolicUtils
 using Metatheory
-
+using Metatheory.EGraphs
 import SymbolicUtils: Symbolic, Sym, operation, arguments, Term
 
 TermInterface.istree(t::Symbolic) = SymbolicUtils.istree(t)
@@ -18,81 +18,96 @@ end
 function TermInterface.preprocess(t::Symbolic)
     if SymbolicUtils.istree(t)
         f = operation(t)
-        if f == (+) || f == (*)
+        if f == (+) || f == (*) || f == (-) # check out for other binary ops TODO
             a = arguments(t)
             if length(a) > 2
-                return unflatten_args(+, a, 2)
+                return unflatten_args(f, a, 2)
             end
         end
     end
     return t
 end
 
-## Test
-#
-
-using Metatheory.EGraphs
-
-@metatheory_init ()
-
-g = EGraph()
-
-settermtype!(g, Term)
-
-@syms x
-
-ex = Term{Number}(+, [x, x]) * x
-
-ec = addexpr!(g, ex)
-
-g.root = ec.id
-
-display(g.classes); println()
-
-# (2x) * x => 2 * (x * x) => 2x^2
-
-theory = @methodtheory begin
-    (a + a) => 2a
-    a * (b * c) == (a * b) * c
-    a * a => a^2
-end
-
-params = SaturationParams()
-saturate!(g, theory, params)
-
-display(g.classes); println()
-
-# 1) search (match) for every rule produce matches of the form 
-# (rule, pat, subs, eclass_id)
-# optimization: trim rules by scheduling
-# subst is a map from (pattern_variable => (eclass_id, literal))
-# 2) apply the matchis (write phase) to the e-graph 
-# instantiate substitutions to patterns 
-# subst(pat) -> add it to the egraph -> merge eclasses for lhs and rhs
-# 3) rebuilding: restore invariants for congruence closure in the egrapho
-# say that we have enodes representing f(b) and f(c)
-# if i set b == c
-# we have to go up the graph and propagate, to inform it that f(b) == f(c)
-
-# similarterm(ex, head, args)
-
-extract!(g, astsize) # --> "term" head args
-
-# f(a, b) => a + b
-
-function EGraphs.instantiateterm(g::EGraph, pat::PatTerm, T::Type{<:Symbolic}, children) 
-    if pat.head == :call 
-        Term{Real}(children[1], children[2:end])
-    end 
+function EGraphs.instantiateterm(g::EGraph, pat::PatTerm, x::Type{<:Symbolic{T}}, children) where {T}
+    @assert pat.head == :call
+    return Term{T}(children[1], children[2:end])
 end
 
 
 # Define an extraction method dispatching on MyExpr
-function EGraphs.extractnode(n::ENode{<:Symbolic}, extractor::Function)
-    # (foo, bar, baz) = n.metadata
+function EGraphs.extractnode(g::EGraph, n::ENode{<:Symbolic{T}}, extractor::Function) where {T}
     # extracted arguments
     ret_args = [extractor(a) for a in n.args]
     if n.head == :call 
-        return Term(ret_args[1], ret_args[2:end])
+        return Term{T}(ret_args[1], ret_args[2:end])
     end
 end
+
+
+
+function costfun(n::ENode, g::EGraph, an)
+    if arity(n) == 0
+        if n.head == :+
+            return 1
+        elseif n.head == :-
+            return 1
+        elseif n.head == :*
+            return 3
+        elseif n.head == :/
+            return 30
+        else
+            return 1
+        end
+    end
+    if !(n.head == :call)
+        return 1000000000
+    end
+    cost = 0
+
+    for id ∈ n.args
+        eclass = geteclass(g, id)
+        !hasdata(eclass, an) && (cost += Inf; break)
+        cost += last(getdata(eclass, an))
+    end
+    cost
+end
+
+
+@metatheory_init ()
+
+
+theory = @methodtheory begin
+    a * x == x * a
+    a * x + a * y == a*(x+y)
+end
+
+import SymbolicUtils.symtype
+function optimize(ex)
+    g = EGraph()
+
+    settermtype!(g, Term{symtype(ex), Any})
+
+    ec = addexpr!(g, ex)
+
+    g.root = ec.id
+
+    @show g.root
+    display(g.classes); println()
+
+    # (2x) * x => 2 * (x * x) => 2x^2
+
+
+    params = SaturationParams()
+    saturate!(g, theory, params)
+
+    extract!(g, costfun) # --> "term" head args
+end
+
+
+@syms a b
+2(a+b) - a*(a+b)
+
+optimize(2a + 2b - (a*(a + b)))
+
+
+using Metatheory.TermInterface

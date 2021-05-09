@@ -43,8 +43,11 @@ function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, chil
 end
 
 # Define an extraction method dispatching on MyExpr
-function EGraphs.extractnode(n::ENode{MyExpr}, extractor::Function)
-    (foo, bar, baz) = n.metadata
+function EGraphs.extractnode(g::EGraph, n::ENode{MyExpr}, extractor::Function)
+    eclass = geteclass(g, lookup(g, n))
+    (foo, bar, baz) = getdata(eclass, MetadataAnalysis, ("", Complex[], Set{Int}()))
+    # TODO FIXME MetadataAnalysis
+
     # extracted arguments
     ret_args = []
 
@@ -56,7 +59,8 @@ function EGraphs.extractnode(n::ENode{MyExpr}, extractor::Function)
 end
 
 # let's create an egraph 
-g = EGraph(ex)
+g = EGraph(ex; keepmeta=true)
+
 
 # ========== !!! ============= !!! ===============
 # ========== !!! ============= !!! ===============

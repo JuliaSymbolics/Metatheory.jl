@@ -44,16 +44,16 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
     (cn, ck) = anval
     (arity(cn) == 0 || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
-    extractnode(cn, extractor)
+    extractnode(g, cn, extractor)
 end
 
 # TODO CUSTOMTYPES document how to for custom types
 # TODO maybe extractor can just be the array of extracted children?
-function extractnode(n::ENode{Expr}, extractor::Function)::Expr
+function extractnode(g::EGraph, n::ENode{Expr}, extractor::Function)::Expr
     return Expr(n.head, map(extractor, n.args)...)
 end
 
-function extractnode(n::ENode{T}, extractor::Function) where T
+function extractnode(g::EGraph, n::ENode{T}, extractor::Function) where T
     if arity(n) > 0
         error("ENode extraction is not defined for non-literal type $T")
     end

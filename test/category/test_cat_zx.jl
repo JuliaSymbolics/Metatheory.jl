@@ -79,12 +79,12 @@ function infer(t::GATExpr)
     getdata(geteclass(g, g.root), CatlabAnalysis)
 end
 
-function EGraphs.extractnode(n::ENode{T}, extractor::Function) where {T <: ObExpr}
+function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: ObExpr}
     @assert n.head == :call
     return getmetadata(n).ob
 end
 
-function EGraphs.extractnode(n::ENode{T}, extractor::Function) where {T <: HomExpr}
+function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: HomExpr}
     @assert n.head == :call
     nargs = extractor.(n.args)
     nmeta = getmetadata(n)

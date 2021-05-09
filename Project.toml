@@ -21,10 +21,11 @@ julia = "1"
 
 [extras]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
-Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
+SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
+Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
 ExprRules = "e7058ba0-a568-556c-b31a-209ee9d855a8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Calculus", "ExprRules", "AbstractTrees", "Catlab"]
+test = ["Test", "Calculus", "ExprRules", "AbstractTrees", "Catlab", "SymbolicUtils"]
