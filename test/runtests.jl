@@ -48,10 +48,7 @@ falseormissing(x) =
       include("cas/test_infer.jl")
       include("cas/test_cas.jl")
       include("category/test_cat.jl")
-      include("category/test_zx_rule.jl")
       include("group/test_kb_benchmark.jl")
-
-
 
       # exported consistency test
       for m ∈ [Metatheory, Metatheory.Util, Metatheory.Classic, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]

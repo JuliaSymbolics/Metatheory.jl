@@ -39,7 +39,6 @@ mutable struct EGraph
     # symcache::SymbolCache
     default_termtype::Type
     termtypes::TermTypes
-    can_optimize_ground_terms::Bool
     numclasses::Int
     numnodes::Int
 end
@@ -57,15 +56,18 @@ function EGraph()
         # SymbolCache(),
         Expr,
         TermTypes(),
-        true,
         0,
         0
     )
 end
 
-function EGraph(e)
+function EGraph(e; keepmeta=false)
     g = EGraph()
-    rootclass = addexpr!(g, e)
+    if keepmeta
+        push!(g.analyses, MetadataAnalysis)
+    end
+    
+    rootclass = addexpr!(g, e; keepmeta=keepmeta)
     g.root = rootclass.id
     g
 end
@@ -114,10 +116,10 @@ Base.getindex(g::EGraph, i::EClassId) = geteclass(g, i)
 iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
-function canonicalize(g::EGraph, n::ENode{T,M}) where {T,M}
+function canonicalize(g::EGraph, n::ENode{T}) where {T}
     if arity(n) > 0
         new_args = map(x -> find(g, x), n.args)
-        return ENode{T,M}(n.head, new_args, n.metadata)
+        return ENode{T}(n.head, new_args)
     end 
     return n
 end
@@ -168,12 +170,8 @@ function add!(g::EGraph, n::ENode)::EClass
     g.classes[id] = classdata
     g.numclasses += 1
 
-    if !isnothing(n.metadata)
-        g.can_optimize_ground_terms = false
-    end
-
     for an ∈ g.analyses
-        if !islazy(an)
+        if !islazy(an) && an !== MetadataAnalysis
             setdata!(classdata, an, make(an, g, n))
             modify!(an, g, id)
         end
@@ -187,7 +185,7 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se)::EClass
+function addexpr!(g::EGraph, se; keepmeta=false)::EClass
     # e = preprocess(e)
     # println("========== $e ===========")
     if se isa EClass
@@ -202,14 +200,26 @@ function addexpr!(g::EGraph, se)::EClass
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexpr!(g, child)
+            c_eclass = addexpr!(g, child; keepmeta=keepmeta)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode(e, class_ids)
-        return add!(g, node)
+        ec =  add!(g, node)
+        if keepmeta
+            # TODO check if eclass already has metadata?
+            meta = TermInterface.getmetadata(e)
+            setdata!(ec, MetadataAnalysis, meta)
+        end
+        return ec
     end
 
-    return add!(g, ENode(e))
+    ec = add!(g, ENode(e))
+    if keepmeta
+        # TODO check if eclass already has metadata?
+        meta = TermInterface.getmetadata(e)
+        setdata!(ec, MetadataAnalysis, meta)
+    end
+    return ec
 end
 
 """

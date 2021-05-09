@@ -31,8 +31,12 @@ include("intdisjointmap.jl")
 export IntDisjointSet
 export in_same_set
 
+include("metadata_analysis.jl")
+export MetadataAnalysis
+
 include("egraph.jl")
 export find
+export lookup
 export geteclass
 export arity
 export EGraph
@@ -43,19 +47,12 @@ export rebuild!
 export settermtype!
 export gettermtype
 
-
 include("analysis.jl")
 export analyze!
-
-# include("substitution.jl")
-# export instantiate
-# export instantiateterm
 
 include("subst.jl")
 export Sub
 
-
-# include("ematch.jl")
 include("ematch_compiler.jl")
 export Program
 export Instruction

@@ -111,11 +111,10 @@ function lookup_pat(g::EGraph, p::PatTerm)
 
     T = gettermtype(g, f, ar)
 
-    # FIXME metadata
     ids = [lookup_pat(g, pp) for pp in p.args]
     if all(i -> i isa EClassId, ids)
         # println(ids)
-        n = ENode{T,Nothing}(p.head, ids, nothing)
+        n = ENode{T}(p.head, ids)
         # println("ENode{$T} $n")
         ec = lookup(g, n)
         return ec
@@ -158,21 +157,18 @@ end
 
 
 # Global Right Hand Side function cache for dynamic rules.
-# Now we're talking.
-# TODO use a LRUCache?
-# (pattern, can_optimize_ground) => program
-const EMATCH_PROG_CACHE = IdDict{Tuple{Pattern, Bool}, Program}()
+const EMATCH_PROG_CACHE = IdDict{Pattern, Program}()
 const EMATCH_PROG_CACHE_LOCK = ReentrantLock()
 
-function getprogram(p::Pattern, can_optimize)
+function getprogram(p::Pattern)
     lock(EMATCH_PROG_CACHE_LOCK) do
-        if !haskey(EMATCH_PROG_CACHE, (p, can_optimize))
+        if !haskey(EMATCH_PROG_CACHE, p)
             # println("cache miss!")
-            program = compile_pat(p, can_optimize)
-            EMATCH_PROG_CACHE[(p, can_optimize)] = program
+            program = compile_pat(p)
+            EMATCH_PROG_CACHE[p] = program
             return program
         end
-        return EMATCH_PROG_CACHE[(p, can_optimize)]
+        return EMATCH_PROG_CACHE[p]
     end
 end
 
@@ -183,7 +179,7 @@ function __init__()
 end
 
 function ematch(g::EGraph, p::Pattern, id::EClassId)
-    program = getprogram(p, g.can_optimize_ground_terms)
+    program = getprogram(p)
     tid = Threads.threadid() 
     reset(MACHINES[tid], g, program, id)
     # machine = Machine(g, program, σsize, id)
