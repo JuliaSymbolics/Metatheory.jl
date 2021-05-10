@@ -56,7 +56,7 @@ TermInterface.arity(n::ENode) = length(n.args)
 termtype(x::ENode{T}) where T = T
 
 function Base.show(io::IO, x::ENode{T}) where {T}
-    print(io, "{$T}(", x.head)
+    print(io, "ENode{$T}(", x.head)
     n = arity(x)
     if n == 0
         print(io, ")")
