@@ -158,7 +158,7 @@ function add!(g::EGraph, n::ENode, proofstep)::EClass
         if !isnothing(proofstep)
             for (i, nn) in enumerate(eclass)
                 if n == nn && isnothing(nn.proof)
-                    println("ADDING PROOF STEP TO ALREADY EXISTENT ENODE $nn")
+                    # println("ADDING PROOF STEP TO ALREADY EXISTENT ENODE $nn")
                     setproof!(nn, proofstep)
                 end
             end 
