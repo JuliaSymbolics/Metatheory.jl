@@ -12,7 +12,16 @@ function areequal(g::EGraph, t::Vector{<:Rule}, exprs...;
 
     @log "starting saturation"
 
-    goal = EqualityGoal(g, collect(exprs))
+    n = length(exprs)
+    ids = Vector{EClassId}(undef, n)
+    nodes = Vector{ENode}(undef, n)
+    for i ∈ 1:n
+        ec, node = addexpr!(g, exprs[i])
+        ids[i] = ec.id
+        nodes[i] = node
+    end
+
+    goal = EqualityGoal(collect(exprs), ids)
     
     # alleq = () -> (all(x -> in_same_set(G.uf, ids[1], x), ids[2:end]))
 

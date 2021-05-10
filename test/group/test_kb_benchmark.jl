@@ -48,7 +48,7 @@ g = EGraph(another_expr)
 saturate!(g, G, params)
 
 another_expr = :(a*a*a*a)
-some_eclass = addexpr!(g, another_expr)
+some_eclass, _ = addexpr!(g, another_expr)
 saturate!(g, G, params)
 ex = extract!(g, astsize; root=some_eclass.id)
 @test ex == :ε

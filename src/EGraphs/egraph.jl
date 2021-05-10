@@ -67,7 +67,7 @@ function EGraph(e; keepmeta=false)
         push!(g.analyses, MetadataAnalysis)
     end
     
-    rootclass = addexpr!(g, e; keepmeta=keepmeta)
+    rootclass, rootnode = addexpr!(g, e; keepmeta=keepmeta)
     g.root = rootclass.id
     g
 end
@@ -119,7 +119,7 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 function canonicalize(g::EGraph, n::ENode{T}) where {T}
     if arity(n) > 0
         new_args = map(x -> find(g, x), n.args)
-        return ENode{T}(n.head, new_args)
+        return ENode{T}(n.head, new_args, n.proof)
     end 
     return n
 end
@@ -148,13 +148,22 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::ENode)::EClass
+function add!(g::EGraph, n::ENode, proofstep)::EClass
     @debug("adding ", n)
 
     n = canonicalize(g, n)
     if haskey(g.memo, n)
-        # return g.classes[g.memo[n]]
-        return geteclass(g, g.memo[n])
+        # TODO really override the proof step here?
+        eclass = geteclass(g, g.memo[n])
+        if !isnothing(proofstep)
+            for (i, nn) in enumerate(eclass)
+                if n == nn && isnothing(nn.proof)
+                    println("ADDING PROOF STEP TO ALREADY EXISTENT ENODE $nn")
+                    setproof!(nn, proofstep)
+                end
+            end 
+        end 
+        return eclass
     end
     @debug(n, " not found in memo")
 
@@ -185,11 +194,11 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta=false)::EClass
+function addexpr!(g::EGraph, se; keepmeta=false, proofstep=nothing)::Tuple{EClass, ENode}
     # e = preprocess(e)
     # println("========== $e ===========")
     if se isa EClass
-        return se
+        return (se, se[1])
     end
     e = preprocess(se)
 
@@ -200,26 +209,27 @@ function addexpr!(g::EGraph, se; keepmeta=false)::EClass
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass = addexpr!(g, child; keepmeta=keepmeta)
+            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta)# DOES NOT RECURSE! , proofstep=proofstep)
             @inbounds class_ids[i] = c_eclass.id
         end
-        node = ENode(e, class_ids)
-        ec =  add!(g, node)
+        node = ENode(e, class_ids; proof=proofstep)
+        ec =  add!(g, node, proofstep)
         if keepmeta
             # TODO check if eclass already has metadata?
             meta = TermInterface.getmetadata(e)
             setdata!(ec, MetadataAnalysis, meta)
         end
-        return ec
+        return (ec, node)
     end
 
-    ec = add!(g, ENode(e))
+    node = ENode(e)
+    ec = add!(g, node, proofstep)
     if keepmeta
         # TODO check if eclass already has metadata?
         meta = TermInterface.getmetadata(e)
         setdata!(ec, MetadataAnalysis, meta)
     end
-    return ec
+    return (ec, node)
 end
 
 """

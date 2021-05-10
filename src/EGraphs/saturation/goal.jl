@@ -16,16 +16,6 @@ struct EqualityGoal <: SaturationGoal
     end
 end
 
-function EqualityGoal(g::EGraph, exprs)
-    n = length(exprs)
-    ids = Vector{EClassId}(undef, n)
-    for i ∈ 1:n
-        ec = addexpr!(g, exprs[i])
-        ids[i] = ec.id
-    end
-    return EqualityGoal(exprs, ids)
-end
-
 function reached(g::EGraph, goal::EqualityGoal)
     all(x -> in_same_class(g, goal.ids[1], x), @view goal.ids[2:end])
 end
