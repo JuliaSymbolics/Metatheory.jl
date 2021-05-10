@@ -42,7 +42,7 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
         anval = getdata(eclass, an)
     end
     (cn, ck) = anval
-    (arity(cn) == 0 || ck == Inf) && return cn.head
+    ((arity(cn) == 0 && cn.head !== :call) || ck == Inf) && return cn.head
     extractor = a -> rec_extract(g, an, a)
     extractnode(g, cn, extractor)
 end
