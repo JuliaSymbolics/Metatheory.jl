@@ -11,8 +11,8 @@ function EGraphs.make(an::Type{NumberFold}, g::EGraph, n::ENode)
     # @show n
     n.head isa Number && return n.head
 
-    op_times = addexpr!(g, :*)
-    op_plus = addexpr!(g, :+)
+    op_times, _ = addexpr!(g, :*)
+    op_plus, _ = addexpr!(g, :+)
 
     if n.head == :call && arity(n) == 3
         op = geteclass(g, n.args[1])
@@ -51,7 +51,7 @@ function EGraphs.modify!(an::Type{NumberFold}, g::EGraph, id::Int64)
     eclass = g.classes[id]
     d = getdata(eclass, an, nothing)
     if d isa Number
-        newclass = addexpr!(g, d)
+        newclass, _ = addexpr!(g, d)
         merge!(g, newclass.id, id)
     end
 end

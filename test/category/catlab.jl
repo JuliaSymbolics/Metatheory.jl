@@ -245,8 +245,8 @@ to_graphviz(r)
 
 g = EGraph()
 analyze!(g, CatlabAnalysis)
-l_ec = addexpr!(g, l)
-r_ec = addexpr!(g, r)
+l_ec, _ = addexpr!(g, l)
+r_ec, _ = addexpr!(g, r)
 
 in_same_class(g, l_ec, r_ec)
 
@@ -292,8 +292,8 @@ to_composejl(r)
 
 g = EGraph(ex)
 analyze!(g, CatlabAnalysis)
-l_ec = addexpr!(g, l)
-r_ec = addexpr!(g, r)
+l_ec, _ = addexpr!(g, l)
+r_ec, _ = addexpr!(g, r)
 
 
 saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
@@ -317,14 +317,14 @@ analyze!(g, CatlabAnalysis)
 ex = id(A) ⊗ id(B)
 to_composejl(ex)
 
-l_ec = addexpr!(g, ex)
+l_ec, _ = addexpr!(g, ex)
 saturate!(g, cc, SaturationParams(timeout=2); mod=@__MODULE__)
 extract!(g, astsize; root=l_ec.id)
 
 
 ex = pair(proj1(A, B), proj2(A, B))
 to_composejl(ex)
-r_ec = addexpr!(g, ex)
+r_ec, _ = addexpr!(g, ex)
 saturate!(g, cc; mod=@__MODULE__)
 extract!(g, astsize; root=r_ec.id)
 

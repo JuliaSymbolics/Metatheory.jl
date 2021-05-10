@@ -33,8 +33,8 @@ facts = [
 
 function addfacts!(g::EGraph, facts)
     for fact ∈ facts 
-        fc = addexpr!(g, fact)
-        tc = addexpr!(g, true)
+        fc, _ = addexpr!(g, fact)
+        tc, _ = addexpr!(g, true)
         merge!(g, fc.id, tc.id)
     end
 end

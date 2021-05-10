@@ -54,9 +54,10 @@ function next(m::Machine, pc)
 end
 
 function (m::Machine)(instr::Yield, pc)
+    sourcenode = m.n[m.program.first_nonground]
     ecs = [m.σ[reg] for reg in instr.yields]
     nodes = [m.n[reg] for reg in instr.yields]
-    push!(m.buf, Sub(ecs, nodes))
+    push!(m.buf, Sub(sourcenode, ecs, nodes))
     return nothing
 end
 
@@ -114,7 +115,7 @@ function lookup_pat(g::EGraph, p::PatTerm)
     ids = [lookup_pat(g, pp) for pp in p.args]
     if all(i -> i isa EClassId, ids)
         # println(ids)
-        n = ENode{T}(p.head, ids)
+        n = ENode{T}(p.head, ids, nothing)
         # println("ENode{$T} $n")
         ec = lookup(g, n)
         return ec

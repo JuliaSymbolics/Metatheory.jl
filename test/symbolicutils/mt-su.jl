@@ -87,7 +87,7 @@ function optimize(ex)
 
     settermtype!(g, Term{symtype(ex), Any})
 
-    ec = addexpr!(g, ex)
+    ec, _ = addexpr!(g, ex)
 
     g.root = ec.id
 

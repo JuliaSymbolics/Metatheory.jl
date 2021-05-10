@@ -6,31 +6,34 @@ import Base.ImmutableDict
 const EClassId = Int64
 
 # struct ENode{T, M}
-struct ENode{T}
+mutable struct ENode{T}
     head::Any
     args::Vector{EClassId}
     # metadata::M
+    proof
     hash::Ref{UInt} # hash cache
-    ENode{T}(h, a) where {T} = new{T}(h, a, Ref{UInt}(0))
+    ENode{T}(h, a, p) where {T} = new{T}(h, a, p, Ref{UInt}(0))
 end
 
-function ENode(e, c_ids::AbstractVector{EClassId})
+function ENode(e, c_ids::AbstractVector{EClassId}; proof=nothing)
     # @assert length(getargs(e)) == length(c_ids)
     # static_args = MVector{length(c_ids), Int64}(c_ids...)
     # m = getmetadata(e)
-    ENode{typeof(e)}(gethead(e), c_ids)
+    ENode{typeof(e)}(gethead(e), c_ids, proof)
 end
 
-ENode(e) = ENode(e, EClassId[])
+ENode(e; proof=nothing) = ENode(e, EClassId[]; proof=proof)
 
 ENode(a::ENode) =
     error("constructor of ENode called on enode. This should never happen")
 
-
-
 function Base.:(==)(a::ENode, b::ENode)
     isequal(a.args, b.args) && 
     isequal(a.head, b.head)
+end
+
+function setproof!(n::ENode{T}, proof) where {T}
+    n.proof = proof
 end
 
 # This optimization comes from SymbolicUtils

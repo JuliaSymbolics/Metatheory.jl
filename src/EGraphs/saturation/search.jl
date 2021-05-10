@@ -1,4 +1,13 @@
-const Match = Tuple{Rule,Union{Nothing,Pattern},Sub,EClassId}
+struct Match
+    rule::Rule 
+    # the rhs pattern to instantiate 
+    pat_to_inst::Union{Nothing,Pattern}
+    # the substitution
+    sub::Sub 
+    # the id the matched the lhs  
+    id::EClassId
+end
+
 const MatchesBuf = Vector{Match}
 
 function cached_ids(g::EGraph, p::Pattern)# ::Vector{Int64}
@@ -37,16 +46,16 @@ end
 # end
 
 function search_rule!(g::EGraph, r::SymbolicRule, id, buf)
-    append!(buf, [(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
+    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
 end
 
 function search_rule!(g::EGraph, r::DynamicRule, id, buf)
-    append!(buf, [(r, nothing, sub, id) for sub in ematch(g, r.left, id)]) 
+    append!(buf, [Match(r, nothing, sub, id) for sub in ematch(g, r.left, id)]) 
 end
 
 function search_rule!(g::EGraph, r::BidirRule, id, buf)
-    append!(buf, [(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
-    append!(buf, [(r, r.left, sub, id) for sub in ematch(g, r.right, id)])
+    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
+    append!(buf, [Match(r, r.left, sub, id) for sub in ematch(g, r.right, id)])
 end
 
 
@@ -122,7 +131,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
             continue
         end
 
-        rule_matches = []
+        rule_matches = Match[]
 
         ids = cached_ids(egraph, rule.left)
 

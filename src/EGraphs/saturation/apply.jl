@@ -3,10 +3,9 @@ const UnionBuf = Vector{Tuple{EClassId, EClassId}}
 function apply_rule!(g::EGraph, rule::UnequalRule,
         match::Match, matches::MatchesBuf, unions::UnionBuf,
         rep::Report, mod::Module)
-    (_, pat, sub, id) = match
-    lc = id
-    rinst = instantiate(g, pat, sub, rule)
-    rc = addexpr!(g, rinst).id
+    lc = match.id
+    rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
+    rc, node = addexpr!(g, rinst; proofstep=match)
     # delete!(matches, match)
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
@@ -19,11 +18,12 @@ end
 function apply_rule!(g::EGraph, rule::SymbolicRule, 
         match::Match, matches::MatchesBuf, unions::UnionBuf, 
         rep::Report,  mod::Module)
-    (_, pat, sub, id) = match
     # println(sub)
-    rinst = instantiate(g, pat, sub, rule)
-    rc = addexpr!(g, rinst)
-    push!(unions, (id, rc.id))
+    # println("instantiating $(match.pat_to_inst)")
+    rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
+
+    rc, node = addexpr!(g, rinst; proofstep=match)
+    push!(unions, (match.id, rc.id))
     return (true, nothing)
 end
 
@@ -31,14 +31,13 @@ end
 function apply_rule!(g::EGraph, rule::DynamicRule, 
         match::Match, matches::MatchesBuf, unions::UnionBuf,
         rep::Report,  mod::Module)
-    (_, pat, sub, id) = match
     # println("APPLYING RULE $rule")
     f = Rules.getrhsfun(rule, mod)
-    actual_params = [instantiate(g, PatVar(v, i), sub, rule) for (i, v) in enumerate(rule.patvars)]
-    r = f(geteclass(g, id), sub, g, actual_params...)
-    rc = addexpr!(g, r)
+    actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
+    r = f(geteclass(g, match.id), match.sub, g, actual_params...)
+    rc, node = addexpr!(g, r; proofstep=match)
 
-    push!(unions, (id, rc.id))
+    push!(unions, (match.id, rc.id))
     return (true, nothing)
 end
 
@@ -67,8 +66,9 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
         end
 
 
-        rule=match[1]
-        # println("applied $rule")
+        rule=match.rule
+        # println("applying $rule")
+        # @show match.sub.sourcenode
 
         (ok, nrep) = apply_rule!(g, rule, match, matches, unions, rep, mod)
         if !ok 

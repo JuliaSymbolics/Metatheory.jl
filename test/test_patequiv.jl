@@ -18,9 +18,9 @@ q = RewriteRule(lhs, rhs)
 
 
 g = EGraph()
-fooclass = addexpr!(g, :foo)
-barclass = addexpr!(g, :bar)
-zooclass = addexpr!(g, :zoo)
+fooclass, _ = addexpr!(g, :foo)
+barclass, _ = addexpr!(g, :bar)
+zooclass, _ = addexpr!(g, :zoo)
 
 # display(g.classes); println()
 @test !(in_same_class(g, fooclass, zooclass))

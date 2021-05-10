@@ -131,8 +131,8 @@ macro calc(e...)
             scheduler=BackoffScheduler
             )
         g = EGraph()
-        ta = addexpr!(g, :(type(a)))
-        tao = addexpr!(g, :(:ob))
+        ta, _ = addexpr!(g, :(type(a)))
+        tao, _ = addexpr!(g, :(:ob))
         merge!(g, ta.id, tao.id)
 
         eq = @time areequal(g, theory, a, b; params=params)

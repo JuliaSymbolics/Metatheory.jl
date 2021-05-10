@@ -161,7 +161,7 @@ l = gat_to_expr(l)
 r = gat_to_expr(r)
 
 G = EGraph(l)
-rc = addexpr!(G, r)
+rc, _ = addexpr!(G, r)
 
 # TODO identify the rules where there are more patvars on the lhs than the rhs 
 # and use regular rewrite rules instead of (==) rules
@@ -189,7 +189,7 @@ l = gat_to_expr(l)
 r = gat_to_expr(r)
 
 G = EGraph(l)
-rc = addexpr!(G, r)
+rc, _ = addexpr!(G, r)
 
 # TODO identify the rules where there are more patvars on the lhs than the rhs 
 # and use regular rewrite rules instead of (==) rules
@@ -206,7 +206,7 @@ l = gat_to_expr(l)
 r = gat_to_expr(r)
 
 G = EGraph(l)
-rc = addexpr!(G, r)
+rc, _ = addexpr!(G, r)
 
 # TODO identify the rules where there are more patvars on the lhs than the rhs 
 # and use regular rewrite rules instead of (==) rules
@@ -222,7 +222,7 @@ l = gat_to_expr(l)
 r = gat_to_expr(r)
 
 G = EGraph(l)
-rc = addexpr!(G, r)
+rc, _ = addexpr!(G, r)
 
 # TODO identify the rules where there are more patvars on the lhs than the rhs 
 # and use regular rewrite rules instead of (==) rules
