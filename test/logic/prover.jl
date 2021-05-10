@@ -9,7 +9,11 @@ function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
     push!(hist, hash(ex))
     for i ∈ 1:steps
         g = EGraph(ex)
-        goal=EqualityGoal(g, [true, geteclass(g, g.root)])
+
+        exprs = [true, geteclass(g, g.root)]
+        ids = [addexpr!(g, e)[1].id for e in exprs]
+
+        goal=EqualityGoal(exprs, ids)
         params.goal = goal
         saturate!(g, t, params)
         ex = extract!(g, astsize)
