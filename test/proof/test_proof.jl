@@ -16,7 +16,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
     ids = Vector{EClassId}(undef, n)
     nodes = Vector{ENode}(undef, n)
     for i ∈ 1:n
-        ec, node, _ = addexpr!(g, exprs[i])
+        ec, node = addexpr!(g, exprs[i])
         ids[i] = ec.id
         nodes[i] = node
     end
@@ -61,21 +61,25 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
     end
     println("========================================")
 
-    node = nodes[2]
+    src = nodes[2]
+    trg = nothing
     hist = ENode[]
-    while node ∉ hist 
-        push!(hist, node)
-        @assert !isnothing(node.proof)
-        rule = node.proof.rule
-        src = node.proof.sub.sourcenode
-
-        l = EGraphs.extractnode(g, node, a -> EGraphs.rec_extract(g, ExtractionAnalysis{astsize}, a))
-        r = EGraphs.extractnode(g, src, a -> EGraphs.rec_extract(g, ExtractionAnalysis{astsize}, a))
+    # TODO save the proof in a verifiable file !!
+    while src ∉ hist && trg ∉ hist
+        push!(hist, src)
+        @assert !isnothing(src.proof)
+        rule = src.proof.rule
+        trg = src.proof.sub.sourcenode
+        if trg ∈ hist 
+            break 
+        end
+        l = EGraphs.extractnode(g, src, a -> EGraphs.rec_extract(g, ExtractionAnalysis{astsize}, a))
+        r = EGraphs.extractnode(g, trg, a -> EGraphs.rec_extract(g, ExtractionAnalysis{astsize}, a))
 
 
         println("since $rule then")
         println("$l == $r")
-        node = src
+        src = trg 
     end
 end
 
