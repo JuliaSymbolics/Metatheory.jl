@@ -37,7 +37,12 @@ function instantiate(g::EGraph, pat::PatTypeAssertion, sub::Sub, rule::Rule)
 end
 
 # # TODO CUSTOMTYPES document how to for custom types
-function instantiateterm(g::EGraph, pat::PatTerm,  T::Type{Expr}, children)
+"""
+This function is used to create a term from a `PatTerm`, given an  
+array of already instantiated values `children`.
+Extend this method with `T::Type{YourTermType}`.
+"""
+function instantiateterm(g::EGraph, pat::PatTerm, T::Type{Expr}, children)
     Expr(pat.head, children...)
 end
 

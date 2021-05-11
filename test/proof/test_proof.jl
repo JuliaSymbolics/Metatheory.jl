@@ -36,7 +36,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
     for (id, ec) in g.classes 
         for n in ec 
             println(id => n)
-            println(n.proof)
+            println("$n.proof_rules ⩜ $n.proof_src ⩜ $n.proof_trg")
         end 
     end
 
@@ -47,8 +47,8 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
             eclass = geteclass(g, g.memo[node])
             for nn in eclass
                 if node == nn
-                    println(node.proof)
-                    println(nn.proof)
+                    println("$n.proof_rules ⩜ $n.proof_src ⩜ $n.proof_trg")
+                    println("$nn.proof_rules ⩜ $nn.proof_src ⩜ $nn.proof_trg")
                     println("$node == $nn")
                     nodes[i] = nn
                 end
@@ -61,26 +61,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
     end
     println("========================================")
 
-    src = nodes[2]
-    trg = nothing
-    hist = ENode[]
-    # TODO save the proof in a verifiable file !!
-    while src ∉ hist && trg ∉ hist
-        push!(hist, src)
-        @assert !isnothing(src.proof)
-        rule = src.proof.rule
-        trg = src.proof.sub.sourcenode
-        if trg ∈ hist 
-            break 
-        end
-        l = EGraphs.extractnode(g, src, a -> EGraphs.rec_extract(g, ExtractionAnalysis{astsize}, a))
-        r = EGraphs.extractnode(g, trg, a -> EGraphs.rec_extract(g, ExtractionAnalysis{astsize}, a))
-
-
-        println("since $rule then")
-        println("$l == $r")
-        src = trg 
-    end
+    # TODO go through each path in the proof. do a BFS?
 end
 
 

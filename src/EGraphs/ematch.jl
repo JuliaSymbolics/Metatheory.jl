@@ -115,7 +115,7 @@ function lookup_pat(g::EGraph, p::PatTerm)
     ids = [lookup_pat(g, pp) for pp in p.args]
     if all(i -> i isa EClassId, ids)
         # println(ids)
-        n = ENode{T}(p.head, ids, nothing)
+        n = ENode{T}(p.head, ids)
         # println("ENode{$T} $n")
         ec = lookup(g, n)
         return ec
@@ -126,7 +126,7 @@ end
 
 function lookup_pat(g::EGraph, p::PatLiteral)
     # println("looking up literal $p")
-    ec = lookup(g, ENode(p.val))
+    ec = lookup(g, ENode{typeof(p.val)}(p.val, EClassId[]))
     return ec
 end
 

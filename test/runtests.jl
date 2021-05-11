@@ -49,6 +49,8 @@ falseormissing(x) =
       include("cas/test_cas.jl")
       include("category/test_cat.jl")
       include("group/test_kb_benchmark.jl")
+      # include("proof/test_proof.jl")
+      
 
       # exported consistency test
       for m ∈ [Metatheory, Metatheory.Util, Metatheory.Classic, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
