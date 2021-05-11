@@ -5,7 +5,10 @@ function apply_rule!(g::EGraph, rule::UnequalRule,
         rep::Report, mod::Module)
     lc = match.id
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-    rc, node = addexpr!(g, rinst; proofstep=match)
+    # TODO set the sourcenodes and targetnodes !!
+    rc, node = addexpr!(g, rinst; proof_src=match.sub.sourcenode, proof_rule=rule)
+    !isnothing(match.sub.sourcenode) && addprooftrg!(match.sub.sourcenode, node)
+
     # delete!(matches, match)
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
@@ -18,11 +21,11 @@ end
 function apply_rule!(g::EGraph, rule::SymbolicRule, 
         match::Match, matches::MatchesBuf, unions::UnionBuf, 
         rep::Report,  mod::Module)
-    # println(sub)
-    # println("instantiating $(match.pat_to_inst)")
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
 
-    rc, node = addexpr!(g, rinst; proofstep=match)
+    rc, node = addexpr!(g, rinst; proof_src=match.sub.sourcenode, proof_rule=rule)
+    !isnothing(match.sub.sourcenode) && addprooftrg!(match.sub.sourcenode, node)
+
     push!(unions, (match.id, rc.id))
     return (true, nothing)
 end
@@ -35,7 +38,8 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
     f = Rules.getrhsfun(rule, mod)
     actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
-    rc, node = addexpr!(g, r; proofstep=match)
+    rc, node = addexpr!(g, r; proof_src=match.sub.sourcenode, proof_rule=rule)
+    !isnothing(match.sub.sourcenode) && addprooftrg!(match.sub.sourcenode, node)
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)

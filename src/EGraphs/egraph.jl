@@ -119,7 +119,7 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 function canonicalize(g::EGraph, n::ENode{T}) where {T}
     if arity(n) > 0
         new_args = map(x -> find(g, x), n.args)
-        return ENode{T}(n.head, new_args, n.proof)
+        return ENode{T}(n.head, new_args, n.proof_src, n.proof_rules, n.proof_trg)
     end 
     return n
 end
@@ -148,20 +148,19 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::ENode, proofstep)::EClass
+function add!(g::EGraph, n::ENode)::EClass
     @debug("adding ", n)
 
     n = canonicalize(g, n)
     if haskey(g.memo, n)
         # TODO really override the proof step here?
         eclass = geteclass(g, g.memo[n])
-        if !isnothing(proofstep)
-            for (i, nn) in enumerate(eclass)
-                if n == nn && isnothing(nn.proof)
-                    # println("ADDING PROOF STEP TO ALREADY EXISTENT ENODE $nn")
-                    setproof!(nn, proofstep)
-                end
-            end 
+        for (i, nn) in enumerate(eclass)
+            if n == nn && hasproofdata(n)
+                # println("MERGING PROOF STEP $nn and $n")
+                # TODO union!-ing proof data here is BRUTAL. should be ammortized
+                mergeproof!(nn, n)
+            end
         end 
         return eclass
     end
@@ -194,13 +193,16 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta=false, proofstep=nothing)::Tuple{EClass, ENode}
+function addexpr!(g::EGraph, se; keepmeta=false, 
+        proof_src=nothing, proof_rule=nothing)::Tuple{EClass, ENode}
     # e = preprocess(e)
     # println("========== $e ===========")
     if se isa EClass
         return (se, se[1])
     end
     e = preprocess(se)
+
+    node = nothing
 
     if istree(e)
         args = getargs(e)
@@ -212,18 +214,20 @@ function addexpr!(g::EGraph, se; keepmeta=false, proofstep=nothing)::Tuple{EClas
             c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta)# DOES NOT RECURSE! , proofstep=proofstep)
             @inbounds class_ids[i] = c_eclass.id
         end
-        node = ENode(e, class_ids; proof=proofstep)
-        ec =  add!(g, node, proofstep)
-        if keepmeta
-            # TODO check if eclass already has metadata?
-            meta = TermInterface.getmetadata(e)
-            setdata!(ec, MetadataAnalysis, meta)
-        end
-        return (ec, node)
+        node = ENode{typeof(e)}(gethead(e), class_ids)
+    else 
+        node = ENode{typeof(e)}(e, EClassId[])
     end
 
-    node = ENode(e)
-    ec = add!(g, node, proofstep)
+    if !isnothing(proof_src)
+        addproofsrc!(node, proof_src)
+    end
+
+    if !isnothing(proof_rule)
+        addproofrule!(node, proof_rule)
+    end
+
+    ec = add!(g, node)
     if keepmeta
         # TODO check if eclass already has metadata?
         meta = TermInterface.getmetadata(e)
