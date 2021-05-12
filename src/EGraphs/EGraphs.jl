@@ -12,7 +12,7 @@ using ..TermInterface
 using ..Util
 using ..Rules
 import ..@log
-
+import ..closure_generator
 
 include("enode.jl")
 export ENode
@@ -57,6 +57,8 @@ include("ematch_compiler.jl")
 export Program
 export Instruction
 include("ematch.jl")
+include("ematch_staged.jl")
+
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers
