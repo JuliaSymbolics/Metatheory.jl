@@ -38,24 +38,9 @@ hcall = MyExpr(:call, [:h, 4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
 ex = MyExpr(:call, [:f, MyExpr(:call, [:g, 2]), hcall])
 
 
-function EGraphs.instantiateterm(g::EGraph, pat::PatTerm,  T::Type{MyExpr}, children)
-    MyExpr(pat.head, children, "", Complex[], Set{Int64}())
-end
-
-# Define an extraction method dispatching on MyExpr
-function EGraphs.extractnode(g::EGraph, n::ENode{MyExpr}, extractor::Function)
-    eclass = geteclass(g, lookup(g, n))
-    (foo, bar, baz) = getdata(eclass, MetadataAnalysis, ("", Complex[], Set{Int}()))
-    # TODO FIXME MetadataAnalysis
-
-    # extracted arguments
-    ret_args = []
-
-    for a ∈ n.args 
-        push!(ret_args, extractor(a))
-    end
-
-    return MyExpr(n.head, ret_args, foo, bar, baz)
+function TermInterface.similarterm(x::Type{MyExpr}, head, args; 
+        metadata=("", Complex[], Set{Int64}()))
+    MyExpr(head, args, metadata...)
 end
 
 # let's create an egraph 

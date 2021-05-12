@@ -36,15 +36,6 @@ function instantiate(g::EGraph, pat::PatTypeAssertion, sub::Sub, rule::Rule)
     instantiate(g, pat.name, sub, rule)
 end
 
-# # TODO CUSTOMTYPES document how to for custom types
-"""
-This function is used to create a term from a `PatTerm`, given an  
-array of already instantiated values `children`.
-Extend this method with `T::Type{YourTermType}`.
-"""
-function instantiateterm(g::EGraph, pat::PatTerm, T::Type{Expr}, children)
-    Expr(pat.head, children...)
-end
 
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
     f = pat.head
@@ -57,5 +48,5 @@ function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
 
     T = gettermtype(g, f, ar)
     children = map(x -> instantiate(g, x, sub, rule), pat.args)
-    instantiateterm(g, pat, T, children)
+    similarterm(T, pat.head, children)
 end

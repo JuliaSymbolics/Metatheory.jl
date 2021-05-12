@@ -110,9 +110,9 @@ function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
             @inbounds patargs[i] = Pattern(args[i], mod, resolve_fun)
         end
 
-        PatTerm(head, patargs)
+        return PatTerm(head, patargs)
     end
-    PatLiteral(ex)
+    return PatLiteral(ex)
 end
 
 function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)

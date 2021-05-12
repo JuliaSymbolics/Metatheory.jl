@@ -43,8 +43,14 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
     end
     (cn, ck) = anval
     (arity(cn) == 0 || ck == Inf) && return cn.head
-    extractor = a -> rec_extract(g, an, a)
-    extractnode(g, cn, extractor)
+
+    children = map(cn.args) do a
+        rec_extract(g, an, a)
+    end
+
+    meta = getdata(eclass, MetadataAnalysis, nothing)
+    T = termtype(cn)
+    similarterm(T, cn.head, children; metadata = meta)
 end
 
 # TODO CUSTOMTYPES document how to for custom types
