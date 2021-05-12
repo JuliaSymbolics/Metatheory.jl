@@ -12,20 +12,18 @@ using Base.Meta
 # Use it instead of Expr in egraphs!
 # gethead(e::Expr) = isexpr(e, :call) ? e.args[1] : e.head
 gethead(e::Expr) = e.head
-# getargs(e::Expr) = @view e.args[(isexpr(e, :call) ? 2 : 1):end]
 getargs(e::Expr) = e.args
 istree(e::Expr) = true
 getmetadata(e::Expr) = nothing
 arity(e::Expr) = length(getargs(e)) # optional
 preprocess(e::Expr) = cleanast(e)
+similarterm(x::Type{Expr}, head, args; metadata=nothing) = Expr(head, args...)
 
 
 # Fallback implementation for all other types
-gethead(e) = e
-getargs(e) = []
 istree(a) = false
 getmetadata(e) = nothing
-arity(e) = length(getargs(e)) # optional
+arity(e) = 0 # optional
 preprocess(e) = e
 
 export gethead
@@ -34,4 +32,5 @@ export istree
 export getmetadata
 export preprocess
 export arity
+export similarterm
 end
