@@ -42,15 +42,22 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
         anval = getdata(eclass, an)
     end
     (cn, ck) = anval
-    (arity(cn) == 0 || ck == Inf) && return cn.head
+    (!istree(termtype(cn)) || ck == Inf) && return cn.head
 
-    children = map(cn.args) do a
+    extractnode(g, cn, an; eclass=eclass)
+end
+
+function extractnode(g::EGraph, n::ENode, an::Type{<:ExtractionAnalysis}; eclass=nothing)
+    children = map(n.args) do a
         rec_extract(g, an, a)
     end
-
-    meta = getdata(eclass, MetadataAnalysis, nothing)
-    T = termtype(cn)
-    similarterm(T, cn.head, children; metadata = meta)
+    
+    meta = nothing
+    if !isnothing(eclass)
+        meta = getdata(eclass, MetadataAnalysis, nothing)
+    end
+    T = termtype(n)
+    similarterm(T, n.head, children; metadata = meta)
 end
 
 # TODO CUSTOMTYPES document how to for custom types

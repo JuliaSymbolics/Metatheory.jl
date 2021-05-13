@@ -67,7 +67,7 @@ function simplify(ex; steps=4)
         saturate!(g, cas, params; mod=@__MODULE__)
         ex = extract!(g, simplcost)
         ex = rewrite(ex, canonical_t; clean=false, m=@__MODULE__)
-        if !TermInterface.istree(ex)
+        if !TermInterface.istree(typeof(ex))
             return ex
         end
         if hash(ex) ∈ hist

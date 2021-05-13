@@ -6,9 +6,12 @@ function apply_rule!(g::EGraph, rule::UnequalRule,
     lc = match.id
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
     # TODO set the sourcenodes and targetnodes !!
-    rc, node = addexpr!(g, rinst; proof_src=match.sub.sourcenode, proof_rule=rule)
-    !isnothing(match.sub.sourcenode) && addprooftrg!(match.sub.sourcenode, node)
+    rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
+    if !isnothing(match.sub.sourcenode) 
+        addprooftrg!(match.sub.sourcenode, rule, node, g.age)
+    end
 
+    g.age += 1
     # delete!(matches, match)
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
@@ -23,8 +26,12 @@ function apply_rule!(g::EGraph, rule::SymbolicRule,
         rep::Report,  mod::Module)
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
 
-    rc, node = addexpr!(g, rinst; proof_src=match.sub.sourcenode, proof_rule=rule)
-    !isnothing(match.sub.sourcenode) && addprooftrg!(match.sub.sourcenode, node)
+    rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
+    if !isnothing(match.sub.sourcenode) 
+        addprooftrg!(match.sub.sourcenode, rule, node, g.age)
+    end
+
+    g.age += 1
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)
@@ -34,12 +41,15 @@ end
 function apply_rule!(g::EGraph, rule::DynamicRule, 
         match::Match, matches::MatchesBuf, unions::UnionBuf,
         rep::Report,  mod::Module)
-    # println("APPLYING RULE $rule")
     f = Rules.getrhsfun(rule, mod)
     actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
-    rc, node = addexpr!(g, r; proof_src=match.sub.sourcenode, proof_rule=rule)
-    !isnothing(match.sub.sourcenode) && addprooftrg!(match.sub.sourcenode, node)
+    rc, node = addexpr!(g, r; proof_src=(rule => match.sub.sourcenode))
+    if !isnothing(match.sub.sourcenode)
+        addprooftrg!(match.sub.sourcenode, rule, node, g.age)
+    end 
+
+    g.age += 1
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)

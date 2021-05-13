@@ -28,7 +28,7 @@ MyExpr(head) = MyExpr(head, [])
 # Methods needed by `src/TermInterface.jl`
 TermInterface.gethead(e::MyExpr) = e.head
 TermInterface.getargs(e::MyExpr) = e.args
-TermInterface.istree(e::MyExpr) = true
+TermInterface.istree(e::Type{MyExpr}) = true
 # NamedTuple
 TermInterface.getmetadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
 TermInterface.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
