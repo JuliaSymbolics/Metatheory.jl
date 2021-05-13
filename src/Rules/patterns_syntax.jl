@@ -100,7 +100,7 @@ end
 # Generic fallback
 function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
     ex = preprocess(ex)
-    if istree(ex)
+    if istree(typeof(ex))
         head = gethead(ex)
         args = getargs(ex)
 

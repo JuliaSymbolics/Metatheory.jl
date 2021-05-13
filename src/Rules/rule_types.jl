@@ -37,6 +37,10 @@ Rule(:(a * b => b * a))
     end
 end
 
+function Base.show(io::IO, mime::MIME"text/plain", r::RewriteRule)
+    print(io, "$(r.left) => $(r.right)")
+end
+
 # =============================================================================
 
 
@@ -64,6 +68,10 @@ backend. If two terms, corresponding to the left and right hand side of an
     end
 end
 
+function Base.show(io::IO, mime::MIME"text/plain", r::UnequalRule)
+    print(io, "$(r.left) ≠ $(r.right)")
+end
+
 """
 ```julia
 Rule(:(a * b == b * a))
@@ -84,6 +92,10 @@ Rule(:(a * b == b * a))
         setindex!(r, pvars)
         new(l,r,pvars)
     end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", r::EqualityRule)
+    print(io, "$(r.left) == $(r.right)")
 end
 
 """
@@ -110,4 +122,8 @@ Rule(:(a::Number * b::Number |> a*b))
         setindex!(l, pvars)
         new(l, r, pvars)
     end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", r::DynamicRule)
+    print(io, "$(r.left) |> $(r.right)")
 end
