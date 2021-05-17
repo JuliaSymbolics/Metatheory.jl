@@ -84,7 +84,7 @@ function oldestatage(age::Int)
         # println("current age is $age")
         # println("enode $n age is $(n.age)")
         # cost = n.age - age
-        cost = age - n.age
+        cost = n.age - age
         # println("cost is $cost")
         return cost
     end
@@ -179,4 +179,4 @@ proof = prove(EGraph(), t, :((x => (x ∨ x))), :((¬(x) ∧ y) => y))
 ex = :(((x ∨ y) ∨ ¬(z ∧ a)) ∨ a)
 proof = prove(EGraph(), t, ex, true)
 
-Metatheory.options.verbose = true
+Metatheory.options.verbose = false
