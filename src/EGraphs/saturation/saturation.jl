@@ -49,7 +49,6 @@ function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, curr_iter, mod::Module,
     rebuild_stats = @timed rebuild!(g)
     report.rebuild_stats = report.rebuild_stats + discard_value(rebuild_stats)
 
-    # TODO produce proofs with match_hist
     total_time!(report)
 
     return report, g

@@ -5,7 +5,6 @@ function apply_rule!(g::EGraph, rule::UnequalRule,
         rep::Report, mod::Module)
     lc = match.id
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-    # TODO set the sourcenodes and targetnodes !!
     rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
     if !isnothing(match.sub.sourcenode) 
         addprooftrg!(match.sub.sourcenode, rule, node, g.age)

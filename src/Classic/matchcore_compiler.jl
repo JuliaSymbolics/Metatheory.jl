@@ -123,7 +123,6 @@ macro compile_theory(theory)
     gettheory(theory, __module__)
 end
 
-# TODO use LRU cache
 const MATCHCORE_FUNCTION_CACHE = IdDict{Vector{<:Rule}, Function}()
 const MATCHCORE_FUNCTION_CACHE_LOCK = ReentrantLock()
 

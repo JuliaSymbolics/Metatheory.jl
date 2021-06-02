@@ -180,3 +180,17 @@ ex = :(((x ∨ y) ∨ ¬(z ∧ a)) ∨ a)
 proof = prove(EGraph(), t, ex, true)
 
 Metatheory.options.verbose = false
+
+
+
+
+# chat with oliver 
+# introduce a new type of enode at the proof generation stage 
+# set of unknown variables
+
+
+# keep proof at the expr level 
+# do not store src and trg in enode 
+# store holes 
+# 
+# keep another unionfind for the same holes
