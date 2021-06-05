@@ -42,7 +42,7 @@ mutable struct EGraph
     numclasses::Int
     numnodes::Int
     # number of rules that have been applied
-    age::Int
+    # age::Int
 end
 
 function EGraph()
@@ -60,7 +60,7 @@ function EGraph()
         TermTypes(),
         0,
         0,
-        0
+        # 0
     )
 end
 
@@ -122,7 +122,8 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 function canonicalize(g::EGraph, n::ENode{T}) where {T}
     if arity(n) > 0
         new_args = map(x -> find(g, x), n.args)
-        return ENode{T}(n.head, new_args, n.proof_src, n.proof_trg, n.age)
+        # return ENode{T}(n.head, new_args, n.proof_src, n.proof_trg, n.age)
+        return ENode{T}(n.head, new_args)
     end 
     return n
 end
@@ -158,15 +159,15 @@ function add!(g::EGraph, n::ENode)::EClass
     if haskey(g.memo, n)
         # TODO really override the proof step here?
         eclass = geteclass(g, g.memo[n])
-        for nn in eclass
-            if n == nn && hasproofdata(n)
-                # println("MERGING PROOF STEP $nn and $n")
-                # TODO union!-ing proof data here is BRUTAL. should be ammortized
-                # keep the older `nn` age
-                setage!(n, nn.age)
-                mergeproof!(nn, n)
-            end
-        end 
+        # for nn in eclass
+        #     if n == nn && hasproofdata(n)
+        #         # println("MERGING PROOF STEP $nn and $n")
+        #         # TODO union!-ing proof data here is BRUTAL. should be ammortized
+        #         # keep the older `nn` age
+        #         setage!(n, nn.age)
+        #         mergeproof!(nn, n)
+        #     end
+        # end 
         return eclass
     end
     @debug(n, " not found in memo")
@@ -197,8 +198,9 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClass, ENode}
-    # e = preprocess(e)
+# function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClass, ENode}
+function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
+        # e = preprocess(e)
     # println("========== $e ===========")
     if se isa EClass
         return (se, se[1])
@@ -222,15 +224,15 @@ function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClas
         node = ENode{typeof(e)}(e, EClassId[])
     end
 
-    setage!(node, g.age)
+    # setage!(node, g.age)
 
-    if !isnothing(proof_src)
-        rule = first(proof_src)
-        srcnode = last(proof_src)
-        if !isnothing(rule) && !isnothing(srcnode)
-            addproofsrc!(node, rule, srcnode, g.age)
-        end
-    end
+    # if !isnothing(proof_src)
+    #     rule = first(proof_src)
+    #     srcnode = last(proof_src)
+    #     if !isnothing(rule) && !isnothing(srcnode)
+    #         addproofsrc!(node, rule, srcnode, g.age)
+    #     end
+    # end
 
     ec = add!(g, node)
     if keepmeta

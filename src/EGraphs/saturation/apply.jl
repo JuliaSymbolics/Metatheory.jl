@@ -5,12 +5,10 @@ function apply_rule!(g::EGraph, rule::UnequalRule,
         rep::Report, mod::Module)
     lc = match.id
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-    rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
-    if !isnothing(match.sub.sourcenode) 
-        addprooftrg!(match.sub.sourcenode, rule, node, g.age)
-    end
-
-    g.age += 1
+    # rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
+    rc, node = addexpr!(g, rinst)
+    # addprooftrg!(match.sub.sourcenode, rule, node, g.age)
+    # g.age += 1
     # delete!(matches, match)
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
@@ -25,12 +23,10 @@ function apply_rule!(g::EGraph, rule::SymbolicRule,
         rep::Report,  mod::Module)
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
 
-    rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
-    if !isnothing(match.sub.sourcenode) 
-        addprooftrg!(match.sub.sourcenode, rule, node, g.age)
-    end
-
-    g.age += 1
+    rc, node = addexpr!(g, rinst)
+    # rc, node = addexpr!(g, rinst; proof_src=(rule => match.sub.sourcenode))
+    # addprooftrg!(match.sub.sourcenode, rule, node, g.age)
+    # g.age += 1
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)
@@ -43,12 +39,10 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
     f = Rules.getrhsfun(rule, mod)
     actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
-    rc, node = addexpr!(g, r; proof_src=(rule => match.sub.sourcenode))
-    if !isnothing(match.sub.sourcenode)
-        addprooftrg!(match.sub.sourcenode, rule, node, g.age)
-    end 
-
-    g.age += 1
+    rc, node = addexpr!(g, r)
+    # rc, node = addexpr!(g, r; proof_src=(rule => match.sub.sourcenode))
+    # addprooftrg!(match.sub.sourcenode, rule, node, g.age)
+    # g.age += 1
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)
