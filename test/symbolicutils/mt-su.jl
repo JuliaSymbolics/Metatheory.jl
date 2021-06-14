@@ -3,7 +3,11 @@ using Metatheory
 using Metatheory.EGraphs
 import SymbolicUtils: Symbolic, Sym, operation, arguments, Term
 
-TermInterface.istree(t::Symbolic) = SymbolicUtils.istree(t)
+# FIXME
+# TermInterface.istree(t::Type{<:Symbolic}) = SymbolicUtils.istree(t)
+TermInterface.istree(t::Type{<:Sym}) = false
+TermInterface.istree(t::Type{<:Symbolic}) = true
+
 TermInterface.gethead(t::Symbolic) = :call 
 TermInterface.gethead(t::Sym) = t
 TermInterface.getargs(t::Symbolic) = [operation(t), arguments(t)...]
@@ -28,21 +32,10 @@ function TermInterface.preprocess(t::Symbolic)
     return t
 end
 
-function EGraphs.instantiateterm(g::EGraph, pat::PatTerm, x::Type{<:Symbolic{T}}, children) where {T}
-    @assert pat.head == :call
-    return Term{T}(children[1], children[2:end])
+function TermInterface.similarterm(x::Type{<:Symbolic{T}}, head, args; metadata=nothing) where T
+    @assert head == :call
+    Term{T}(args[1], args[2:end])
 end
-
-
-# Define an extraction method dispatching on MyExpr
-function EGraphs.extractnode(g::EGraph, n::ENode{<:Symbolic{T}}, extractor::Function) where {T}
-    # extracted arguments
-    ret_args = [extractor(a) for a in n.args]
-    if n.head == :call 
-        return Term{T}(ret_args[1], ret_args[2:end])
-    end
-end
-
 
 
 function costfun(n::ENode, g::EGraph, an)
@@ -108,6 +101,3 @@ end
 2(a+b) - a*(a+b)
 
 optimize(2a + 2b - (a*(a + b)))
-
-
-using Metatheory.TermInterface
