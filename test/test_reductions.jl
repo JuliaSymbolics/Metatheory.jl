@@ -144,6 +144,22 @@ car = Car()
     @test df == "doesnt_fly"
 end
 
+airpl = Airplane()
+car = Car()
+
+@testset "Interpolation" begin
+	t = @theory begin
+		$airpl * b => "flies"
+		$car * b => "doesnt_fly"
+	end
+
+	sf = rewrite(:($airpl * c), t; m=@__MODULE__)
+	df = rewrite(:($car * c), t; m=@__MODULE__)
+
+    @test sf == "flies"
+    @test df == "doesnt_fly"
+end
+
 
 ## Multiplicative Monoid
 

@@ -34,6 +34,12 @@ function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
     RuleType = rule_sym_map(e)
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
+    l = interp_dollar(l, mod)
+
+    if RuleType !== DynamicRule
+        r = interp_dollar(r, mod)
+    end
+
     lhs = Pattern(l, mod, resolve_fun)
     rhs = r
     
