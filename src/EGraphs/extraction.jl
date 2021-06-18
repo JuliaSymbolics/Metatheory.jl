@@ -42,7 +42,7 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
         anval = getdata(eclass, an)
     end
     (cn, ck) = anval
-    (!istree(termtype(cn)) || ck == Inf) && return cn.head
+    (!isterm(termtype(cn)) || ck == Inf) && return cn.head
 
     extractnode(g, cn, an; eclass=eclass)
 end

@@ -5,7 +5,7 @@ using Metatheory.EGraphs
 using Metatheory.Classic
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
-using Metatheory.TermInterface
+using TermInterface
 
 @metatheory_init
 

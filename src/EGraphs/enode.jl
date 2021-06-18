@@ -22,7 +22,7 @@ end
 # function ENode{T}(head, c_ids::AbstractVector{EClassId}, ps=[], pt=[], age=0) where {T}
 function ENode{T}(head, c_ids::AbstractVector{EClassId}) where {T}
         # static_args = MVector{length(c_ids), Int64}(c_ids...)
-    # m = getmetadata(e)
+    # m = metadata(e)
     # ENode{T}(head, c_ids, ps, pt, age, Ref{UInt}(0))
     ENode{T}(head, c_ids, Ref{UInt}(0))
 end
@@ -78,8 +78,7 @@ function Base.hash(t::ENode{T}, salt::UInt) where {T}
 end
 
 TermInterface.arity(n::ENode) = length(n.args)
-# TermInterface.getmetadata(n::ENode) = n.metadata
-# TermInterface.metadatatype(n::ENode{T,M}) where {T,M} = M
+# TermInterface.metadata(n::ENode) = n.metadata
 
 termtype(x::ENode{T}) where T = T
 

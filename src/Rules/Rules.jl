@@ -1,5 +1,5 @@
 module Rules
-    using ..TermInterface
+    using TermInterface
     using ..Util
     import ..closure_generator
 

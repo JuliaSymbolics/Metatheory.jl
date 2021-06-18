@@ -1,12 +1,15 @@
 using SymbolicUtils
 using Metatheory
 using Metatheory.EGraphs
+using TermInterface
+using Test 
+
 import SymbolicUtils: Symbolic, Sym, operation, arguments, Term
 
 # FIXME
-# TermInterface.istree(t::Type{<:Symbolic}) = SymbolicUtils.istree(t)
-TermInterface.istree(t::Type{<:Sym}) = false
-TermInterface.istree(t::Type{<:Symbolic}) = true
+# TermInterface.isterm(t::Type{<:Symbolic}) = SymbolicUtils.isterm(t)
+TermInterface.isterm(t::Type{<:Sym}) = false
+TermInterface.isterm(t::Type{<:Symbolic}) = true
 
 TermInterface.gethead(t::Symbolic) = :call 
 TermInterface.gethead(t::Sym) = t
@@ -19,7 +22,8 @@ function unflatten_args(f, args, N=4)
                                        for group in Iterators.partition(args, N)], N)
 end
 
-function TermInterface.preprocess(t::Symbolic)
+function EGraphs.preprocess(t::Symbolic)
+    # TODO change to isterm after PR
     if SymbolicUtils.istree(t)
         f = operation(t)
         if f == (+) || f == (*) || f == (-) # check out for other binary ops TODO
@@ -101,3 +105,4 @@ end
 2(a+b) - a*(a+b)
 
 optimize(2a + 2b - (a*(a + b)))
+

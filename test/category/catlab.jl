@@ -3,6 +3,8 @@ using Catlab.Theories
 using Catlab.Syntax
 
 using Metatheory, Metatheory.EGraphs
+using TermInterface
+
 @metatheory_init ()
 
 
@@ -25,17 +27,17 @@ TermInterface.gethead(t::HomExpr) = :call
 TermInterface.getargs(t::HomExpr) = [head(t), t.args...]
 
 # Type information will be stored in the metadata
-function TermInterface.getmetadata(t::HomExpr)
+function TermInterface.metadata(t::HomExpr)
     return HomType(t.type_args[1], t.type_args[2], typeof(t).name.module)
 end
-TermInterface.getmetadata(t::ObExpr) = ObType(t, typeof(t).name.module)
-TermInterface.istree(t::GATExpr) = true
+TermInterface.metadata(t::ObExpr) = ObType(t, typeof(t).name.module)
+TermInterface.isterm(t::GATExpr) = true
 TermInterface.arity(t::GATExpr) = length(getargs(t))
 
 struct CatlabAnalysis <: AbstractAnalysis end
 function EGraphs.make(an::Type{CatlabAnalysis}, g::EGraph, n::ENode{T}) where T
     !(T <: GATExpr) && return T
-    return getmetadata(n)
+    return metadata(n)
 end
 EGraphs.join(an::Type{CatlabAnalysis}, from, to) = from
 EGraphs.islazy(x::Type{CatlabAnalysis}) = false
@@ -48,13 +50,13 @@ end
 
 function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: ObExpr}
     @assert n.head == :call
-    return getmetadata(n).ob
+    return metadata(n).ob
 end
 
 function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: HomExpr}
     @assert n.head == :call
     nargs = extractor.(n.args)
-    nmeta = getmetadata(n)
+    nmeta = metadata(n)
     return nmeta.mod.Hom{nargs[1]}(nargs[2:end], GATExpr[nmeta.dom, nmeta.codom])
 end
 

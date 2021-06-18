@@ -2,6 +2,7 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 using DataStructures
+using TermInterface
 
 """
 Abstract type representing an [`EGraph`](@ref) analysis,
@@ -194,13 +195,23 @@ function add!(g::EGraph, n::ENode)::EClass
 end
 
 """
+Extend this function on your types to do preliminary
+preprocessing of a symbolic term before adding it to 
+an EGraph. Most common preprocessing techniques are binarization
+of n-ary terms and metadata stripping.
+"""
+function preprocess(e::Expr) 
+    cleanast(e)
+end
+preprocess(x) = x
+
+"""
 Recursively traverse an type satisfying the `TermInterface` and insert terms into an
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
 # function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClass, ENode}
 function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
-        # e = preprocess(e)
     # println("========== $e ===========")
     if se isa EClass
         return (se, se[1])
@@ -209,7 +220,7 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
 
     node = nothing
 
-    if istree(typeof(e))
+    if isterm(typeof(e))
         args = getargs(e)
         n = length(args)
         class_ids = Vector{EClassId}(undef, n)
@@ -237,7 +248,7 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
     ec = add!(g, node)
     if keepmeta
         # TODO check if eclass already has metadata?
-        meta = TermInterface.getmetadata(e)
+        meta = TermInterface.metadata(e)
         setdata!(ec, MetadataAnalysis, meta)
     end
     return (ec, node)

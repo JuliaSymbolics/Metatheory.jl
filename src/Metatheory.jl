@@ -19,9 +19,6 @@ include("Util/Util.jl")
 using .Util
 export Util
 
-include("TermInterface.jl")
-using .TermInterface
-export TermInterface
 
 include("rgf.jl")
 export @metatheory_init

@@ -4,7 +4,7 @@ using Metatheory.EGraphs
 using Metatheory.Classic
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
-using Metatheory.TermInterface
+using TermInterface
 
 function customlt(x,y)
     if typeof(x) == Expr && typeof(y) == Expr 
@@ -67,7 +67,7 @@ function simplify(ex; steps=4)
         saturate!(g, cas, params; mod=@__MODULE__)
         ex = extract!(g, simplcost)
         ex = rewrite(ex, canonical_t; clean=false, m=@__MODULE__)
-        if !TermInterface.istree(typeof(ex))
+        if !TermInterface.isterm(typeof(ex))
             return ex
         end
         if hash(ex) ∈ hist

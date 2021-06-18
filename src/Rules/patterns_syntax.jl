@@ -47,7 +47,7 @@ resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
 resolve(gr) = gr
 
 function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
-    ex = preprocess(ex)
+    ex = cleanast(ex)
     head = gethead(ex)
     args = getargs(ex)
 
@@ -99,8 +99,10 @@ end
 
 # Generic fallback
 function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
-    ex = preprocess(ex)
-    if istree(typeof(ex))
+    if ex isa Expr 
+        ex = cleanast(ex)
+    end
+    if isterm(typeof(ex))
         head = gethead(ex)
         args = getargs(ex)
 
