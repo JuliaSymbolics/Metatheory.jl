@@ -8,7 +8,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 # import ..Rule
 # import ..getrhsfun
 
-using ..TermInterface
+using TermInterface
 using ..Util
 using ..Rules
 import ..@log
