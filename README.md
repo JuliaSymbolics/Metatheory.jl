@@ -69,5 +69,7 @@ If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f
 --- 
 
 <p align="center">
-<img width="300px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/.github/plantingspace.png"/>
+<a href="https://planting.space"> 
+    <img width="300px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/.github/plantingspace.png"/>
+</a>
 </p>
