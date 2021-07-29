@@ -11,7 +11,7 @@ end
 const MatchesBuf = Vector{Match}
 
 function cached_ids(g::EGraph, p::Pattern)# ::Vector{Int64}
-    keys(g.classes)
+    collect(keys(g.classes))
 end
 
 # FIXME 
@@ -36,7 +36,7 @@ function cached_ids(g::EGraph, p::PatTerm)
     #     @show appears
     # end
 
-    keys(g.classes)
+    collect(keys(g.classes))
     # cached
     # get(g.symcache, p.head, [])
 end
@@ -45,17 +45,17 @@ end
 #     get(g.symcache, p.val, [])
 # end
 
-function search_rule!(g::EGraph, r::SymbolicRule, id, buf)
-    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.ematch_program, id)])
+function (r::SymbolicRule)(g::EGraph, id)
+    ematch(g, r.ematch_program, id) .|> sub -> Match(r, r.right, sub, id)
 end
 
-function search_rule!(g::EGraph, r::DynamicRule, id, buf)
-    append!(buf, [Match(r, nothing, sub, id) for sub in ematch(g, r.ematch_program, id)]) 
+function (r::DynamicRule)(g::EGraph, id)
+    ematch(g, r.ematch_program, id) .|> sub -> Match(r, nothing, sub, id)
 end
 
-function search_rule!(g::EGraph, r::BidirRule, id, buf)
-    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.ematch_program_l, id)])
-    append!(buf, [Match(r, r.left, sub, id) for sub in ematch(g, r.ematch_program_r, id)])
+function (r::BidirRule)(g::EGraph, id)
+    vcat(ematch(g, r.ematch_program_l, id) .|> sub -> Match(r, r.right, sub, id),
+        ematch(g, r.ematch_program_r, id) .|> sub -> Match(r, r.left, sub, id))
 end
 
 
@@ -64,18 +64,16 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:AbstractRule},
     matches = MatchesBuf()
     mlock = ReentrantLock()
 
-    inequalities = filter(theory) do rule 
-        rule isa UnequalRule
-    end
+    inequalities = filter(Base.Fix2(isa, UnequalRule), theory)
     # never skip contradiction checks
     Threads.@threads for rule ∈ inequalities
         ids = cached_ids(egraph, rule.left)
 
-        for id ∈ ids
-            lock(mlock) do 
-                search_rule!(egraph, rule, id, matches)
-            end 
-        end
+        lock(mlock) do 
+            for id in ids 
+                append!(matches, rule(egraph, id))
+            end
+        end 
     end
 
     other_rules = filter(theory) do rule 
@@ -90,10 +88,10 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:AbstractRule},
 
         rule_matches = []
         ids = cached_ids(egraph, rule.left)
-
-        for id ∈ ids
-            search_rule!(egraph, rule, id, rule_matches)
+        for id in ids 
+            append!(rule_matches, rule(egraph, id))
         end
+
         can_yield = inform!(scheduler, rule, rule_matches)
         if can_yield 
             lock(mlock) do
@@ -109,15 +107,13 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
     scheduler::AbstractScheduler)::MatchesBuf
     matches = MatchesBuf()
 
-    inequalities = filter(theory) do rule 
-        rule isa UnequalRule
-    end
-# never skip contradiction checks
+    inequalities = filter(Base.Fix2(isa, UnequalRule), theory)
+    # never skip contradiction checks
     for rule ∈ inequalities
         ids = cached_ids(egraph, rule.left)
 
-        for id ∈ ids
-            search_rule!(egraph, rule, id, matches)
+        for id in ids 
+            append!(matches, rule(egraph, id))
         end
     end
 
@@ -132,13 +128,10 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
         end
 
         rule_matches = Match[]
-
         ids = cached_ids(egraph, rule.left)
-
-        for id ∈ ids
-            search_rule!(egraph, rule, id, rule_matches)
+        for id in ids 
+            append!(rule_matches, rule(egraph, id))
         end
-
         can_yield = inform!(scheduler, rule, rule_matches)
         if can_yield
             append!(matches, rule_matches)
