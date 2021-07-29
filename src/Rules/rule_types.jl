@@ -1,4 +1,6 @@
 using Parameters
+using AutoHashEquals
+using ..Patterns
 
 import Base.==
 
@@ -28,12 +30,13 @@ Rule(:(a * b => b * a))
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
+    ematch_program::Program
     function RewriteRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars)
+        new(l,r,pvars, compile_pat(l))
     end
 end
 
@@ -55,6 +58,8 @@ backend. If two terms, corresponding to the left and right hand side of an
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
+    ematch_program_l::Program
+    ematch_program_r::Program
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
@@ -64,7 +69,9 @@ backend. If two terms, corresponding to the left and right hand side of an
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars)
+        progl = compile_pat(l)
+        progr = compile_pat(r)
+        new(l,r,pvars, progl, progr)
     end
 end
 
@@ -81,6 +88,8 @@ Rule(:(a * b == b * a))
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
+    ematch_program_l::Program
+    ematch_program_r::Program
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
@@ -90,7 +99,9 @@ Rule(:(a * b == b * a))
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars)
+        progl = compile_pat(l)
+        progr = compile_pat(r)
+        new(l,r,pvars, progl, progr)
     end
 end
 
@@ -116,11 +127,12 @@ Rule(:(a::Number * b::Number |> a*b))
     left::Pattern
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
+    ematch_program::Program
     function DynamicRule(l, r) 
         pvars = patvars(l)
         # sort!(pvars)
         setindex!(l, pvars)
-        new(l, r, pvars)
+        new(l, r, pvars, compile_pat(l))
     end
 end
 

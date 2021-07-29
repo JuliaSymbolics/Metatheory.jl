@@ -46,16 +46,16 @@ end
 # end
 
 function search_rule!(g::EGraph, r::SymbolicRule, id, buf)
-    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
+    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.ematch_program, id)])
 end
 
 function search_rule!(g::EGraph, r::DynamicRule, id, buf)
-    append!(buf, [Match(r, nothing, sub, id) for sub in ematch(g, r.left, id)]) 
+    append!(buf, [Match(r, nothing, sub, id) for sub in ematch(g, r.ematch_program, id)]) 
 end
 
 function search_rule!(g::EGraph, r::BidirRule, id, buf)
-    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.left, id)])
-    append!(buf, [Match(r, r.left, sub, id) for sub in ematch(g, r.right, id)])
+    append!(buf, [Match(r, r.right, sub, id) for sub in ematch(g, r.ematch_program_l, id)])
+    append!(buf, [Match(r, r.left, sub, id) for sub in ematch(g, r.ematch_program_r, id)])
 end
 
 

@@ -1,6 +1,7 @@
 # core mechanism of extending Taine Zhao's @thautwarm 's MatchCore pattern matching.
 
 using MatchCore
+using ..Patterns
 
 
 ## compile (quote) left and right hands of a rule

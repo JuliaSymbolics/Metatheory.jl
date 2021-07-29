@@ -10,6 +10,7 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 using TermInterface
 using ..Util
+using ..Patterns
 using ..Rules
 import ..@log
 
@@ -53,9 +54,6 @@ export analyze!
 include("subst.jl")
 export Sub
 
-include("ematch_compiler.jl")
-export Program
-export Instruction
 include("ematch.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers

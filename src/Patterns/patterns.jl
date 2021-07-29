@@ -1,4 +1,5 @@
 using AutoHashEquals
+using TermInterface
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
@@ -198,26 +199,26 @@ end
 # ================== DEBRUJIN INDEXING =========
 # ==============================================
 
-setindex!(p::PatLiteral, pvars) = nothing 
-function setindex!(p::PatVar, pvars)
+Base.setindex!(p::PatLiteral, pvars) = nothing 
+function Base.setindex!(p::PatVar, pvars)
     p.idx = findfirst((==)(p.name), pvars)
 end
-setindex!(p::PatTypeAssertion, pvars) = setindex!(p.var, pvars)
-setindex!(p::PatSplatVar, pvars) = setindex!(p.var, pvars)
+Base.setindex!(p::PatTypeAssertion, pvars) = setindex!(p.var, pvars)
+Base.setindex!(p::PatSplatVar, pvars) = setindex!(p.var, pvars)
 
 
-function setindex!(p::PatEquiv, pvars)
+function Base.setindex!(p::PatEquiv, pvars)
     setindex!(p.left, pvars)
     setindex!(p.right, pvars)
 end 
 
-function setindex!(p::PatTerm, pvars)
+function Base.setindex!(p::PatTerm, pvars)
     for x ∈ p.args 
         setindex!(x, pvars)
     end
 end 
 
-function setindex!(p::PatAllTerm, pvars)
+function Base.setindex!(p::PatAllTerm, pvars)
     setindex!(p.head, pvars)
     for x ∈ p.args 
         setindex!(x, pvars)
