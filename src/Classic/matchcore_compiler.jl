@@ -87,7 +87,7 @@ const identity_axiom = :($(quot(dollar(:i))) => i)
 # correct rule order and expansions for associativity and distributivity
 # import Iterators: flatten. Knuth-Bendix completion??
 
-function theory_block(t::Vector{<:Rule})
+function theory_block(t::Vector{<:AbstractRule})
 	tn = Vector{Expr}()
 
 	for r ∈ t
@@ -102,7 +102,7 @@ Compile a theory to a closure that does the pattern matching job
 Returns a RuntimeGeneratedFunction, which does not use eval and
 is as fast as a regular Julia anonymous function 🔥
 """
-function compile_theory(theory::Vector{<:Rule}, mod::Module; __source__=LineNumberNode(0))
+function compile_theory(theory::Vector{<:AbstractRule}, mod::Module; __source__=LineNumberNode(0))
     # generate an unique parameter name
     parameter = Meta.gensym(:reducing_expression)
     block = theory_block(theory)
@@ -123,10 +123,10 @@ macro compile_theory(theory)
     gettheory(theory, __module__)
 end
 
-const MATCHCORE_FUNCTION_CACHE = IdDict{Vector{<:Rule}, Function}()
+const MATCHCORE_FUNCTION_CACHE = IdDict{Vector{<:AbstractRule}, Function}()
 const MATCHCORE_FUNCTION_CACHE_LOCK = ReentrantLock()
 
-function gettheoryfun(t::Vector{<:Rule}, m::Module)
+function gettheoryfun(t::Vector{<:AbstractRule}, m::Module)
     lock(MATCHCORE_FUNCTION_CACHE_LOCK) do
         if !haskey(MATCHCORE_FUNCTION_CACHE, t)
             z = compile_theory(t, m)

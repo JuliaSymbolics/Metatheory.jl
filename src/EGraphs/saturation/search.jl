@@ -1,5 +1,5 @@
 struct Match
-    rule::Rule 
+    rule::AbstractRule 
     # the rhs pattern to instantiate 
     pat_to_inst::Union{Nothing,Pattern}
     # the substitution
@@ -59,7 +59,7 @@ function search_rule!(g::EGraph, r::BidirRule, id, buf)
 end
 
 
-function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
+function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:AbstractRule},
         scheduler::AbstractScheduler)::MatchesBuf
     matches = MatchesBuf()
     mlock = ReentrantLock()
@@ -105,7 +105,7 @@ function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:Rule},
 end
 
 
-function eqsat_search!(egraph::EGraph, theory::Vector{<:Rule},
+function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
     scheduler::AbstractScheduler)::MatchesBuf
     matches = MatchesBuf()
 

@@ -23,7 +23,7 @@ end
     @test @time rewrite(:(a + (x * 1)), t) == :(a + x)
 
 	ct = @compile_theory t
-	@test t isa Vector{Rule} # Vector{Rule} == Theory
+	@test t isa Vector{AbstractRule} # Vector{Rule} == Theory
 	@test ct isa Function  # Callable Function
 
     # basic theory to check that everything works

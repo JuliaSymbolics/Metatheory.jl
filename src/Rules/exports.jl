@@ -22,6 +22,7 @@ export DynamicRule
 
 # include("rules/rule_dsl.jl")
 export Rule
+export AbstractRule
 export Theory
 export @rule
 export @theory

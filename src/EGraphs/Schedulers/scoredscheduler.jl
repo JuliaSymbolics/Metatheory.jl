@@ -17,13 +17,13 @@ This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
 mutable struct ScoredScheduler <: AbstractScheduler
-    data::IdDict{Rule, ScoredSchedulerEntry}
+    data::IdDict{AbstractRule, ScoredSchedulerEntry}
     G::EGraph
-    theory::Vector{<:Rule}
+    theory::Vector{<:AbstractRule}
     curr_iter::Int
 end
 
-cansearch(s::ScoredScheduler, r::Rule)::Bool = s.curr_iter > s.data[r].banned_until
+cansearch(s::ScoredScheduler, r::AbstractRule)::Bool = s.curr_iter > s.data[r].banned_until
 
 exprsize(a) = 1
 
@@ -46,14 +46,14 @@ function exprsize(e::Expr)
     return c
 end
 
-function ScoredScheduler(g::EGraph, theory::Vector{<:Rule})
+function ScoredScheduler(g::EGraph, theory::Vector{<:AbstractRule})
     # BackoffScheduler(g, theory, 128, 4)
     ScoredScheduler(g, theory, 1000, 5, exprsize)
 end
 
-function ScoredScheduler(G::EGraph, theory::Vector{<:Rule}, match_limit::Int, ban_length::Int, complexity::Function)
+function ScoredScheduler(G::EGraph, theory::Vector{<:AbstractRule}, match_limit::Int, ban_length::Int, complexity::Function)
     gsize = length(G.uf)
-    data = IdDict{Rule, ScoredSchedulerEntry}()
+    data = IdDict{AbstractRule, ScoredSchedulerEntry}()
 
     for rule ∈ theory
         if rule isa DynamicRule
@@ -84,7 +84,7 @@ end
 cansaturate(s::ScoredScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_until, s.data)
 
 
-function inform!(s::ScoredScheduler, rule::Rule, matches)
+function inform!(s::ScoredScheduler, rule::AbstractRule, matches)
     # println(s.data[rule])
 
     rd = s.data[rule]

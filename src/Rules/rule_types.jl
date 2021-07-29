@@ -2,12 +2,12 @@ using Parameters
 
 import Base.==
 
-abstract type Rule end
+abstract type AbstractRule end
 # Must override
-==(a::Rule, b::Rule) = false
+==(a::AbstractRule, b::AbstractRule) = false
 
 
-abstract type SymbolicRule <: Rule end
+abstract type SymbolicRule <: AbstractRule end
 
 """
 Rules defined as `left_hand => right_hand` are
@@ -112,7 +112,7 @@ Dynamic rule
 Rule(:(a::Number * b::Number |> a*b))
 ```
 """
-@auto_hash_equals struct DynamicRule <: Rule 
+@auto_hash_equals struct DynamicRule <: AbstractRule 
     left::Pattern
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables

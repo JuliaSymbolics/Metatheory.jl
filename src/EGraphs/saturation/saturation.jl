@@ -7,11 +7,11 @@ using .Schedulers
 """
 Core algorithm of the library: the equality saturation step.
 """
-function eqsat_step!(g::EGraph, theory::Vector{<:Rule}, curr_iter, mod::Module,
+function eqsat_step!(g::EGraph, theory::Vector{<:AbstractRule}, curr_iter, mod::Module,
         scheduler::AbstractScheduler, match_hist::MatchesBuf, params::SaturationParams)
 
     report = Report(g)
-    instcache = Dict{Rule, Dict{Sub, EClassId}}()
+    instcache = Dict{AbstractRule, Dict{Sub, EClassId}}()
 
     setiter!(scheduler, curr_iter)
 
@@ -58,10 +58,10 @@ end
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-saturate!(g::EGraph, theory::Vector{<:Rule}; mod=@__MODULE__) =
+saturate!(g::EGraph, theory::Vector{<:AbstractRule}; mod=@__MODULE__) =
     saturate!(g, theory, SaturationParams(); mod=mod)
 
-function saturate!(g::EGraph, theory::Vector{<:Rule}, params::SaturationParams;
+function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params::SaturationParams;
     mod=@__MODULE__,)
     curr_iter = 0
 

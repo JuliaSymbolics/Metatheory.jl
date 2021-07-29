@@ -16,23 +16,23 @@ This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
 mutable struct BackoffScheduler <: AbstractScheduler
-    data::IdDict{Rule, BackoffSchedulerEntry}
+    data::IdDict{AbstractRule, BackoffSchedulerEntry}
     G::EGraph
-    theory::Vector{<:Rule}
+    theory::Vector{<:AbstractRule}
     curr_iter::Int
 end
 
-cansearch(s::BackoffScheduler, r::Rule)::Bool = s.curr_iter > s.data[r].banned_until
+cansearch(s::BackoffScheduler, r::AbstractRule)::Bool = s.curr_iter > s.data[r].banned_until
 
 
-function BackoffScheduler(g::EGraph, theory::Vector{<:Rule})
+function BackoffScheduler(g::EGraph, theory::Vector{<:AbstractRule})
     # BackoffScheduler(g, theory, 128, 4)
     BackoffScheduler(g, theory, 1000, 5)
 end
 
-function BackoffScheduler(G::EGraph, theory::Vector{<:Rule}, match_limit::Int, ban_length::Int)
+function BackoffScheduler(G::EGraph, theory::Vector{<:AbstractRule}, match_limit::Int, ban_length::Int)
     gsize = length(G.uf)
-    data = IdDict{Rule, BackoffSchedulerEntry}()
+    data = IdDict{AbstractRule, BackoffSchedulerEntry}()
 
     for rule ∈ theory
         data[rule] = BackoffSchedulerEntry(match_limit, ban_length, 0, 0)
@@ -45,7 +45,7 @@ end
 cansaturate(s::BackoffScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_until, s.data)
 
 
-function inform!(s::BackoffScheduler, rule::Rule, matches)
+function inform!(s::BackoffScheduler, rule::AbstractRule, matches)
     # println(s.data[rule])
 
     rd = s.data[rule]

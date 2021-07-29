@@ -25,7 +25,7 @@ end
 
 
 """
-Construct a `Rule` from a quoted expression.
+Construct an `AbstractRule` from a quoted expression.
 You can also use the [`@rule`] macro to
 create a `Rule`.
 """
@@ -52,21 +52,19 @@ function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
 end
 
 # fallback when defining theories and there's already a rule 
-function Rule(r::Rule, mod::Module=@__MODULE__, resolve_fun=false)
+function Rule(r::AbstractRule, mod::Module=@__MODULE__, resolve_fun=false)
     r
 end
 
 macro rule(e)
     e = macroexpand(__module__, e)
     e = rmlines(copy(e))
-    # e = interp_dollar(e, __module__)
     Rule(e, __module__, false)
 end
 
 macro methodrule(e)
     e = macroexpand(__module__, e)
     e = rmlines(copy(e))
-    # e = interp_dollar(e, __module__)
     Rule(e, __module__, true)
 end
 
@@ -77,7 +75,7 @@ macro theory(e)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
     if Meta.isexpr(e, :block)
-        Vector{Rule}(e.args .|> x -> Rule(x, __module__, false))
+        Vector{AbstractRule}(e.args .|> x -> Rule(x, __module__, false))
     else
         error("theory is not in form begin a => b; ... end")
     end
@@ -89,7 +87,7 @@ macro methodtheory(e)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
     if Meta.isexpr(e, :block)
-        Vector{Rule}(e.args .|> x -> Rule(x, __module__, true))
+        Vector{AbstractRule}(e.args .|> x -> Rule(x, __module__, true))
     else
         error("theory is not in form begin a => b; ... end")
     end
@@ -99,12 +97,5 @@ end
 A Theory is either a vector of [`Rule`](@ref) or
 a compiled, callable function.
 """
-const Theory = Union{Vector{<:Rule}, Function}
+const Theory = Union{Vector{<:AbstractRule}, Function}
 
-
-# lhs = Pattern(:(x * x))
-# rhs = Pattern(:(x ^ 2))
-# UnequalRule(lhs, rhs)
-# Rule(:(x*x => x^2))
-# Rule(:(x*x::Number |> x*x)) |> dump
-# Rule(:(x*x == x^2))
