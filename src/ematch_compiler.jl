@@ -1,9 +1,12 @@
 # TODO make it yield enodes only? ping pavel and marisa
 # TODO STAGE IT! FASTER!
+module EMatchCompiler
 
 using AutoHashEquals
+using ..Patterns
 
 abstract type Instruction end 
+export Instruction
 
 const Register = Int32
 
@@ -14,6 +17,8 @@ mutable struct Program
     regs::Vector{Register}
     ground_terms::Dict{Pattern, Register}
 end
+export Program
+
 
 function Program()
     Program(Instruction[], 0, 0, [], Dict{Pattern, Register}())
@@ -33,36 +38,48 @@ Base.length(p::Program) = length(p.instructions)
     # args::Vector{Register} 
     args::UnitRange{Register}
 end
+export ENodePat
 
 @auto_hash_equals struct Bind <: Instruction
     reg::Register
     enodepat::ENodePat
 end
+export Bind
 
 @auto_hash_equals struct CheckClassEq <: Instruction
     left::Register
     right::Register
 end
+export CheckClassEq
 
 @auto_hash_equals struct CheckType <: Instruction
     reg::Register
     type::Any
 end
+export CheckType
 
 @auto_hash_equals struct Yield <: Instruction
     yields::Vector{Register}
 end
+export Yield
 
 @auto_hash_equals struct Filter <: Instruction
     reg::Register
     head::Any
     arity::Int
 end
+export Filter
 
 @auto_hash_equals struct Lookup <: Instruction
     reg::Register
     p::Pattern
 end
+export Lookup
+
+@auto_hash_equals struct Fail <: Instruction
+    err::Exception
+end
+export Lookup
 
 # =============================================
 # ========= GROUND patterns ================
@@ -107,6 +124,10 @@ end
 function compile_ground!(reg, p::PatEquiv, prog)
     compile_ground!(reg, p.left, prog)
     compile_ground!(reg, p.right, prog)
+end
+
+function compile_ground!(reg, p::PatSplatVar, prog)
+    Fail(ErrorException("Splatting not yet supported"))
 end
 
 # =============================================
@@ -170,11 +191,18 @@ function compile_pat!(reg, p::PatEquiv, prog)
     compile_pat!(reg, p.right, prog)
 end
 
+function compile_pat!(reg, p::PatSplatVar, prog)
+    Fail(ErrorException("Splatting not yet supported"))
+end
+
+#========================================================================================#
+
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
 function compile_pat(p::Pattern)
     pvars = patvars(p)
     nvars = length(pvars)
 
+    # The program will try to match against ground terms first
     prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern, Register}())
     # println("compiling pattern $p")
     compile_ground!(1, p, prog)
@@ -182,9 +210,13 @@ function compile_pat(p::Pattern)
     prog.first_nonground = prog.memsize
     prog.memsize+=1
 
+    # And then try to match against other patterns
     compile_pat!(prog.first_nonground, p, prog)
     push!(prog.instructions, Yield(prog.regs))
     # println("compiled pattern $p to \n $prog")
     return prog
 end
 
+export compile_pat
+
+end
