@@ -14,7 +14,7 @@ getliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx]
 
 ## ====================== Instantiation =======================
 
-function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::Rule)
+function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
     if haseclassid(sub, pat)
         ec = geteclass(g, geteclassid(sub, pat))
         if hasliteral(sub, pat) 
@@ -28,16 +28,16 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::Rule)
     end
 end
 
-function instantiate(g::EGraph, pat::PatLiteral{T}, sub::Sub, rule::Rule) where T
+function instantiate(g::EGraph, pat::PatLiteral{T}, sub::Sub, rule::AbstractRule) where T
     pat.val
 end
 
-function instantiate(g::EGraph, pat::PatTypeAssertion, sub::Sub, rule::Rule)
+function instantiate(g::EGraph, pat::PatTypeAssertion, sub::Sub, rule::AbstractRule)
     instantiate(g, pat.name, sub, rule)
 end
 
 
-function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::Rule)
+function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     f = pat.head
     ar = arity(pat)
     if pat.head == :call 

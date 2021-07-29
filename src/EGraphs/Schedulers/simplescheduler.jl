@@ -4,9 +4,9 @@ A simple Rewrite Scheduler that applies every rule every time
 struct SimpleScheduler <: AbstractScheduler end
 
 cansaturate(s::SimpleScheduler) = true
-cansearch(s::SimpleScheduler, r::Rule) = true
+cansearch(s::SimpleScheduler, r::AbstractRule) = true
 
-function SimpleScheduler(G::EGraph, theory::Vector{<:Rule})
+function SimpleScheduler(G::EGraph, theory::Vector{<:AbstractRule})
     SimpleScheduler()
 end
 
