@@ -1,7 +1,7 @@
 module Patterns 
     using ..Util
 
-    include("patterns.jl")
+    include("pattern.jl")
     include("patterns_syntax.jl")
     include("exports.jl")
 end
