@@ -57,10 +57,6 @@ export Sub
 
 include("ematch.jl")
 include("ematch_staged.jl")
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers

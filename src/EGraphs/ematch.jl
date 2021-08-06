@@ -163,12 +163,7 @@ function __init__()
     global MACHINES = map(x -> Machine(), 1:Threads.nthreads())
 end
 
-<<<<<<< HEAD
-function ematch_old(g::EGraph, p::Pattern, id::EClassId)
-    program = getprogram(p)
-=======
 function ematch(g::EGraph, program::Program, id::EClassId)
->>>>>>> master
     tid = Threads.threadid() 
     reset(MACHINES[tid], g, program, id)
     # machine = Machine(g, program, σsize, id)

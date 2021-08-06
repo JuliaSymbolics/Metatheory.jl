@@ -1,11 +1,4 @@
 
-<<<<<<< HEAD
-# =============================================================
-# ================== STAGED ===================================
-# =============================================================
-
-=======
->>>>>>> master
 function next(p::Program, n, σ, pc)
     stage(p, p.instructions[pc+1], n, σ, pc+1)
 end
@@ -100,45 +93,4 @@ function stage(p::Program)
             return _buf
         end
     )
-<<<<<<< HEAD
 end
-
-# =============================================================
-
-
-# Global Right Hand Side function cache for dynamic rules.
-const EMATCH_STAGED_PROG_CACHE = IdDict{Pattern, Function}()
-const EMATCH_STAGED_PROG_CACHE_LOCK = ReentrantLock()
-
-# using MacroTools
-function getstagedprogram(p::Pattern)
-    lock(EMATCH_STAGED_PROG_CACHE_LOCK) do
-        if !haskey(EMATCH_STAGED_PROG_CACHE, p)
-            # println("cache miss!")
-            program = compile_pat(p)
-            program_expr = stage(program)
-            # println(prettify(program_expr))
-            # mod = @__MODULE__
-            f = eval(program_expr)
-            # f = closure_generator(@__MODULE__, program_expr)
-            EMATCH_STAGED_PROG_CACHE[p] = f
-            return f
-        end
-        return EMATCH_STAGED_PROG_CACHE[p]
-    end
-end
-
-function ematch(g::EGraph, p::Pattern, eclass::EClassId)
-    # program = getprogram(p)
-    f = getstagedprogram(p)
-    return Base.invokelatest(f, g, eclass)
-end
-
-# no compile time with staged and RGF for tests
-# 35.020147 seconds (97.38 M allocations: 4.962 GiB, 5.55% gc time, 2.16% compilation time)
-
-# UNSTAGED 
-# 18.471672 seconds (86.43 M allocations: 4.259 GiB, 9.08% gc time, 2.24% compilation time)
-=======
-end
->>>>>>> master
