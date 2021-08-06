@@ -59,19 +59,32 @@ end
 # end
 
 function (r::SymbolicRule)(g::EGraph, id)
-    if isnothing(r.staged_ematch_fun)
-        r.staged_ematch_fun = stage()
+    if !isassigned(r.staged_ematch_fun)
+        expr = stage(r.ematch_program)
+        r.staged_ematch_fun[] = closure_generator(@__MODULE__, expr)         
     end
-    ematch(g, r.ematch_program, id) .|> sub -> Match(r, r.right, sub, id)
+    r.staged_ematch_fun[](g, id) .|> sub -> Match(r, r.right, sub, id)
 end
 
 function (r::DynamicRule)(g::EGraph, id)
-    ematch(g, r.ematch_program, id) .|> sub -> Match(r, nothing, sub, id)
+    if !isassigned(r.staged_ematch_fun)
+        expr = stage(r.ematch_program)
+        r.staged_ematch_fun[] = closure_generator(@__MODULE__, expr)         
+    end
+    r.staged_ematch_fun[](g, id) .|> sub -> Match(r, nothing, sub, id)
 end
 
 function (r::BidirRule)(g::EGraph, id)
-    vcat(ematch(g, r.ematch_program_l, id) .|> sub -> Match(r, r.right, sub, id),
-        ematch(g, r.ematch_program_r, id) .|> sub -> Match(r, r.left, sub, id))
+    if !isassigned(r.staged_ematch_fun_l)
+        expr = stage(r.ematch_program_l)
+        r.staged_ematch_fun_l[] = closure_generator(@__MODULE__, expr)         
+    end
+    if !isassigned(r.staged_ematch_fun_r)
+        expr = stage(r.ematch_program_r)
+        r.staged_ematch_fun_r[] = closure_generator(@__MODULE__, expr)         
+    end
+    vcat(r.staged_ematch_fun_l[](g, id) .|> sub -> Match(r, r.right, sub, id),
+        r.staged_ematch_fun_r[](g, id) .|> sub -> Match(r, r.left, sub, id))
 end
 
 function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:AbstractRule},

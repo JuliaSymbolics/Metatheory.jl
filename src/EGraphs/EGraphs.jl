@@ -1,6 +1,7 @@
 module EGraphs
 
 include("../docstrings.jl")
+include("../rgf.jl")
 
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
