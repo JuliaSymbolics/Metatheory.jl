@@ -55,6 +55,7 @@ include("subst.jl")
 export Sub
 
 include("ematch.jl")
+include("ematch_staged.jl")
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers

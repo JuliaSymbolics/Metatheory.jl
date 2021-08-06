@@ -45,7 +45,23 @@ end
 #     get(g.symcache, p.val, [])
 # end
 
+# function (r::SymbolicRule)(g::EGraph, id)
+#     ematch(g, r.ematch_program, id) .|> sub -> Match(r, r.right, sub, id)
+# end
+
+# function (r::DynamicRule)(g::EGraph, id)
+#     ematch(g, r.ematch_program, id) .|> sub -> Match(r, nothing, sub, id)
+# end
+
+# function (r::BidirRule)(g::EGraph, id)
+#     vcat(ematch(g, r.ematch_program_l, id) .|> sub -> Match(r, r.right, sub, id),
+#         ematch(g, r.ematch_program_r, id) .|> sub -> Match(r, r.left, sub, id))
+# end
+
 function (r::SymbolicRule)(g::EGraph, id)
+    if isnothing(r.staged_ematch_fun)
+        r.staged_ematch_fun = stage()
+    end
     ematch(g, r.ematch_program, id) .|> sub -> Match(r, r.right, sub, id)
 end
 
@@ -57,7 +73,6 @@ function (r::BidirRule)(g::EGraph, id)
     vcat(ematch(g, r.ematch_program_l, id) .|> sub -> Match(r, r.right, sub, id),
         ematch(g, r.ematch_program_r, id) .|> sub -> Match(r, r.left, sub, id))
 end
-
 
 function eqsat_search_threaded!(egraph::EGraph, theory::Vector{<:AbstractRule},
         scheduler::AbstractScheduler)::MatchesBuf

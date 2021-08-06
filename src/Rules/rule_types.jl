@@ -31,12 +31,13 @@ Rule(:(a * b => b * a))
     right::Pattern
     patvars::Vector{Symbol}
     ematch_program::Program
+    staged_ematch_fun::Union{Nothing,Function}
     function RewriteRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars, compile_pat(l))
+        new(l,r,pvars, compile_pat(l), nothing)
     end
 end
 
@@ -60,6 +61,9 @@ backend. If two terms, corresponding to the left and right hand side of an
     patvars::Vector{Symbol}
     ematch_program_l::Program
     ematch_program_r::Program
+    staged_ematch_fun_l::Union{Nothing,Function}
+    staged_ematch_fun_r::Union{Nothing,Function}
+
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
@@ -71,7 +75,7 @@ backend. If two terms, corresponding to the left and right hand side of an
         setindex!(r, pvars)
         progl = compile_pat(l)
         progr = compile_pat(r)
-        new(l,r,pvars, progl, progr)
+        new(l,r,pvars, progl, progr, nothing, nothing)
     end
 end
 
@@ -90,6 +94,8 @@ Rule(:(a * b == b * a))
     patvars::Vector{Symbol}
     ematch_program_l::Program
     ematch_program_r::Program
+    staged_ematch_fun_l::Union{Nothing,Function}
+    staged_ematch_fun_r::Union{Nothing,Function}
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
@@ -101,7 +107,7 @@ Rule(:(a * b == b * a))
         setindex!(r, pvars)
         progl = compile_pat(l)
         progr = compile_pat(r)
-        new(l,r,pvars, progl, progr)
+        new(l,r,pvars, progl, progr, nothing, nothing)
     end
 end
 
@@ -128,11 +134,12 @@ Rule(:(a::Number * b::Number |> a*b))
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
     ematch_program::Program
+    staged_ematch_fun::Union{Nothing,Function}
     function DynamicRule(l, r) 
         pvars = patvars(l)
         # sort!(pvars)
         setindex!(l, pvars)
-        new(l, r, pvars, compile_pat(l))
+        new(l, r, pvars, compile_pat(l), nothing)
     end
 end
 
