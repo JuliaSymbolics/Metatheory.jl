@@ -23,7 +23,7 @@ end
     @test @time rewrite(:(a + (x * 1)), t) == :(a + x)
 
 	ct = @compile_theory t
-	@test t isa Vector{Rule} # Vector{Rule} == Theory
+	@test t isa Vector{AbstractRule} # Vector{Rule} == Theory
 	@test ct isa Function  # Callable Function
 
     # basic theory to check that everything works
@@ -135,6 +135,22 @@ car = Car()
 	t = @theory begin
 		a::AirVehicle * b => "flies"
 		a::GroundVehicle * b => "doesnt_fly"
+	end
+
+	sf = rewrite(:($airpl * c), t; m=@__MODULE__)
+	df = rewrite(:($car * c), t; m=@__MODULE__)
+
+    @test sf == "flies"
+    @test df == "doesnt_fly"
+end
+
+airpl = Airplane()
+car = Car()
+
+@testset "Interpolation" begin
+	t = @theory begin
+		$airpl * b => "flies"
+		$car * b => "doesnt_fly"
 	end
 
 	sf = rewrite(:($airpl * c), t; m=@__MODULE__)

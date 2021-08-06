@@ -7,7 +7,6 @@
   - `rule_types.jl`: Definition of `Rule` subtypes for rewrite rules. 
   - `rule_dsl.jl`: Surface DSL for defining rules. 
   - `rule_cache.jl`: Contains definition of global dynamic rule function cache. 
-- `TermInterface.jl`: Definition of the interface for using custom term types in Metatheory. Implementation for `Expr` and fallback.
 - `rgf.jl`: Utility functions for handling and generating Runtime Generated Functions 
 - `EGraphs/`: Code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
   - `enode.jl`: Definition of `ENode` type, constructors

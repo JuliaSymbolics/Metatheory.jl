@@ -1,13 +1,15 @@
 using Parameters
+using AutoHashEquals
+using ..Patterns
 
 import Base.==
 
-abstract type Rule end
+abstract type AbstractRule end
 # Must override
-==(a::Rule, b::Rule) = false
+==(a::AbstractRule, b::AbstractRule) = false
 
 
-abstract type SymbolicRule <: Rule end
+abstract type SymbolicRule <: AbstractRule end
 
 """
 Rules defined as `left_hand => right_hand` are
@@ -28,13 +30,19 @@ Rule(:(a * b => b * a))
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
+    ematch_program::Program
+    staged_ematch_fun::Ref{Function}
     function RewriteRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars)
+        new(l,r,pvars, compile_pat(l), Ref{Function}())
     end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", r::RewriteRule)
+    print(io, "$(r.left) => $(r.right)")
 end
 
 # =============================================================================
@@ -51,6 +59,11 @@ backend. If two terms, corresponding to the left and right hand side of an
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
+    ematch_program_l::Program
+    ematch_program_r::Program
+    staged_ematch_fun_l::Ref{Function}
+    staged_ematch_fun_r::Ref{Function}
+
     function UnequalRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
@@ -60,8 +73,14 @@ backend. If two terms, corresponding to the left and right hand side of an
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars)
+        progl = compile_pat(l)
+        progr = compile_pat(r)
+        new(l,r,pvars, progl, progr, Ref{Function}(), Ref{Function}())
     end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", r::UnequalRule)
+    print(io, "$(r.left) ≠ $(r.right)")
 end
 
 """
@@ -73,6 +92,10 @@ Rule(:(a * b == b * a))
     left::Pattern
     right::Pattern
     patvars::Vector{Symbol}
+    ematch_program_l::Program
+    ematch_program_r::Program
+    staged_ematch_fun_l::Ref{Function}
+    staged_ematch_fun_r::Ref{Function}
     function EqualityRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
@@ -82,8 +105,14 @@ Rule(:(a * b == b * a))
         # sort!(pvars)
         setindex!(l, pvars)
         setindex!(r, pvars)
-        new(l,r,pvars)
+        progl = compile_pat(l)
+        progr = compile_pat(r)
+        new(l,r,pvars, progl, progr, Ref{Function}(), Ref{Function}())
     end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", r::EqualityRule)
+    print(io, "$(r.left) == $(r.right)")
 end
 
 """
@@ -100,14 +129,20 @@ Dynamic rule
 Rule(:(a::Number * b::Number |> a*b))
 ```
 """
-@auto_hash_equals struct DynamicRule <: Rule 
+@auto_hash_equals struct DynamicRule <: AbstractRule 
     left::Pattern
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
+    ematch_program::Program
+    staged_ematch_fun::Ref{Function}
     function DynamicRule(l, r) 
         pvars = patvars(l)
         # sort!(pvars)
         setindex!(l, pvars)
-        new(l, r, pvars)
+        new(l, r, pvars, compile_pat(l), Ref{Function}())
     end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", r::DynamicRule)
+    print(io, "$(r.left) |> $(r.right)")
 end

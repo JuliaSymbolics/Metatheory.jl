@@ -2,6 +2,7 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 using DataStructures
+using TermInterface
 
 """
 Abstract type representing an [`EGraph`](@ref) analysis,
@@ -41,6 +42,8 @@ mutable struct EGraph
     termtypes::TermTypes
     numclasses::Int
     numnodes::Int
+    # number of rules that have been applied
+    # age::Int
 end
 
 function EGraph()
@@ -57,7 +60,8 @@ function EGraph()
         Expr,
         TermTypes(),
         0,
-        0
+        0,
+        # 0
     )
 end
 
@@ -119,7 +123,8 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 function canonicalize(g::EGraph, n::ENode{T}) where {T}
     if arity(n) > 0
         new_args = map(x -> find(g, x), n.args)
-        return ENode{T}(n.head, new_args, n.proof_src, n.proof_rules, n.proof_trg)
+        # return ENode{T}(n.head, new_args, n.proof_src, n.proof_trg, n.age)
+        return ENode{T}(n.head, new_args)
     end 
     return n
 end
@@ -155,13 +160,15 @@ function add!(g::EGraph, n::ENode)::EClass
     if haskey(g.memo, n)
         # TODO really override the proof step here?
         eclass = geteclass(g, g.memo[n])
-        for (i, nn) in enumerate(eclass)
-            if n == nn && hasproofdata(n)
-                # println("MERGING PROOF STEP $nn and $n")
-                # TODO union!-ing proof data here is BRUTAL. should be ammortized
-                mergeproof!(nn, n)
-            end
-        end 
+        # for nn in eclass
+        #     if n == nn && hasproofdata(n)
+        #         # println("MERGING PROOF STEP $nn and $n")
+        #         # TODO union!-ing proof data here is BRUTAL. should be ammortized
+        #         # keep the older `nn` age
+        #         setage!(n, nn.age)
+        #         mergeproof!(nn, n)
+        #     end
+        # end 
         return eclass
     end
     @debug(n, " not found in memo")
@@ -184,18 +191,27 @@ function add!(g::EGraph, n::ENode)::EClass
             modify!(an, g, id)
         end
     end
-
     return classdata
 end
+
+"""
+Extend this function on your types to do preliminary
+preprocessing of a symbolic term before adding it to 
+an EGraph. Most common preprocessing techniques are binarization
+of n-ary terms and metadata stripping.
+"""
+function preprocess(e::Expr) 
+    cleanast(e)
+end
+preprocess(x) = x
 
 """
 Recursively traverse an type satisfying the `TermInterface` and insert terms into an
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta=false, 
-        proof_src=nothing, proof_rule=nothing)::Tuple{EClass, ENode}
-    # e = preprocess(e)
+# function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClass, ENode}
+function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
     # println("========== $e ===========")
     if se isa EClass
         return (se, se[1])
@@ -204,7 +220,7 @@ function addexpr!(g::EGraph, se; keepmeta=false,
 
     node = nothing
 
-    if istree(e)
+    if isterm(typeof(e))
         args = getargs(e)
         n = length(args)
         class_ids = Vector{EClassId}(undef, n)
@@ -219,18 +235,20 @@ function addexpr!(g::EGraph, se; keepmeta=false,
         node = ENode{typeof(e)}(e, EClassId[])
     end
 
-    if !isnothing(proof_src)
-        addproofsrc!(node, proof_src)
-    end
+    # setage!(node, g.age)
 
-    if !isnothing(proof_rule)
-        addproofrule!(node, proof_rule)
-    end
+    # if !isnothing(proof_src)
+    #     rule = first(proof_src)
+    #     srcnode = last(proof_src)
+    #     if !isnothing(rule) && !isnothing(srcnode)
+    #         addproofsrc!(node, rule, srcnode, g.age)
+    #     end
+    # end
 
     ec = add!(g, node)
     if keepmeta
         # TODO check if eclass already has metadata?
-        meta = TermInterface.getmetadata(e)
+        meta = TermInterface.metadata(e)
         setdata!(ec, MetadataAnalysis, meta)
     end
     return (ec, node)

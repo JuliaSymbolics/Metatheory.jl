@@ -1,7 +1,7 @@
 name = "Metatheory"
 uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
-version = "0.3.2"
+version = "0.4.1"
 
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
@@ -10,14 +10,18 @@ DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 MatchCore = "5dd3f0b1-72a9-48ad-ae6e-79f673da005f"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
+TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [compat]
+AutoHashEquals = "0.2.0"
 DataStructures = "0.18.9"
 DocStringExtensions = "0.8"
 MatchCore = "0.1.0"
 Parameters = "0.12"
 RuntimeGeneratedFunctions = "0.5.1"
+TermInterface = "0.1.0"
 julia = "1"
 
 [extras]
@@ -29,4 +33,4 @@ SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Calculus", "ExprRules", "AbstractTrees", "Catlab", "SymbolicUtils"]
+test = ["Test", "Calculus", "ExprRules", "AbstractTrees", "Catlab"]

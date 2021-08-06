@@ -1,5 +1,6 @@
 using Metatheory 
 using Metatheory.EGraphs 
+using TermInterface
 using Test
 
 @metatheory_init ()
@@ -28,10 +29,10 @@ MyExpr(head) = MyExpr(head, [])
 # Methods needed by `src/TermInterface.jl`
 TermInterface.gethead(e::MyExpr) = e.head
 TermInterface.getargs(e::MyExpr) = e.args
-TermInterface.istree(e::MyExpr) = true
+TermInterface.isterm(e::Type{MyExpr}) = true
 # NamedTuple
-TermInterface.getmetadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
-TermInterface.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
+TermInterface.metadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
+EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
 
 # f(g(2), h(4)) with some metadata in h
 hcall = MyExpr(:call, [:h, 4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))

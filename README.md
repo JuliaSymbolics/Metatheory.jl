@@ -65,3 +65,11 @@ Narrative and API documentation for Metatheory.jl is available [here](https://0x
 ## Citing
 
 If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/CITATION.bib) our works.
+
+--- 
+
+<p align="center">
+<a href="https://planting.space"> 
+    <img width="300px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/.github/plantingspace.png"/>
+</a>
+</p>

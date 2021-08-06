@@ -3,6 +3,9 @@ using Metatheory
 @metatheory_init ()
 using Metatheory.Library
 using Metatheory.Util
+using Metatheory.EGraphs
+using Metatheory.EGraphs.Schedulers
+
 
 Metatheory.options.printiter = true
 Metatheory.options.verbose = true

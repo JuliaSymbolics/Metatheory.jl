@@ -2,6 +2,7 @@ module Metatheory
 
 using RuntimeGeneratedFunctions
 using Base.Meta
+using Reexport
 
 include("docstrings.jl")
 
@@ -19,24 +20,24 @@ include("Util/Util.jl")
 using .Util
 export Util
 
-include("TermInterface.jl")
-using .TermInterface
-export TermInterface
 
 include("rgf.jl")
 export @metatheory_init
 
+include("Patterns/Patterns.jl")
+@reexport using .Patterns 
+
+include("ematch_compiler.jl")
+@reexport using .EMatchCompiler
+
 include("Rules/Rules.jl")
-using .Rules
-export Rules
-include("Rules/exports.jl")
+@reexport using .Rules
 
 include("Classic/Classic.jl")
-using .Classic: gettheory
-export Classic
+@reexport using .Classic: gettheory
 
 include("EGraphs/EGraphs.jl")
-export EGraphs
+@reexport using .EGraphs
 
 include("Library/Library.jl")
 export Library

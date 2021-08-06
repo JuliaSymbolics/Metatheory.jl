@@ -1,6 +1,7 @@
 module EGraphs
 
 include("../docstrings.jl")
+include("../rgf.jl")
 
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
@@ -8,8 +9,9 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 # import ..Rule
 # import ..getrhsfun
 
-using ..TermInterface
+using TermInterface
 using ..Util
+using ..Patterns
 using ..Rules
 import ..@log
 import ..closure_generator
@@ -53,12 +55,12 @@ export analyze!
 include("subst.jl")
 export Sub
 
-include("ematch_compiler.jl")
-export Program
-export Instruction
 include("ematch.jl")
 include("ematch_staged.jl")
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
 include("Schedulers/Schedulers.jl")
 export Schedulers
 using .Schedulers

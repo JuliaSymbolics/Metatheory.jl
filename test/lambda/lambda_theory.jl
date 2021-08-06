@@ -60,9 +60,9 @@ end
 
 λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
 
-ex = :(λ(x, 4 + app(λ(y, var(y), 4))))
+ex = :(λ(x, 4 + app(λ(y, var(y)), 4)))
 g = EGraph(ex)
-analyze!(g, FreeVarAnalysis)
+# analyze!(g, FreeVarAnalysis)
 saturate!(g, λT)
 display(g.classes); println()
 extract!(g, astsize)

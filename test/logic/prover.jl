@@ -1,10 +1,13 @@
 using Metatheory
 using Metatheory.EGraphs
 using Metatheory.Classic
+using TermInterface
 
 function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
     params = SaturationParams(timeout=timeout, eclasslimit=eclasslimit, 
-        scheduler=Schedulers.ScoredScheduler, schedulerparams=(1000,5, Schedulers.exprsize))
+    # scheduler=Schedulers.ScoredScheduler, schedulerparams=(1000,5, Schedulers.exprsize))
+    scheduler=Schedulers.BackoffScheduler, schedulerparams=(6000,5))
+
     hist = UInt64[]
     push!(hist, hash(ex))
     for i ∈ 1:steps
@@ -18,7 +21,7 @@ function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
         saturate!(g, t, params)
         ex = extract!(g, astsize)
         println(ex)
-        if !TermInterface.istree(ex)
+        if !TermInterface.isterm(typeof(ex))
             return ex
         end
         if hash(ex) ∈ hist
