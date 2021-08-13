@@ -84,3 +84,12 @@ function instantiate(left, pat::PatVar, mem)
     # println(mem)
     mem[pat.idx]
 end
+
+
+# ==============================================
+# Interface for matching against patterns with 
+# :call as head where the term head is not :call 
+# ==============================================
+function iscall(x::Type{T}) where {T}
+    false
+end

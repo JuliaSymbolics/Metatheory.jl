@@ -10,7 +10,7 @@ using ..Util
 using ..Patterns
 using ..Rules
 import ..@log
-
+import ..iscall
 
 include("enode.jl")
 export ENode
