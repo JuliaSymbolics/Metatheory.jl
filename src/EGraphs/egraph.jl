@@ -211,7 +211,7 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 insert the literal into the [`EGraph`](@ref).
 """
 # function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClass, ENode}
-function addexpr!(g::EGraph, se; keepmeta=false, callcheck=true)::Tuple{EClass, ENode}
+function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, ENode}
     # println("========== $e ===========")
     if se isa EClass
         return (se, se[1])
@@ -222,8 +222,8 @@ function addexpr!(g::EGraph, se; keepmeta=false, callcheck=true)::Tuple{EClass, 
 
     if isterm(T)
         args = getargs(e)
-        if iscall(T) && callcheck
-            println("head: $(gethead(e))")
+        if addcall
+            println()
             args = [gethead(e), args...]
         end
         n = length(args)
@@ -231,10 +231,10 @@ function addexpr!(g::EGraph, se; keepmeta=false, callcheck=true)::Tuple{EClass, 
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta) # DOES NOT RECURSE! , proofstep=proofstep)
+            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta, addcall=addcall)
             @inbounds class_ids[i] = c_eclass.id
         end
-        node = ENode{typeof(e)}((iscall(T) && callcheck) ? :call : gethead(e), class_ids)
+        node = ENode{typeof(e)}((addcall) ? :call : gethead(e), class_ids)
     else 
         node = ENode{typeof(e)}(e, EClassId[])
     end
