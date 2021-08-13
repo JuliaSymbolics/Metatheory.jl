@@ -58,7 +58,9 @@ function extractnode(g::EGraph, n::ENode, an::Type{<:ExtractionAnalysis}; eclass
     end
     T = termtype(n)
     if iscall(T) # && n.head == :call
+        println(T)
         println(n.head)
+        println(children)
         return similarterm(T, children[1], children[2:end]; metadata = meta)            
     end
     similarterm(T, n.head, children; metadata = meta)
