@@ -5,9 +5,6 @@ include("../docstrings.jl")
 using RuntimeGeneratedFunctions
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
-# import ..Rule
-# import ..getrhsfun
-
 using TermInterface
 using ..Util
 using ..Patterns

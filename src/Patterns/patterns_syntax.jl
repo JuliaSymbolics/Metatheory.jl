@@ -11,7 +11,7 @@ end
 
 Base.show(io::IO, x::PatTypeAssertion) = print(io, x.var, "::", x.type)
 
-Base.show(io::IO, x::PatSplatVar) = print(io, x.name, "...")
+Base.show(io::IO, x::PatSplatVar) = print(io, x.var, "...")
 
 Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
 

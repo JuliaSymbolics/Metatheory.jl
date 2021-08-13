@@ -76,25 +76,32 @@ saturate!(G, simp_theory, params)
 
 
 module Bar
-   foo = 42
-   using Metatheory
-   @metatheory_init ()
-   export foo
+    foo = 42
+    using Metatheory
+    @metatheory_init ()
+    export foo
+
+    t = @theory begin
+        :woo |> foo
+    end
+    export t
 end
 
 module Foo
-   foo = 12
-   using Metatheory
-   @metatheory_init ()
+    foo = 12
+    using Metatheory
+    @metatheory_init ()
+
+    t = @theory begin
+        :woo |> foo
+    end
+    export t
 end
 
-t = @theory begin
-   :woo |> foo
-end
 
 g = EGraph(:woo);
-saturate!(g, t; mod=Bar);
-saturate!(g, t; mod=Foo);
+saturate!(g, Bar.t; mod=Bar);
+saturate!(g, Foo.t; mod=Foo);
 foo = 12
 
 @testset "Different modules" begin

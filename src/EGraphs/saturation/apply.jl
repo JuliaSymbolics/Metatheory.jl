@@ -36,7 +36,7 @@ end
 function apply_rule!(g::EGraph, rule::DynamicRule, 
         match::Match, matches::MatchesBuf, unions::UnionBuf,
         rep::Report,  mod::Module)
-    f = Rules.getrhsfun(rule, mod)
+    f = rule.rhs_fun
     actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
     rc, node = addexpr!(g, r)

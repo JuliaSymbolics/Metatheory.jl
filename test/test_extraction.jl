@@ -1,5 +1,3 @@
-using MatchCore
-
 comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin

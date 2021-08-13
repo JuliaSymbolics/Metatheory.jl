@@ -1,7 +1,6 @@
 using Metatheory
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Classic
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 

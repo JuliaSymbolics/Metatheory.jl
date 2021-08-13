@@ -1,5 +1,3 @@
-using MatchCore
-
 # example assuming * operation is always binary
 
 # ENV["JULIA_DEBUG"] = Metatheory

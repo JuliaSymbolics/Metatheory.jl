@@ -5,7 +5,24 @@ module Rules
     import ..closure_generator
 
     include("rule_types.jl")
-    include("rule_cache.jl")
+    export Rule
+    export SymbolicRule
+    export RewriteRule
+    export BidirRule
+    export EqualityRule
+    export UnequalRule
+    export DynamicRule
+
+    export Program
+    export Instruction
+
     include("rule_dsl.jl")
-    include("exports.jl")
+    export Rule
+    export AbstractRule
+    export Theory
+    export gettheory
+    export @rule
+    export @theory
+    export @methodrule
+    export @methodtheory
 end

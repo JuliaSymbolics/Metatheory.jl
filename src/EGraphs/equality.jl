@@ -40,11 +40,11 @@ end
 import ..gettheory
 
 macro areequal(theory, exprs...)
-    t = gettheory(theory, __module__; compile=false)
+    t = gettheory(theory, __module__)
     areequal(t, exprs...; mod=__module__)
 end
 
 macro areequalg(G, theory, exprs...)
-    t = gettheory(theory, __module__; compile=false)
+    t = gettheory(theory, __module__)
     areequal(getfield(__module__, G), t, exprs...; mod=__module__)
 end

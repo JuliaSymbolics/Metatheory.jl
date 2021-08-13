@@ -1,17 +1,34 @@
 # This file contains specification and implementation 
 # Of the homoiconic DSL for defining rules and theories 
-using MatchCore
 
-function rule_sym_map(ex)
-    @smatch ex begin 
-        :($a => $b) => RewriteRule
-        :($a |> $b) => DynamicRule
-        :($a == $b) => EqualityRule
-        :($a != $b) => UnequalRule
-        :($a ≠ $b) => UnequalRule
-        _ => error("Cannot parse rule from $ex")
+"""
+Retrieve a theory from a module at compile time.
+TODO cleanup
+"""
+function gettheory(var, mod)
+	t = nothing
+    if Meta.isexpr(var, :block) # @matcher begine rules... end
+		t = rmlines(macroexpand(mod, var)).args .|> Rule
+	else
+		t = mod.eval(var)
+	end
+
+	return t
+end
+
+function rule_sym_map(ex::Expr)
+    if Meta.isexpr(ex, :call)
+        h = ex.args[1]
+        if h == :(=>) RewriteRule
+        elseif h == :(|>) DynamicRule
+        elseif h == :(==) EqualityRule
+        elseif h == :(!=) UnequalRule
+        elseif h == :(≠) UnequalRule
+        end
     end
 end
+
+rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
 
 interp_dollar(x, mod::Module) = x
@@ -47,6 +64,9 @@ function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
         rhs = Pattern(rhs, mod, resolve_fun)
     end
 
+    if RuleType == DynamicRule
+        return DynamicRule(lhs, rhs, mod)
+    end
     
     return RuleType(lhs, rhs)
 end

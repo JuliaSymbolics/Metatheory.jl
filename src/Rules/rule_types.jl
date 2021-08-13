@@ -128,12 +128,23 @@ Rule(:(a::Number * b::Number |> a*b))
     right::Any
     patvars::Vector{Symbol} # useful set of pattern variables
     ematch_program::Program
-    function DynamicRule(l, r) 
+    mod::Module
+    rhs_fun::Function
+    function DynamicRule(l, r, mod)
         pvars = patvars(l)
         # sort!(pvars)
         setindex!(l, pvars)
-        new(l, r, pvars, compile_pat(l))
+
+        params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
+        ex = :($params -> $r)
+        f = closure_generator(mod, ex)
+
+        new(l, r, pvars, compile_pat(l), mod, f)
     end
+end
+
+function DynamicRule(l, r; m=@__MODULE__)
+    DynamicRule(l,r,m)
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", r::DynamicRule)

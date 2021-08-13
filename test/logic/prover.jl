@@ -1,6 +1,5 @@
 using Metatheory
 using Metatheory.EGraphs
-using Metatheory.Classic
 using TermInterface
 
 function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
