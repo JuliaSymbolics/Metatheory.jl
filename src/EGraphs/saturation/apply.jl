@@ -5,7 +5,7 @@ function apply_rule!(g::EGraph, rule::UnequalRule,
         rep::Report)
     lc = match.id
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-    rc, node = addexpr!(g, rinst)
+    rc, node = addexpr!(g, rinst; callcheck=false)
 
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
@@ -20,7 +20,7 @@ function apply_rule!(g::EGraph, rule::SymbolicRule,
         rep::Report)
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
 
-    rc, node = addexpr!(g, rinst)
+    rc, node = addexpr!(g, rinst; callcheck=false)
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)
@@ -33,7 +33,7 @@ function apply_rule!(g::EGraph, rule::DynamicRule,
     f = rule.rhs_fun
     actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
-    rc, node = addexpr!(g, r)
+    rc, node = addexpr!(g, r; callcheck=false)
 
     push!(unions, (match.id, rc.id))
     return (true, nothing)
