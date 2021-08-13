@@ -34,6 +34,7 @@ include("Rules/Rules.jl")
 @reexport using .Rules
 
 include("match.jl")
+export iscall
 
 include("EGraphs/EGraphs.jl")
 @reexport using .EGraphs
