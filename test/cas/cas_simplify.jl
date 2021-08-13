@@ -1,7 +1,6 @@
 using Metatheory
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Classic
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 using TermInterface
@@ -66,7 +65,7 @@ function simplify(ex; steps=4)
         g = EGraph(ex)
         saturate!(g, cas, params; mod=@__MODULE__)
         ex = extract!(g, simplcost)
-        ex = rewrite(ex, canonical_t; clean=false, m=@__MODULE__)
+        ex = rewrite(ex, canonical_t)
         if !TermInterface.isterm(typeof(ex))
             return ex
         end

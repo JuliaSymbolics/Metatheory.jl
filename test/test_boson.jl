@@ -23,5 +23,5 @@ end
 e1 = :(c * c * cdag * cdag)
 
 # TODO add expected result
-# println(boson_expand(e1))
-# println(normalize_nocycle(boson_expand, e1))
+println(boson_expand(e1))
+println(normalize_nocycle(boson_expand, e1))

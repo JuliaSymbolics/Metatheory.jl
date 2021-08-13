@@ -3,7 +3,6 @@ using Metatheory
 
 using Metatheory.EGraphs
 using Metatheory.Rules
-using Metatheory.Classic
 using Metatheory.Library
 
 

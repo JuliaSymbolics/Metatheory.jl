@@ -1,5 +1,8 @@
 using Metatheory
 using Metatheory.EGraphs
+using SymbolicUtils
+using SymbolicUtils.Rewriters
+
 using Test
 
 Cat = @theory begin
@@ -9,7 +12,7 @@ Cat = @theory begin
 end
 
 # DOES NOT FIXPOINT!
-tag_matcher = @matcher begin
+tag_matcher_t = @theory begin
     sigma(A, B) => σ(A, B).(A⊗B→B⊗A)
     1(A) => id(A).(A→A)
     :f |> :(f.(A → B))
@@ -19,17 +22,18 @@ tag_matcher = @matcher begin
     :k |> :(j.(C → D))
 end
 
+tag_matcher(x) = Chain(tag_matcher_t)(x)
+
 function tag(x)
     r = df_walk(tag_matcher, x; skip_call=true, skip=[:(.)])
     # println("tagged $x to $(r)")
     r
 end
 
-macro areequal_tag(theory, exprs...)
+macro areequal_tag(t, exprs...)
     exprs = map(tag, exprs)
 
-    t = Metatheory.gettheory(theory, __module__; compile=false)
-    areequal(t, exprs...; mod=__module__)
+    :(areequal($t, $(exprs)...; mod=$(__module__)))
 end
 
 

@@ -1,7 +1,6 @@
 # Metatheory.options[:printiter] = true
 using Metatheory
 using Metatheory.EGraphs
-using Metatheory.Classic
 using Test
 
 or_alg = @theory begin

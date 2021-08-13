@@ -133,6 +133,7 @@ struct PatTerm <: Pattern
 end
 TermInterface.gethead(p::PatTerm) = p.head
 TermInterface.arity(p::PatTerm) = length(p.args)
+TermInterface.getargs(p::PatTerm) = p.args
 
 function Base.hash(t::PatTerm, salt::UInt)
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
@@ -224,3 +225,11 @@ function Base.setindex!(p::PatAllTerm, pvars)
         setindex!(x, pvars)
     end
 end 
+
+# ==============================================
+# Interface for matching against patterns with 
+# :call as head where the term head is not :call 
+# ==============================================
+function iscall(x::Type{T}) where {T}
+    false
+end

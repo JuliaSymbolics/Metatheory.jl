@@ -1,5 +1,4 @@
 include("eggify.jl")
-using Metatheory.Classic
 using Metatheory.Util
 using Metatheory.Library
 using Metatheory.EGraphs.Schedulers

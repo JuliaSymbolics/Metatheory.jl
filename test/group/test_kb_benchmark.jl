@@ -6,6 +6,7 @@ using Metatheory.Util
 using Metatheory.EGraphs
 using Metatheory.EGraphs.Schedulers
 
+using Metatheory: @rule
 
 Metatheory.options.printiter = true
 Metatheory.options.verbose = true

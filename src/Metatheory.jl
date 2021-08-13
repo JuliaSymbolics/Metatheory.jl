@@ -33,8 +33,7 @@ include("ematch_compiler.jl")
 include("Rules/Rules.jl")
 @reexport using .Rules
 
-include("Classic/Classic.jl")
-@reexport using .Classic: gettheory
+include("match.jl")
 
 include("EGraphs/EGraphs.jl")
 @reexport using .EGraphs
