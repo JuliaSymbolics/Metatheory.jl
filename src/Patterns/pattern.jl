@@ -226,10 +226,3 @@ function Base.setindex!(p::PatAllTerm, pvars)
     end
 end 
 
-# ==============================================
-# Interface for matching against patterns with 
-# :call as head where the term head is not :call 
-# ==============================================
-function iscall(x::Type{T}) where {T}
-    false
-end
