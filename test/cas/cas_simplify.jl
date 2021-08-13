@@ -63,7 +63,7 @@ function simplify(ex; steps=4)
     push!(hist, hash(ex))
     for i ∈ 1:steps
         g = EGraph(ex)
-        saturate!(g, cas, params; mod=@__MODULE__)
+        saturate!(g, cas, params)
         ex = extract!(g, simplcost)
         ex = rewrite(ex, canonical_t)
         if !TermInterface.isterm(typeof(ex))

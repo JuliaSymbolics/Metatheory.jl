@@ -100,8 +100,8 @@ end
 
 
 g = EGraph(:woo);
-saturate!(g, Bar.t; mod=Bar);
-saturate!(g, Foo.t; mod=Foo);
+saturate!(g, Bar.t);
+saturate!(g, Foo.t);
 foo = 12
 
 @testset "Different modules" begin

@@ -33,7 +33,7 @@ end
 macro areequal_tag(t, exprs...)
     exprs = map(tag, exprs)
 
-    :(areequal($t, $(exprs)...; mod=$(__module__)))
+    :(areequal($t, $(exprs)...))
 end
 
 

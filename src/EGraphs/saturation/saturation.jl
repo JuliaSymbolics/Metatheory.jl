@@ -7,7 +7,7 @@ using .Schedulers
 """
 Core algorithm of the library: the equality saturation step.
 """
-function eqsat_step!(g::EGraph, theory::Vector{<:AbstractRule}, curr_iter, mod::Module,
+function eqsat_step!(g::EGraph, theory::Vector{<:AbstractRule}, curr_iter,
         scheduler::AbstractScheduler, match_hist::MatchesBuf, params::SaturationParams)
 
     report = Report(g)
@@ -35,7 +35,7 @@ function eqsat_step!(g::EGraph, theory::Vector{<:AbstractRule}, curr_iter, mod::
     # end
     # println(" diff length $(length(matches))")
 
-    apply_stats =  @timed eqsat_apply!(g, matches, report, mod, params)
+    apply_stats =  @timed eqsat_apply!(g, matches, report, params)
     report = apply_stats.value
     report.apply_stats = report.apply_stats + discard_value(apply_stats)
 
@@ -58,11 +58,7 @@ end
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-saturate!(g::EGraph, theory::Vector{<:AbstractRule}; mod=@__MODULE__) =
-    saturate!(g, theory, SaturationParams(); mod=mod)
-
-function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params::SaturationParams;
-    mod=@__MODULE__,)
+function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params=SaturationParams())
     curr_iter = 0
 
     sched = params.scheduler(g, theory, params.schedulerparams...)
@@ -74,7 +70,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params::Saturation
 
         options.printiter && @info("iteration ", curr_iter)
 
-        report, egraph = eqsat_step!(g, theory, curr_iter, mod, sched, match_hist, params)
+        report, egraph = eqsat_step!(g, theory, curr_iter, sched, match_hist, params)
 
         tot_report = tot_report + report
 

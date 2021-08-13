@@ -1,11 +1,9 @@
-function areequal(theory::Vector{<:AbstractRule}, exprs...;
-    mod=@__MODULE__, params=SaturationParams())
+function areequal(theory::Vector{<:AbstractRule}, exprs...; params=SaturationParams())
     g = EGraph(exprs[1])
     areequal(g, theory, exprs...; params=params)
 end
 
-function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...;
-    mod=@__MODULE__, params=SaturationParams())
+function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params=SaturationParams())
     @log "Checking equality for " exprs
     if length(exprs) == 1; return true end
     # rebuild!(G)
@@ -28,7 +26,7 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...;
     params.goal = goal
     # params.stopwhen = alleq
 
-    report = saturate!(g, t, params; mod=mod)
+    report = saturate!(g, t, params)
 
     # display(g.classes); println()
     if !(report.reason isa Saturated) && !reached(g, goal)
@@ -41,10 +39,10 @@ import ..gettheory
 
 macro areequal(theory, exprs...)
     t = gettheory(theory, __module__)
-    areequal(t, exprs...; mod=__module__)
+    areequal(t, exprs...)
 end
 
 macro areequalg(G, theory, exprs...)
     t = gettheory(theory, __module__)
-    areequal(getfield(__module__, G), t, exprs...; mod=__module__)
+    areequal(getfield(__module__, G), t, exprs...)
 end
