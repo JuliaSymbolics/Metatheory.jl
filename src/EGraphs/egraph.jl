@@ -223,6 +223,7 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
     if isterm(T)
         args = getargs(e)
         if iscall(T)
+            println("head: $(gethead(e))")
             args = [gethead(e), args...]
         end
         n = length(args)
@@ -230,7 +231,7 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta)# DOES NOT RECURSE! , proofstep=proofstep)
+            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta) # DOES NOT RECURSE! , proofstep=proofstep)
             @inbounds class_ids[i] = c_eclass.id
         end
         node = ENode{typeof(e)}(iscall(T) ? :call : gethead(e), class_ids)
