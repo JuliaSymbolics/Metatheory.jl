@@ -214,7 +214,7 @@ function simplify(ex, syntax)
     g = EGraph(ex)
     analyze!(g, CatlabAnalysis)
     params=SaturationParams(timeout=3)
-    saturate!(g, t, params; mod=@__MODULE__)
+    saturate!(g, t, params)
     extract!(g, astsize)
 end
 
@@ -252,7 +252,7 @@ r_ec, _ = addexpr!(g, r)
 
 in_same_class(g, l_ec, r_ec)
 
-saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
+saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000))
 
 ll = extract!(g, astsize; root=l_ec.id) 
 rr = extract!(g, astsize; root=r_ec.id) 
@@ -277,7 +277,7 @@ g = EGraph(l)
 analyze!(g, CatlabAnalysis)
 
 
-saturate!(g, gen_theory(BPC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
+saturate!(g, gen_theory(BPC), SaturationParams(timeout=1, eclasslimit=6000))
 
 extract!(g, astsize)
 
@@ -298,7 +298,7 @@ l_ec, _ = addexpr!(g, l)
 r_ec, _ = addexpr!(g, r)
 
 
-saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000); mod=@__MODULE__)
+saturate!(g, gen_theory(SMC), SaturationParams(timeout=1, eclasslimit=6000))
 
 extract!(g, astsize; root=l_ec.id)
 
@@ -320,13 +320,13 @@ ex = id(A) ⊗ id(B)
 to_composejl(ex)
 
 l_ec, _ = addexpr!(g, ex)
-saturate!(g, cc, SaturationParams(timeout=2); mod=@__MODULE__)
+saturate!(g, cc, SaturationParams(timeout=2))
 extract!(g, astsize; root=l_ec.id)
 
 
 ex = pair(proj1(A, B), proj2(A, B))
 to_composejl(ex)
 r_ec, _ = addexpr!(g, ex)
-saturate!(g, cc; mod=@__MODULE__)
+saturate!(g, cc)
 extract!(g, astsize; root=r_ec.id)
 

@@ -4,7 +4,7 @@ using Test
 dbgproof(n::ENode) = println("$(n.proof_src) ⩜ $(n.proof_trg)")
 
 function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
-    mod=@__MODULE__, params=SaturationParams())
+    params=SaturationParams())
     # @info "Checking equality for " exprs
     n = length(exprs)
     if n == 1; return true end

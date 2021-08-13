@@ -42,7 +42,7 @@ include("cas_simplify.jl")
 # # ex = :( ∂(x^(cos(x)), x) )
 # ex = :( (6 * x * x * y) )
 # g = EGraph(ex)
-# saturate!(g, cas; mod=@__MODULE__)
+# saturate!(g, cas)
 # g.classes
 # extract!(g, simplcost; root=g.root)
 
@@ -56,7 +56,7 @@ include("cas_simplify.jl")
 
 # ex = :((x+y)^(a*0) / (y+x)^0)
 # g = EGraph(ex)
-# @profview println(saturate!(g, cas, params; mod=@__MODULE__))
+# @profview println(saturate!(g, cas, params))
 
 # ex = extract!(g, simplcost)
-# ex = rewrite(ex, canonical_t; clean=false, m=@__MODULE__)
+# ex = rewrite(ex, canonical_t; clean=false)

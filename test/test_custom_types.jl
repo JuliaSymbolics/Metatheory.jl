@@ -71,7 +71,7 @@ t = @theory begin
     f(g(2), a) => f(a)
 end
 
-saturate!(g, t; mod=@__MODULE__)
+saturate!(g, t)
 
 display(g.classes)
 

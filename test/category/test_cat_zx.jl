@@ -136,21 +136,21 @@ G = EGraph(c)
 infer(zdelete(A)).codom == A
 
 analyze!(G, CatlabAnalysis)
-saturate!(G, t; mod=@__MODULE__)
+saturate!(G, t)
 ex = extract!(G, astsize)
 ex == id(A)
 
 
 G = EGraph(f ⋅ id(B))
 analyze!(G, CatlabAnalysis)
-saturate!(G, t; mod=@__MODULE__)
+saturate!(G, t)
 ex = extract!(G, astsize)
 ex == f
 
 x = id(A) ⋅ f ⋅ id(B)
 G = EGraph(x)
 analyze!(G, CatlabAnalysis)
-saturate!(G, t; mod=@__MODULE__)
+saturate!(G, t)
 ex = extract!(G, astsize)
 ex == f
 
