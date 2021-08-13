@@ -223,7 +223,7 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
     if isterm(T)
         args = getargs(e)
         if iscall(T)
-            pushfirst!(args, gethead(e))
+            args = [gethead(e), args...]
         end
         n = length(args)
         class_ids = Vector{EClassId}(undef, n)
