@@ -223,7 +223,6 @@ function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, E
     if isterm(T)
         args = getargs(e)
         if addcall
-            println()
             args = [gethead(e), args...]
         end
         n = length(args)
