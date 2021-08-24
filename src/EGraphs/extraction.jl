@@ -17,8 +17,15 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-astsize_inv(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis}) = -1 * astsize(n, g, an)
-
+function astsize_inv(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+    cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
+    for id ∈ n.args
+        eclass = geteclass(g, id)
+        !hasdata(eclass, an) && (cost += Inf; break)
+        cost += last(getdata(eclass, an))
+    end
+    return cost
+end
 
 """
 An [`AbstractAnalysis`](@ref) that computes the cost of expression nodes
@@ -58,9 +65,6 @@ function extractnode(g::EGraph, n::ENode, an::Type{<:ExtractionAnalysis}; eclass
     end
     T = termtype(n)
     if iscall(T) # && n.head == :call
-        println(T)
-        println(n.head)
-        println(children)
         return similarterm(T, children[1], children[2:end]; metadata = meta)            
     end
     similarterm(T, n.head, children; metadata = meta)

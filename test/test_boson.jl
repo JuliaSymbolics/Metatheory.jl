@@ -1,22 +1,30 @@
+using Metatheory
+using Metatheory.EGraphs
+using Metatheory.Library
+using Metatheory.Util
+
+using Metatheory: @rule
+
+
 boson = @theory begin :c * :cdag => :cdag * :c + 1 end
 
 distr_assoc = distrib(:*, :+) ∪ associativity(:*)
 
-ident = @theory begin
-    1 * x => x
-end
+ident = @rule 1 * x => x 
+
+ident_comm = @rule 1 * x => x * 1
+
 
 function boson_expand(ex)
     params = SaturationParams(timeout=4)
     G = EGraph(ex)
-    saturate!(G, boson ∪ distr_assoc, params)
+    saturate!(G, boson ∪ distr_assoc ∪ [ident_comm], params)
     ex = extract!(G, astsize_inv)
 
     G = EGraph(ex)
-    saturate!(G, distr_assoc ∪ ident, params)
+    rep = saturate!(G, distr_assoc ∪ [ident], params)
+    println(rep)
     ex = extract!(G, astsize)
-    # ex = rewrite(ex, ident)
-    # println(ex)
     return ex
 end
 

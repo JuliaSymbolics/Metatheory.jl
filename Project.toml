@@ -18,15 +18,15 @@ AutoHashEquals = "0.2.0"
 DataStructures = "0.18.9"
 DocStringExtensions = "0.8"
 Parameters = "0.12"
+Reexport = "0.2, 1"
 RuntimeGeneratedFunctions = "0.5.1"
-TermInterface = "0.1.3"
+TermInterface = "0.1.4"
 julia = "1"
 
 [extras]
-AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Calculus", "AbstractTrees", "Catlab"]
+test = ["Test", "Calculus", "Catlab"]
