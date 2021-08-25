@@ -27,9 +27,9 @@ MyExpr(head, args) = MyExpr(head, args, "", Complex[], Set{Int}())
 MyExpr(head) = MyExpr(head, [])
 
 # Methods needed by `src/TermInterface.jl`
-TermInterface.gethead(e::MyExpr) = e.head
-TermInterface.getargs(e::MyExpr) = e.args
-TermInterface.isterm(e::Type{MyExpr}) = true
+TermInterface.operation(e::MyExpr) = e.head
+TermInterface.arguments(e::MyExpr) = e.args
+TermInterface.istree(e::Type{MyExpr}) = true
 # NamedTuple
 TermInterface.metadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)

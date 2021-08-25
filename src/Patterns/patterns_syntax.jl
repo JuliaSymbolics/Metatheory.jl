@@ -48,8 +48,8 @@ resolve(gr) = gr
 
 function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     ex = cleanast(ex)
-    head = gethead(ex)
-    args = getargs(ex)
+    head = operation(ex)
+    args = arguments(ex)
 
     n = length(args)
     patargs = Vector{Pattern}(undef, n)
@@ -102,9 +102,9 @@ function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
     if ex isa Expr 
         ex = cleanast(ex)
     end
-    if isterm(typeof(ex))
-        head = gethead(ex)
-        args = getargs(ex)
+    if istree(typeof(ex))
+        head = operation(ex)
+        args = arguments(ex)
 
         n = length(args)
         patargs = Vector{Pattern}(undef, n)
