@@ -131,9 +131,9 @@ struct PatTerm <: Pattern
     hash::Ref{UInt}
     PatTerm(h,args) = new(h,args, Ref{UInt}(0))
 end
-TermInterface.gethead(p::PatTerm) = p.head
+TermInterface.operation(p::PatTerm) = p.head
 TermInterface.arity(p::PatTerm) = length(p.args)
-TermInterface.getargs(p::PatTerm) = p.args
+TermInterface.arguments(p::PatTerm) = p.args
 
 function Base.hash(t::PatTerm, salt::UInt)
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)

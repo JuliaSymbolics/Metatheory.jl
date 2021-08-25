@@ -220,10 +220,10 @@ function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, E
     T = typeof(e)
     node = nothing
 
-    if isterm(T)
-        args = getargs(e)
+    if istree(T)
+        args = arguments(e)
         if addcall
-            args = [gethead(e), args...]
+            args = [operation(e), args...]
         end
         n = length(args)
         class_ids = Vector{EClassId}(undef, n)
@@ -233,7 +233,7 @@ function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, E
             c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta, addcall=addcall)
             @inbounds class_ids[i] = c_eclass.id
         end
-        node = ENode{typeof(e)}((addcall) ? :call : gethead(e), class_ids)
+        node = ENode{typeof(e)}((addcall) ? :call : operation(e), class_ids)
     else 
         node = ENode{typeof(e)}(e, EClassId[])
     end

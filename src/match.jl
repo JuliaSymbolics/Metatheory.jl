@@ -23,9 +23,9 @@ end
 match(p::PatEquiv, x, mem) = error("PatEquiv can only be used in EGraphs rewriting")
 
 function match(p::PatTerm, x, mem)
-    !isterm(typeof(x)) && (return false)
-    if gethead(p) == gethead(x) && arity(p) == arity(x)
-        p_args, x_args = getargs(p), getargs(x)
+    !istree(typeof(x)) && (return false)
+    if operation(p) == operation(x) && arity(p) == arity(x)
+        p_args, x_args = arguments(p), arguments(x)
         for i in 1:arity(p)
             !match(p_args[i], x_args[i], mem) && (return false)
         end
@@ -71,7 +71,7 @@ end
 
 # TODO revise
 function instantiate(left, pat::PatTerm, mem)
-    ar = getargs(pat)
+    ar = arguments(pat)
     similarterm(typeof(left), pat.head, 
         [instantiate(left, ar[i], mem) for i in 1:length(ar)])
 end

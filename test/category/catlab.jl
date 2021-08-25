@@ -21,18 +21,18 @@ end
 
 # Custom type APIs for the GATExpr
 using Metatheory.TermInterface
-TermInterface.gethead(t::ObExpr) = :call
-TermInterface.getargs(t::ObExpr) = [head(t), t.args...]
-TermInterface.gethead(t::HomExpr) = :call
-TermInterface.getargs(t::HomExpr) = [head(t), t.args...]
+TermInterface.operation(t::ObExpr) = :call
+TermInterface.arguments(t::ObExpr) = [head(t), t.args...]
+TermInterface.operation(t::HomExpr) = :call
+TermInterface.arguments(t::HomExpr) = [head(t), t.args...]
 
 # Type information will be stored in the metadata
 function TermInterface.metadata(t::HomExpr)
     return HomType(t.type_args[1], t.type_args[2], typeof(t).name.module)
 end
 TermInterface.metadata(t::ObExpr) = ObType(t, typeof(t).name.module)
-TermInterface.isterm(t::GATExpr) = true
-TermInterface.arity(t::GATExpr) = length(getargs(t))
+TermInterface.istree(t::GATExpr) = true
+TermInterface.arity(t::GATExpr) = length(arguments(t))
 
 struct CatlabAnalysis <: AbstractAnalysis end
 function EGraphs.make(an::Type{CatlabAnalysis}, g::EGraph, n::ENode{T}) where T

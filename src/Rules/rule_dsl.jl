@@ -47,7 +47,7 @@ You can also use the [`@rule`] macro to
 create a `Rule`.
 """
 function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
-    op = gethead(e)
+    op = operation(e)
     RuleType = rule_sym_map(e)
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
