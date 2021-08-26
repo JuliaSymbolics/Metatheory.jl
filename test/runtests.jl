@@ -19,7 +19,6 @@ using Test
 
 Metatheory.options.verbose = false
 Metatheory.options.printiter = false
-Metatheory.options.multithreading = false
 
 @metatheory_init ()
 

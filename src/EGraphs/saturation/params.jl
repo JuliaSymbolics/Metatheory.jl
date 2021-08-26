@@ -14,4 +14,6 @@ Configurable Parameters for the equality saturation process.
     stopwhen::Function = ()->false
     scheduler::Type{<:AbstractScheduler} = BackoffScheduler
     schedulerparams::Tuple=()
+    threaded::Bool = false
+    timer::Bool = true
 end
