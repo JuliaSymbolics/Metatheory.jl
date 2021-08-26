@@ -1,48 +1,36 @@
 const UnionBuf = Vector{Tuple{EClassId, EClassId}}
 
-function apply_rule!(g::EGraph, rule::UnequalRule,
-        match::Match, unions::UnionBuf,
-        rep::Report)
+function (rule::UnequalRule)(g::EGraph, match::Match)
     lc = match.id
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
     rc, node = addexpr!(g, rinst)
 
     if find(g, lc) == find(g, rc)
         @log "Contradiction!" rule
-        rep.reason = Contradiction()
-        return (false, rep)
+        return (Contradiction(), nothing)
     end
-    return (true, nothing)
+    return (nothing, nothing)
 end
 
-function apply_rule!(g::EGraph, rule::SymbolicRule, 
-        match::Match, unions::UnionBuf, 
-        rep::Report)
+function (rule::SymbolicRule)(g::EGraph, match::Match)
     rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-
     rc, node = addexpr!(g, rinst)
-
-    push!(unions, (match.id, rc.id))
-    return (true, nothing)
+    return (nothing, (match.id, rc.id))
 end
 
 
-function apply_rule!(g::EGraph, rule::DynamicRule, 
-        match::Match, unions::UnionBuf,
-        rep::Report)
+function (rule::DynamicRule)(g::EGraph, match::Match)
     f = rule.rhs_fun
     actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
     rc, node = addexpr!(g, r)
 
-    push!(unions, (match.id, rc.id))
-    return (true, nothing)
+    return (nothing, (match.id, rc.id))
 end
 
 
 using .ReportReasons
-function eqsat_apply!(g::EGraph, matches::MatchesBuf,
-        rep::Report, params::SaturationParams)::Report
+function eqsat_apply!(g::EGraph, matches::MatchesBuf, rep::Report, params::SaturationParams)
     i = 0
 
     unions = UnionBuf()
@@ -54,13 +42,13 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
         if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
             @log "E-GRAPH SIZEOUT"
             rep.reason = EClassLimit(params.eclasslimit)
-            return rep
+            return
         end
 
         if reached(g, params.goal)
             @log "Goal reached"
             rep.reason = GoalReached()
-            return rep
+            return
         end
 
 
@@ -68,10 +56,13 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
         # println("applying $rule")
         # @show match.sub.sourcenode
 
-        (ok, nrep) = apply_rule!(g, rule, match, unions, rep)
-        if !ok 
-            return nrep 
-        end
+        halt_reason, union = rule(g, match)
+        if (halt_reason !== nothing)
+            rep.reason = halt_reason
+            return 
+        end 
+        (union !== nothing) && push!(unions, union)
+
         # println(rule)
         # println(sub)
         # println(l); println(r)
@@ -81,6 +72,4 @@ function eqsat_apply!(g::EGraph, matches::MatchesBuf,
     for (l,r) ∈ unions 
         merge!(g, l, r)
     end
-    
-    return rep
 end

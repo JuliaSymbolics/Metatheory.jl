@@ -40,7 +40,7 @@ Rule(:(a * b => b * a))
     end
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", r::RewriteRule)
+function Base.show(io::IO,  r::RewriteRule)
     print(io, "$(r.left) => $(r.right)")
 end
 
@@ -75,7 +75,7 @@ backend. If two terms, corresponding to the left and right hand side of an
     end
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", r::UnequalRule)
+function Base.show(io::IO, r::UnequalRule)
     print(io, "$(r.left) ≠ $(r.right)")
 end
 
@@ -105,7 +105,7 @@ Rule(:(a * b == b * a))
     end
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", r::EqualityRule)
+function Base.show(io::IO,  r::EqualityRule)
     print(io, "$(r.left) == $(r.right)")
 end
 
@@ -147,6 +147,6 @@ function DynamicRule(l, r; m=@__MODULE__)
     DynamicRule(l,r,m)
 end
 
-function Base.show(io::IO, mime::MIME"text/plain", r::DynamicRule)
+function Base.show(io::IO, r::DynamicRule)
     print(io, "$(r.left) |> $(r.right)")
 end
