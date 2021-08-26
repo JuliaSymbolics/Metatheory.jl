@@ -1,6 +1,6 @@
 using Test
 using Metatheory    
-@metatheory_init ()
+@metatheory_init
 using Metatheory.Library
 using Metatheory.Util
 using Metatheory.EGraphs

@@ -3,7 +3,7 @@ using Metatheory.EGraphs
 using TermInterface
 using Test
 
-@metatheory_init ()
+@metatheory_init
 
 struct MyExpr
     head::Any

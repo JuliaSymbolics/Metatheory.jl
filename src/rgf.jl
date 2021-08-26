@@ -14,8 +14,3 @@ init(mod) = closure_generator(mod, :(x -> x))
 macro metatheory_init()
     quote Metatheory.init($__module__) end
 end
-
-# for ugly vscode parser bug
-macro metatheory_init(anything)
-    quote Metatheory.init($__module__) end
-end

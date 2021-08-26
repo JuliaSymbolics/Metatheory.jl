@@ -42,7 +42,7 @@ Since Metatheory.jl relies on [RuntimeGeneratedFunctions.jl](https://github.com/
 using Metatheory
 using Metatheory.EGraphs
 
-@metatheory_init ()
+@metatheory_init
 ```
 
 ## Citing

@@ -12,7 +12,7 @@ using Metatheory
 using Metatheory.Library
 using Metatheory.EGraphs
 
-@metatheory_init ()
+@metatheory_init
 
 comm_monoid = commutative_monoid(:(*), 1);
 comm_group = @theory begin
