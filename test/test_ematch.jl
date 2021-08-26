@@ -78,7 +78,7 @@ saturate!(G, simp_theory, params)
 module Bar
     foo = 42
     using Metatheory
-    @metatheory_init ()
+    @metatheory_init
     export foo
 
     t = @theory begin
@@ -90,7 +90,7 @@ end
 module Foo
     foo = 12
     using Metatheory
-    @metatheory_init ()
+    @metatheory_init
 
     t = @theory begin
         :woo |> foo

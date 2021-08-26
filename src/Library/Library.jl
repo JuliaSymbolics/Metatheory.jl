@@ -6,7 +6,6 @@ include("../docstrings.jl")
 
 module Library
 
-# TODO compile for Matchcore backend
 @info "NOTE: The current implementation of the Metatheory library currently works
 correctly only with the EGraphs backend."
 

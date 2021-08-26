@@ -3,7 +3,7 @@ using Catlab
 using Catlab.Theories
 using Catlab.Syntax
 using Metatheory, Metatheory.EGraphs
-@metatheory_init ()
+@metatheory_init
 
 using Test
 

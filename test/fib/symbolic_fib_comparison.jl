@@ -22,7 +22,7 @@ module MTFib
 using Metatheory
 using Metatheory.EGraphs
 
-@metatheory_init ()
+@metatheory_init
 
 const fibo = @theory begin
     x::Int + y::Int |> x+y

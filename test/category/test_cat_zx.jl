@@ -37,7 +37,7 @@ import Catlab.Theories.Ob
 end
 
 using Metatheory, Metatheory.EGraphs
-@metatheory_init ()
+@metatheory_init
 
 # Custom type APIs for the GATExpr
 using TermInterface

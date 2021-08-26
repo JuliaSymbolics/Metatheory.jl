@@ -63,7 +63,7 @@ using Metatheory.EGraphs
 using Metatheory.Classic
 using Metatheory.Library
 
-@metatheory_init ()
+@metatheory_init
 
 comm_monoid = commutative_monoid(:(*), 1);
 start_expr = :( (a * (1 * (2σ)) * (b * σ + (c * 1)) ) );

@@ -34,12 +34,6 @@ function match(p::PatTerm, x, mem)
     false
 end
 
-# =================================================
-
-# TODO instantiate
-
-# =================================================
-
 function (r::RewriteRule)(x)
     mem = Vector(undef, length(r.patvars))
     if match(r.left, x, mem)

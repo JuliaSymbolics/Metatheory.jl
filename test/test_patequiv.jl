@@ -5,7 +5,7 @@ using Metatheory.EGraphs
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
-@metatheory_init ()
+@metatheory_init
 
 # ================= TEST PATEQUIV =====================
 

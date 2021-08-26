@@ -5,7 +5,7 @@ using Catlab.Syntax
 using Metatheory, Metatheory.EGraphs
 using TermInterface
 
-@metatheory_init ()
+@metatheory_init
 
 
 abstract type CatType end
