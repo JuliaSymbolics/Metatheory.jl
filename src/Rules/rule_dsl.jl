@@ -24,6 +24,7 @@ function rule_sym_map(ex::Expr)
         elseif h == :(==) EqualityRule
         elseif h == :(!=) UnequalRule
         elseif h == :(≠) UnequalRule
+        else error("Cannot parse rule with operator '$h'")
         end
     end
 end
