@@ -10,7 +10,6 @@ Given the theory:
 ```@example extraction
 using Metatheory
 using Metatheory.Library
-using Metatheory.EGraphs
 
 @metatheory_init
 
