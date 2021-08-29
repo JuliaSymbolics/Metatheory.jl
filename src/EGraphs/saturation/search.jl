@@ -115,7 +115,8 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
             ids = cached_ids(egraph, rule.left)
             rule_matches = pmap(i -> rule(egraph, i), ids)
 
-            can_yield = inform!(scheduler, rule, Iterators.flatten(rule_matches))
+            n_matches = sum(length, rule_matches)
+            can_yield = inform!(scheduler, rule, n_matches)
             if can_yield
                 @timeit append_time "appending matches" begin
                     append!(match_groups, rule_matches)

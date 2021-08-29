@@ -84,12 +84,12 @@ end
 cansaturate(s::ScoredScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_until, s.data)
 
 
-function inform!(s::ScoredScheduler, rule::AbstractRule, matches)
+function inform!(s::ScoredScheduler, rule::AbstractRule, n_matches)
     # println(s.data[rule])
 
     rd = s.data[rule]
     treshold = rd.match_limit * (rd.weight^rd.times_banned)
-    if length(matches) > treshold
+    if length(n_matches) > treshold
         ban_length = rd.ban_length * (rd.weight^rd.times_banned)
         rd.times_banned += 1
         rd.banned_until = s.curr_iter + ban_length
