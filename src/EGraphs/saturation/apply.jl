@@ -29,7 +29,7 @@ end
 
 
 using .ReportReasons
-function eqsat_apply!(g::EGraph, matches::MatchesBuf, rep::Report, params::SaturationParams)
+function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
     i = 0
     # println.(matches)
     for match ∈ matches
