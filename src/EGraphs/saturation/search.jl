@@ -70,7 +70,8 @@ macro maybethreaded(x, body)
 end
 
 function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
-    scheduler::AbstractScheduler, report; threaded=false)::MatchesBuf
+    scheduler::AbstractScheduler, report; 
+    threaded=false, timer_tree_point=["Search"])::MatchesBuf
     matches = MatchesBuf()
     mlock = ReentrantLock()
 
@@ -78,7 +79,8 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
     inequalities = filter(Base.Fix2(isa, UnequalRule), theory)
     # never skip contradiction checks
     @maybethreaded threaded for rule ∈ inequalities
-        @timeit report.to repr(rule)  begin
+        to = TimerOutput()
+        @timeit to repr(rule) begin
             ids = cached_ids(egraph, rule.left)
 
             lock(mlock) do 
@@ -87,16 +89,18 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
                 end
             end
         end
+        merge!(report.to, to, tree_point=timer_tree_point)
     end
 
     other_rules = filter(theory) do rule 
         !(rule isa UnequalRule)
     end
     @maybethreaded threaded for rule ∈ other_rules 
-        @timeit report.to repr(rule) begin
-    # don't apply banned rules
+        to = TimerOutput()
+        @timeit to repr(rule) begin
+        # don't apply banned rules
             if !cansearch(scheduler, rule)
-        # println("skipping banned rule $rule")
+            # println("skipping banned rule $rule")
                 continue
             end
 
@@ -112,6 +116,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
                 end
             end
         end
+        merge!(report.to, to, tree_point=timer_tree_point)
     end
     return matches
 end
