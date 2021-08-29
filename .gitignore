@@ -32,3 +32,5 @@ coverage/
 ideas/
 benchmarks/target
 benchmarks/Cargo.lock
+.lh
+.DS_Store
