@@ -1,4 +1,5 @@
 # ENV["JULIA_DEBUG"] = Metatheory
+using Metatheory
 
 fibo = @theory begin
     x::Int + y::Int |> x+y

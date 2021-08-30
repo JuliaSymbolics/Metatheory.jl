@@ -1,3 +1,5 @@
+using Metatheory
+
 @testset "Reduction Basics" begin
 	t = @theory begin
 	    a + a => 2a

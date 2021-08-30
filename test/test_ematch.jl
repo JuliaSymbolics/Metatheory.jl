@@ -1,3 +1,10 @@
+using Metatheory
+using Metatheory.Library
+
+falseormissing(x) = 
+    x === missing || !x
+
+
 r = @theory begin
     foo(x,y) => 2*x%y
     foo(x,y) => sin(x)

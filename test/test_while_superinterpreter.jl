@@ -3,6 +3,8 @@
 ### A Very Tiny Turing Complete Programming Language defined with denotational semantics
 
 # semantica dalle dispense degano
+using Metatheory
+
 import Base.ImmutableDict
 Mem = Dict{Symbol, Union{Bool, Int}}
 
