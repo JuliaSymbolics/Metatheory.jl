@@ -1,3 +1,9 @@
+using Metatheory 
+using Metatheory.Library
+using Metatheory.Util
+
+include("numberfold.jl")
+
 comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin
