@@ -10,6 +10,6 @@ function SimpleScheduler(G::EGraph, theory::Vector{<:AbstractRule})
     SimpleScheduler()
 end
 
-inform!(s::SimpleScheduler, r, matches) = true
+inform!(s::SimpleScheduler, r, n_matches) = true
 
 setiter!(s::SimpleScheduler, iteration) = nothing

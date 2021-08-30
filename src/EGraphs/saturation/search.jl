@@ -69,22 +69,34 @@ macro maybethreaded(x, body)
     end)
 end
 
+"""
+Returns an iterator of `Match`es.
+"""
 function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
-    scheduler::AbstractScheduler, report; threaded=false)::MatchesBuf
-    matches = MatchesBuf()
-    mlock = ReentrantLock()
-
+    scheduler::AbstractScheduler, report; threaded=false)
+    match_groups = Vector{Match}[]
+    function pmap(f, xs) 
+        # const propagation should be able to optimze one of the branch away
+        if threaded
+            # # try to divide the work evenly between threads without adding much overhead
+            # chunks = Threads.nthreads() * 10
+            # basesize = max(length(xs) ÷ chunks, 1)
+            # ThreadsX.mapi(f, xs; basesize=basesize) 
+            ThreadsX.map(f, xs)
+        else
+            map(f, xs)
+        end
+    end
 
     inequalities = filter(Base.Fix2(isa, UnequalRule), theory)
     # never skip contradiction checks
-    @maybethreaded threaded for rule ∈ inequalities
-        @timeit report.to repr(rule)  begin
+    append_time = TimerOutput()
+    for rule ∈ inequalities
+        @timeit report.to repr(rule) begin
             ids = cached_ids(egraph, rule.left)
-
-            lock(mlock) do 
-                for id in ids 
-                    append!(matches, rule(egraph, id))
-                end
+            rule_matches = pmap(i -> rule(egraph, i), ids)
+            @timeit append_time "appending matches" begin
+                append!(match_groups, rule_matches)
             end
         end
     end
@@ -92,27 +104,33 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
     other_rules = filter(theory) do rule 
         !(rule isa UnequalRule)
     end
-    @maybethreaded threaded for rule ∈ other_rules 
+    for rule ∈ other_rules 
         @timeit report.to repr(rule) begin
-    # don't apply banned rules
+            # don't apply banned rules
             if !cansearch(scheduler, rule)
-        # println("skipping banned rule $rule")
+                # println("skipping banned rule $rule")
                 continue
             end
 
-            rule_matches = Match[]
             ids = cached_ids(egraph, rule.left)
-            for id in ids 
-                append!(rule_matches, rule(egraph, id))
-            end
-            can_yield = inform!(scheduler, rule, rule_matches)
+            rule_matches = pmap(i -> rule(egraph, i), ids)
+
+            n_matches = sum(length, rule_matches)
+            can_yield = inform!(scheduler, rule, n_matches)
             if can_yield
-                lock(mlock) do 
-                    append!(matches, rule_matches) 
+                @timeit append_time "appending matches" begin
+                    append!(match_groups, rule_matches)
                 end
             end
         end
     end
-    return matches
+
+    # @timeit append_time "appending matches" begin
+    #     result = reduce(vcat, match_groups) # this should be more efficient than multiple appends
+    # end
+    merge!(report.to, append_time, tree_point=["Search"])
+
+    return Iterators.flatten(match_groups)
+    # return result
 end
     

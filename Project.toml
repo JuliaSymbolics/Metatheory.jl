@@ -13,6 +13,7 @@ RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 SymbolicUtils = "d1185830-fcd6-423d-90d6-eec64667417b"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
+ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
