@@ -1,3 +1,5 @@
+using Metatheory
+
 failme = @theory begin
     p ≠ ¬p
     :foo == ¬:foo

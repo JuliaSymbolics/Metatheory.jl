@@ -1,5 +1,6 @@
 # https://en.wikipedia.org/wiki/MU_puzzle#Solution
-#
+
+using Metatheory
 
 miu = @theory begin
     # Composition of the string monoid is associative

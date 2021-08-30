@@ -35,23 +35,9 @@ function Base.show(io::IO, a::EClass)
     end
     print(io, "})")
 end
-#
-# function addparent!(a::EClass, n::ENode, p::EClass)
-#     a.parents[n] = p
-# end
 
 function addparent!(a::EClass, n::ENode, id::EClassId)
     push!(a.parents, (n => id))
-end
-
-function Base.union(to::EClass, from::EClass)
-    EClass(to.id, vcat(from.nodes, to.nodes), 
-        vcat(from.parents, to.parents), 
-        if to.data !== nothing && from.data !== nothing
-            join_analysis_data(to.data, from.data)
-        elseif to.data === nothing
-            from.data
-        else nothing end)
 end
 
 function Base.union!(to::EClass, from::EClass)
