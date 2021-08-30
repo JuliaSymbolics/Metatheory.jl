@@ -11,6 +11,7 @@ using ..Patterns
 using ..Rules
 import ..@log
 import ..iscall
+import ThreadsX
 
 include("enode.jl")
 export ENode

@@ -27,7 +27,7 @@ This function is called **after** pattern matching on the e-graph,
 informs the scheduler about the yielded matches.
 Returns `false` if the matches should not be yielded and ignored. 
 ```
-inform!(s::AbstractScheduler, iteration, r::Rule, matches)
+inform!(s::AbstractScheduler, r::AbstractRule, n_matches)
 ```
 """
 function inform! end

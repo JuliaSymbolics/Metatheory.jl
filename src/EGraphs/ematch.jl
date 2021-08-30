@@ -157,18 +157,25 @@ function (m::Machine)(instr::Bind, pc)
     return nothing
 end
 
-MACHINES = Machine[] 
+# use const to help the compiler see the type.
+# each machine has a corresponding lock to ensure thread-safety in case 
+# tasks migrate between threads.
+const MACHINES = Tuple{Machine, ReentrantLock}[] 
 
 function __init__() 
-    global MACHINES = map(x -> Machine(), 1:Threads.nthreads())
+    empty!(MACHINES)
+    for _ in 1:Threads.nthreads()
+        push!(MACHINES, (Machine(), ReentrantLock()))
+    end
 end
 
 function ematch(g::EGraph, program::Program, id::EClassId)
     tid = Threads.threadid() 
-    reset(MACHINES[tid], g, program, id)
-    # machine = Machine(g, program, σsize, id)
-    buf = MACHINES[tid]()
+    m, mlock = MACHINES[tid]
+    buf = lock(mlock) do
+        reset(m, g, program, id)
+        m()
+    end
     
-    # println(buf)
     buf
 end

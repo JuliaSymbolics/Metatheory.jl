@@ -19,20 +19,20 @@ inverse_right(op, id, invop) = let id = ~id; :( ($op)(a, ($invop)(a)) => $id ) |
 # distributivity of two operations
 # example: `@distrib (⋅) (⊕)`
 function distrib_left(outop, inop)
-	@assert Base.isbinaryoperator(outop)
-	@assert Base.isbinaryoperator(inop)
+	# @assert Base.isbinaryoperator(outop)
+	# @assert Base.isbinaryoperator(inop)
 	:( ($outop)(a, ($inop)(b,c)) == ($inop)(($outop)(a,b),($outop)(a,c)) ) |> Rule
 end
 
 function distrib_right(outop, inop)
-	@assert Base.isbinaryoperator(outop)
-	@assert Base.isbinaryoperator(inop)
+	# @assert Base.isbinaryoperator(outop)
+	# @assert Base.isbinaryoperator(inop)
 	:( ($outop)(($inop)(a,b), c) == ($inop)(($outop)(a,c),($outop)(b,c)) ) |> Rule
 end
 
 function monoid(op, id)
 	let id = ~id
-		@assert Base.isbinaryoperator(op)
+		# @assert Base.isbinaryoperator(op)
 		[associativity_left(op), associativity_right(op),
 		 identity_left(op, id), identity_right(op,id)]
 	end
@@ -42,7 +42,7 @@ macro monoid(op, id) monoid(op, id) end
 
 function commutative_monoid(op, id)
 	let id = ~id;
-		@assert Base.isbinaryoperator(op)
+		# @assert Base.isbinaryoperator(op) # Why this restriction?
 		[commutativity(op), associativity_left(op),
 		associativity_right(op), identity_left(op, id)]
 	end
@@ -55,7 +55,7 @@ macro commutative_monoid(op, id) commutative_monoid(op, id) end
 # then the operation is said to be commutative, and the group is called an abelian group.
 function commutative_group(op, id, invop)
 	let id = ~id;
-		@assert Base.isbinaryoperator(op)
+		# @assert Base.isbinaryoperator(op)
 		# @assert Base.isunaryoperator(invop)
 		commutative_monoid(op, id) ∪ [inverse_right(op, id, invop)]
 	end
