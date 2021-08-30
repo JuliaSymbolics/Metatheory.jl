@@ -1,5 +1,6 @@
 using Metatheory
 using Metatheory.EGraphs
+using Metatheory.Library
 using SymbolicUtils
 using SymbolicUtils.Rewriters
 
@@ -24,9 +25,10 @@ end
 
 tag_matcher(x) = Chain(tag_matcher_t)(x)
 
+# FIXME TAGGING skip . operator
 function tag(x)
-    r = df_walk(tag_matcher, x; skip_call=true, skip=[:(.)])
-    # println("tagged $x to $(r)")
+    r = Postwalk(PassThrough(If(x -> !istree(x) || operation(x) != :., tag_matcher)))(x)
+    println("tagged $x to $(r)")
     r
 end
 

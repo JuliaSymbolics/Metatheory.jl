@@ -42,4 +42,17 @@ include("EGraphs/EGraphs.jl")
 include("Library/Library.jl")
 export Library
 
+
+# TODO REMOVE DEPENDENCY TO SymbolicUtils
+using SymbolicUtils.Rewriters
+function rewrite(expr, theory; order=:outer)
+   if order == :inner 
+      Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)
+   elseif order == :outer 
+      Fixpoint(Postwalk(Fixpoint(Chain(theory))))(expr)
+   end
+end
+export rewrite
+
+
 end # module
