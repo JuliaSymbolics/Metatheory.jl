@@ -89,7 +89,7 @@ function inform!(s::ScoredScheduler, rule::AbstractRule, n_matches)
 
     rd = s.data[rule]
     treshold = rd.match_limit * (rd.weight^rd.times_banned)
-    if length(n_matches) > treshold
+    if n_matches > treshold
         ban_length = rd.ban_length * (rd.weight^rd.times_banned)
         rd.times_banned += 1
         rd.banned_until = s.curr_iter + ban_length
