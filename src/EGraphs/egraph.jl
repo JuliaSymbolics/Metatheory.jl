@@ -158,17 +158,7 @@ function add!(g::EGraph, n::ENode)::EClass
 
     n = canonicalize(g, n)
     if haskey(g.memo, n)
-        # TODO really override the proof step here?
         eclass = geteclass(g, g.memo[n])
-        # for nn in eclass
-        #     if n == nn && hasproofdata(n)
-        #         # println("MERGING PROOF STEP $nn and $n")
-        #         # TODO union!-ing proof data here is BRUTAL. should be ammortized
-        #         # keep the older `nn` age
-        #         setage!(n, nn.age)
-        #         mergeproof!(nn, n)
-        #     end
-        # end 
         return eclass
     end
     @debug(n, " not found in memo")

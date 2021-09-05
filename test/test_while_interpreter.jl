@@ -5,8 +5,7 @@
 # semantica dalle dispense degano
 
 using Metatheory
-using SymbolicUtils
-using SymbolicUtils.Rewriters
+using Rewriters
 
 Mem = Dict{Symbol, Union{Bool, Int}}
 

@@ -2,7 +2,7 @@
 
 module SUFib
 using SymbolicUtils
-using SymbolicUtils.Rewriters
+using Rewriters
 
 @syms fib(x::Int)::Int
 
