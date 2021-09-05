@@ -49,7 +49,7 @@ function rewrite(expr, theory; order=:outer)
    elseif order == :outer 
       Fixpoint(Postwalk(Fixpoint(Chain(theory))))(expr)
    end
-ends
+end
 export rewrite
 
 
