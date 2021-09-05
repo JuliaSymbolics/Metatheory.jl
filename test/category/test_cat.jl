@@ -1,8 +1,7 @@
 using Metatheory
 using Metatheory.EGraphs
 using Metatheory.Library
-using SymbolicUtils
-using SymbolicUtils.Rewriters
+using Rewriters
 
 using Test
 
