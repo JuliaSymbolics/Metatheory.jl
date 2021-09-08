@@ -24,7 +24,8 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 # Showing
 function Base.show(io::IO, a::EClass)
     print(io, "EClass $(a.id) (")
-    print(io, collect(a.nodes))
+    
+    print(io, "[", Base.join(a.nodes, ", "), "]")
     if a.data === nothing
         print(io, ")")
         return

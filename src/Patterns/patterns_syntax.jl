@@ -1,42 +1,43 @@
 # ======================= SHOWING ====================
 
-Base.show(io::IO, x::PatVar) = print(io, x.name)
-
-function Base.show(io::IO, x::PatLiteral)
-    if x.val isa Symbol 
-        print(io, ":")
-    end
-    print(io, x.val)
+function Base.show(io::IO, x::Pattern) 
+    expr = to_expr(x)
+    print(io, expr)
 end
 
-Base.show(io::IO, x::PatTypeAssertion) = print(io, x.var, "::", x.type)
+to_expr(x::PatVar) = x.name
 
-Base.show(io::IO, x::PatSplatVar) = print(io, x.var, "...")
+to_expr(x::PatLiteral) =
+    if x.val isa Symbol
+        QuoteNode(x.val)
+    else
+        x.val
+    end
 
-Base.show(io::IO, x::PatEquiv) = print(io, x.left, "≡ₙ", x.right)
+function to_expr(x::PatTypeAssertion) 
+    Expr(Symbol("::"), to_expr(x.var), x.type)
+end
 
-function Base.show(io::IO, x::PatTerm)
-    if x.head == :call
-        @assert x.args[1] isa PatLiteral
-        print(io, Expr(x.head, x.args[1].val, x.args[2:end]...))
-    else 
-        print(io, Expr(x.head, x.args...))
+function to_expr(x::PatSplatVar) 
+    Expr(Symbol("..."), to_expr(x.var))
+end
+
+function to_expr(x::PatEquiv) 
+    Expr(:call, Symbol("≡ₙ"), to_expr(x.left), to_expr(x.right))
+end
+
+function to_expr(x::PatTerm) 
+    if x.head == :call && length(x.args) >= 1
+        Expr(:call, x.args[1].val, to_expr.(x.args[2:end])...)
+    else
+        Expr(x.head, to_expr.(x.args)...)
     end
 end
 
-function Base.show(io::IO, x::PatAllTerm)
-    n = length(x.args)
-
+function to_expr(x::PatAllTerm) 
     # TODO change me ?
-    print(io, "~", x.head)
-    print(io, "(")
-    for i ∈ 1:n
-        @inbounds print(io, x.args[i])
-        if i < n
-            print(io, ",")
-        end
-    end
-    print(io, ")")
+    head = Symbol("~", x.head.name)
+    Expr(:call, head, to_expr.(x.args)...)
 end
 
 
