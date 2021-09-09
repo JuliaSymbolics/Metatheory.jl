@@ -109,6 +109,8 @@ function Base.show(io::IO,  r::EqualityRule)
     print(io, "$(r.left) == $(r.right)")
 end
 
+
+# TODO document the additional parameters
 """
 Rules defined as `left_hand |> right_hand` are
 called `dynamic` rules. Dynamic rules behave like anonymous functions.

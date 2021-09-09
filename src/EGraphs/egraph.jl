@@ -200,7 +200,6 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-# function addexpr!(g::EGraph, se; keepmeta=false, proof_src=nothing)::Tuple{EClass, ENode}
 function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, ENode}
     # println("========== $e ===========")
     if se isa EClass
