@@ -49,7 +49,7 @@ function get_concrete_type_expr(theory, x::Symbol, ctx, type_tags = TTags())
 end
 
 function get_concrete_type_expr(theory, x::Expr, ctx, type_tags = TTags())
-    @assert x.head == :call
+    @assert exprhead(x) == :call
     f = x.args[1]
     rest = x.args[2:end]
     # recursion case - inductive step (?)
@@ -148,7 +148,7 @@ end
 
 function tag_expr(x::Expr, axiom, theory)
     texpr, sort = get_concrete_type_expr(theory, x, axiom.context)
-    start = x.head == :call ? 2 : 1 
+    start = exprhead(x) == :call ? 2 : 1 
 
     nargs = Any[tag_expr(y, axiom, theory) for y in x.args[start:end]]
 
@@ -156,7 +156,7 @@ function tag_expr(x::Expr, axiom, theory)
         pushfirst!(nargs, x.args[1])
     end
 
-    z = Expr(x.head, nargs...)
+    z = Expr(exprhead(x), nargs...)
 
     (sort === :Ob) && (return z)
     :($z ~ $texpr)

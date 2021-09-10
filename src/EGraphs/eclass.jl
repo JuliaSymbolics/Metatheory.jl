@@ -90,13 +90,11 @@ function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
 end
 
 function funs(a::EClass)
-    map(a.nodes) do x 
-        x.head 
-    end
+    map(operation, a.nodes)
 end
 
 function funs_arity(a::EClass)
     map(a.nodes) do x 
-        (x.head, arity(x))
+        (operation(x), arity(x))
     end
 end

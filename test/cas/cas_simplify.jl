@@ -40,7 +40,7 @@ end
 
 function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = 0 + arity(n)
-    if n.head == :∂
+    if operation(n) == :∂
         cost += 20
     end
     for id ∈ n.args

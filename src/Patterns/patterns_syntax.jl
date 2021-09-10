@@ -1,45 +1,3 @@
-# ======================= SHOWING ====================
-
-function Base.show(io::IO, x::Pattern) 
-    expr = to_expr(x)
-    print(io, expr)
-end
-
-to_expr(x::PatVar) = x.name
-
-to_expr(x::PatLiteral) =
-    if x.val isa Symbol
-        QuoteNode(x.val)
-    else
-        x.val
-    end
-
-function to_expr(x::PatTypeAssertion) 
-    Expr(Symbol("::"), to_expr(x.var), x.type)
-end
-
-function to_expr(x::PatSplatVar) 
-    Expr(Symbol("..."), to_expr(x.var))
-end
-
-function to_expr(x::PatEquiv) 
-    Expr(:call, Symbol("≡ₙ"), to_expr(x.left), to_expr(x.right))
-end
-
-function to_expr(x::PatTerm) 
-    if x.head == :call && length(x.args) >= 1
-        Expr(:call, x.args[1].val, to_expr.(x.args[2:end])...)
-    else
-        Expr(x.head, to_expr.(x.args)...)
-    end
-end
-
-function to_expr(x::PatAllTerm) 
-    # TODO change me ?
-    head = Symbol("~", x.head.name)
-    Expr(:call, head, to_expr.(x.args)...)
-end
-
 
 # ======================= READING ====================
 
@@ -47,25 +5,31 @@ end
 resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
 resolve(gr) = gr
 
-function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
-    ex = cleanast(ex)
-    head = operation(ex)
-    args = arguments(ex)
 
-    n = length(args)
-    patargs = Vector{Pattern}(undef, n)
-    for i ∈ 1:n
-        @inbounds patargs[i] = Pattern(args[i], mod, resolve_fun)
+
+function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
+    if !istree(ex)
+        return PatLiteral(ex)
     end
 
-    if head == :call
-        if resolve_fun
-            f = resolve(GlobalRef(mod, args[1]))
-            patargs[1] = PatLiteral(f)
-        else
-            patargs[1] = PatLiteral(args[1])
-        end
-    elseif head == :(::)
+    if ex isa Expr 
+        ex = cleanast(ex)
+    end
+    head = exprhead(ex)
+    op = operation(ex)
+    args = arguments(ex)
+
+    if istree(op)
+        error("Cannot yet match on composite expressions as function symbols")
+    end
+
+    if resolve_fun && op isa Symbol
+        op = resolve(GlobalRef(mod, f))
+    end
+
+    patargs = map(i -> Pattern(i, mod, resolve_fun), args)
+    
+    if head == :(::)
         v = patargs[1]
         t = patargs[2]
         ty = Union{}
@@ -82,8 +46,7 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
         end
     end
 
-
-    PatTerm(head, patargs)
+    PatTerm(head, op, patargs)
 end
 
 function Pattern(x::Symbol, mod=@__MODULE__, resolve_fun=false)
@@ -96,26 +59,6 @@ function Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false)
     else
         PatLiteral(x) 
     end
-end
-
-# Generic fallback
-function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
-    if ex isa Expr 
-        ex = cleanast(ex)
-    end
-    if istree(typeof(ex))
-        head = operation(ex)
-        args = arguments(ex)
-
-        n = length(args)
-        patargs = Vector{Pattern}(undef, n)
-        for i ∈ 1:n
-            @inbounds patargs[i] = Pattern(args[i], mod, resolve_fun)
-        end
-
-        return PatTerm(head, patargs)
-    end
-    return PatLiteral(ex)
 end
 
 function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)

@@ -142,7 +142,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	function cust_astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
 		cost = 1 + arity(n)
 
-		if n.head == :^
+		if operation(n) == :^
 			cost += 2
 		end
 
@@ -212,7 +212,9 @@ end
 		f() + g() => h()
 	end;
 
-	_, ex2 = @extract ex t astsize;
+	gg = EGraph(ex)
+	saturate!(gg, t)
+	res = extract!(gg, astsize);
 
-    @test ex2 == :(h())
+    @test res == :(h())
 end

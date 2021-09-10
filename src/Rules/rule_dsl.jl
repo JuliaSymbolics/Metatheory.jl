@@ -34,9 +34,9 @@ rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
 interp_dollar(x, mod::Module) = x
 function interp_dollar(ex::Expr, mod::Module)
-    if Meta.isexpr(ex, :$)
+    if Meta.isexpr(ex, :$) # interpolate if it's a dollar expr
         mod.eval(ex.args[1])
-    else 
+    else # recurse
         Expr(ex.head, map(x -> interp_dollar(x, mod), ex.args)...)
     end
 end

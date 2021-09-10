@@ -103,11 +103,17 @@ while_language = if_language ∪ write_mem ∪ while_rules;
 
 @testset "While Semantics" begin
 	exx = :((x = 3), $(Mem(:x => 2)))
-	(g, ex) = @extract exx while_language astsize
+	g = EGraph(exx)
+	saturate!(g, while_language)
+	ex = extract!(g, astsize)
+	
 	@test areequal(while_language, Mem(:x => 3), exx)
 
 	exx = :((x = 4; x = x + 1), $(Mem(:x => 3)))
-	(g, ex) = @extract exx while_language astsize
+	g = EGraph(exx)
+	saturate!(g, while_language)
+	ex = extract!(g, astsize)
+	
 	params=SaturationParams(timeout=10)
 	@test areequal(while_language, Mem(:x => 5), exx; params=params)
 

@@ -55,6 +55,7 @@ function next(m::Machine, pc)
 end
 
 function (m::Machine)(instr::Yield, pc)
+    # @show instr
     sourcenode = m.n[m.program.first_nonground]
     ecs = [m.σ[reg] for reg in instr.yields]
     nodes = [m.n[reg] for reg in instr.yields]
@@ -63,6 +64,7 @@ function (m::Machine)(instr::Yield, pc)
 end
 
 function (m::Machine)(instr::CheckClassEq, pc) 
+    # @show instr
     l = m.σ[instr.left]
     r = m.σ[instr.right]
     # println("checking eq $l == $r")
@@ -73,11 +75,12 @@ function (m::Machine)(instr::CheckClassEq, pc)
 end
 
 function (m::Machine)(instr::CheckType, pc) 
+    # @show instr
     id = m.σ[instr.reg]
     eclass = m.g[id]
 
     for n in eclass 
-        if arity(n) == 0 && typeof(n.head) <: instr.type
+        if arity(n) == 0 && typeof(operation(n)) <: instr.type
             m.σ[instr.reg] = id
             m.n[instr.reg] = n
             next(m, pc)
@@ -88,10 +91,11 @@ function (m::Machine)(instr::CheckType, pc)
 end
 
 function (m::Machine)(instr::Filter, pc)
+    # @show instr
     id, _ = m.σ[instr.reg]
     eclass = m.g[id]
 
-    if instr.head ∈ funs(eclass)
+    if operation(instr) ∈ funs(eclass)
         next(m, pc+1)
     end
     return nothing
@@ -103,20 +107,17 @@ function lookup_pat(g::EGraph, p::PatTerm)
     # println("looking up $p")
     @assert isground(p)
 
-    f = p.head
+    eh = exprhead(p)
+    op = operation(p)
+    args = arguments(p)
     ar = arity(p)
-    if p.head == :call 
-        @assert p.args[1] isa PatLiteral
-        f = p.args[1].val
-        ar = ar-1
-    end
 
-    T = gettermtype(g, f, ar)
+    T = gettermtype(g, op, ar)
 
-    ids = [lookup_pat(g, pp) for pp in p.args]
+    ids = [lookup_pat(g, pp) for pp in args]
     if all(i -> i isa EClassId, ids)
         # println(ids)
-        n = ENode{T}(p.head, ids)
+        n = ENode{T}(eh, op, ids)
         # println("ENode{$T} $n")
         ec = lookup(g, n)
         return ec
@@ -127,11 +128,12 @@ end
 
 function lookup_pat(g::EGraph, p::PatLiteral)
     # println("looking up literal $p")
-    ec = lookup(g, ENode{typeof(p.val)}(p.val, EClassId[]))
+    ec = lookup(g, ENode{typeof(p.val)}(nothing, p.val, EClassId[]))
     return ec
 end
 
 function (m::Machine)(instr::Lookup, pc) 
+    # @show instr
     ecid = lookup_pat(m.g, instr.p)
     if ecid isa EClassId
         # println("found $(instr.p) in $ecid")
@@ -142,14 +144,31 @@ function (m::Machine)(instr::Lookup, pc)
 end
 
 function (m::Machine)(instr::Bind, pc) 
+    # @show instr
     ecid = m.σ[instr.reg]
     eclass = m.g[ecid]
 
     for n in eclass.nodes
-        if n.head == instr.enodepat.head && length(n.args) == length(instr.enodepat.args)
+        # @show n
+        # @show exprhead(n) exprhead(instr.enodepat)
+        # @show operation(n) operation(instr.enodepat)
+        # dump(operation(n))
+        # dump(operation(instr.enodepat))
+        # @show arity(n) arity(instr.enodepat)
+        # @show arguments(n) arguments(instr.enodepat)
+
+
+        # @show exprhead(n) == exprhead(instr.enodepat)
+        # @show operation(n) == operation(instr.enodepat)
+        # @show arity(n) == arity(instr.enodepat)
+
+        if exprhead(n) == exprhead(instr.enodepat) &&
+            operation(n) == operation(instr.enodepat) && 
+            arity(n) == arity(instr.enodepat)
+
             m.n[instr.reg] = n
-            for (j,v) in enumerate(instr.enodepat.args)
-                m.σ[v] = n.args[j]
+            for (j,v) in enumerate(arguments(instr.enodepat))
+                m.σ[v] = arguments(n)[j]
             end
             next(m, pc)
         end

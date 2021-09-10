@@ -10,9 +10,8 @@ abstract type Pattern end
 import Base.==
 ==(a::Pattern, b::Pattern) = false
 TermInterface.arity(p::Pattern) = 0
-function isground(p::Pattern)
-    false
-end
+isground(p::Pattern) = false
+
 
 """
 Pattern variables will first match on any subterm
@@ -27,7 +26,6 @@ function ==(a::PatVar, b::PatVar)
     a.idx == b.idx
 end
 PatVar(var) = PatVar(var, -1)
-
 
 """
 A pattern literal will match only against an instance of itself.
@@ -45,9 +43,8 @@ Will match only against instances of the literal symbol `:a`.
 @auto_hash_equals struct PatLiteral{T} <: Pattern
     val::T
 end
-function isground(p::PatLiteral)
-    true
-end
+isground(p::PatLiteral) = true
+
 
 """
 Type assertions on a [`PatVar`](@ref), will match if and only if 
@@ -126,27 +123,28 @@ on terms of the same `arity` and with the same
 function symbol (`head`).
 """
 struct PatTerm <: Pattern
-    head::Any
+    exprhead::Any
+    operation::Any
     args::Vector{Pattern}
     hash::Ref{UInt}
-    PatTerm(h,args) = new(h,args, Ref{UInt}(0))
+    PatTerm(eh, op, args) = new(eh, op, args, Ref{UInt}(0))
 end
-TermInterface.operation(p::PatTerm) = p.head
-TermInterface.arity(p::PatTerm) = length(p.args)
+TermInterface.istree(::Type{PatTerm}) = true
+TermInterface.exprhead(e::PatTerm) = e.exprhead
+TermInterface.operation(p::PatTerm) = p.operation
 TermInterface.arguments(p::PatTerm) = p.args
+TermInterface.arity(p::PatTerm) = length(arguments(p))
 
 function Base.hash(t::PatTerm, salt::UInt)
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
     h = t.hash[]
     !iszero(h) && return h
-    h′ = hash(t.head,  hash(t.args, salt))
+    h′ = hash(t.exprhead, hash(t.operation, hash(t.args, salt)))
     t.hash[] = h′
     return h′
 end
 
-function isground(p::PatTerm)
-    mapreduce(isground, (&), p.args)
-end
+isground(p::PatTerm) = all(isground, p.args)
 
 """
 This pattern type matches on a function application 

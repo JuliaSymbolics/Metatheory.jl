@@ -122,9 +122,8 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
 function canonicalize(g::EGraph, n::ENode{T}) where {T}
     if arity(n) > 0
-        new_args = map(x -> find(g, x), n.args)
-        # return ENode{T}(n.head, new_args, n.proof_src, n.proof_trg, n.age)
-        return ENode{T}(n.head, new_args)
+        new_args = map(x -> find(g, x), arguments(n))
+        return ENode{T}(exprhead(n), operation(n), new_args)
     end 
     return n
 end
@@ -135,7 +134,6 @@ function canonicalize!(g::EGraph, n::ENode)
     end
     n.hash[] = UInt(0)
     return n
-    # n.args = map(x -> find(g, x), n.args)
 end
 
 function canonicalize!(g::EGraph, e::EClass)
@@ -165,7 +163,7 @@ function add!(g::EGraph, n::ENode)::EClass
 
     id = push!(g.uf) # create new singleton eclass
 
-    for c_id ∈ n.args
+    for c_id ∈ arguments(n)
         addparent!(g.classes[c_id], n, id)
     end
 
@@ -200,7 +198,7 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, ENode}
+function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
     # println("========== $e ===========")
     if se isa EClass
         return (se, se[1])
@@ -210,32 +208,24 @@ function addexpr!(g::EGraph, se; keepmeta=false, addcall=false)::Tuple{EClass, E
     node = nothing
 
     if istree(T)
+        exhead = exprhead(e)
+        op = operation(e)
         args = arguments(e)
-        if addcall
-            args = [operation(e), args...]
-        end
+
         n = length(args)
+
         class_ids = Vector{EClassId}(undef, n)
         for i ∈ 1:n
             # println("child $child")
             @inbounds child = args[i]
-            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta, addcall=addcall)
+            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta)
             @inbounds class_ids[i] = c_eclass.id
         end
-        node = ENode{typeof(e)}((addcall) ? :call : operation(e), class_ids)
+        node = ENode{typeof(e)}(exhead, op, class_ids)
     else 
-        node = ENode{typeof(e)}(e, EClassId[])
+        # constant enode
+        node = ENode(e)
     end
-
-    # setage!(node, g.age)
-
-    # if !isnothing(proof_src)
-    #     rule = first(proof_src)
-    #     srcnode = last(proof_src)
-    #     if !isnothing(rule) && !isnothing(srcnode)
-    #         addproofsrc!(node, rule, srcnode, g.age)
-    #     end
-    # end
 
     ec = add!(g, node)
     if keepmeta
@@ -405,7 +395,7 @@ function reachable(g::EGraph, id::EClassId)
         for n ∈ g.classes[curr]
             nn = canonicalize(g, n)
             # println("node in reachability is ", n)
-            for c_id ∈ nn.args
+            for c_id ∈ arguments(nn)
                 if c_id ∉ hist
                     push!(hist, c_id)
                     push!(todo, c_id)

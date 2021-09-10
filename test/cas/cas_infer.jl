@@ -3,6 +3,7 @@ using Metatheory.Library
 using Metatheory.EGraphs
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
+using TermInterface
 
 @metatheory_init
 
@@ -12,9 +13,9 @@ abstract type TypeAnalysis <: AbstractAnalysis end
 function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
     if !(T == Expr)
         if arity(n) == 0
-            t = typeof(n.head)
+            t = typeof(operation(n))
             # other informed type checks on variables should go here
-            if n.head == :im
+            if operation(n) == :im
                 t = typeof(im)
             end
         else
@@ -25,7 +26,7 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
         return t
     end
 
-    if !(n.head == :call)
+    if exprhead(n) != :call
         # println("$n is not a call")
         t = Any
         # println("analyzed type of $n is $t")
@@ -33,8 +34,7 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
     end
 
     # T isa Expr
-    sym = extract!(g, astsize; root=n.args[1])
-    rest_of_args = (@view n.args[2:end])
+    sym = operation(n)
 
     if !(sym isa Symbol)
         # println("head $sym is not a symbol")
@@ -44,19 +44,8 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENode{T}) where T
     end
 
     symval = getfield(@__MODULE__, sym)
-    child_classes = map(x -> geteclass(g, x), rest_of_args)
+    child_classes = map(x -> geteclass(g, x), arguments(n))
     child_types = Tuple(map(x -> getdata(x, an, Any), child_classes))
-
-    # println("symval $symval")
-    # println("child types $child_types")
-
-    # t_arr = map(last, code_typed(symval, child_types))
-
-    # if length(t_arr) == 0
-    #     error("TYPE ERROR. No method for $(n.head) with types $child_types")
-    # elseif length(t_arr) !== 1
-    #     error("AMBIGUOUS TYPES! $n $t_arr")
-    # end
 
     # t = t_arr[1]
     t = Core.Compiler.return_type(symval, child_types)

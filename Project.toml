@@ -1,7 +1,7 @@
 name = "Metatheory"
 uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
-version = "0.5.0"
+version = "0.6.0"
 
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
@@ -23,7 +23,7 @@ Parameters = "0.12"
 Reexport = "0.2, 1"
 Rewriters = "0.1"
 RuntimeGeneratedFunctions = "0.5.1"
-TermInterface = "0.1.5"
+TermInterface = "0.2"
 ThreadsX = "0.1.7"
 TimerOutputs = "0.5"
 julia = "1"
@@ -31,8 +31,8 @@ julia = "1"
 [extras]
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "Calculus", "Catlab", "SafeTestsets"]

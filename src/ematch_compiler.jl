@@ -3,6 +3,7 @@
 module EMatchCompiler
 
 using AutoHashEquals
+using TermInterface
 using ..Patterns
 
 abstract type Instruction end 
@@ -34,11 +35,17 @@ Base.getindex(p::Program, i) = p.instructions[i]
 Base.length(p::Program) = length(p.instructions) 
 
 @auto_hash_equals struct ENodePat
-    head::Any
+    exprhead::Union{Symbol, Nothing}
+    operation::Any
     # args::Vector{Register} 
     args::UnitRange{Register}
 end
 export ENodePat
+
+TermInterface.operation(p::ENodePat) = p.operation
+TermInterface.exprhead(p::ENodePat) = p.exprhead
+TermInterface.arguments(p::ENodePat) = p.args 
+TermInterface.arity(p::ENodePat) = length(p.args)
 
 @auto_hash_equals struct Bind <: Instruction
     reg::Register
@@ -65,9 +72,10 @@ export Yield
 
 @auto_hash_equals struct Filter <: Instruction
     reg::Register
-    head::Any
+    operation::Any
     arity::Int
 end
+TermInterface.operation(x::Filter) = x.operation
 export Filter
 
 @auto_hash_equals struct Lookup <: Instruction
@@ -141,7 +149,10 @@ function compile_pat!(reg, p::PatTerm, prog)
     end
     # a = [gensym() for i in 1:length(p.args)]
     c = memsize(prog)
-    nargs = length(p.args)
+    nargs = arity(p)
+    # registers unit range
+    # TODO remove -1?
+    #a = c:(c + nargs - 1)
     a = c:(c + nargs - 1)
 
     # println(p)
@@ -155,8 +166,8 @@ function compile_pat!(reg, p::PatTerm, prog)
     # println(filters)
 
     increment(prog, nargs)
-    push!(prog.instructions, Bind(reg, ENodePat(p.head, a)))
-    for (reg, p2) in zip(a, p.args)
+    push!(prog.instructions, Bind(reg, ENodePat(exprhead(p), operation(p), a)))
+    for (reg, p2) in zip(a, arguments(p))
         compile_pat!(reg, p2, prog) 
     end
 end
@@ -183,7 +194,7 @@ function compile_pat!(reg, p::PatLiteral, prog)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
     end
-    push!(prog.instructions, Bind(reg, ENodePat(p.val, 0:-1)))
+    push!(prog.instructions, Bind(reg, ENodePat(nothing, p.val, 0:-1)))
 end
 
 function compile_pat!(reg, p::PatEquiv, prog)
