@@ -20,7 +20,7 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
         if hasliteral(sub, pat) 
             node = getliteral(sub, pat)
             @assert arity(node) == 0
-            return node.head
+            return operation(node)
         end 
         return ec
     else
@@ -38,15 +38,12 @@ end
 
 
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
-    f = pat.head
+    eh = exprhead(pat)
+    op = operation(pat)
     ar = arity(pat)
-    if pat.head == :call 
-        @assert pat.args[1] isa PatLiteral
-        f = pat.args[1].val
-        ar = ar-1
-    end
 
-    T = gettermtype(g, f, ar)
-    children = map(x -> instantiate(g, x, sub, rule), pat.args)
-    similarterm(T, pat.head, children)
+    T = gettermtype(g, op, ar)
+    children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
+    similarterm(T, op, children; exprhead=eh)
 end
+

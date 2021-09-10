@@ -49,7 +49,7 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
         anval = getdata(eclass, an)
     end
     (cn, ck) = anval
-    (!istree(termtype(cn)) || ck == Inf) && return cn.head
+    (!istree(termtype(cn)) || ck == Inf) && return operation(cn)
 
     extractnode(g, cn, an; eclass=eclass)
 end
@@ -64,24 +64,9 @@ function extractnode(g::EGraph, n::ENode, an::Type{<:ExtractionAnalysis}; eclass
         meta = getdata(eclass, MetadataAnalysis, nothing)
     end
     T = termtype(n)
-    if iscall(T) # && n.head == :call
-        return similarterm(T, children[1], children[2:end]; metadata = meta)            
-    end
-    similarterm(T, n.head, children; metadata = meta)
+    similarterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
 end
 
-# TODO CUSTOMTYPES document how to for custom types
-# TODO maybe extractor can just be the array of extracted children?
-function extractnode(g::EGraph, n::ENode{Expr}, extractor::Function)::Expr
-    return Expr(n.head, map(extractor, n.args)...)
-end
-
-function extractnode(g::EGraph, n::ENode{T}, extractor::Function) where T
-    if arity(n) > 0
-        error("ENode extraction is not defined for non-literal type $T")
-    end
-    return n.head
-end
 
 """
 Given an [`ExtractionAnalysis`](@ref), extract the expression

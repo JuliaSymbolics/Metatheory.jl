@@ -10,7 +10,6 @@ using ..Util
 using ..Patterns
 using ..Rules
 import ..@log
-import ..iscall
 import ThreadsX
 
 include("enode.jl")
@@ -81,6 +80,5 @@ export extract!
 export ExtractionAnalysis
 export astsize
 export astsize_inv
-export @extract
 
 end

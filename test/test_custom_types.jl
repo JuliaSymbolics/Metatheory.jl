@@ -27,6 +27,7 @@ MyExpr(head, args) = MyExpr(head, args, "", Complex[], Set{Int}())
 MyExpr(head) = MyExpr(head, [])
 
 # Methods needed by `src/TermInterface.jl`
+TermInterface.exprhead(e::MyExpr) = :call
 TermInterface.operation(e::MyExpr) = e.head
 TermInterface.arguments(e::MyExpr) = e.args
 TermInterface.istree(e::Type{MyExpr}) = true
@@ -35,12 +36,12 @@ TermInterface.metadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
 
 # f(g(2), h(4)) with some metadata in h
-hcall = MyExpr(:call, [:h, 4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
-ex = MyExpr(:call, [:f, MyExpr(:call, [:g, 2]), hcall])
+hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
+ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
 function TermInterface.similarterm(x::Type{MyExpr}, head, args; 
-        metadata=("", Complex[], Set{Int64}()))
+        metadata=("", Complex[], Set{Int64}()), exprhead=:call)
     MyExpr(head, args, metadata...)
 end
 
@@ -73,9 +74,9 @@ end
 
 saturate!(g, t)
 
-display(g.classes)
+#display(g.classes)
 
-expected = MyExpr(:call, [:f, MyExpr(:call, [:h, 4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 
 extracted = extract!(g, astsize)
 

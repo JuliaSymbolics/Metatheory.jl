@@ -24,7 +24,7 @@ match(p::PatEquiv, x, mem) = error("PatEquiv can only be used in EGraphs rewriti
 
 function match(p::PatTerm, x, mem)
     !istree(typeof(x)) && (return false)
-    if operation(p) == operation(x) && arity(p) == arity(x)
+    if exprhead(p) == exprhead(x) && operation(p) == operation(x) && arity(p) == arity(x)
         p_args, x_args = arguments(p), arguments(x)
         for i in 1:arity(p)
             !match(p_args[i], x_args[i], mem) && (return false)
@@ -66,8 +66,8 @@ end
 # TODO revise
 function instantiate(left, pat::PatTerm, mem)
     ar = arguments(pat)
-    similarterm(typeof(left), pat.head, 
-        [instantiate(left, ar[i], mem) for i in 1:length(ar)])
+    similarterm(typeof(left), operation(pat), 
+        [instantiate(left, ar[i], mem) for i in 1:length(ar)]; exprhead=exprhead(pat))
 end
 
 instantiate(left, pat::PatLiteral, mem) = pat.val
@@ -79,11 +79,3 @@ function instantiate(left, pat::PatVar, mem)
     mem[pat.idx]
 end
 
-
-# ==============================================
-# Interface for matching against patterns with 
-# :call as head where the term head is not :call 
-# ==============================================
-function iscall(x::Type{T}) where {T}
-    false
-end
