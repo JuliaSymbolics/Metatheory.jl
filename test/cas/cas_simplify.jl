@@ -43,7 +43,7 @@ function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
     if operation(n) == :∂
         cost += 20
     end
-    for id ∈ n.args
+    for id ∈ arguments(n)
         eclass = geteclass(g, id)
         !hasdata(eclass, an) && (cost += Inf; break)
         cost += last(getdata(eclass, an))

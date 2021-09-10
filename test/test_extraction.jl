@@ -139,19 +139,24 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	# TODO could serve as example for more advanced
 	# symbolic mathematics simplification based on the computation cost
 	# of the expressions
-	function cust_astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+	function cust_astsize(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
 		cost = 1 + arity(n)
 
 		if operation(n) == :^
 			cost += 2
 		end
 
-		for id ∈ n.args
+		for id ∈ arguments(n)
 	        eclass = geteclass(g, id)
 	        !hasdata(eclass, an) && (cost += Inf; break)
 	        cost += last(getdata(eclass, an))
 	    end
 	    return cost
+	end
+
+
+	function cust_astsize(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis})
+		1
 	end
 
 
@@ -163,12 +168,15 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 	@test ex == :(5*log(a)) || ex == :(log(a)*5)
 end
 
-function costfun(n::ENode, g::EGraph, an)
-	arity(n) != 3 && (return 1)
-	left = n.args[2]
+function costfun(n::ENodeTerm, g::EGraph, an)
+	arity(n) != 2 && (return 1)
+	left = arguments(n)[1]
 	left_class = geteclass(g, left)
-	ENode(:a) ∈ left_class.nodes ? 1 : 100
+	ENodeLiteral(:a) ∈ left_class.nodes ? 1 : 100
 end
+
+costfun(n::ENodeLiteral, g::EGraph, an) = 1
+
 
 moveright = @theory begin
     (:b * (:a * c)) => (:a * (:b * c))

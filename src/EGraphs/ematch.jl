@@ -10,7 +10,7 @@ mutable struct Machine
     # eclass register memory 
     σ::Vector{EClassId}
     # literals 
-    n::Vector{Union{Nothing,ENode}}
+    n::Vector{Union{Nothing,AbstractENode}}
     # output buffer
     buf::Vector{Sub}
 end
@@ -80,7 +80,7 @@ function (m::Machine)(instr::CheckType, pc)
     eclass = m.g[id]
 
     for n in eclass 
-        if arity(n) == 0 && typeof(operation(n)) <: instr.type
+        if checktype(n, instr.type, success)
             m.σ[instr.reg] = id
             m.n[instr.reg] = n
             next(m, pc)
@@ -89,6 +89,10 @@ function (m::Machine)(instr::CheckType, pc)
 
     return nothing
 end
+
+checktype(n, t, success) = false
+
+checktype(n::ENodeLiteral{<:T}, ::Type{T}, success) where {T} = true
 
 function (m::Machine)(instr::Filter, pc)
     # @show instr
@@ -117,8 +121,7 @@ function lookup_pat(g::EGraph, p::PatTerm)
     ids = [lookup_pat(g, pp) for pp in args]
     if all(i -> i isa EClassId, ids)
         # println(ids)
-        n = ENode{T}(eh, op, ids)
-        # println("ENode{$T} $n")
+        n = ENodeTerm{T}(eh, op, ids)
         ec = lookup(g, n)
         return ec
     else 
@@ -128,7 +131,7 @@ end
 
 function lookup_pat(g::EGraph, p::PatLiteral)
     # println("looking up literal $p")
-    ec = lookup(g, ENode{typeof(p.val)}(nothing, p.val, EClassId[]))
+    ec = lookup(g, ENodeLiteral(p.val))
     return ec
 end
 
@@ -147,6 +150,8 @@ function (m::Machine)(instr::Bind, pc)
     # @show instr
     ecid = m.σ[instr.reg]
     eclass = m.g[ecid]
+    pat = instr.enodepat
+    reg = instr.reg
 
     for n in eclass.nodes
         # @show n
@@ -161,13 +166,9 @@ function (m::Machine)(instr::Bind, pc)
         # @show exprhead(n) == exprhead(instr.enodepat)
         # @show operation(n) == operation(instr.enodepat)
         # @show arity(n) == arity(instr.enodepat)
-
-        if exprhead(n) == exprhead(instr.enodepat) &&
-            operation(n) == operation(instr.enodepat) && 
-            arity(n) == arity(instr.enodepat)
-
-            m.n[instr.reg] = n
-            for (j,v) in enumerate(arguments(instr.enodepat))
+        if canbind(n, pat)
+            m.n[reg] = n
+            for (j,v) in enumerate(arguments(pat))
                 m.σ[v] = arguments(n)[j]
             end
             next(m, pc)
@@ -175,6 +176,17 @@ function (m::Machine)(instr::Bind, pc)
     end
     return nothing
 end
+
+function canbind(n::ENodeTerm, pat::ENodePat)
+    exprhead(n) == exprhead(pat) &&
+        operation(n) == operation(pat) && 
+        arity(n) == arity(pat)
+end
+
+canbind(n::ENodeLiteral, pat::ENodePat) = false
+
+
+
 
 # use const to help the compiler see the type.
 # each machine has a corresponding lock to ensure thread-safety in case 
@@ -189,12 +201,13 @@ function __init__()
 end
 
 function ematch(g::EGraph, program::Program, id::EClassId)
+    # @show program
     tid = Threads.threadid() 
     m, mlock = MACHINES[tid]
     buf = lock(mlock) do
         reset(m, g, program, id)
         m()
     end
-    
+    # @show buf
     buf
 end
