@@ -13,7 +13,9 @@ import ..@log
 import ThreadsX
 
 include("enode.jl")
-export ENode
+export AbstractENode
+export ENodeLiteral
+export ENodeTerm
 export EClassId
 
 include("abstractanalysis.jl")

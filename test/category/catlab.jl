@@ -55,7 +55,7 @@ end
 
 function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: HomExpr}
     @assert n.head == :call
-    nargs = extractor.(n.args)
+    nargs = extractor.(arguments(n))
     nmeta = metadata(n)
     return nmeta.mod.Hom{nargs[1]}(nargs[2:end], GATExpr[nmeta.dom, nmeta.codom])
 end

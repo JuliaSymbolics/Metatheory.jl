@@ -5,33 +5,36 @@ import Base.ImmutableDict
 
 const EClassId = Int64
 
-mutable struct ENode{T}
+abstract type AbstractENode{T} end
+
+mutable struct ENodeTerm{T} <: AbstractENode{T}
     exprhead::Union{Symbol, Nothing}
     operation::Any
     args::Vector{EClassId}
     hash::Ref{UInt} # hash cache
 end
 
-# function ENode{T}(head, c_ids::AbstractVector{EClassId}, ps=[], pt=[], age=0) where {T}
-function ENode{T}(exprhead, operation, c_ids) where {T}
-    ENode{T}(exprhead, operation, c_ids, Ref{UInt}(0))
+function ENodeTerm{T}(exprhead, operation, c_ids) where {T}
+    ENodeTerm{T}(exprhead, operation, c_ids, Ref{UInt}(0))
 end
 
-ENode(a) = ENode{typeof(a)}(nothing, a, [])
 
-
-ENode(a::ENode) =
-    error("constructor of ENode called on enode. This should never happen")
-
-function Base.:(==)(a::ENode, b::ENode)
+function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
     isequal(a.args, b.args) && 
     isequal(a.exprhead, b.exprhead) && isequal(a.operation, b.operation)
 end
 
+
+TermInterface.istree(n::ENodeTerm) = true
+TermInterface.exprhead(n::ENodeTerm) = n.exprhead
+TermInterface.operation(n::ENodeTerm) = n.operation 
+TermInterface.arguments(n::ENodeTerm) = n.args 
+TermInterface.arity(n::ENodeTerm) = length(n.args)
+
 # This optimization comes from SymbolicUtils
 # The hash of an enode is cached to avoid recomputing it.
 # Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(t::ENode{T}, salt::UInt) where {T}
+function Base.hash(t::ENodeTerm{T}, salt::UInt) where {T}
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
     h = t.hash[]
     !iszero(h) && return h
@@ -40,15 +43,8 @@ function Base.hash(t::ENode{T}, salt::UInt) where {T}
     return h′
 end
 
-TermInterface.exprhead(n::ENode) = n.exprhead
-TermInterface.operation(n::ENode) = n.operation 
-TermInterface.arguments(n::ENode) = n.args 
-TermInterface.arity(n::ENode) = length(n.args)
-# TermInterface.metadata(n::ENode) = n.metadata
 
-termtype(x::ENode{T}) where T = T
-
-function toexpr(n::ENode)
+function toexpr(n::ENodeTerm)
     eh = exprhead(n)
     if isnothing(eh)
         return operation(n) # n is a constant enode
@@ -57,7 +53,41 @@ function toexpr(n::ENode)
 end
 
 
+# ==================================================
+# ENode Literal
+# ==================================================
 
-function Base.show(io::IO, x::ENode{T}) where {T}
+mutable struct ENodeLiteral{T} <: AbstractENode{T}
+    value::T
+    hash::Ref{UInt}
+end
+
+TermInterface.istree(n::ENodeLiteral) = false
+TermInterface.exprhead(n::ENodeLiteral) = nothing
+TermInterface.operation(n::ENodeLiteral) = n.value 
+TermInterface.arity(n::ENodeLiteral) = 0
+
+ENodeLiteral(a::T) where{T} = ENodeLiteral{T}(a, Ref{UInt}(0))
+
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(a.value, b.value) 
+
+
+function Base.hash(t::ENodeLiteral{T}, salt::UInt) where {T}
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.value, hash(T, salt))
+    t.hash[] = h′
+    return h′
+end
+
+
+termtype(x::AbstractENode{T}) where T = T
+
+toexpr(n::ENodeLiteral) = operation(n)
+
+function Base.show(io::IO, x::ENodeTerm{T}) where {T}
     print(io, "ENode{$T}(", toexpr(x), ")")
 end
+
+Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))

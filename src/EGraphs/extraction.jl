@@ -2,9 +2,9 @@
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-function astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+function astsize(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = 1 + arity(n)
-    for id ∈ n.args
+    for id ∈ arguments(n)
         eclass = geteclass(g, id)
         !hasdata(eclass, an) && (cost += Inf; break)
         cost += last(getdata(eclass, an))
@@ -12,20 +12,25 @@ function astsize(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
     return cost
 end
 
+astsize(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis}) = 1
+
 """
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-function astsize_inv(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+function astsize_inv(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
-    for id ∈ n.args
+    for id ∈ arguments(n)
         eclass = geteclass(g, id)
         !hasdata(eclass, an) && (cost += Inf; break)
         cost += last(getdata(eclass, an))
     end
     return cost
 end
+
+astsize_inv(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis}) = -1
+
 
 """
 An [`AbstractAnalysis`](@ref) that computes the cost of expression nodes
@@ -35,7 +40,7 @@ This is useful for the analysis storage in [`EClass`](@ref)
 """
 abstract type ExtractionAnalysis{F} <: AbstractAnalysis end
 
-make(a::Type{ExtractionAnalysis{F}}, g::EGraph, n::ENode) where F = (n, F(n, g, a))
+make(a::Type{ExtractionAnalysis{F}}, g::EGraph, n::AbstractENode) where F = (n, F(n, g, a))
 
 join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : to
 
@@ -54,8 +59,8 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
     extractnode(g, cn, an; eclass=eclass)
 end
 
-function extractnode(g::EGraph, n::ENode, an::Type{<:ExtractionAnalysis}; eclass=nothing)
-    children = map(n.args) do a
+function extractnode(g::EGraph, n::ENodeTerm, an::Type{<:ExtractionAnalysis}; eclass=nothing)
+    children = map(arguments(n)) do a
         rec_extract(g, an, a)
     end
     
@@ -65,6 +70,10 @@ function extractnode(g::EGraph, n::ENode, an::Type{<:ExtractionAnalysis}; eclass
     end
     T = termtype(n)
     similarterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
+end
+
+function extractnode(g::EGraph, n::ENodeLiteral, an::Type{<:ExtractionAnalysis}; eclass=nothing)
+    n.value
 end
 
 

@@ -12,7 +12,7 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params=Saturat
 
     n = length(exprs)
     ids = Vector{EClassId}(undef, n)
-    nodes = Vector{ENode}(undef, n)
+    nodes = Vector{AbstractENode}(undef, n)
     for i ∈ 1:n
         ec, node = addexpr!(g, exprs[i])
         ids[i] = ec.id

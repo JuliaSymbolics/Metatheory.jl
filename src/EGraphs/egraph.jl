@@ -10,7 +10,7 @@ attaching values from a join semi-lattice domain to
 an EGraph
 """
 const ClassMem = Dict{EClassId,EClass}
-const HashCons = Dict{ENode,EClassId}
+const HashCons = Dict{AbstractENode,EClassId}
 const Analyses = Set{Type{<:AbstractAnalysis}}
 const SymbolCache = Dict{Any, Set{EClassId}}
 const TermTypes = Dict{Tuple{Any, EClassId}, Type}
@@ -117,30 +117,37 @@ end
 Base.getindex(g::EGraph, i::EClassId) = geteclass(g, i)
 
 ### Definition 2.3: canonicalization
-iscanonical(g::EGraph, n::ENode) = n == canonicalize(g, n)
+iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)
+iscanonical(g::EGraph, n::ENodeLiteral) = true
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
-function canonicalize(g::EGraph, n::ENode{T}) where {T}
+canonicalize(g::EGraph, n::ENodeLiteral) = n
+
+function canonicalize(g::EGraph, n::ENodeTerm{T}) where {T}
     if arity(n) > 0
         new_args = map(x -> find(g, x), arguments(n))
-        return ENode{T}(exprhead(n), operation(n), new_args)
+        return ENodeTerm{T}(exprhead(n), operation(n), new_args)
     end 
     return n
 end
 
-function canonicalize!(g::EGraph, n::ENode)
+function canonicalize!(g::EGraph, n::ENodeTerm)
+    args = arguments(n)
     for i ∈ 1:arity(n)
-        n.args[i] = find(g, n.args[i])
+        args[i] = find(g, args[i])
     end
     n.hash[] = UInt(0)
     return n
 end
 
+canonicalize!(g::EGraph, n::ENodeLiteral) = n
+
+
 function canonicalize!(g::EGraph, e::EClass)
     e.id = find(g, e.id)
 end
 
-function lookup(g::EGraph, n::ENode)
+function lookup(g::EGraph, n::AbstractENode)
     cc = canonicalize(g, n)
     if !haskey(g.memo, cc)
         return nothing
@@ -151,7 +158,7 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::ENode)::EClass
+function add!(g::EGraph, n::AbstractENode)::EClass
     @debug("adding ", n)
 
     n = canonicalize(g, n)
@@ -163,13 +170,15 @@ function add!(g::EGraph, n::ENode)::EClass
 
     id = push!(g.uf) # create new singleton eclass
 
-    for c_id ∈ arguments(n)
-        addparent!(g.classes[c_id], n, id)
+    if n isa ENodeTerm 
+        for c_id ∈ arguments(n)
+            addparent!(g.classes[c_id], n, id)
+        end
     end
 
     g.memo[n] = id
 
-    classdata = EClass(id, ENode[n], Pair{ENode, EClassId}[])
+    classdata = EClass(id, AbstractENode[n], Pair{AbstractENode, EClassId}[])
     g.classes[id] = classdata
     g.numclasses += 1
 
@@ -181,6 +190,7 @@ function add!(g::EGraph, n::ENode)::EClass
     end
     return classdata
 end
+
 
 """
 Extend this function on your types to do preliminary
@@ -198,11 +208,10 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
+addexpr!(g::EGraph, se::EClass; keepmeta=false) = (se, se[1])
+
+function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, AbstractENode}
     # println("========== $e ===========")
-    if se isa EClass
-        return (se, se[1])
-    end
     e = preprocess(se)
     T = typeof(e)
     node = nothing
@@ -214,17 +223,14 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
 
         n = length(args)
 
-        class_ids = Vector{EClassId}(undef, n)
-        for i ∈ 1:n
-            # println("child $child")
-            @inbounds child = args[i]
-            c_eclass, c_enode = addexpr!(g, child; keepmeta=keepmeta)
-            @inbounds class_ids[i] = c_eclass.id
-        end
-        node = ENode{typeof(e)}(exhead, op, class_ids)
+        class_ids = EClassId[
+            first(addexpr!(g, child; keepmeta=keepmeta)).id
+        for child in args]
+        
+        node = ENodeTerm{typeof(e)}(exhead, op, class_ids)
     else 
         # constant enode
-        node = ENode(e)
+        node = ENodeLiteral(e)
     end
 
     ec = add!(g, node)
@@ -235,6 +241,8 @@ function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, ENode}
     end
     return (ec, node)
 end
+
+
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
@@ -333,7 +341,7 @@ function repair!(g::EGraph, id::EClassId)
     #     clean_enode!(g, p_enode, find(g, p_eclass))
     # end
 
-    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
+    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
 
     for (p_enode, p_eclass) ∈ ecdata.parents
         p_enode = canonicalize!(g, p_enode)
@@ -390,17 +398,24 @@ function reachable(g::EGraph, id::EClassId)
     id = find(g, id)
     hist = EClassId[id]
     todo = EClassId[id]
+
+
+    function reachable_node(xn::ENodeTerm)
+        x = canonicalize(g, xn)
+        for c_id in arguments(x)
+            if c_id ∉ hist 
+                push!(hist, c_id)
+                push!(todo, c_id)
+            end
+        end
+    end
+    function reachable_node(x::ENodeLiteral)
+    end
+
     while !isempty(todo)
         curr = find(g, pop!(todo))
         for n ∈ g.classes[curr]
-            nn = canonicalize(g, n)
-            # println("node in reachability is ", n)
-            for c_id ∈ arguments(nn)
-                if c_id ∉ hist
-                    push!(hist, c_id)
-                    push!(todo, c_id)
-                end
-            end
+            reachable_node(n)
         end
     end
 
