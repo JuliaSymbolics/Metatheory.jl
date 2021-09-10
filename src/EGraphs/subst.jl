@@ -1,7 +1,7 @@
 struct Sub
-    sourcenode::Union{Nothing, AbstractENode}
+    # sourcenode::Union{Nothing, AbstractENode}
     ids::Vector{EClassId}
-    nodes::Vector{Union{Nothing, AbstractENode}}
+    nodes::Vector{Union{Nothing, ENodeLiteral}}
 end
 
 haseclassid(sub::Sub, p::PatVar) = sub.ids[p.idx] >= 0
@@ -18,8 +18,7 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
         ec = geteclass(g, geteclassid(sub, pat))
         if hasliteral(sub, pat) 
             node = getliteral(sub, pat)
-            @assert arity(node) == 0
-            return operation(node)
+            return node.value
         end 
         return ec
     else

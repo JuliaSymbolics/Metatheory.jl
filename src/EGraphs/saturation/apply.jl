@@ -50,7 +50,6 @@ function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
 
         rule=match.rule
         # println("applying $rule")
-        # @show match.sub.sourcenode
 
         halt_reason = rule(g, match)
         if (halt_reason !== nothing)
