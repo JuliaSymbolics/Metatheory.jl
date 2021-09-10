@@ -10,7 +10,7 @@ mutable struct Machine
     # eclass register memory 
     σ::Vector{EClassId}
     # literals 
-    n::Vector{Union{Nothing,AbstractENode}}
+    n::Vector{Union{Nothing,ENodeLiteral}}
     # output buffer
     buf::Vector{Sub}
 end
@@ -56,10 +56,12 @@ end
 
 function (m::Machine)(instr::Yield, pc)
     # @show instr
-    sourcenode = m.n[m.program.first_nonground]
+    # sourcenode = m.n[m.program.first_nonground]
     ecs = [m.σ[reg] for reg in instr.yields]
     nodes = [m.n[reg] for reg in instr.yields]
-    push!(m.buf, Sub(sourcenode, ecs, nodes))
+    # push!(m.buf, Sub(sourcenode, ecs, nodes))
+    push!(m.buf, Sub(ecs, nodes))
+
     return nothing
 end
 
@@ -167,7 +169,7 @@ function (m::Machine)(instr::Bind, pc)
         # @show operation(n) == operation(instr.enodepat)
         # @show arity(n) == arity(instr.enodepat)
         if canbind(n, pat)
-            m.n[reg] = n
+            # m.n[reg] = n
             for (j,v) in enumerate(arguments(pat))
                 m.σ[v] = arguments(n)[j]
             end
