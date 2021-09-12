@@ -14,6 +14,8 @@ macro log(args...)
     quote options.verbose && @info($(args...)) end |> esc
 end
 
+@inline alwaystrue(x) = true
+
 export options
 
 include("Util/Util.jl")

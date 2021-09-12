@@ -1,38 +1,113 @@
 using TermInterface
 
-function match(p::PatVar, x, mem)
-    if isassigned(mem, p.idx)
-        return x == mem[p.idx]
-    end 
-    mem[p.idx] = x
-    true
-end
-
-match(p::PatLiteral{T}, x::T, mem) where {T} = (p.val == x)
-match(p::PatLiteral, x, mem) = false
-
-function match(p::PatTypeAssertion, x::T, mem) where {T}
-    if T <: p.type
-        return match(p.var, x, mem)
-    end 
-    false
-end
-
-# TODO PatSplatVar
-
-match(p::PatEquiv, x, mem) = error("PatEquiv can only be used in EGraphs rewriting")
-
-function match(p::PatTerm, x, mem)
-    !istree(typeof(x)) && (return false)
-    if exprhead(p) == exprhead(x) && operation(p) == operation(x) && arity(p) == arity(x)
-        p_args, x_args = arguments(p), arguments(x)
-        for i in 1:arity(p)
-            !match(p_args[i], x_args[i], mem) && (return false)
-        end
-        return true
+#### Pattern matching
+### Matching procedures
+# A matcher is a function which takes 3 arguments
+# 1. Expression
+# 2. Dictionary
+# 3. Callback: takes arguments Dictionary × Number of elements matched
+#
+function matcher(val::Any)
+    function literal_matcher(next, data, bindings)
+        islist(data) && isequal(car(data), val) ? next(bindings, 1) : nothing
     end
-    false
 end
+
+function matcher(slot::PatVar)
+    function slot_matcher(next, data, bindings)
+        !islist(data) && return
+        val = get(bindings, slot.name, nothing)
+        if val !== nothing
+            if isequal(val, car(data))
+                return next(bindings, 1)
+            end
+        else
+            if slot.predicate(car(data))
+                next(assoc(bindings, slot.name, car(data)), 1)
+            end
+        end
+    end
+end
+
+# returns n == offset, 0 if failed
+function trymatchexpr(data, value, n)
+    if !islist(value)
+        return n
+    elseif islist(value) && islist(data)
+        if !islist(data)
+            # didn't fully match
+            return nothing
+        end
+
+        while isequal(car(value), car(data))
+            n += 1
+            value = cdr(value)
+            data = cdr(data)
+
+            if !islist(value)
+                return n
+            elseif !islist(data)
+                return nothing
+            end
+        end
+
+        return !islist(value) ? n : nothing
+    elseif isequal(value, data)
+        return n + 1
+    end
+end
+
+function matcher(segment::PatSegment)
+    function segment_matcher(success, data, bindings)
+        val = get(bindings, segment.name, nothing)
+
+        if val !== nothing
+            n = trymatchexpr(data, val, 0)
+            if n !== nothing
+                success(bindings, n)
+            end
+        else
+            res = nothing
+
+            for i=length(data):-1:0
+                subexpr = take_n(data, i)
+
+                if segment.predicate(subexpr)
+                    res = success(assoc(bindings, segment.name, subexpr), i)
+                    if res !== nothing
+                        break
+                    end
+                end
+            end
+
+            return res
+        end
+    end
+end
+
+function matcher(term::PatTerm)
+    matchers = (matcher(operation(term)), map(matcher, arguments(term))...,)
+    function term_matcher(success, data, bindings)
+
+        !islist(data) && return nothing
+        !istree(car(data)) && return nothing
+
+        function loop(term, bindings′, matchers′) # Get it to compile faster
+            if !islist(matchers′)
+                if  !islist(term)
+                    return success(bindings′, 1)
+                end
+                return nothing
+            end
+            car(matchers′)(term, bindings′) do b, n
+                loop(drop_n(term, n), b, cdr(matchers′))
+            end
+        end
+
+        loop(car(data), bindings, matchers) # Try to eat exactly one term
+    end
+end
+
 
 function (r::RewriteRule)(x)
     mem = Vector(undef, length(r.patvars))
@@ -70,7 +145,9 @@ function instantiate(left, pat::PatTerm, mem)
         [instantiate(left, ar[i], mem) for i in 1:length(ar)]; exprhead=exprhead(pat))
 end
 
-instantiate(left, pat::PatLiteral, mem) = pat.val
+instantiate(left, pat::Any, mem) = pat.val
+
+instantiate(left, pat::Pattern, mem) = error("Unsupported pattern ", pat)
 
 function instantiate(left, pat::PatVar, mem)
     # println(left)

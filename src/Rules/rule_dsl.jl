@@ -32,15 +32,6 @@ end
 rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
 
-interp_dollar(x, mod::Module) = x
-function interp_dollar(ex::Expr, mod::Module)
-    if Meta.isexpr(ex, :$) # interpolate if it's a dollar expr
-        mod.eval(ex.args[1])
-    else # recurse
-        Expr(ex.head, map(x -> interp_dollar(x, mod), ex.args)...)
-    end
-end
-
 
 """
 Construct an `AbstractRule` from a quoted expression.
@@ -52,12 +43,6 @@ function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
     RuleType = rule_sym_map(e)
     l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
-    l = interp_dollar(l, mod)
-
-    if RuleType !== DynamicRule
-        r = interp_dollar(r, mod)
-    end
-
     lhs = Pattern(l, mod, resolve_fun)
     rhs = r
     

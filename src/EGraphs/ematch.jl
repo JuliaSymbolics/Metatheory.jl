@@ -131,11 +131,8 @@ function lookup_pat(g::EGraph, p::PatTerm)
     end
 end
 
-function lookup_pat(g::EGraph, p::PatLiteral)
-    # println("looking up literal $p")
-    ec = lookup(g, ENodeLiteral(p.val))
-    return ec
-end
+lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
+lookup_pat(g::EGraph, p::Pattern) = throw(UnsupportedPatternException(p))
 
 function (m::Machine)(instr::Lookup, pc) 
     # @show instr

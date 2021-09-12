@@ -26,14 +26,9 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
     end
 end
 
-function instantiate(g::EGraph, pat::PatLiteral{T}, sub::Sub, rule::AbstractRule) where T
-    pat.val
-end
-
-function instantiate(g::EGraph, pat::PatTypeAssertion, sub::Sub, rule::AbstractRule)
-    instantiate(g, pat.name, sub, rule)
-end
-
+instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = p
+instantiate(g::EGraph, pat::Pattern, sub::Sub, rule::AbstractRule) = 
+    throw(UnsupportedPatternException(p))
 
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     eh = exprhead(pat)

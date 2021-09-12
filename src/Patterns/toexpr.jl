@@ -18,7 +18,7 @@ to_expr(x::PatSegment{typeof(alwaystrue)}) =
     Expr(:call, :~, Expr(:call, :~, Expr(:call, :~, x.name)))
 to_expr(x::PatSegment{T}) where {T<:Function} = 
     Expr(:call, :~, Expr(:call, :~, Expr(:(::), x.name, nameof(T))))
-to_expr(x::PatVar{<:Type{T}}) where T = 
+to_expr(x::PatSegment{<:Type{T}}) where T = 
     Expr(:call, :~, Expr(:call, :~, Expr(:(::), x.name, T)))
 
 function to_expr(x::PatTerm) 
