@@ -16,7 +16,7 @@ mutable struct Program
     first_nonground::Int
     memsize::Int
     regs::Vector{Register}
-    ground_terms::Dict{Pattern, Register}
+    ground_terms::Dict{Any, Register}
 end
 export Program
 
@@ -80,7 +80,7 @@ export Filter
 
 @auto_hash_equals struct Lookup <: Instruction
     reg::Register
-    p::Pattern
+    p::Any # pattern
 end
 export Lookup
 
@@ -116,26 +116,19 @@ function compile_ground!(reg, p::PatVar, prog)
     nothing
 end
 
-function compile_ground!(reg, p::PatTypeAssertion, prog)
-    nothing
+
+function compile_ground!(reg, p::Pattern, prog)
+    Fail(ErrorException("Unsupported type of pattern for e-matching."))
 end
 
-function compile_ground!(reg, p::PatLiteral, prog)
+# A literal that is not a pattern
+function compile_ground!(reg, p::Any, prog)
     if haskey(prog.ground_terms, p)
         return nothing
     end
     prog.ground_terms[p] = reg
     push!(prog.instructions, Lookup(reg, p))
     increment(prog, 1)
-end
-
-function compile_ground!(reg, p::PatEquiv, prog)
-    compile_ground!(reg, p.left, prog)
-    compile_ground!(reg, p.right, prog)
-end
-
-function compile_ground!(reg, p::PatSplatVar, prog)
-    Fail(ErrorException("Splatting not yet supported"))
 end
 
 # =============================================
@@ -172,39 +165,39 @@ function compile_pat!(reg, p::PatTerm, prog)
     end
 end
 
-function compile_pat!(reg, p::PatVar, prog)
+function compile_patvar(ifnew, reg, p::PatVar{P}, prog) where P
     if hasregister(prog, p.idx)
         push!(prog.instructions, CheckClassEq(reg, getregister(prog, p.idx)))
-    else
+    else # Variable is new
         setregister(prog, p.idx, reg)
+        ifnew(P)
     end
 end
 
-function compile_pat!(reg, p::PatTypeAssertion, prog)
-    if hasregister(prog, p.var.idx)
-        push!(prog.instructions, CheckClassEq(reg, getregister(prog, p.var.idx)))
-    else
-        setregister(prog, p.var.idx, reg)
+function compile_pat!(reg, p::PatVar, prog)
+    ifnew(_::typeof(alwaystrue)) = nothing 
+    ifnew(_::T<:Function) where T = 
+        push!(prog.instructions, CheckPredicate(reg, p.predicate))
+    ifnew(_::Type{T}) where T = 
         push!(prog.instructions, CheckType(reg, p.type))
-    end
+
+    compile_patvar(ifnew, reg, p, prog)
 end
 
-function compile_pat!(reg, p::PatLiteral, prog)
+function compile_pat!(reg, p::Pattern, prog)
+    Fail(ErrorException("Unsupported type of pattern for e-matching."))
+end
+
+# Literal values
+function compile_pat!(reg, p::Any, prog)
     if haskey(prog.ground_terms, p)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
     end
-    push!(prog.instructions, Bind(reg, ENodePat(nothing, p.val, 0:-1)))
+    @error "This shouldn't be printed. Report an issue for ematching literals"
+    push!(prog.instructions, Bind(reg, ENodePat(nothing, p, 0:-1)))
 end
 
-function compile_pat!(reg, p::PatEquiv, prog)
-    compile_pat!(reg, p.left, prog)
-    compile_pat!(reg, p.right, prog)
-end
-
-function compile_pat!(reg, p::PatSplatVar, prog)
-    Fail(ErrorException("Splatting not yet supported"))
-end
 
 #========================================================================================#
 
