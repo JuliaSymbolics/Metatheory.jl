@@ -4,10 +4,10 @@ using Metatheory.Util
 
 include("numberfold.jl")
 
-comm_monoid = @commutative_monoid (*) 1
+comm_monoid = commutative_monoid(:(*), 1)
 
 fold_mul = @theory begin
-	a::Number * b::Number |> a * b
+	~a::Number * ~b::Number => a * b
 end
 
 t = comm_monoid ∪ fold_mul
@@ -91,7 +91,7 @@ end
 end
 
 
-comm_monoid = @commutative_monoid (*) 1
+comm_monoid = commutative_monoid(:(*), 1)
 
 comm_group = @abelian_group (+) 0 inv
 

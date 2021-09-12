@@ -8,9 +8,9 @@ using Metatheory.Util
 include("numberfold.jl")
 
 comm_monoid = @theory begin
-    a * b => b * a
-    a * 1 => a
-    a * (b * c) => (a * b) * c
+    ~a * ~b --> ~b * ~a
+    ~a * 1 --> ~a
+    ~a * (~b * ~c) --> (~a * ~b) * ~c
 end
 
 G = EGraph(:(3 * 4))
@@ -63,7 +63,7 @@ end
 
 @testset "Infinite Loops analysis" begin
     boson = @theory begin
-        1 * x => x
+        1 * ~x --> ~x
     end
 
     G = EGraph(Util.cleanast( :(1 * x) ))
@@ -75,17 +75,17 @@ end
 
     using Metatheory.EGraphs
     boson = @theory begin
-        (:c * :cdag) => :cdag * :c + 1
-        a * (b + c) => (a * b) + (a * c)
-        (b + c) * a => (b * a) + (c * a)
+        (c * cdag) --> cdag * c + 1
+        ~a * (~b + ~c) --> (~a * ~b) + (~a * ~c)
+        (~b + ~c) * ~a --> (~b * ~a) + (~c * ~a)
         # 1 * x => x
-        (a * b) * c => a * (b * c)
-        a * (b * c) => (a * b) * c
+        (~a * ~b) * ~c --> ~a * (~b * ~c)
+        ~a * (~b * ~c) --> (~a * ~b) * ~c
     end
 
-    G = EGraph(Util.cleanast( :(c * c * cdag * cdag) ))
-    saturate!(G,boson)
-    ex = extract!(G, astsize_inv)
+    g = EGraph(Util.cleanast( :(c * c * cdag * cdag) ))
+    saturate!(g,boson)
+    ex = extract!(g, astsize_inv)
 
     # println(ex)
 end

@@ -17,15 +17,13 @@ function gettheory(var, mod)
 end
 
 function rule_sym_map(ex::Expr)
-    if Meta.isexpr(ex, :call)
-        h = ex.args[1]
-        if h == :(=>) RewriteRule
-        elseif h == :(|>) DynamicRule
-        elseif h == :(==) EqualityRule
-        elseif h == :(!=) UnequalRule
-        elseif h == :(≠) UnequalRule
-        else error("Cannot parse rule with operator '$h'")
-        end
+    h = operation(ex)
+    if h == :(-->) || h == :(→) RewriteRule
+    elseif h == :(=>)  DynamicRule
+    elseif h == :(==) EqualityRule
+    elseif h == :(!=) UnequalRule
+    elseif h == :(≠) UnequalRule
+    else error("Cannot parse rule with operator '$h'")
     end
 end
 
@@ -47,10 +45,12 @@ function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
     rhs = r
     
     if RuleType <: SymbolicRule
+        println(RuleType)
         rhs = Pattern(rhs, mod, resolve_fun)
     end
 
     if RuleType == DynamicRule
+        # FIXME make consequent like in SU
         return DynamicRule(lhs, rhs, mod)
     end
     
@@ -98,10 +98,3 @@ macro methodtheory(e)
         error("theory is not in form begin a => b; ... end")
     end
 end
-
-"""
-A Theory is either a vector of [`Rule`](@ref) or
-a compiled, callable function.
-"""
-const Theory = Union{Vector{<:AbstractRule}, Function}
-

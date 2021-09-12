@@ -1,7 +1,7 @@
 struct Match
     rule::AbstractRule 
     # the rhs pattern to instantiate 
-    pat_to_inst::Union{Nothing,Pattern}
+    pat_to_inst
     # the substitution
     sub::Sub 
     # the id the matched the lhs  
@@ -11,7 +11,15 @@ end
 const MatchesBuf = Vector{Match}
 
 function cached_ids(g::EGraph, p::Pattern)# ::Vector{Int64}
-    collect(keys(g.classes))
+    if isground(p)
+        [lookup_pat(g, p)]
+    else
+        collect(keys(g.classes))
+    end
+end
+
+function cached_ids(g::EGraph, p) # p is a literal
+    [lookup(g, ENodeLiteral(p))]
 end
 
 # FIXME 
@@ -58,16 +66,6 @@ function (r::BidirRule)(g::EGraph, id::EClassId)
         ematch(g, r.ematch_program_r, id) .|> sub -> Match(r, r.left, sub, id))
 end
 
-
-macro maybethreaded(x, body)
-    esc(quote 
-        if $x
-            Threads.@threads $body
-        else 
-            $body
-        end
-    end)
-end
 
 """
 Returns an iterator of `Match`es.

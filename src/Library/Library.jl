@@ -27,8 +27,5 @@ export monoid
 export commutative_monoid
 export commutative_group
 export abelian_group
-export @commutative_monoid
-export @commutative_group
-export @abelian_group
 
 end

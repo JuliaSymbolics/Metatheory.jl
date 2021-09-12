@@ -19,7 +19,6 @@ module Rules
     include("rule_dsl.jl")
     export Rule
     export AbstractRule
-    export Theory
     export gettheory
     export @rule
     export @theory

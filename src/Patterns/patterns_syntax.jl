@@ -6,7 +6,7 @@ resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
 resolve(gr) = gr
 
 # treat as a literal
-Pattern(x, mod=@__MODULE__, resolve_fun=false) = esc(x)
+Pattern(x, mod=@__MODULE__, resolve_fun=false) = x
 
 function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     ex = cleanast(ex)
@@ -21,9 +21,9 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     if head === :call
         if operation(ex) === :(~) # is a variable or segment
             if args[1] isa Expr && operation(args[1]) == :(~)
-                makesegment(arguments(args[1])[1])
+                makesegment(arguments(args[1])[1], mod)
             else
-                makeslot(args[1])
+                makevar(args[1], mod)
             end
         else # is a term
             if resolve_fun && op isa Symbol
@@ -37,27 +37,41 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
         PatTerm(head, resolve_fun ? getindex : :getindex,
             map(i -> Pattern(i, mod, resolve_fun), args))
     elseif head === :$
-        return args[1]
+        return mod.eval(args[1])
     else 
         throw(Meta.ParseError("Unsupported pattern syntax $ex"))
     end
 end
 
-function makesegment(s::Expr)
+function makesegment(s::Expr, mod::Module)
     if !(exprhead(s) == :(::))
         error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function")
     end
 
     name = arguments(s)[1]
+    p = makepredicate(arguments(s)[2], mod)
+    PatSegment(name, -1, p)
+end
+makesegment(s::Symbol, mod) = PatSegment(name)
 
-    # TODO get the
+function makevar(s::Expr, mod::Module)
+    if !(exprhead(s) == :(::))
+        error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function")
+    end
 
-    PatSegment(name, arguments[2])
+    name = arguments(s)[1]
+    p = makepredicate(arguments(s)[2], mod)
+    PatVar(name, -1, p)
+end
+makevar(name::Symbol, mod) = PatVar(name)
+
+
+function makepredicate(f::Symbol, mod::Module)::Union{Function, Type}
+    resolve(GlobalRef(mod, f))
 end
 
-
-function Pattern(x::Symbol, mod=@__MODULE__, resolve_fun=false)
-    PatVar(x)
+function makepredicate(f::Expr, mod::Module)::Union{Function, Type}
+    mod.eval(f)
 end
 
 function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)
