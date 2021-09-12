@@ -5,34 +5,23 @@ function Base.show(io::IO, x::Pattern)
     print(io, expr)
 end
 
-to_expr(x::PatVar) = x.name
+to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
+to_expr(x::PatVar{T}) where {T<:Function} = 
+    Expr(:call, :~, Expr(:(::), x.name, nameof(T)))
 
-to_expr(x::PatLiteral) =
-    if x.val isa Symbol
-        QuoteNode(x.val)
-    else
-        x.val
-    end
+to_expr(x::PatVar{<:Type{T}}) where T = 
+    Expr(:call, :~, Expr(:(::), x.name, T))
 
-function to_expr(x::PatTypeAssertion) 
-    Expr(Symbol("::"), to_expr(x.var), x.type)
-end
+to_expr(x::Any) = x
 
-function to_expr(x::PatSplatVar) 
-    Expr(Symbol("..."), to_expr(x.var))
-end
-
-function to_expr(x::PatEquiv) 
-    Expr(:call, Symbol("≡ₙ"), to_expr(x.left), to_expr(x.right))
-end
+to_expr(x::PatSegment{typeof(alwaystrue)}) = 
+    Expr(:call, :~, Expr(:call, :~, Expr(:call, :~, x.name)))
+to_expr(x::PatSegment{T}) where {T<:Function} = 
+    Expr(:call, :~, Expr(:call, :~, Expr(:(::), x.name, nameof(T))))
+to_expr(x::PatVar{<:Type{T}}) where T = 
+    Expr(:call, :~, Expr(:call, :~, Expr(:(::), x.name, T)))
 
 function to_expr(x::PatTerm) 
     pl = operation(x)
     similarterm(Expr, pl, arguments(x); exprhead=exprhead(x))
-end
-
-function to_expr(x::PatAllTerm) 
-    # TODO change me ?
-    head = Symbol("~", x.head.name)
-    Expr(:call, head, to_expr.(x.args)...)
 end
