@@ -1,12 +1,9 @@
 # include("rules/patterns.jl")
 export Pattern
-export PatLiteral
 export PatVar
 export PatTerm
-export PatAllTerm
-export PatTypeAssertion
-export PatSplatVar
-export PatEquiv
+export PatSegment
 export patvars
 export @pat
 export isground
+export UnsupportedPatternException

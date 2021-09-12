@@ -16,8 +16,6 @@ only literal values to match.
 isground(p::Pattern) = false
 isground(x) = true # literals
 
-@inline alwaystrue(x) = true
-
 # PatVar is equivalent to SymbolicUtils's Slot
 """
     PatVar{P}(name, debrujin_index, predicate::P)

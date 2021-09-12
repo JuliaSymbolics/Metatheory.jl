@@ -5,6 +5,7 @@ module EMatchCompiler
 using AutoHashEquals
 using TermInterface
 using ..Patterns
+import ..alwaystrue
 
 abstract type Instruction end 
 export Instruction
@@ -118,7 +119,7 @@ end
 
 
 function compile_ground!(reg, p::Pattern, prog)
-    Fail(ErrorException("Unsupported type of pattern for e-matching."))
+    throw(UnsupportedPatternException(p))
 end
 
 # A literal that is not a pattern
@@ -176,16 +177,16 @@ end
 
 function compile_pat!(reg, p::PatVar, prog)
     ifnew(_::typeof(alwaystrue)) = nothing 
-    ifnew(_::T<:Function) where T = 
+    ifnew(_::T) where T<:Function = 
         push!(prog.instructions, CheckPredicate(reg, p.predicate))
     ifnew(_::Type{T}) where T = 
-        push!(prog.instructions, CheckType(reg, p.type))
+        push!(prog.instructions, CheckType(reg, T))
 
     compile_patvar(ifnew, reg, p, prog)
 end
 
 function compile_pat!(reg, p::Pattern, prog)
-    Fail(ErrorException("Unsupported type of pattern for e-matching."))
+    throw(UnsupportedPatternException(p))
 end
 
 # Literal values
@@ -218,6 +219,7 @@ function compile_pat(p::Pattern)
     compile_pat!(prog.first_nonground, p, prog)
     push!(prog.instructions, Yield(prog.regs))
     # println("compiled pattern $p to \n $prog")
+    @show prog
     return prog
 end
 

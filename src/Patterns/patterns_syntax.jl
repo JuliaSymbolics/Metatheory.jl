@@ -5,60 +5,59 @@
 resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
 resolve(gr) = gr
 
+# treat as a literal
+Pattern(x, mod=@__MODULE__, resolve_fun=false) = esc(x)
 
+function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
+    ex = cleanast(ex)
 
-function Pattern(ex, mod=@__MODULE__, resolve_fun=false)
-    if !istree(ex)
-        return PatLiteral(ex)
-    end
-
-    if ex isa Expr 
-        ex = cleanast(ex)
-    end
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
 
-    if istree(op)
-        error("Cannot yet match on composite expressions as function symbols")
-    end
+    istree(op) && throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
-    if resolve_fun && op isa Symbol
-        op = resolve(GlobalRef(mod, f))
-    end
-
-    patargs = map(i -> Pattern(i, mod, resolve_fun), args)
     
-    if head == :(::)
-        v = patargs[1]
-        t = patargs[2]
-        ty = Union{}
-        if t isa PatVar
-            ty = getfield(mod, t.name)
-        elseif t isa PatLiteral{<:Type}
-            ty = t.val
+    if head === :call
+        if operation(ex) === :(~) # is a variable or segment
+            if args[1] isa Expr && operation(args[1]) == :(~)
+                makesegment(arguments(args[1])[1])
+            else
+                makeslot(args[1])
+            end
+        else # is a term
+            if resolve_fun && op isa Symbol
+                op = resolve(GlobalRef(mod, f))
+            end
+            patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
+            PatTerm(head, op, patargs)
         end
-        return PatTypeAssertion(v, ty)
-    elseif head == :(...)
-        v = patargs[1]
-        if v isa PatVar
-            return PatSplatVar(v)
-        end
+    elseif head === :ref 
+        # getindex 
+        PatTerm(head, resolve_fun ? getindex : :getindex,
+            map(i -> Pattern(i, mod, resolve_fun), args))
+    elseif head === :$
+        return args[1]
+    else 
+        throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+    end
+end
+
+function makesegment(s::Expr)
+    if !(exprhead(s) == :(::))
+        error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function")
     end
 
-    PatTerm(head, op, patargs)
+    name = arguments(s)[1]
+
+    # TODO get the
+
+    PatSegment(name, arguments[2])
 end
+
 
 function Pattern(x::Symbol, mod=@__MODULE__, resolve_fun=false)
     PatVar(x)
-end
-
-function Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false)
-    if x.value isa Symbol
-        PatLiteral(x.value) 
-    else
-        PatLiteral(x) 
-    end
 end
 
 function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)
