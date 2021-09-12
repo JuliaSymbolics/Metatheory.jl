@@ -1,4 +1,4 @@
-function areequal(theory::Vector{<:AbstractRule}, exprs...; params=SaturationParams())
+function areequal(theory::Vector, exprs...; params=SaturationParams())
     g = EGraph(exprs[1])
     areequal(g, theory, exprs...; params=params)
 end

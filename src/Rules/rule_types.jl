@@ -27,21 +27,21 @@ Rule(:(a * b => b * a))
 ```
 """
 @auto_hash_equals struct RewriteRule <: SymbolicRule 
-    left::Pattern
-    right::Pattern
+    left
+    right
     patvars::Vector{Symbol}
     ematch_program::Program
     function RewriteRule(l,r)
         pvars = patvars(l) ∪ patvars(r)
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
+        setdebrujin!(l, pvars)
+        setdebrujin!(r, pvars)
         new(l,r,pvars, compile_pat(l))
     end
 end
 
 function Base.show(io::IO,  r::RewriteRule)
-    print(io, "$(r.left) => $(r.right)")
+    print(io, "$(r.left) --> $(r.right)")
 end
 
 # =============================================================================
@@ -55,8 +55,8 @@ backend. If two terms, corresponding to the left and right hand side of an
 *anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
 """
 @auto_hash_equals struct UnequalRule <: BidirRule 
-    left::Pattern
-    right::Pattern
+    left
+    right
     patvars::Vector{Symbol}
     ematch_program_l::Program
     ematch_program_r::Program
@@ -67,8 +67,8 @@ backend. If two terms, corresponding to the left and right hand side of an
             error("unbound pattern variables $extravars when creating bidirectional rule")
         end
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
+        setdebrujin!(l, pvars)
+        setdebrujin!(r, pvars)
         progl = compile_pat(l)
         progr = compile_pat(r)
         new(l,r,pvars, progl, progr)
@@ -85,8 +85,8 @@ Rule(:(a * b == b * a))
 ```
 """
 @auto_hash_equals struct EqualityRule <: BidirRule 
-    left::Pattern
-    right::Pattern
+    left
+    right
     patvars::Vector{Symbol}
     ematch_program_l::Program
     ematch_program_r::Program
@@ -97,8 +97,8 @@ Rule(:(a * b == b * a))
             error("unbound pattern variables $extravars when creating bidirectional rule")
         end
         # sort!(pvars)
-        setindex!(l, pvars)
-        setindex!(r, pvars)
+        setdebrujin!(l, pvars)
+        setdebrujin!(r, pvars)
         progl = compile_pat(l)
         progr = compile_pat(r)
         new(l,r,pvars, progl, progr)
@@ -126,8 +126,8 @@ Rule(:(a::Number * b::Number |> a*b))
 ```
 """
 @auto_hash_equals struct DynamicRule <: AbstractRule 
-    left::Pattern
-    right::Any
+    left
+    right
     patvars::Vector{Symbol} # useful set of pattern variables
     ematch_program::Program
     mod::Module
@@ -135,7 +135,7 @@ Rule(:(a::Number * b::Number |> a*b))
     function DynamicRule(l, r, mod)
         pvars = patvars(l)
         # sort!(pvars)
-        setindex!(l, pvars)
+        setdebrujin!(l, pvars)
 
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
         ex = :($params -> $r)
@@ -150,5 +150,5 @@ function DynamicRule(l, r; m=@__MODULE__)
 end
 
 function Base.show(io::IO, r::DynamicRule)
-    print(io, "$(r.left) |> $(r.right)")
+    print(io, "$(r.left) => $(r.right)")
 end

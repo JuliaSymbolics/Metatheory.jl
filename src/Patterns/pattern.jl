@@ -41,7 +41,8 @@ function Base.isequal(a::PatVar, b::PatVar)
     a.idx == b.idx
 end
 PatVar(var) = PatVar(var, -1, alwaystrue)
-
+PatVar(var, i) = PatVar(var, i, alwaystrue)
+PatVar(var, i, p) = PatVar(var, i, p)
 
 """
 If you want to match a variable number of subexpressions at once, you will need
@@ -52,11 +53,15 @@ expressions and must return a boolean value.
 """
 struct PatSegment{P} <: Pattern
     name::Symbol
+    idx::Int
     predicate::P
     hash::Ref{UInt}
 end
 
-PatSegment(v) = new{typeof(alwaystrue)}(v, alwaystrue, Ref{UInt}(0))
+PatSegment(v) = PatSegment(v, -1, alwaystrue)
+PatSegment(v, i) = PatSegment(v, i, alwaystrues)
+PatSegment(v, i, p) = PatSegment{typeof(p)}(v, i, p, Ref{UInt}(0))
+
 
 function Base.hash(t::PatSegment, salt::UInt)
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
@@ -75,7 +80,7 @@ function symbol `operation` and expression head `exprhead`.
 struct PatTerm <: Pattern
     exprhead::Any
     operation::Any
-    args::Vector{Pattern}
+    args::Vector
     hash::Ref{UInt}
     PatTerm(eh, op, args) = new(eh, op, args, Ref{UInt}(0))
 end
@@ -105,32 +110,24 @@ isground(p::PatTerm) = all(isground, p.args)
 Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
-patvars(p::PatSegment, s) = patvars(p.var, s)
+patvars(p::PatSegment, s) = push!(s, p.name)
+patvars(p::PatTerm, s) = (foreach(x -> patvars(x, s), p.args) ; s)
+patvars(x, s) = s
 
-function patvars(p::PatTerm, s)
-    for x ∈ p.args 
-        patvars(x, s)
-    end
-    return s
-end 
+patvars(p) = unique!(patvars(p, Symbol[]))
 
-function patvars(p::Pattern)
-    unique(patvars(p, Symbol[]))
-end 
 
 # ==============================================
 # ================== DEBRUJIN INDEXING =========
 # ==============================================
 
-function Base.setindex!(p::PatVar, pvars)
+function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
     p.idx = findfirst((==)(p.name), pvars)
 end
-Base.setindex!(p::PatSegment, pvars) = setindex!(p.var, pvars)
 
-function Base.setindex!(p::PatTerm, pvars)
-    for x ∈ p.args 
-        setindex!(x, pvars)
-    end
-end 
+# literal case
+setdebrujin!(p, pvars) = nothing
+
+setdebrujin!(p::PatTerm, pvars) = foreach(x -> setdebrujin!(x, pvars), p.args)
 
 

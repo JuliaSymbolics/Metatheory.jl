@@ -66,6 +66,12 @@ export CheckClassEq
 end
 export CheckType
 
+@auto_hash_equals struct CheckPredicate <: Instruction
+    reg::Register
+    predicate::Function
+end
+export CheckPredicate
+
 @auto_hash_equals struct Yield <: Instruction
     yields::Vector{Register}
 end
@@ -166,23 +172,18 @@ function compile_pat!(reg, p::PatTerm, prog)
     end
 end
 
-function compile_patvar(ifnew, reg, p::PatVar{P}, prog) where P
+
+function compile_pat!(reg, p::PatVar, prog)
     if hasregister(prog, p.idx)
         push!(prog.instructions, CheckClassEq(reg, getregister(prog, p.idx)))
     else # Variable is new
         setregister(prog, p.idx, reg)
-        ifnew(P)
+        if p.predicate isa Function && p.predicate != alwaystrue
+            push!(prog.instructions, CheckPredicate(reg, p.predicate))
+        elseif p.predicate isa Type
+            push!(prog.instructions, CheckType(reg, p.predicate))
+        end
     end
-end
-
-function compile_pat!(reg, p::PatVar, prog)
-    ifnew(_::typeof(alwaystrue)) = nothing 
-    ifnew(_::T) where T<:Function = 
-        push!(prog.instructions, CheckPredicate(reg, p.predicate))
-    ifnew(_::Type{T}) where T = 
-        push!(prog.instructions, CheckType(reg, T))
-
-    compile_patvar(ifnew, reg, p, prog)
 end
 
 function compile_pat!(reg, p::Pattern, prog)
@@ -203,7 +204,7 @@ end
 #========================================================================================#
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
-function compile_pat(p::Pattern)
+function compile_pat(p)
     pvars = patvars(p)
     nvars = length(pvars)
 

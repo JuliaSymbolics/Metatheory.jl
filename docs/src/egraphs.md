@@ -44,7 +44,7 @@ using Metatheory.Library
 
 comm_monoid = commutative_monoid(:(*), 1)
 # alternatively
-comm_monoid = @commutative_monoid (*) 1
+comm_monoid = @commutative_monoid(:(*), 1)
 ```
 
 

@@ -4,11 +4,10 @@ using Metatheory.Library
 falseormissing(x) = 
     x === missing || !x
 
-
 r = @theory begin
-    foo(x,y) => 2*x%y
-    foo(x,y) => sin(x)
-    sin(x) => foo(x,x)
+    foo(~x,~y) → 2*~x%~y
+    foo(~x,~y) → sin(~x)
+    sin(~x) → foo(~x,~x)
 end
 @testset "Basic Equalities 1" begin
     @test (@areequal r foo(b,c) foo(d,d)) == false
@@ -16,11 +15,12 @@ end
 
 
 r = @theory begin
-    a * 1 => :foo
-    a * 2 => :bar
-    1 * a => :baz
-    2 * a => :mag
+    ~a * 1 → foo
+    ~a * 2 → bar
+    1 * ~a → baz
+    2 * ~a → mag
 end
+
 @testset "Matching Literals" begin
     g = EGraph(:(a * 1))
     addexpr!(g, :foo)
@@ -39,7 +39,7 @@ end
 end
 
 
-comm_monoid = @commutative_monoid (*) 1
+comm_monoid = commutative_monoid(:(*), 1)
 @testset "Basic Equalities - Commutative Monoid" begin
     @test true == (@areequal comm_monoid a*(c*(1*d)) c*(1*(d*a)) )
     @test true == (@areequal comm_monoid x*y y*x )
@@ -47,8 +47,11 @@ comm_monoid = @commutative_monoid (*) 1
 end
 
 
-comm_group = @abelian_group (+) 0 inv
+comm_group = commutative_group(:(+), 0, :inv)
 t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+))
+
+println.(map(x -> (x, typeof(x)), t))
+
 @testset "Basic Equalities - Comm. Monoid, Abelian Group, Distributivity" begin
     @test true == (@areequal t (a * b) + (a * c) a*(b+c) )
     @test true == (@areequal t a*(c*(1*d)) c*(1*(d*a)) )
@@ -89,7 +92,7 @@ module Bar
     export foo
 
     t = @theory begin
-        :woo |> foo
+        woo => foo
     end
     export t
 end
@@ -100,7 +103,7 @@ module Foo
     @metatheory_init
 
     t = @theory begin
-        :woo |> foo
+        woo => foo
     end
     export t
 end

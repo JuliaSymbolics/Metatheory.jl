@@ -10,7 +10,6 @@ geteclassid(sub::Sub, p::PatVar) = sub.ids[p.idx]
 hasliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx] !== nothing
 getliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx] 
 
-
 ## ====================== Instantiation =======================
 
 function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
@@ -26,9 +25,9 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
     end
 end
 
-instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = p
+instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = pat
 instantiate(g::EGraph, pat::Pattern, sub::Sub, rule::AbstractRule) = 
-    throw(UnsupportedPatternException(p))
+    throw(UnsupportedPatternException(pat))
 
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     eh = exprhead(pat)

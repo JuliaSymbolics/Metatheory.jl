@@ -4,6 +4,7 @@ export PatVar
 export PatTerm
 export PatSegment
 export patvars
+export setdebrujin!
 export @pat
 export isground
 export UnsupportedPatternException
