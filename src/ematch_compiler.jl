@@ -17,13 +17,13 @@ mutable struct Program
     first_nonground::Int
     memsize::Int
     regs::Vector{Register}
-    ground_terms::Dict{Any, Register}
+    ground_terms::Dict{Any,Register}
 end
 export Program
 
 
 function Program()
-    Program(Instruction[], 0, 0, [], Dict{Pattern, Register}())
+    Program(Instruction[], 0, 0, [], Dict{Pattern,Register}())
 end
 
 hasregister(prog::Program, i) = (prog.regs[i] != -1)
@@ -36,7 +36,7 @@ Base.getindex(p::Program, i) = p.instructions[i]
 Base.length(p::Program) = length(p.instructions) 
 
 @auto_hash_equals struct ENodePat
-    exprhead::Union{Symbol, Nothing}
+    exprhead::Union{Symbol,Nothing}
     operation::Any
     # args::Vector{Register} 
     args::UnitRange{Register}
@@ -152,7 +152,7 @@ function compile_pat!(reg, p::PatTerm, prog)
     nargs = arity(p)
     # registers unit range
     # TODO remove -1?
-    #a = c:(c + nargs - 1)
+    # a = c:(c + nargs - 1)
     a = c:(c + nargs - 1)
 
     # println(p)
@@ -201,7 +201,7 @@ function compile_pat!(reg, p::Any, prog)
 end
 
 
-#========================================================================================#
+#= ====================================================================================== =#
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
 function compile_pat(p)
@@ -209,18 +209,18 @@ function compile_pat(p)
     nvars = length(pvars)
 
     # The program will try to match against ground terms first
-    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern, Register}())
+    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern,Register}())
     # println("compiling pattern $p")
     compile_ground!(1, p, prog)
     # println("compiled ground pattern \n $prog")
     prog.first_nonground = prog.memsize
-    prog.memsize+=1
+    prog.memsize += 1
 
     # And then try to match against other patterns
     compile_pat!(prog.first_nonground, p, prog)
     push!(prog.instructions, Yield(prog.regs))
     # println("compiled pattern $p to \n $prog")
-    @show prog
+    # @show prog
     return prog
 end
 

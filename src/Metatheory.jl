@@ -45,11 +45,11 @@ export Library
 
 using Rewriters
 function rewrite(expr, theory; order=:outer)
-   if order == :inner 
-      Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)
-   elseif order == :outer 
+    if order == :inner 
+        Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)
+    elseif order == :outer 
       Fixpoint(Postwalk(Fixpoint(Chain(theory))))(expr)
-   end
+    end
 end
 export rewrite
 

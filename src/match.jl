@@ -69,15 +69,15 @@ function matcher(segment::PatSegment)
         else
             res = nothing
 
-            for i=length(data):-1:0
+            for i = length(data):-1:0
                 subexpr = take_n(data, i)
 
                 if segment.predicate(subexpr)
                     res = success(assoc(bindings, segment.name, subexpr), i)
-                    if res !== nothing
+                    if res !== nothing 
                         break
-                    end
                 end
+            end
             end
 
             return res
@@ -94,7 +94,7 @@ function matcher(term::PatTerm)
 
         function loop(term, bindings′, matchers′) # Get it to compile faster
             if !islist(matchers′)
-                if  !islist(term)
+                if !islist(term)
                     return success(bindings′, 1)
                 end
                 return nothing

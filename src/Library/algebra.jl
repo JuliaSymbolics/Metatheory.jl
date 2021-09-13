@@ -1,57 +1,120 @@
-commutativity(op) = :( ($op)(~a, ~b) == ($op)(~b, ~a) ) |> Rule
-right_associative(op) = :( ($op)(~a, $(op)(~b,~c)) → ($op)($(op)(~a,~b), ~c) ) |> Rule
-left_associative(op) = :( ($op)($(op)(~a,~b), c) → ($op)(~a, $(op)(~b,~c)) ) |> Rule
+macro commutativity(op) 
+	quote 
+		@rule ($op)(~a, ~b) == ($op)(~b, ~a)
+	end
+end 
 
-associativity_left(op) = :( ($op)(~a, $(op)(~b,~c)) → ($op)($(op)(~a,~b), ~c) ) |> Rule
-associativity_right(op) = :(  ($op)($(op)(~a,~b), ~c) → ($op)(~a, $(op)(~b,~c)) ) |> Rule
+macro right_associative(op)
+	quote 
+		@rule ($op)(~a, $(op)(~b, ~c)) → ($op)($(op)(~a, ~b), ~c)
+	end
+end
+macro left_associative(op) 
+	quote 
+		@rule ($op)($(op)(~a, ~b), c) → ($op)(~a, $(op)(~b, ~c))
+	end
+end
 
-associativity(op) = [associativity_left(op), associativity_right(op)]
+macro associativity_left(op) 
+	quote 
+		@rule ($op)(~a, $(op)(~b, ~c)) → ($op)($(op)(~a, ~b), ~c)
+	end
+end
+macro associativity_right(op) 
+	quote 
+		@rule ($op)($(op)(~a, ~b), ~c) → ($op)(~a, $(op)(~b, ~c))
+	end
+end 
 
-identity_left(op, id) = :( ($op)($id, ~a) → ~a ) |> Rule 
-identity_right(op, id) = :( ($op)(~a, $id) → ~a ) |> Rule 
+macro associativity(op) 
+	quote 
+		[
+			(@associativity_left $op), 
+			(@associativity_right $op)
+		]
+	end
+end
 
-inverse_left(op, id, invop) = :( ($op)(($invop)(~a), ~a) → $id ) |> Rule
-inverse_right(op, id, invop) = :( ($op)(~a, ($invop)(~a)) → $id ) |> Rule
+macro identity_left(op, id) 
+	quote 
+		@rule ($op)($id, ~a) → ~a
+	end
+end
+
+macro identity_right(op, id) 
+	quote 
+		@rule ($op)(~a, $id) → ~a 
+	end
+end
+
+macro inverse_left(op, id, invop) 
+	quote 
+		@rule ($op)(($invop)(~a), ~a) → $id 
+	end 
+end
+macro inverse_right(op, id, invop) 
+	quote 
+		@rule ($op)(~a, ($invop)(~a)) → $id 
+	end 
+end
 
 # distributivity of two operations
 # example: `@distrib (⋅) (⊕)`
-function distrib_left(outop, inop)
+macro distrib_left(outop, inop)
 	# @assert Base.isbinaryoperator(outop)
 	# @assert Base.isbinaryoperator(inop)
-	:( ($outop)(~a, ($inop)(~b,~c)) == ($inop)(($outop)(~a,~b),($outop)(~a,~c)) ) |> Rule
+	quote 
+		@rule ($outop)(~a, ($inop)(~b, ~c)) == ($inop)(($outop)(~a, ~b), ($outop)(~a, ~c))
+	end
 end
 
-function distrib_right(outop, inop)
+macro distrib_right(outop, inop)
 	# @assert Base.isbinaryoperator(outop)
 	# @assert Base.isbinaryoperator(inop)
-	:( ($outop)(($inop)(~a,~b), ~c) == ($inop)(($outop)(~a,~c),($outop)(~b,~c)) ) |> Rule
+	quote 
+		@rule ($outop)(($inop)(~a, ~b), ~c) == ($inop)(($outop)(~a, ~c), ($outop)(~b, ~c))
+	end
 end
 
-function monoid(op, id)
-		# @assert Base.isbinaryoperator(op)
-	[associativity_left(op), associativity_right(op),
-	identity_left(op, id), identity_right(op,id)]
+macro monoid(op, id)
+	quote 
+		[
+			(@associativity_left(op)), 
+			(@associativity_right(op)),
+			(@identity_left(op, id)), 
+			(@identity_right(op, id))
+		]
+	end
 end
-macro monoid(op, id) monoid(op, id) end
 
-
-function commutative_monoid(op, id)
-	# @assert Base.isbinaryoperator(op) # Why this restriction?
-	[commutativity(op), associativity_left(op),
-	associativity_right(op), identity_left(op, id)]
+macro commutative_monoid(op, id)
+	quote 
+		[
+			(@commutativity $op), 
+			(@associativity_left $op),
+			(@associativity_right $op), 
+			(@identity_left $op $id)
+		]
+	end
 end
-macro commutative_monoid(op, id) commutative_monoid(op, id) end
 
 # constructs a semantic theory about a an abelian group
 # The definition of a group does not require that a ⋅ b = b ⋅ a
 # for all elements a and b in G. If this additional condition holds,
 # then the operation is said to be commutative, and the group is called an abelian group.
-function commutative_group(op, id, invop)
+macro commutative_group(op, id, invop)
 	# @assert Base.isbinaryoperator(op)
 	# @assert Base.isunaryoperator(invop)
-	commutative_monoid(op, id) ∪ [inverse_right(op, id, invop)]
+	quote 
+		(@commutative_monoid $op $id) ∪ [@inverse_right $op $id $invop]
+	end
 end
 
-distrib(outop, inop) = [
-	distrib_left(outop, inop), distrib_right(outop, inop),
-]
+macro distrib(outop, inop) 
+	quote 
+		[
+			(@distrib_left $outop $inop), 
+			(@distrib_right $outop $inop),
+		]
+	end
+end
