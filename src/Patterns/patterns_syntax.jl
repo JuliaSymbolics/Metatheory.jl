@@ -66,13 +66,40 @@ end
 makevar(name::Symbol, mod) = PatVar(name)
 
 
-function makepredicate(f::Symbol, mod::Module)::Union{Function, Type}
+function makepredicate(f::Symbol, mod::Module)::Union{Function,Type}
     resolve(GlobalRef(mod, f))
 end
 
-function makepredicate(f::Expr, mod::Module)::Union{Function, Type}
+function makepredicate(f::Expr, mod::Module)::Union{Function,Type}
     mod.eval(f)
 end
+
+# Make a dynamic rule right hand side
+function makeconsequent(expr::Expr)
+    head = exprhead(expr)
+    args = arguments(expr)
+    op = operation(expr)
+    if head === :call
+        if op === :(~)
+            if args[1] isa Symbol
+                return args[1]
+            elseif args[1] isa Expr && operation(args[1]) == :(~)
+                n = arguments(args[1])[1]
+                @assert n isa Symbol
+                return n
+            else
+                error("Error when parsing right hand side")
+            end
+        else
+            return Expr(head, makeconsequent(op), 
+                map(makeconsequent, args)...)
+        end
+    else
+        return Expr(head, makeconsequent(op), map(makeconsequent, args)...)
+    end
+end
+
+makeconsequent(x) = x
 
 function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)
     p 

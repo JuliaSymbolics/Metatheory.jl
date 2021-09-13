@@ -16,16 +16,15 @@ using ..Metatheory
 # include("../rule.jl")
 
 # theory generation macros
-export commutativity
-export associativity
-export identity_left
-export identity_right
-export distrib_left
-export distrib_right
-export distrib
-export monoid
-export commutative_monoid
-export commutative_group
-export abelian_group
+export @commutativity
+export @associativity
+export @identity_left
+export @identity_right
+export @distrib_left
+export @distrib_right
+export @distrib
+export @monoid
+export @commutative_monoid
+export @commutative_group
 
 end

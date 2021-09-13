@@ -5,6 +5,7 @@ export PatTerm
 export PatSegment
 export patvars
 export setdebrujin!
+export makeconsequent
 export @pat
 export isground
 export UnsupportedPatternException

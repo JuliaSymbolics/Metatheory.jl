@@ -1,7 +1,7 @@
 struct Sub
     # sourcenode::Union{Nothing, AbstractENode}
     ids::Vector{EClassId}
-    nodes::Vector{Union{Nothing, ENodeLiteral}}
+    nodes::Vector{Union{Nothing,ENodeLiteral}}
 end
 
 haseclassid(sub::Sub, p::PatVar) = sub.ids[p.idx] >= 0

@@ -21,67 +21,73 @@ function rule_sym_map(ex::Expr)
     if h == :(-->) || h == :(→) RewriteRule
     elseif h == :(=>)  DynamicRule
     elseif h == :(==) EqualityRule
-    elseif h == :(!=) UnequalRule
-    elseif h == :(≠) UnequalRule
+    elseif h == :(!=) || h == :(≠) UnequalRule
     else error("Cannot parse rule with operator '$h'")
     end
 end
 
 rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
-
+function rewrite_rhs(ex::Expr)
+    if exprhead(ex) == :where 
+        args = arguments(ex)
+        rhs = args[1]
+        predicate = args[2]
+        ex = :($predicate ? $rhs : nothing)
+    end
+    return ex
+end
+rewrite_rhs(x) = x
 
 """
-Construct an `AbstractRule` from a quoted expression.
-You can also use the [`@rule`] macro to
-create a `Rule`.
+Construct an `AbstractRule` from an expression.
 """
-function Rule(e::Expr, mod::Module=@__MODULE__, resolve_fun=false)
+macro rule(e, resolve_fun=false)
+    e = macroexpand(__module__, e)
+    e = rmlines(copy(e))
     op = operation(e)
     RuleType = rule_sym_map(e)
-    l, r = e.args[Meta.isexpr(e, :call) ? (2:3) : (1:2)]
     
+    l, r = arguments(e)
     lhs = Pattern(l, mod, resolve_fun)
     rhs = r
-    
-    if RuleType <: SymbolicRule
-        println(RuleType)
-        rhs = Pattern(rhs, mod, resolve_fun)
-    end
 
     if RuleType == DynamicRule
         # FIXME make consequent like in SU
-        return DynamicRule(lhs, rhs, mod)
+        rhs = rewrite_rhs(r)
+        rhs = makeconsequent(rhs)
+        pvars = patvars(lhs)
+        params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
+        rhs_fun =  :($(esc(params)) -> $(esc(rhs)))
+
+        return quote 
+            DynamicRule($(Meta.quot(e)), $lhs, $rhs_fun, $(__module__))
+        end
+    end
+
+    if RuleType <: SymbolicRule
+        rhs = Pattern(rhs, __module__, resolve_fun)
     end
     
-    return RuleType(lhs, rhs)
-end
-
-# fallback when defining theories and there's already a rule 
-function Rule(r::AbstractRule, mod::Module=@__MODULE__, resolve_fun=false)
-    r
-end
-
-macro rule(e)
-    e = macroexpand(__module__, e)
-    e = rmlines(copy(e))
-    Rule(e, __module__, false)
+    return RuleType(e, lhs, rhs)
 end
 
 macro methodrule(e)
-    e = macroexpand(__module__, e)
-    e = rmlines(copy(e))
-    Rule(e, __module__, true)
+    quote 
+        @rule $e true
+    end
 end
 
 # Theories can just be vectors of rules!
 
-macro theory(e)
+macro theory(e, resolve_fun=false)
     e = macroexpand(__module__, e)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
-    if Meta.isexpr(e, :block)
-        Vector{AbstractRule}(e.args .|> x -> Rule(x, __module__, false))
+
+    if exprhead(e) == :block
+        ee = Expr(:vect, map(x -> :(@rule($x, $resolve_fun)), arguments(e))...)
+        esc(ee)
     else
         error("theory is not in form begin a => b; ... end")
     end
@@ -89,12 +95,7 @@ end
 
 # TODO document this puts the function as pattern head instead of symbols
 macro methodtheory(e)
-    e = macroexpand(__module__, e)
-    e = rmlines(e)
-    # e = interp_dollar(e, __module__)
-    if Meta.isexpr(e, :block)
-        Vector{AbstractRule}(e.args .|> x -> Rule(x, __module__, true))
-    else
-        error("theory is not in form begin a => b; ... end")
+    quote 
+        @theory $e true
     end
 end
