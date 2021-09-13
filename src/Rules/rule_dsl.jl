@@ -49,7 +49,7 @@ macro rule(e, resolve_fun=false)
     RuleType = rule_sym_map(e)
     
     l, r = arguments(e)
-    lhs = Pattern(l, mod, resolve_fun)
+    lhs = Pattern(l, __module__, resolve_fun)
     rhs = r
 
     if RuleType == DynamicRule
