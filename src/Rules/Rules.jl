@@ -2,7 +2,14 @@ module Rules
     using TermInterface
     using ..Util
     using ..EMatchCompiler
+    using Parameters
+    using AutoHashEquals
+    using ..Patterns
+    using ..Patterns:to_expr
+    import Base.==
     import ..closure_generator
+
+
 
     include("rule_types.jl")
     include("rewriterule.jl")

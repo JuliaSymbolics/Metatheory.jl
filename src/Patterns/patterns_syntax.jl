@@ -55,7 +55,7 @@ function makesegment(s::Expr, mod::Module)
     p = makepredicate(arguments(s)[2], mod)
     PatSegment(name, -1, p)
 end
-makesegment(s::Symbol, mod) = PatSegment(name)
+makesegment(s::Symbol, mod) = PatSegment(s)
 
 function makevar(s::Expr, mod::Module)
     if !(exprhead(s) == :(::))
