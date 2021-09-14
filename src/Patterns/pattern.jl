@@ -42,7 +42,6 @@ function Base.isequal(a::PatVar, b::PatVar)
 end
 PatVar(var) = PatVar(var, -1, alwaystrue)
 PatVar(var, i) = PatVar(var, i, alwaystrue)
-PatVar(var, i, p) = PatVar(var, i, p)
 
 """
 If you want to match a variable number of subexpressions at once, you will need

@@ -17,6 +17,7 @@ Dynamic rule
     expr # rule pattern stored for pretty printing
     left
     rhs_fun::Function
+    matcher
     patvars::Vector{Symbol} # useful set of pattern variables
     ematch_program::Program
     mod::Module
@@ -42,7 +43,7 @@ function DynamicRule(ex::Expr, l, r::Function, mod=@__MODULE__)
     pvars = patvars(l)
     setdebrujin!(l, pvars)
 
-    DynamicRule(ex, l, r, pvars, compile_pat(l), mod)
+    DynamicRule(ex, l, r, matcher(l), pvars, compile_pat(l), mod)
 end
 
 

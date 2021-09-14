@@ -25,4 +25,7 @@ module Rules
     export @theory
     export @methodrule
     export @methodtheory
+
+    include("utils.jl")
+    include("matchers.jl")
 end

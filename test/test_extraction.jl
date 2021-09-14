@@ -4,10 +4,10 @@ using Metatheory.Util
 
 include("numberfold.jl")
 
-comm_monoid = commutative_monoid(:(*), 1)
+comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin
-	~a::Number * ~b::Number => a * b
+	~a::Number * ~b::Number => ~a * ~b
 end
 
 t = comm_monoid ∪ fold_mul
@@ -20,7 +20,7 @@ t = comm_monoid ∪ fold_mul
 
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
-	params=SaturationParams(timeout=15)
+	params = SaturationParams(timeout=15)
     saturate!(G, t, params)
     extr = extract!(G, astsize)
 	println(extr)
@@ -31,38 +31,38 @@ t = comm_monoid ∪ fold_mul
 end
 
 fold_add = @theory begin
-	a::Number + b::Number |> a + b
+	~a::Number + ~b::Number => ~a + ~b
 end
 
 @testset "Extraction 2" begin
-	comm_group = @abelian_group (+) 0 inv
+	comm_group = @commutative_group (+) 0 inv
 
 
-    t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ fold_mul ∪ fold_add
+    t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ fold_mul ∪ fold_add
 
     # for i ∈ 1:20
     # sleep(0.3)
-    ex = cleanast(:((x*(a+b)) + (y*(a+b))))
+    ex = cleanast(:((x * (a + b)) + (y * (a + b))))
     G = EGraph(ex)
     saturate!(G, t)
     # end
 
-    extract!(G, astsize) == :((x+y) * (b+a))
+    extract!(G, astsize) == :((x + y) * (b + a))
 end
 
 @testset "Lazy Extraction 2" begin
-	comm_group = @abelian_group (+) 0 inv
+	comm_group = @commutative_group (+) 0 inv
 
-    t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ fold_mul ∪ fold_add
+    t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ fold_mul ∪ fold_add
 
     # for i ∈ 1:20
     # sleep(0.3)
-    ex = cleanast(:((x*(a+b)) + (y*(a+b))))
+    ex = cleanast(:((x * (a + b)) + (y * (a + b))))
     G = EGraph(ex)
     saturate!(G, t)
     # end
 
-    extract!(G, astsize) == :((x+y) * (b+a))
+    extract!(G, astsize) == :((x + y) * (b + a))
 end
 
 @testset "Extraction - Adding analysis after saturation" begin
@@ -80,45 +80,45 @@ end
     ex = :(a * 3 * b * 4)
     G = EGraph(cleanast(ex))
     analyze!(G, NumberFold)
-	params=SaturationParams(timeout=15)
+	params = SaturationParams(timeout=15)
     saturate!(G, comm_monoid, params)
 
     extr = extract!(G, astsize)
-
+    
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
 		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12)
 end
 
 
-comm_monoid = commutative_monoid(:(*), 1)
+comm_monoid = @commutative_monoid (*) 1
 
-comm_group = @abelian_group (+) 0 inv
+comm_group = @commutative_group (+) 0 inv
 
 powers = @theory begin
-	a * a => a^2
-	a => a^1
-	a^n * a^m => a^(n+m)
+	~a * ~a → (~a)^2
+	~a → (~a)^1
+	(~a)^~n * (~a)^~m → (~a)^(~n + ~m)
 end
 logids = @theory begin
-	log(a^n) => n * log(a)
-	log(x * y) => log(x) + log(y)
-	log(1) => 0
-	log(:e) => 1
-	:e^(log(x)) => x
+	log((~a)^~n) --> ~n * log(~a)
+	log(~x * ~y) --> log(~x) + log(~y)
+	log(1) --> 0
+	log(:e) --> 1
+	:e^(log(~x)) --> ~x
 end
 
-t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  ∪ fold_mul ∪ fold_add
+t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids  ∪ fold_mul ∪ fold_add
 
 @testset "Complex Extraction" begin
 	G = EGraph(:(log(e) * log(e)))
-	params=SaturationParams(timeout=8)
+	params = SaturationParams(timeout=8)
 	saturate!(G, t, params)
 	# display(G.classes);println()
 	@test extract!(G, astsize) == 1
 
 	G = EGraph(:(log(e) * (log(e) * e^(log(3)))  ))
-	params=SaturationParams(timeout=7)
+	params = SaturationParams(timeout=7)
 	saturate!(G, t, params)
 	@test extract!(G, astsize) == 3
 
@@ -138,7 +138,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 
 	# TODO could serve as example for more advanced
 	# symbolic mathematics simplification based on the computation cost
-	# of the expressions
+    	# of the expressions
 	function cust_astsize(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
 		cost = 1 + arity(n)
 
@@ -165,7 +165,7 @@ t = comm_monoid ∪ comm_group ∪ distrib(:(*), :(+)) ∪ powers ∪ logids  �
 		saturate!(G, t)
 		ex = extract!(G, cust_astsize)
 	end
-	@test ex == :(5*log(a)) || ex == :(log(a)*5)
+	@test ex == :(5 * log(a)) || ex == :(log(a) * 5)
 end
 
 function costfun(n::ENodeTerm, g::EGraph, an)
@@ -183,7 +183,7 @@ moveright = @theory begin
 end
 
 expr = :(a * (a * (b * (a * b))))
-res = rewrite( expr , moveright)
+res = rewrite(expr, moveright)
 
 g = EGraph(expr)
 saturate!(g, moveright)
@@ -225,4 +225,4 @@ end
 	res = extract!(gg, astsize);
 
     @test res == :(h())
-end
+end    

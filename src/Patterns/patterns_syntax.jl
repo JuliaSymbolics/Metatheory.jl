@@ -56,6 +56,7 @@ makesegment(s::Symbol, mod) = PatSegment(name)
 
 function makevar(s::Expr, mod::Module)
     if !(exprhead(s) == :(::))
+        println(s)
         error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function")
     end
 

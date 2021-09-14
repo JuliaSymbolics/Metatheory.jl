@@ -50,7 +50,6 @@ end
 comm_group = @commutative_group (+) 0 inv
 t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+))
 
-println.(map(x -> (x, typeof(x)), t))
 
 @testset "Basic Equalities - Comm. Monoid, Abelian Group, Distributivity" begin
     @test true == (@areequal t (a * b) + (a * c) a * (b + c) )
