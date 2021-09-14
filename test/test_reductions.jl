@@ -138,6 +138,16 @@ car = Car()
     @test df == "doesnt_fly"
 end
 
+@testset "Segment Variables" begin
+	t = @theory begin
+		f(~x, ~~y) => Expr(:ok, ~~y...)
+	end
+
+	sf = rewrite(:(f(1,2,3,4)), t)
+
+    @test sf == :(ok(2,3,4))
+end
+
 
 ## Multiplicative Monoid
 

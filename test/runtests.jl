@@ -16,8 +16,8 @@ Metatheory.options.printiter = false
         @safetestset "EMatch Assertions" begin include("test_ematch_assertions.jl") end
         @safetestset "EGraph Analysis" begin include("test_analysis.jl") end
         @safetestset "EGraph Extraction" begin include("test_extraction.jl") end
-        exit(0)
         @safetestset "EGraphs Dynamic Rules" begin include("test_dynamic_ematch.jl") end
+        # TODO introduce new syntax from here
         @safetestset "Mu Puzzle" begin include("test_mu.jl") end
         @safetestset "Boson" begin include("test_boson.jl") end
         @safetestset "While Interpreter" begin include("test_while_interpreter.jl") end
