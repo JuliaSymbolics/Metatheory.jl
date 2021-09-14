@@ -12,25 +12,22 @@ function matcher(val::Any)
     end
 end
 
-function matcher(slot::PatVar{<:Function})
+function matcher(slot::PatVar)
+    pred = slot.predicate 
+    if slot.predicate isa Type 
+        pred = x -> typeof(x) <: slot.predicate
+    end
     function slot_matcher(next, data, bindings)
-        println("============ Matching patvar ===========")
-        @show slot
-        @show data
-        @show bindings
-
         !islist(data) && return
         if isassigned(bindings, slot.idx)
-            println("============ Already BOUND ===========")
             val = bindings[slot.idx]
             if isequal(val, car(data))
                 return next(1)
             end
         else
             # Variable is not bound, first time it is found
-            # check the predicate
-            @show slot.predicate
-            if slot.predicate(car(data))
+            # check the predicate            
+            if pred(car(data))
                 bindings[slot.idx] = car(data)
                 next(1)
             end
@@ -38,32 +35,7 @@ function matcher(slot::PatVar{<:Function})
     end
 end
 
-
-function matcher(slot::PatVar{Type{T}}) where {T}
-    function slot_matcher(next, data, bindings)
-        println("============ Matching patvar ===========")
-        @show slot
-        @show data
-        @show bindings
-
-        !islist(data) && return
-        if isassigned(bindings, slot.idx)
-            println("============ Already BOUND ===========")
-            val = bindings[slot.idx]
-            if isequal(val, car(data))
-                return next(1)
-            end
-        else
-            # Variable is not bound, first time it is found
-            # check the predicate
-            @show T
-            if typeof(car(data)) <: T
-                bindings[slot.idx] = car(data)
-                next(1)
-            end
-        end
-    end
-end
+# FIXME implement
 # returns n == offset, 0 if failed
 function trymatchexpr(data, value, n)
     if !islist(value)
@@ -92,12 +64,13 @@ function trymatchexpr(data, value, n)
     end
 end
 
+# FIXME implement
 function matcher(segment::PatSegment)
     function segment_matcher(success, data, bindings)
         if isassigned(bindings, segment.idx)
             val = bindings[segment.idx]
             n = trymatchexpr(data, val, 0)
-            if n !== nothing
+            if !isnothing(n)
                 success(bindings, n)
             end
         else
@@ -122,19 +95,10 @@ end
 function matcher(term::PatTerm)
     matchers = (matcher(operation(term)), map(matcher, arguments(term))...,)
     function term_matcher(success, data, bindings)
-        println("============ Matching term ===========")
-        @show term
-        @show data
-        @show bindings
-    
         !islist(data) && return nothing
         !istree(car(data)) && return nothing
 
         function loop(term, matchers′) # Get it to compile faster
-            println("   === LOOPING ===")
-            @show term 
-            @show bindings
-            @show matchers
             # Base case, no more matchers
             if !islist(matchers′)
                 # term is empty
@@ -161,15 +125,12 @@ end
 
 function (r::RewriteRule)(term)
     mem = Vector(undef, length(r.patvars))
+    # n == 1 means that exactly one term of the input (term,) was matched
     success(n) = n == 1 ? instantiate(term, r.right, mem) : nothing
         
     # try
-        # n == 1 means that exactly one term of the input (term,) was matched
-        res =  r.matcher(success, (term,), mem)
-        if !isnothing(res)
-            println("✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅")
-        end 
-        return res
+        return r.matcher(success, (term,), mem)
+    
     # catch err
         # throw(RuleRewriteError(r, term))
     # end
@@ -185,20 +146,18 @@ end
 
 function (r::DynamicRule)(term)
     mem = Vector(undef, length(r.patvars))
+    # n == 1 means that exactly one term of the input (term,) was matched
     success(n) = n == 1 ? r.rhs_fun(term, mem, nothing, collect(mem)...) : nothing
-        
+
     # try
-        # n == 1 means that exactly one term of the input (term,) was matched
-        res =  r.matcher(success, (term,), mem)
-        if !isnothing(res)
-            println("✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅")
-        end 
-        return res
-    # print("matching ")
+    return r.matcher(success, (term,), mem)
     
+    # catch err
+        # throw(RuleRewriteError(r, term))
+    # end
 end
 
-
+    
 
 # TODO revise
 function instantiate(left, pat::PatTerm, mem)

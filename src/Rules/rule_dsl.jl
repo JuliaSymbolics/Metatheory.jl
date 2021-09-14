@@ -57,8 +57,11 @@ macro rule(e, resolve_fun=false)
         rhs = makeconsequent(rhs)
         pvars = patvars(lhs)
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-        # FIXME bug
         rhs_fun =  :($(esc(params)) -> $(esc(rhs)))
+
+        if lhs isa Union{Symbol,Expr}
+            lhs = Meta.quot(lhs)
+        end
 
         return quote 
             DynamicRule($(Meta.quot(e)), $lhs, $rhs_fun, $(__module__))
@@ -73,9 +76,7 @@ macro rule(e, resolve_fun=false)
 end
 
 macro methodrule(e)
-    quote 
-        @rule $e true
-    end
+    esc(:(Metatheory.@rule($e,true)))
 end
 
 # Theories can just be vectors of rules!
@@ -95,7 +96,5 @@ end
 
 # TODO document this puts the function as pattern head instead of symbols
 macro methodtheory(e)
-    quote 
-        @theory $e true
-    end
+    :(@theory($(esc(e)), true))
 end

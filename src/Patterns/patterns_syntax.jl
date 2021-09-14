@@ -8,6 +8,9 @@ resolve(gr) = gr
 # treat as a literal
 Pattern(x, mod=@__MODULE__, resolve_fun=false) = x
 
+Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false) = x.value isa Symbol ? x.value : x
+
+
 function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     ex = cleanast(ex)
 
@@ -27,11 +30,11 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
             end
         else # is a term
             if resolve_fun && op isa Symbol
-                op = resolve(GlobalRef(mod, f))
+                op = resolve(GlobalRef(mod, op))
             end
             patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
             PatTerm(head, op, patargs)
-        end
+    end
     elseif head === :ref 
         # getindex 
         PatTerm(head, resolve_fun ? getindex : :getindex,
@@ -56,7 +59,6 @@ makesegment(s::Symbol, mod) = PatSegment(name)
 
 function makevar(s::Expr, mod::Module)
     if !(exprhead(s) == :(::))
-        println(s)
         error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function")
     end
 
@@ -94,16 +96,16 @@ function makeconsequent(expr::Expr)
         else
             return Expr(head, makeconsequent(op), 
                 map(makeconsequent, args)...)
-        end
+    end
     else
-        return Expr(head, makeconsequent(op), map(makeconsequent, args)...)
+        return Expr(head, map(makeconsequent, args)...)
     end
 end
 
 makeconsequent(x) = x
 
 function Pattern(p::Pattern, mod=@__MODULE__, resolve_fun=false)
-    p 
+p 
 end
 
 macro pat(ex)
