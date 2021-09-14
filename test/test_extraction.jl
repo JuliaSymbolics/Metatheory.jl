@@ -179,7 +179,7 @@ costfun(n::ENodeLiteral, g::EGraph, an) = 1
 
 
 moveright = @theory begin
-    (:b * (:a * c)) => (:a * (:b * c))
+    (:b * (:a * ~c)) --> (:a * (:b * ~c))
 end
 
 expr = :(a * (a * (b * (a * b))))
@@ -217,7 +217,7 @@ end
 	ex = :(f() + g())
 
 	t = @theory begin
-		f() + g() => h()
+		f() + g() --> h()
 	end;
 
 	gg = EGraph(ex)

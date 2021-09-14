@@ -11,12 +11,12 @@ Metatheory.options.printiter = false
 @timev begin
     @testset "All Tests" begin 
         @safetestset "Classical Rewriting" begin include("test_reductions.jl") end
-        exit(0)
         @safetestset "EGraphs Basics" begin include("test_egraphs.jl") end
         @safetestset "EMatch" begin include("test_ematch.jl") end
         @safetestset "EMatch Assertions" begin include("test_ematch_assertions.jl") end
         @safetestset "EGraph Analysis" begin include("test_analysis.jl") end
         @safetestset "EGraph Extraction" begin include("test_extraction.jl") end
+        exit(0)
         @safetestset "EGraphs Dynamic Rules" begin include("test_dynamic_ematch.jl") end
         @safetestset "Mu Puzzle" begin include("test_mu.jl") end
         @safetestset "Boson" begin include("test_boson.jl") end
