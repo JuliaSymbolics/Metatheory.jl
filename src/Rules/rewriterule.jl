@@ -18,6 +18,7 @@ variables.
     expr # rule pattern stored for pretty printing
     left
     right
+    matcher
     patvars::Vector{Symbol}
     ematch_program::Program
 end
@@ -32,7 +33,7 @@ function RewriteRule(ex::Expr, l, r)
     # sort!(pvars)
     setdebrujin!(l, pvars)
     setdebrujin!(r, pvars)
-    RewriteRule(ex, l, r, pvars, compile_pat(l))
+    RewriteRule(ex, l, r, matcher(l), pvars, compile_pat(l))
 end
 
 Base.show(io::IO,  r::RewriteRule) = print(io, r.expr)

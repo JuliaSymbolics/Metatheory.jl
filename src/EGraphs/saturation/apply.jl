@@ -20,7 +20,7 @@ end
 
 function (rule::DynamicRule)(g::EGraph, match::Match)
     f = rule.rhs_fun
-    actual_params = [instantiate(g, PatVar(v, alwastrue, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
+    actual_params = [instantiate(g, PatVar(v, i, alwaystrue), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(geteclass(g, match.id), match.sub, g, actual_params...)
     rc, node = addexpr!(g, r)
     merge!(g, match.id, rc.id)
@@ -48,7 +48,7 @@ function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
         end
 
 
-        rule=match.rule
+        rule = match.rule
         # println("applying $rule")
 
         halt_reason = rule(g, match)

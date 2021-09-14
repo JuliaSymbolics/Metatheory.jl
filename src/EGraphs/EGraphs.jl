@@ -10,6 +10,7 @@ using ..Util
 using ..Patterns
 using ..Rules
 import ..@log
+import ..alwaystrue
 import ThreadsX
 
 include("enode.jl")
