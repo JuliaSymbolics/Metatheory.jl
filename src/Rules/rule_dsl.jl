@@ -53,11 +53,11 @@ macro rule(e, resolve_fun=false)
     rhs = r
 
     if RuleType == DynamicRule
-        # FIXME make consequent like in SU
         rhs = rewrite_rhs(r)
         rhs = makeconsequent(rhs)
         pvars = patvars(lhs)
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
+        # FIXME bug
         rhs_fun =  :($(esc(params)) -> $(esc(rhs)))
 
         return quote 

@@ -127,8 +127,8 @@ car = Car()
 
 @testset "Interpolation" begin
 	t = @theory begin
-		airpl * ~b => "flies"
-		car * ~b => "doesnt_fly"
+		$airpl * ~b => "flies"
+		$car * ~b => "doesnt_fly"
 	end
 
 	sf = rewrite(:(airpl * c), t)
