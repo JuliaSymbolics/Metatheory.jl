@@ -12,8 +12,8 @@ using Metatheory.EGraphs.Schedulers
 
 # :foo => :zoo ⟺ :foo in same class as :bar  
 
-lhs = PatEquiv(@pat(:foo), @pat(:bar))
-rhs = @pat :zoo
+lhs = PatEquiv(Pattern(:foo), Pattern(:bar))
+rhs = Pattern(:zoo)
 q = RewriteRule(lhs, rhs) 
 
 

@@ -3,5 +3,5 @@ struct UnsupportedPatternException <: Exception
 end
 
 Base.showerror(io::IO, e::UnsupportedPatternException) = 
-    print(io, "Pattern", e.p, "is unsupported in this context")
+    print(io, "Pattern ", e.p, " is unsupported in this context")
 

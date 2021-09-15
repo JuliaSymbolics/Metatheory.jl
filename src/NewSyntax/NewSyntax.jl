@@ -24,7 +24,7 @@ resolve(gr) = gr
 
 function makesegment(s::Expr, mod::Module)
     if !(exprhead(s) == :(::))
-        error("Syntax for specifying a segment is x::\$predicate, where predicate is a boolean function or a type")
+        error("Syntax for specifying a segment is x::\$predicate..., where predicate is a boolean function or a type")
     end
 
     name = arguments(s)[1]
@@ -76,17 +76,15 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
 
     
     if head === :call
-        if op === :(...)  # is a variable or segment
-            makesegment(args[1], mod)
-        elseif op == :(::) # is a term
-            makevar(ex, mod)
-        elseif op isa Symbol
-            if resolve_fun 
-                op = resolve(GlobalRef(mod, op))
-            end         
-            patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
-            PatTerm(head, op, patargs)
-    end
+        if resolve_fun && op isa Symbol 
+            op = resolve(GlobalRef(mod, op))
+        end         
+        patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
+        PatTerm(head, op, patargs)
+    elseif head === :(...)
+        makesegment(args[1], mod)
+    elseif head === :(::)
+        makevar(ex, mod)
     elseif head === :ref 
         # getindex 
         PatTerm(head, resolve_fun ? getindex : :getindex,

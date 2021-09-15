@@ -12,14 +12,18 @@ const MatchesBuf = Vector{Match}
 
 function cached_ids(g::EGraph, p::AbstractPat)# ::Vector{Int64}
     if isground(p)
-        [lookup_pat(g, p)]
+        id = lookup_pat(g, p)
+        !isnothing(id) && return [id]
     else
-        collect(keys(g.classes))
+        return collect(keys(g.classes))
     end
+    return []
 end
 
 function cached_ids(g::EGraph, p) # p is a literal
-    [lookup(g, ENodeLiteral(p))]
+    id = lookup(g, ENodeLiteral(p))
+    !isnothing(id) && return [id]
+    return []
 end
 
 # FIXME 
@@ -112,7 +116,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
             ids = cached_ids(egraph, rule.left)
             rule_matches = pmap(i -> rule(egraph, i), ids)
 
-            n_matches = sum(length, rule_matches)
+            n_matches = isempty(rule_matches) ? 0 : sum(length, rule_matches)
             can_yield = inform!(scheduler, rule, n_matches)
             if can_yield
                 @timeit append_time "appending matches" begin

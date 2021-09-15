@@ -60,25 +60,6 @@ end
 	@test rewrite(:(3 ⊕ 1 ⊕ $a), calculator; order=:inner) == 14
 end
 
-# FIXME add support for splatting
-# @testset "Type assertions and destructuring" begin
-#     # let's try type assertions and destructuring
-#     t = @theory begin
-#         f(a::Number) => a
-#         f(a...) => a
-#     end
-
-#     @test rewrite(:(f(3)), t) == 3
-#     @test rewrite(:(f(2, 3)), t) == [2, 3]
-
-#     # destructuring in right hand
-#     n = @theory begin
-#         f(a...) => +(a...)
-#     end
-
-#     @test rewrite(:(f(2, 3)), n) == :(2 + 3)
-#     @test rewrite(:(f(a, b, c, d)), n) == :(((a + b) + c) + d)
-# end
 
 ## Direct rules
 @testset "Direct Rules" begin
@@ -141,12 +122,27 @@ end
 
 @testset "Segment Variables" begin
 	t = @theory begin
-		f(~x, ~~y) => Expr(:call, :ok, ~~y...)
+		f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
 	end
 
 	sf = rewrite(:(f(1,2,3,4)), t)
 
     @test sf == :(ok(2,3,4))
+end
+
+
+module NonCall 
+using Metatheory 
+using Metatheory.NewSyntax
+t = @theory begin
+	(a, b) => ok(a,b)
+end
+
+test() = rewrite(:(x,y), t)
+end
+
+@testset "Non-Call expressions" begin
+	@test NonCall.test() == :(ok(x,y))
 end
 
 

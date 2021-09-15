@@ -7,7 +7,11 @@ taylor = @theory begin
     Σ(a) + Σ(b) => Σ(a + b)
 end
 
-expand(iters) = [Rule(:(Σ(a) => sum(:n -> a, 0:$iters)))]
+macro expand(iters) 
+    quote 
+        @rule Σ(a) => sum(:n -> a, 0:$iters)
+    end
+end
 
 a = rewrite(:(exp(x) + cos(x)), taylor)
 
@@ -16,7 +20,7 @@ a = rewrite(:(exp(x) + cos(x)), taylor)
 
 x = big(42)
 
-b = rewrite(a, expand(5000)) |> eval
+b = rewrite(a, [@expand(5000)]) |> eval
 # 1.739274941520501044994695988622883932193276720547806372656638132701531037200611e+18
 
 exp(x) + cos(x)
