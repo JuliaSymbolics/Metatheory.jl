@@ -1,4 +1,5 @@
 using Metatheory 
+using Metatheory.SUSyntax
 using Metatheory.Library
 using Metatheory.Util
 
@@ -87,7 +88,8 @@ end
     
 	@test extr == :((12 * a) * b) || extr == :(12 * (a * b)) || extr == :(a * (b * 12)) ||
 		extr == :((a * b) * 12) || extr == :((12a) * b) || extr == :(a * (12b)) ||
-		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12)
+		extr == :((b * (12a))) || extr == :((b * 12) * a) || extr == :((b * a) * 12) || 
+		extr == :(b * (a * 12))
 end
 
 

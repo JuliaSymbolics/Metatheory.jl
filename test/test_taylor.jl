@@ -1,9 +1,10 @@
 using Metatheory
+using Metatheory.NewSyntax
 
 taylor = @theory begin
-   exp(x) => Σ(x^:n / factorial(big(:n)))
-   cos(x) => Σ((-1)^:n * x^2(:n) / factorial(big(2*:n)))
-   Σ(a) + Σ(b) => Σ(a + b)
+    exp(x) => Σ(x^:n / factorial(big(:n)))
+    cos(x) => Σ((-1)^:n * x^2(:n) / factorial(big(2 * :n)))
+    Σ(a) + Σ(b) => Σ(a + b)
 end
 
 expand(iters) = [Rule(:(Σ(a) => sum(:n -> a, 0:$iters)))]

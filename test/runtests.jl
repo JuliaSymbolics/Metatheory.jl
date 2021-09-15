@@ -19,7 +19,7 @@ Metatheory.options.printiter = false
         @safetestset "EGraphs Dynamic Rules" begin include("test_dynamic_ematch.jl") end
         # TODO introduce new syntax from here
         @safetestset "Mu Puzzle" begin include("test_mu.jl") end
-        @safetestset "Boson" begin include("test_boson.jl") end
+        # @safetestset "Boson" begin include("test_boson.jl") end
         @safetestset "While Interpreter" begin include("test_while_interpreter.jl") end
         @safetestset "Taylor Series" begin include("test_taylor.jl") end
         @safetestset "While Superinterpreter" begin include("test_while_superinterpreter.jl") end

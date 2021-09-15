@@ -6,12 +6,16 @@ include("../docstrings.jl")
 
 module Library
 
+using ..Patterns
+using ..Rules
+
 @info "NOTE: The current implementation of the Metatheory library currently works
 correctly only with the EGraphs backend."
 
+include("rules.jl")
 include("algebra.jl")
 
-using ..Metatheory
+# using ..Metatheory
 # include("../util.jl")
 # include("../rule.jl")
 

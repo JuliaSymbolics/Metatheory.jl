@@ -1,5 +1,6 @@
 # Metatheory.options[:printiter] = true
 using Metatheory
+using Metatheory.NewSyntax
 using Metatheory.EGraphs
 using Test
 
@@ -56,3 +57,4 @@ fold = @theory begin
 end
 
 t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
+    

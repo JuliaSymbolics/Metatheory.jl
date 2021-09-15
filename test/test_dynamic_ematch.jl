@@ -1,4 +1,5 @@
 using Metatheory
+using Metatheory.SUSyntax
 
 comm_monoid = @theory begin
     ~a * ~b --> ~b * ~a

@@ -23,7 +23,7 @@ export Program
 
 
 function Program()
-    Program(Instruction[], 0, 0, [], Dict{Pattern,Register}())
+    Program(Instruction[], 0, 0, [], Dict{AbstractPat,Register}())
 end
 
 hasregister(prog::Program, i) = (prog.regs[i] != -1)
@@ -124,7 +124,7 @@ function compile_ground!(reg, p::PatVar, prog)
 end
 
 
-function compile_ground!(reg, p::Pattern, prog)
+function compile_ground!(reg, p::AbstractPat, prog)
     throw(UnsupportedPatternException(p))
 end
 
@@ -186,7 +186,7 @@ function compile_pat!(reg, p::PatVar, prog)
     end
 end
 
-function compile_pat!(reg, p::Pattern, prog)
+function compile_pat!(reg, p::AbstractPat, prog)
     throw(UnsupportedPatternException(p))
 end
 
@@ -209,7 +209,7 @@ function compile_pat(p)
     nvars = length(pvars)
 
     # The program will try to match against ground terms first
-    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern,Register}())
+    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{AbstractPat,Register}())
     # println("compiling pattern $p")
     compile_ground!(1, p, prog)
     # println("compiled ground pattern \n $prog")

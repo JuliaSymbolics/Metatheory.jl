@@ -35,7 +35,8 @@ include("ematch_compiler.jl")
 include("Rules/Rules.jl")
 @reexport using .Rules
 
-include("match.jl")
+include("NewSyntax/NewSyntax.jl")
+include("SUSyntax/SUSyntax.jl")
 
 include("EGraphs/EGraphs.jl")
 @reexport using .EGraphs

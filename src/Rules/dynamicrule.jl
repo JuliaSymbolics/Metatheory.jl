@@ -28,7 +28,7 @@ function DynamicRule(l, r)
     DynamicRule(ex, l, r, m)
 end
 
-function DynamicRule(ex::Expr, l, r::Expr, mod=@__MODULE__)
+function DynamicRule(ex, l, r::Expr, mod=@__MODULE__)
     pvars = patvars(l)
     setdebrujin!(l, pvars)
 
@@ -39,7 +39,7 @@ function DynamicRule(ex::Expr, l, r::Expr, mod=@__MODULE__)
     DynamicRule(ex, l, f, pvars, compile_pat(l), mod)
 end
 
-function DynamicRule(ex::Expr, l, r::Function, mod=@__MODULE__)
+function DynamicRule(ex, l, r::Function, mod=@__MODULE__)
     pvars = patvars(l)
     setdebrujin!(l, pvars)
 

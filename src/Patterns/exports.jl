@@ -1,5 +1,5 @@
 # include("rules/patterns.jl")
-export Pattern
+export AbstractPat
 export PatVar
 export PatTerm
 export PatSegment

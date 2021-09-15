@@ -26,7 +26,7 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
 end
 
 instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = pat
-instantiate(g::EGraph, pat::Pattern, sub::Sub, rule::AbstractRule) = 
+instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule) = 
     throw(UnsupportedPatternException(pat))
 
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)

@@ -71,7 +71,7 @@ function matcher(segment::PatSegment)
             val = bindings[segment.idx]
             n = trymatchexpr(data, val, 0)
             if !isnothing(n)
-                success(bindings, n)
+                success(n)
             end
         else
             res = nothing
@@ -80,10 +80,9 @@ function matcher(segment::PatSegment)
                 subexpr = take_n(data, i)
 
                 if segment.predicate(subexpr)
-                    res = success(assoc(bindings, segment.name, subexpr), i)
-                    if !isnothing(res)
-                        break
-                end
+                    bindings[segment.idx] = subexpr
+                    res = success(i)
+                    !isnothing(res) && break
             end
             end
 
@@ -162,15 +161,22 @@ end
 # TODO revise
 function instantiate(left, pat::PatTerm, mem)
     ar = arguments(pat)
-similarterm(typeof(left), operation(pat), 
-        [instantiate(left, ar[i], mem) for i in 1:length(ar)]; exprhead=exprhead(pat))
+    args = [ instantiate(left, p, mem) for p in ar] 
+    similarterm(typeof(left), operation(pat), args; exprhead=exprhead(pat))
 end
 
 instantiate(left, pat::Any, mem) = pat
 
-instantiate(left, pat::Pattern, mem) = error("Unsupported pattern ", pat)
+instantiate(left, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
 
 function instantiate(left, pat::PatVar, mem)
+    # println(left)
+    # println(pat)
+    # println(mem)
+    mem[pat.idx]
+end
+
+function instantiate(left, pat::PatSegment, mem)
     # println(left)
     # println(pat)
     # println(mem)

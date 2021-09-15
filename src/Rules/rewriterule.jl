@@ -24,11 +24,11 @@ variables.
 end
 
 function RewriteRule(l, r)
-    ex = :($(to_expr(l)) --> $(to_expr(r)))
-    RewriteRule(ex, l, r)
+    # ex = :($(to_expr(l)) --> $(to_expr(r)))
+    RewriteRule(gensym(:rule), l, r)
 end
 
-function RewriteRule(ex::Expr, l, r)
+function RewriteRule(ex, l, r)
     pvars = patvars(l) ∪ patvars(r)
     # sort!(pvars)
     setdebrujin!(l, pvars)

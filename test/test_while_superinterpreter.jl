@@ -4,9 +4,10 @@
 
 # semantica dalle dispense degano
 using Metatheory
+using Metatheory.NewSyntax
 
 import Base.ImmutableDict
-Mem = Dict{Symbol, Union{Bool, Int}}
+Mem = Dict{Symbol,Union{Bool,Int}}
 
 read_mem = @theory begin
 	(v::Symbol, σ::Mem) |> if v == :skip σ else σ[v] end
@@ -56,7 +57,7 @@ t = read_mem ∪ arithm_rules ∪ bool_rules
 	saturate!(g, t)
 	ex = extract!(g, astsize)
 	@test ex == true
-	params=SaturationParams(timeout=12)
+	params = SaturationParams(timeout=12)
 	@test areequal(t, exx, true; params=params)
 
 	@test areequal(t, :((2 < 3) ∧ (3 < 4), $(Mem(:x => 2))), true)
@@ -78,7 +79,7 @@ if_language = read_mem ∪ arithm_rules ∪ bool_rules ∪ if_rules
 	@test areequal(if_language, 2, :(if true x else 0 end, 	$(Mem(:x => 2))))
 	@test areequal(if_language, 0, :(if false x else 0 end, 	$(Mem(:x => 2))))
 	@test areequal(if_language, 2, :(if ¬(false) x else 0 end, $(Mem(:x => 2))))
-	params=SaturationParams(timeout=10)
+	params = SaturationParams(timeout=10)
 	@test areequal(if_language, 0, :(if ¬(2 < x) x else 0 end, $(Mem(:x => 3))); params=params)
 end
 
@@ -114,11 +115,11 @@ while_language = if_language ∪ write_mem ∪ while_rules;
 	saturate!(g, while_language)
 	ex = extract!(g, astsize)
 	
-	params=SaturationParams(timeout=10)
+	params = SaturationParams(timeout=10)
 	@test areequal(while_language, Mem(:x => 5), exx; params=params)
 
 	# FIXME bug!
-	params=SaturationParams(timeout=14)
+	params = SaturationParams(timeout=14)
 	exx = :((if x < 10 x = x + 1 else skip end), $(Mem(:x => 3)))
 	# g = EGraph(exx)
 	# params=SaturationParams(timeout=12)
@@ -132,7 +133,7 @@ while_language = if_language ∪ write_mem ∪ while_rules;
 			x = x + 1 
 		end; x), $(Mem(:x => 3)))
 	g = EGraph(exx)
-	params=SaturationParams(timeout=100, scheduler=Schedulers.SimpleScheduler)
+	params = SaturationParams(timeout=100, scheduler=Schedulers.SimpleScheduler)
 	saturate!(g, while_language, params)
 	@test 10 == extract!(g, astsize)
 end
