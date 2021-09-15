@@ -13,7 +13,7 @@
     ematch_program_r::Program
 end
 
-function EqualityRule(ex::Expr, l, r)
+function EqualityRule(ex, l, r)
     pvars = patvars(l) ∪ patvars(r)
     extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
     if !isempty(extravars)
@@ -27,8 +27,7 @@ function EqualityRule(ex::Expr, l, r)
 end
 
 function EqualityRule(l, r)
-    ex = :($(to_expr(l)) == $(to_expr(r)))
-    EqualityRule(ex, l, r)
+    EqualityRule(gensym(:rule), l, r)
 end
 
 Base.show(io::IO,  r::EqualityRule) = print(io, r.expr)

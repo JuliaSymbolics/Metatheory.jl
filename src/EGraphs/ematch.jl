@@ -51,7 +51,7 @@ function (m::Machine)()
 end
 
 function next(m::Machine, pc)
-    m(m.program[pc+1], pc+1)
+    m(m.program[pc + 1], pc + 1)
 end
 
 function (m::Machine)(instr::Yield, pc)
@@ -102,7 +102,7 @@ function (m::Machine)(instr::Filter, pc)
     eclass = m.g[id]
 
     if operation(instr) ∈ funs(eclass)
-        next(m, pc+1)
+        next(m, pc + 1)
     end
     return nothing
 end
@@ -132,7 +132,7 @@ function lookup_pat(g::EGraph, p::PatTerm)
 end
 
 lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
-lookup_pat(g::EGraph, p::Pattern) = throw(UnsupportedPatternException(p))
+lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))
 
 function (m::Machine)(instr::Lookup, pc) 
     # @show instr
@@ -167,7 +167,7 @@ function (m::Machine)(instr::Bind, pc)
         # @show arity(n) == arity(instr.enodepat)
         if canbind(n, pat)
             # m.n[reg] = n
-            for (j,v) in enumerate(arguments(pat))
+            for (j, v) in enumerate(arguments(pat))
                 m.σ[v] = arguments(n)[j]
             end
             next(m, pc)
@@ -190,7 +190,7 @@ canbind(n::ENodeLiteral, pat::ENodePat) = false
 # use const to help the compiler see the type.
 # each machine has a corresponding lock to ensure thread-safety in case 
 # tasks migrate between threads.
-const MACHINES = Tuple{Machine, ReentrantLock}[] 
+const MACHINES = Tuple{Machine,ReentrantLock}[] 
 
 function __init__() 
     empty!(MACHINES)

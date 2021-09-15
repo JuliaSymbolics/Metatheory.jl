@@ -1,4 +1,5 @@
 using Metatheory
+using Metatheory.NewSyntax
 
 failme = @theory begin
     p ≠ ¬p

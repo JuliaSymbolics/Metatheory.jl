@@ -1,6 +1,7 @@
 # https://en.wikipedia.org/wiki/MU_puzzle#Solution
 
 using Metatheory
+using Metatheory.NewSyntax
 
 miu = @theory begin
     # Composition of the string monoid is associative
@@ -20,8 +21,8 @@ end
     # no matter the timeout we set here,
     # MU is not a theorem of the MIU system 
     params = SaturationParams(timeout=12, eclasslimit=8000)
-    start = :(M⋅I⋅END)
+    start = :(M ⋅ I ⋅ END)
     g = EGraph(start)
     saturate!(g, miu)
-    @test false == areequal(g, miu, start, :(M⋅U⋅END); params=params)
+    @test false == areequal(g, miu, start, :(M ⋅ U ⋅ END); params=params)
 end

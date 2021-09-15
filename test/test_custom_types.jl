@@ -1,4 +1,5 @@
 using Metatheory 
+using Metatheory.NewSyntax
 using Metatheory.EGraphs 
 using TermInterface
 using Test
@@ -32,11 +33,11 @@ TermInterface.operation(e::MyExpr) = e.head
 TermInterface.arguments(e::MyExpr) = e.args
 TermInterface.istree(e::Type{MyExpr}) = true
 # NamedTuple
-TermInterface.metadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
+TermInterface.metadata(e::MyExpr) = (foo = e.foo, bar = e.bar, baz = e.baz)
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
 
 # f(g(2), h(4)) with some metadata in h
-hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
+hcall = MyExpr(:h, [4], "hello", [2 + 3im, 4 + 2im], Set{Int}([4,5,6]))
 ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
@@ -74,7 +75,7 @@ end
 
 saturate!(g, t)
 
-#display(g.classes)
+# display(g.classes)
 
 expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 

@@ -35,14 +35,10 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params=Saturat
     return reached(g, goal)
 end
 
-import ..gettheory
-
 macro areequal(theory, exprs...)
-    t = gettheory(theory, __module__)
-    areequal(t, exprs...)
+    esc(:(areequal($theory, $exprs...))) 
 end
 
 macro areequalg(G, theory, exprs...)
-    t = gettheory(theory, __module__)
-    areequal(getfield(__module__, G), t, exprs...)
+    esc(:(areequal($G, $theory, $exprs...)))
 end

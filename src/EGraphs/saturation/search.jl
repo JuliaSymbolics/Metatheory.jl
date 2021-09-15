@@ -10,7 +10,7 @@ end
 
 const MatchesBuf = Vector{Match}
 
-function cached_ids(g::EGraph, p::Pattern)# ::Vector{Int64}
+function cached_ids(g::EGraph, p::AbstractPat)# ::Vector{Int64}
     if isground(p)
         [lookup_pat(g, p)]
     else
@@ -109,7 +109,6 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
                 # println("skipping banned rule $rule")
                 continue
             end
-
             ids = cached_ids(egraph, rule.left)
             rule_matches = pmap(i -> rule(egraph, i), ids)
 

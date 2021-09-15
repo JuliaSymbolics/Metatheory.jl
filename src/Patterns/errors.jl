@@ -1,5 +1,5 @@
 struct UnsupportedPatternException <: Exception
-    p::Pattern
+    p::AbstractPat
 end
 
 Base.showerror(io::IO, e::UnsupportedPatternException) = 

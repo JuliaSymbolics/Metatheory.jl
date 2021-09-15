@@ -28,6 +28,7 @@
 # Metatheory.options[:printiter] = true
 
 using Metatheory
+using Metatheory.NewSyntax
 
 calc = @theory begin
     ((p == q) == r)     ==  (p == (q == r))

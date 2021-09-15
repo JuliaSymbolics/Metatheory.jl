@@ -15,11 +15,10 @@ end
 
 
 function UnequalRule(l, r)
-    ex = :($(to_expr(l)) != $(to_expr(r)))
-    UnequalRule(ex, l, r)
+    UnequalRule(gensym(:rule), l, r)
 end
 
-function UnequalRule(ex::Expr, l, r)
+function UnequalRule(ex, l, r)
     pvars = patvars(l) ∪ patvars(r)
     extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
     if !isempty(extravars)

@@ -1,11 +1,11 @@
 module Rules
     using TermInterface
-    using ..Util
-    using ..EMatchCompiler
     using Parameters
     using AutoHashEquals
+
+    using ..Util
+    using ..EMatchCompiler
     using ..Patterns
-    using ..Patterns:to_expr
     import Base.==
     import ..closure_generator
 
@@ -23,15 +23,7 @@ module Rules
     export EqualityRule
     export UnequalRule
     export DynamicRule
-
-    include("rule_dsl.jl")
-    export Rule
     export AbstractRule
-    export gettheory
-    export @rule
-    export @theory
-    export @methodrule
-    export @methodtheory
 
     include("utils.jl")
     include("matchers.jl")

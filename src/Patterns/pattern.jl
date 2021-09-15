@@ -3,17 +3,16 @@ using TermInterface
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
-You can use the `Pattern` constructor to recursively convert an `Expr` (or any type satisfying [`Metatheory.TermInterface`](@ref)) to a [`Pattern`](@ref).
 """
-abstract type Pattern end
+abstract type AbstractPat end
 
-Base.isequal(a::Pattern, b::Pattern) = false
-TermInterface.arity(p::Pattern) = 0
+Base.isequal(a::AbstractPat, b::AbstractPat) = false
+TermInterface.arity(p::AbstractPat) = 0
 """
 A ground pattern contains no pattern variables and 
 only literal values to match.
 """
-isground(p::Pattern) = false
+isground(p::AbstractPat) = false
 isground(x) = true # literals
 
 # PatVar is equivalent to SymbolicUtils's Slot
@@ -31,7 +30,7 @@ boolean value. Such a slot will be considered a match only if `f` returns true.
 type assertion. Type assertions on a `PatVar`, will match if and only if 
 the type of the matched term for the pattern variable is a subtype of `T`. 
 """
-mutable struct PatVar{P} <: Pattern 
+mutable struct PatVar{P} <: AbstractPat 
     name::Symbol 
     idx::Int 
     predicate::P 
@@ -50,33 +49,33 @@ A segment pattern represents a vector of subexpressions matched.
 You can attach a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more 
 expressions and must return a boolean value. 
 """
-struct PatSegment{P} <: Pattern
+mutable struct PatSegment{P} <: AbstractPat
     name::Symbol
     idx::Int
     predicate::P
-    hash::Ref{UInt}
+    # hash::Ref{UInt}
 end
 
 PatSegment(v) = PatSegment(v, -1, alwaystrue)
 PatSegment(v, i) = PatSegment(v, i, alwaystrues)
-PatSegment(v, i, p) = PatSegment{typeof(p)}(v, i, p, Ref{UInt}(0))
+# PatSegment(v, i, p) = PatSegment{typeof(p)}(v, i, p), Ref{UInt}(0))
 
 
-function Base.hash(t::PatSegment, salt::UInt)
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.var, hash(t.predicate, salt))
-    t.hash[] = h′
-    return h′
-end
+# function Base.hash(t::PatSegment, salt::UInt)
+#     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+#     h = t.hash[]
+#     !iszero(h) && return h
+#     h′ = hash(t.name, hash(t.predicate, salt))
+#     t.hash[] = h′
+#     return h′
+# end
 
 """
 Term patterns will match
 on terms of the same `arity` and with the same 
 function symbol `operation` and expression head `exprhead`.
 """
-struct PatTerm <: Pattern
+struct PatTerm <: AbstractPat
     exprhead::Any
     operation::Any
     args::Vector
