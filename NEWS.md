@@ -5,3 +5,4 @@
 - Metatheory.jl now supports the same syntax as [SymbolicUtils.jl](https://github.com/JuliaSymbolics/SymbolicUtils.jl/) for the rule definition DSL.
 - Performance improvements: caching of ground terms when doing e-matching in equality saturation.
 - Dynamic Rules do not use RuntimeGeneratedFunctions when not needed.
+- Removed `@metatheory_init`

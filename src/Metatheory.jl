@@ -1,12 +1,10 @@
 module Metatheory
 
-using RuntimeGeneratedFunctions
 using Base.Meta
 using Reexport
 
 include("docstrings.jl")
 
-RuntimeGeneratedFunctions.init(@__MODULE__)
 
 include("options.jl")
 
