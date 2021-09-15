@@ -6,7 +6,7 @@
 
 using Metatheory
 using Metatheory.NewSyntax
-using Rewriters
+using Metatheory.Rewriters
 
 Mem = Dict{Symbol, Union{Bool, Int}}
 
