@@ -7,9 +7,6 @@ module Rules
     using ..EMatchCompiler
     using ..Patterns
     import Base.==
-    import ..closure_generator
-
-
 
     include("rule_types.jl")
     include("rewriterule.jl")

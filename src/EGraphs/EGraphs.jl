@@ -2,9 +2,6 @@ module EGraphs
 
 include("../docstrings.jl")
 
-using RuntimeGeneratedFunctions
-RuntimeGeneratedFunctions.init(@__MODULE__)
-
 using TermInterface
 using ..Util
 using ..Patterns
