@@ -164,8 +164,6 @@ prove(EGraph(), t, :(2 * x), :(x + x))
 
 include("../logic/prop_logic_theory.jl")
 
-@metatheory_init
-
 ex = :((x => (y => z)) => ((x => y) => (x => z)))
 proof = prove(EGraph(), t, ex, true)
 

@@ -11,8 +11,6 @@ Given the theory:
 using Metatheory
 using Metatheory.Library
 
-@metatheory_init
-
 comm_monoid = commutative_monoid(:(*), 1);
 comm_group = @theory begin
     a + 0 => a

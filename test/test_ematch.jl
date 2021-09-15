@@ -91,8 +91,6 @@ export foo
     using Metatheory
     using Metatheory.SUSyntax
     
-    @metatheory_init
-
     t = @theory begin
         :woo => foo
     end
@@ -103,8 +101,6 @@ module Foo
     foo = 12
     using Metatheory
     using Metatheory.SUSyntax
-
-    @metatheory_init
 
     t = @theory begin
         :woo => foo

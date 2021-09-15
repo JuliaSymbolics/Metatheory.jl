@@ -22,10 +22,6 @@ include("Util/Util.jl")
 using .Util
 export Util
 
-
-include("rgf.jl")
-export @metatheory_init
-
 include("Patterns/Patterns.jl")
 @reexport using .Patterns 
 

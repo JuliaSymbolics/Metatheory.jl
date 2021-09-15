@@ -36,14 +36,7 @@ julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
 
 ## Usage
 
-Since Metatheory.jl relies on [RuntimeGeneratedFunctions.jl](https://github.com/SciML/RuntimeGeneratedFunctions.jl/), you have to call `@metatheory_init` in the module where you are going to use Metatheory.
-
-```julia
-using Metatheory
-using Metatheory.EGraphs
-
-@metatheory_init
-```
+TODO update usage
 
 ## Citing
 

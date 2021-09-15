@@ -1,7 +1,6 @@
 using Test
 using Metatheory
 using Metatheory.NewSyntax 
-@metatheory_init
 using Metatheory.Library
 using Metatheory.Util
 using Metatheory.EGraphs

@@ -5,8 +5,6 @@ using Metatheory.EGraphs
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
-@metatheory_init
-
 t = [
     RewriteRule(PatTerm(:call, PatVar(:f), [PatVar(:a), PatVar(:b)]), PatLiteral(:matched))
 ]

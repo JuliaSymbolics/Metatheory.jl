@@ -4,8 +4,6 @@ using Metatheory.EGraphs
 using TermInterface
 using Test
 
-@metatheory_init
-
 struct MyExpr
     head::Any
     # NOTE! this will not work, when replacing 

@@ -5,9 +5,6 @@ using Test
 Metatheory.options.verbose = false
 Metatheory.options.printiter = false
 
-@metatheory_init
-
-
 @timev begin
     @testset "All Tests" begin 
         @safetestset "Classical Rewriting" begin include("test_reductions.jl") end
