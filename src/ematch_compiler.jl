@@ -94,7 +94,7 @@ export Lookup
 @auto_hash_equals struct Fail <: Instruction
     err::Exception
 end
-export Lookup
+export Fail
 
 # =============================================
 # ========= GROUND patterns ================
@@ -125,7 +125,7 @@ end
 
 
 function compile_ground!(reg, p::AbstractPat, prog)
-    throw(UnsupportedPatternException(p))
+    push!(prog.instructions, Fail(UnsupportedPatternException(p)))
 end
 
 # A literal that is not a pattern
@@ -187,7 +187,7 @@ function compile_pat!(reg, p::PatVar, prog)
 end
 
 function compile_pat!(reg, p::AbstractPat, prog)
-    throw(UnsupportedPatternException(p))
+    push!(prog.instructions, Fail(UnsupportedPatternException(p)))
 end
 
 # Literal values

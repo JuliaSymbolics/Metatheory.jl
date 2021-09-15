@@ -24,7 +24,7 @@ Metatheory.options.printiter = false
         @safetestset "Taylor Series" begin include("test_taylor.jl") end
         @safetestset "While Superinterpreter" begin include("test_while_superinterpreter.jl") end
         @safetestset "EGraphs Inequalities" begin include("test_inequality.jl") end
-        @safetestset "PatEquiv" begin include("test_patequiv.jl") end
+        # @safetestset "PatEquiv" begin include("test_patequiv.jl") end
         @safetestset "Custom Types" begin include("test_custom_types.jl") end
 
       # @testset "EGraphs Multipattern" begin include("test_multipat.jl") end

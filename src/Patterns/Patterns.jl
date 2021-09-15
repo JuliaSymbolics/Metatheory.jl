@@ -4,8 +4,6 @@ module Patterns
     import ..alwaystrue
 
     include("pattern.jl")
-    include("toexpr.jl")
-    include("patterns_syntax.jl")
     include("errors.jl")
     include("exports.jl")
 end

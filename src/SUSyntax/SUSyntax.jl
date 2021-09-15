@@ -202,5 +202,4 @@ macro methodtheory(e)
     :(@theory($(esc(e)), true))
 end
 
-
 end
