@@ -38,7 +38,10 @@ include("EGraphs/EGraphs.jl")
 include("Library/Library.jl")
 export Library
 
-using Rewriters
+include("Rewriters.jl")
+using .Rewriters
+export Rewriters
+
 function rewrite(expr, theory; order=:outer)
     if order == :inner 
         Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)
