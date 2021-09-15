@@ -6,8 +6,6 @@ using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 using TermInterface
 
-@metatheory_init
-
 abstract type TypeAnalysis <: AbstractAnalysis end
 
 function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENodeTerm)

@@ -5,8 +5,6 @@ using Catlab.Syntax
 using Metatheory, Metatheory.EGraphs
 using TermInterface
 
-@metatheory_init
-
 
 abstract type CatType end
 struct ObType <: CatType

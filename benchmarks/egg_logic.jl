@@ -6,8 +6,6 @@ using Metatheory.EGraphs.Schedulers
 Metatheory.options.verbose = true
 # Metatheory.options.printiter = true
 
-@metatheory_init
-
 or_alg = @theory begin
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
     (p ∨ q)             ==  (q ∨ p)

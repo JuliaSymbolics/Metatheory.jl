@@ -6,8 +6,6 @@ using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 using TermInterface
 
-@metatheory_init
-
 mult_t = commutative_monoid(:(*), 1)
 plus_t = commutative_monoid(:(+), 0)
 

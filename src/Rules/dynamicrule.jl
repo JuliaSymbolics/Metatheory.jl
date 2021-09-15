@@ -28,17 +28,6 @@ function DynamicRule(l, r)
     DynamicRule(ex, l, r, m)
 end
 
-function DynamicRule(ex, l, r::Expr, mod=@__MODULE__)
-    pvars = patvars(l)
-    setdebrujin!(l, pvars)
-
-    params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-    ex = :($params -> $r)
-    f = closure_generator(mod, ex)
-
-    DynamicRule(ex, l, f, pvars, compile_pat(l), mod)
-end
-
 function DynamicRule(ex, l, r::Function, mod=@__MODULE__)
     pvars = patvars(l)
     setdebrujin!(l, pvars)

@@ -6,8 +6,6 @@ using Metatheory.EGraphs
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
-@metatheory_init
-
 # ================= TEST PATEQUIV =====================
 
 # :foo => :zoo ⟺ :foo in same class as :bar  
