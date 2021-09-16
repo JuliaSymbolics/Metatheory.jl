@@ -129,6 +129,12 @@ function rule_sym_map(ex::Expr)
 end
 rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
+"""
+    rewrite_rhs(expr::Expr)
+
+Rewrite the `expr` by dealing with `:where` if necessary.
+The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : nothing`.
+"""
 function rewrite_rhs(ex::Expr)
     if exprhead(ex) == :where 
         args = arguments(ex)
@@ -141,41 +147,7 @@ end
 rewrite_rhs(x) = x
 
 
-"""
-Construct an `AbstractRule` from an expression.
-"""
-macro rule(e, resolve_fun=false)
-    e = macroexpand(__module__, e)
-    e = rmlines(copy(e))
-    op = operation(e)
-    RuleType = rule_sym_map(e)
-    
-    l, r = arguments(e)
-    lhs = Pattern(l, __module__, resolve_fun)
-    rhs = r
-
-    if RuleType == DynamicRule
-        rhs = rewrite_rhs(r)
-        rhs = makeconsequent(rhs)
-        pvars = patvars(lhs)
-        params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-        rhs_fun =  :($(esc(params)) -> $(esc(rhs)))
-        
-        if lhs isa Union{Symbol,Expr}
-            lhs = Meta.quot(lhs)
-        end
-        
-        return quote 
-            DynamicRule($(Meta.quot(e)), $lhs, $rhs_fun, $(__module__))
-        end
-    end
-
-    if RuleType <: SymbolicRule
-        rhs = Pattern(rhs, __module__, resolve_fun)
-    end
-    
-    return RuleType(e, lhs, rhs)
-end
+include("rule.jl")
 
 
 macro methodrule(e)

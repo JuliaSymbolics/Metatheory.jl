@@ -109,6 +109,12 @@ function rule_sym_map(ex::Expr)
 end
 rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
+"""
+    rewrite_rhs(expr::Expr)
+
+Rewrite the `expr` by dealing with `:where` if necessary.
+The `:where` is rewritten from, for example, `x where f(x)` to `f(x) ? x : nothing`.
+"""
 function rewrite_rhs(ex::Expr)
     if exprhead(ex) == :where 
         args = arguments(ex)
