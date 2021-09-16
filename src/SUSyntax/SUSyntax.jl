@@ -90,7 +90,8 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     op = operation(ex)
     args = arguments(ex)
 
-    istree(op) && throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+    istree(op) && (op = Pattern(op, mod, resolve_fun))
+    #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
     
     if head === :call
