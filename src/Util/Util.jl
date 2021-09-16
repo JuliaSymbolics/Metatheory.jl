@@ -20,23 +20,6 @@ export amp
 
 include("cleaning.jl")
 export rmlines
-export binarize!
 export cleanast
-export cleanast!
-export cleanast_rec
-export cleanblock
-export remove_assertions
-export unquote_sym
-export collect_symbols
-
-include("walks.jl")
-export df_walk
-export df_walk!
-export bf_walk
-export bf_walk!
-
-include("fixpoint.jl")
-export normalize
-export normalize_nocycle
 
 end
