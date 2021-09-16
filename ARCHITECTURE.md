@@ -21,6 +21,12 @@ rewriting pattern matcher
 - `matchers.jl`: Classical rewriting pattern matcher.
 - `utils.jl`: Various utilities for pattern matching
 
+# NewSyntax Module
+Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` function), using the new Metatheory.jl syntax.
+
+# SUSyntax Module
+Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` function), using the SymbolicUtils.jl syntax.
+
 # EGraphs Module 
 Contains code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
 
