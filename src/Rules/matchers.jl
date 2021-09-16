@@ -122,39 +122,6 @@ function matcher(term::PatTerm)
 end
 
 
-function (r::RewriteRule)(term)
-    mem = Vector(undef, length(r.patvars))
-    # n == 1 means that exactly one term of the input (term,) was matched
-    success(n) = n == 1 ? instantiate(term, r.right, mem) : nothing
-        
-    # try
-        return r.matcher(success, (term,), mem)
-    
-    # catch err
-        # throw(RuleRewriteError(r, term))
-    # end
-end
-
-function (r::EqualityRule)(x)
-    mem = Vector(undef, length(r.patvars))
-        if match(r.left, x, mem)
-        return instantiate(x, r.right, mem)
-    end
-    return nothing
-end
-
-function (r::DynamicRule)(term)
-    mem = Vector(undef, length(r.patvars))
-    # n == 1 means that exactly one term of the input (term,) was matched
-    success(n) = n == 1 ? r.rhs_fun(term, mem, nothing, collect(mem)...) : nothing
-
-    # try
-    return r.matcher(success, (term,), mem)
-    
-    # catch err
-        # throw(RuleRewriteError(r, term))
-    # end
-end
 
     
 

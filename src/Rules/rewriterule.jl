@@ -37,3 +37,17 @@ function RewriteRule(ex, l, r)
 end
 
 Base.show(io::IO,  r::RewriteRule) = print(io, r.expr)
+
+
+function (r::RewriteRule)(term)
+    mem = Vector(undef, length(r.patvars))
+    # n == 1 means that exactly one term of the input (term,) was matched
+    success(n) = n == 1 ? instantiate(term, r.right, mem) : nothing
+        
+    # try
+        return r.matcher(success, (term,), mem)
+    
+    # catch err
+        # throw(RuleRewriteError(r, term))
+    # end
+end

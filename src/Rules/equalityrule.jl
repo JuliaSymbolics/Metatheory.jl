@@ -32,3 +32,7 @@ end
 
 Base.show(io::IO,  r::EqualityRule) = print(io, r.expr)
 
+function (r::EqualityRule)(x)
+    # TODO rewriteRuleError
+end
+

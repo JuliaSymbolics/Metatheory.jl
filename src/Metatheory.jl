@@ -38,7 +38,7 @@ include("EGraphs/EGraphs.jl")
 include("Library/Library.jl")
 export Library
 
-include("Rewriters.jl")
+include("Rewriters/Rewriters.jl")
 using .Rewriters
 export Rewriters
 
