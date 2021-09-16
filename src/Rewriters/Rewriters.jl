@@ -24,6 +24,7 @@ rewriters.
    threaded spawn.
 - `Postwalk(rw; threaded=false, thread_cutoff=100)` similarly does post-order traversal.
 - `Fixpoint(rw)` returns a rewriter which applies `rw` repeatedly until there are no changes to be made.
+- `FixpointNoCycle` behaves like [`Fixpoint`](@ref) but instead it applies `rw` repeatedly only while it is returning new results.
 - `PassThrough(rw)` returns a rewriter which if `rw(x)` returns `nothing` will instead
    return `x` otherwise will return `rw(x)`.
 
@@ -106,6 +107,8 @@ end
         return x
     end
 end
+
+
 struct Fixpoint{C}
     rw::C
 end
@@ -120,6 +123,39 @@ function (rw::Fixpoint)(x)
         x = y
         y = @timer cached_repr(f) f(x)
     end
+    return x
+end
+
+"""
+    FixpointNoCycle(rw)
+
+`FixpointNoCycle` behaves like [`Fixpoint`](@ref),
+but returns a rewriter which applies `rw` repeatedly until 
+it produces a result that was already produced before, for example, 
+if the repeated application of `rw` produces results `a, b, c, d, b` in order, 
+`FixpointNoCycle` stops because `b` has been already produced. 
+"""
+struct FixpointNoCycle{C}
+    rw::C
+    hist::Vector{UInt64} # vector of hashes for history
+end
+
+instrument(x::FixpointNoCycle, f) = Fixpoint(instrument(x.rw, f))
+
+function (rw::FixpointNoCycle)(x)
+    f = rw.rw
+    push!(rw.hist, hash(x))
+    y = @timer cached_repr(f) f(x)
+    while x !== y && hash(x) ∉ hist
+        if y === nothing 
+            empty!(rw.hist)
+            return x
+        end
+        push!(rw.hist, y)
+        x = y
+        y = @timer cached_repr(f) f(x)
+    end
+    empty!(rw.hist)
     return x
 end
 
