@@ -22,7 +22,6 @@ module Rules
     export UnequalRule
     export DynamicRule
     export AbstractRule
-    export @acrule, @ordered_acrule
 
 
     include("utils.jl")
