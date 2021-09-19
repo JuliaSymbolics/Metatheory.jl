@@ -38,7 +38,7 @@ end
 
 
 
-function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+function simplcost(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = 0 + arity(n)
     if operation(n) == :∂
         cost += 20
@@ -50,6 +50,8 @@ function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
     end
     return cost
 end
+
+simplcost(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis}) = 0
 
 function simplify(ex; steps=4)
     params = SaturationParams(

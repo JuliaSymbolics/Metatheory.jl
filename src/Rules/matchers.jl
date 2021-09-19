@@ -35,7 +35,6 @@ function matcher(slot::PatVar)
     end
 end
 
-# FIXME implement
 # returns n == offset, 0 if failed
 function trymatchexpr(data, value, n)
     if !islist(value)
@@ -64,7 +63,6 @@ function trymatchexpr(data, value, n)
     end
 end
 
-# FIXME implement
 function matcher(segment::PatSegment)
     function segment_matcher(success, data, bindings)
         if isassigned(bindings, segment.idx)
@@ -91,8 +89,34 @@ function matcher(segment::PatSegment)
     end
 end
 
+# TODO REVIEWME
+function head_matcher(f::Symbol, mod)
+    checkhead = try 
+        fobj = getproperty(mod, f)
+        (x) -> (isequal(x, f) || isequal(x, fobj))
+    catch e 
+        if e isa UndefVarError
+            (x) -> isequal(x, f)
+        else
+            rethrow(e)
+        end
+    end 
+
+    function head_matcher(next, data, bindings)
+        h = car(data)
+        if islist(data) && checkhead(h)
+            next(1)
+        else 
+            nothing
+        end
+    end
+end
+
+head_matcher(x, mod) = matcher(x)
+
 function matcher(term::PatTerm)
-    matchers = (matcher(operation(term)), map(matcher, arguments(term))...,)
+    op = operation(term)
+    matchers = (head_matcher(op, term.mod), map(matcher, arguments(term))...,)
     function term_matcher(success, data, bindings)
         !islist(data) && return nothing
         !istree(car(data)) && return nothing

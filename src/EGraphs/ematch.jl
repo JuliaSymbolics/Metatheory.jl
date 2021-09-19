@@ -82,7 +82,7 @@ function (m::Machine)(instr::CheckType, pc)
     eclass = m.g[id]
 
     for n in eclass 
-        if checktype(n, instr.type, success)
+        if checktype(n, instr.type)
             m.σ[instr.reg] = id
             m.n[instr.reg] = n
             next(m, pc)
@@ -92,9 +92,24 @@ function (m::Machine)(instr::CheckType, pc)
     return nothing
 end
 
-checktype(n, t, success) = false
+checktype(n, t) = false
+checktype(n::ENodeLiteral{<:T}, ::Type{T}) where {T} = true
 
-checktype(n::ENodeLiteral{<:T}, ::Type{T}, success) where {T} = true
+
+function (m::Machine)(instr::CheckPredicate, pc) 
+    # @show instr
+    id = m.σ[instr.reg]
+    eclass = m.g[id]
+
+    if instr.predicate(m.g, eclass)
+        m.σ[instr.reg] = id
+        !isempty(eclass.nodes) && (m.n[instr.reg] = eclass[1])
+        next(m, pc)
+    end
+
+    return nothing
+end
+
 
 function (m::Machine)(instr::Filter, pc)
     # @show instr

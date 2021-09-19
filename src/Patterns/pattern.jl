@@ -6,6 +6,7 @@ Abstract type representing a pattern used in all the various pattern matching ba
 """
 abstract type AbstractPat end
 
+
 Base.isequal(a::AbstractPat, b::AbstractPat) = false
 TermInterface.arity(p::AbstractPat) = 0
 """
@@ -79,8 +80,9 @@ struct PatTerm <: AbstractPat
     exprhead::Any
     operation::Any
     args::Vector
-    hash::Ref{UInt}
-    PatTerm(eh, op, args) = new(eh, op, args, Ref{UInt}(0))
+    mod::Module # useful to match against function head symbols and function objs at the same time
+    hash::Ref{UInt} # TODO remove??
+    PatTerm(eh, op, args, mod) = new(eh, op, args, mod, Ref{UInt}(0))
 end
 TermInterface.istree(::Type{PatTerm}) = true
 TermInterface.exprhead(e::PatTerm) = e.exprhead
