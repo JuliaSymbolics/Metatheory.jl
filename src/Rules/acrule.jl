@@ -25,6 +25,9 @@ end
 
 Base.show(io::IO, acr::ACRule) = print(io, "ACRule(", acr.rule, ")")
 
+# TODO REVIEWME
+@inline _nameof(x) = x isa Function ? nameof(x) : x 
+
 function (acr::ACRule)(term::Y) where {Y}
     r = rule(acr)
     if !istree(term)
@@ -33,7 +36,7 @@ function (acr::ACRule)(term::Y) where {Y}
         head = exprhead(term)
         f = operation(term)
         # Assume that the matcher was formed by closing over a term
-        if f != operation(r.left) # Maybe offer a fallback if m.term errors. 
+        if _nameof(f) != _nameof(operation(r.left)) # Maybe offer a fallback if m.term errors. 
             return nothing
         end
 

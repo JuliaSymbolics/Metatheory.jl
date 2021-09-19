@@ -1,13 +1,14 @@
 ## Theory for CAS
 using Metatheory
 using Metatheory.Library
+using Metatheory.NewSyntax
 using Metatheory.EGraphs
 using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 using TermInterface
 
-mult_t = commutative_monoid(:(*), 1)
-plus_t = commutative_monoid(:(+), 0)
+mult_t = @commutative_monoid (*) 1
+plus_t = @commutative_monoid (+) 0
 
 minus_t = @theory begin
     # TODO Jacques Carette's post in zulip chat

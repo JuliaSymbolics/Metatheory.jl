@@ -7,9 +7,7 @@ using TermInterface
 
 using Metatheory:alwaystrue
 
-include("to_expr.jl")
 export to_expr
-
 export Pattern    
 export @rule
 export @theory
@@ -80,7 +78,7 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
             op = resolve(GlobalRef(mod, op))
         end         
         patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
-        PatTerm(head, op, patargs)
+        PatTerm(head, op, patargs, mod)
     elseif head === :(...)
         makesegment(args[1], mod)
     elseif head === :(::)
@@ -88,11 +86,11 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
     elseif head === :ref 
         # getindex 
         PatTerm(head, resolve_fun ? getindex : :getindex,
-            map(i -> Pattern(i, mod, resolve_fun), args))
+            map(i -> Pattern(i, mod, resolve_fun), args), mod)
     elseif head === :$
         return mod.eval(args[1])
     else
-        return PatTerm(head, head, map(i -> Pattern(i, mod, resolve_fun), args))
+        return PatTerm(head, head, map(i -> Pattern(i, mod, resolve_fun), args), mod)
     end
 end
 
@@ -187,6 +185,36 @@ macro methodtheory(e)
     :(@theory($(esc(e)), true))
 end
 
+
+# TODO ADD ORIGINAL CODE OF PREDICATE TO PATVAR
+
+function to_expr(x::PatVar)
+    if x.predicate == alwaystrue
+        x.name
+    else
+        Expr(:(::), x.name, x.predicate)
+    end
+end
+
+to_expr(x::Any) = x
+
+function to_expr(x::PatSegment)
+    if x.predicate == alwaystrue
+        Expr(:..., x.name)
+    else
+        Expr(:..., Expr(:(::), x.name, x.predicate))
+    end
+end
+
+function to_expr(x::PatTerm) 
+    pl = operation(x)
+    similarterm(Expr, pl, map(to_expr, arguments(x)); exprhead=exprhead(x))
+end
+
+function Base.show(io::IO, x::AbstractPat) 
+    expr = to_expr(x)
+    print(io, expr)
+end
 
 
 end

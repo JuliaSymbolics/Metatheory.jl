@@ -126,3 +126,58 @@ end
 # @time saturate!(G, comm_monoid)
 #
 # G.memo |> display
+
+
+comm_monoid = @theory begin
+    ~a * ~b --> ~b * ~a
+    ~a * 1 --> ~a
+    ~a * (~b * ~c) --> (~a * ~b) * ~c
+    ~a::Number * ~b::Number => ~a * ~b
+end
+
+G = EGraph(:(3 * 4))
+@testset "Basic Constant Folding Example - Commutative Monoid" begin
+    @test (true == @areequalg G comm_monoid 3 * 4 12)
+    @test (true == @areequalg G comm_monoid 3 * 4 12 4 * 3  6 * 2)
+end
+
+
+@testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
+    ex = :(a * 3 * b * 4)
+    G = EGraph(ex)
+    @test (true == @areequalg G comm_monoid (3 * a) * (4 * b) (12 * a) * b ((6 * 2) * b) * a)
+end
+
+@testset "Type Assertions in Ematcher" begin
+    some_theory = @theory begin
+        ~a * ~b --> ~b * ~a
+        ~a::Number * ~b::Number --> matched(~a, ~b)
+        ~a::Int64 * ~b::Int64 --> specific(~a, ~b)
+        ~a * (~b * ~c) --> (~a * ~b) * ~c
+    end
+
+    g = EGraph(:(2 * 3))
+    saturate!(g, some_theory)
+    # display(g.classes)
+
+    @test true == areequal(g, some_theory, :(2 * 3), :(matched(2, 3)))
+    @test true == areequal(g, some_theory, :(matched(2, 3)), :(specific(3, 2)))
+end
+
+function Base.iszero(g::EGraph, ec::EClass)
+    n = ENodeLiteral(0)
+    return n ∈ ec
+end
+
+@testset "Predicates in Ematcher" begin
+    some_theory = @theory begin
+        ~a::iszero * ~b --> 0
+        ~a * ~b --> ~b * ~a
+    end
+
+    g = EGraph(:(2 * 3))
+    saturate!(g, some_theory)
+    # display(g.classes)
+
+    @test true == areequal(g, some_theory, :(a * b * 0), 0)
+end

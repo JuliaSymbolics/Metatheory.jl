@@ -6,7 +6,7 @@ using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
 t = [
-    RewriteRule(PatTerm(:call, PatVar(:f), [PatVar(:a), PatVar(:b)]), PatLiteral(:matched))
+    RewriteRule(PatTerm(:call, PatVar(:f), [PatVar(:a), PatVar(:b)], @__MODULE__), PatLiteral(:matched))
 ]
 
 g = EGraph(:(foo(bar)))
