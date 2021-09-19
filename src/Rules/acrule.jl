@@ -46,7 +46,7 @@ function (acr::ACRule)(term::Y) where {Y}
         itr = acr.sets(eachindex(args), acr.arity)
 
         for inds in itr
-            tt = similarterm(Y, f, (@views args[inds]), symtype(T); exprhead=head)
+            tt = similarterm(Y, f, (@views args[inds]), T; exprhead=head)
             result = r(tt) # FIXME ??
             if result !== nothing
                 # Assumption: inds are unique
