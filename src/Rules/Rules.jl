@@ -2,7 +2,6 @@ module Rules
     using TermInterface
     using Parameters
     using AutoHashEquals
-    using Combinatorics: permutations, combinations
 
     using ..Util
     using ..EMatchCompiler
@@ -14,7 +13,7 @@ module Rules
     include("equalityrule.jl")
     include("unequalrule.jl")
     include("dynamicrule.jl")
-    include("acrule.jl")
+
     # export Rule
     export SymbolicRule
     export RewriteRule
@@ -23,7 +22,6 @@ module Rules
     export UnequalRule
     export DynamicRule
     export AbstractRule
-    export ACRule
     export @acrule, @ordered_acrule
 
 

@@ -147,8 +147,8 @@ end
 
 
 @testset "Pattern matcher can match on both function object references and name symbols" begin 
-	ex = :($(+)($(cos)(x)^2, $(sin)(x)^2))
-	r = @acrule(sin(~x)^2 + cos(~x)^2 --> 1)
+	ex = :($(+)($(sin)(x)^2, $(cos)(x)^2))
+	r = @rule(sin(~x)^2 + cos(~x)^2 --> 1)
 
 	@test r(ex) == 1
 end
