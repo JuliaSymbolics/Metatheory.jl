@@ -1,12 +1,12 @@
 <p align="center">
-<img width="400px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/docs/src/assets/dragon.jpg"/>
+<img width="400px" src="https://raw.githubusercontent.com/juliasymbolics/Metatheory.jl/master/docs/src/assets/dragon.jpg"/>
 </p>
 
 # Metatheory.jl
 
-[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://0x0f0f0f.github.io/Metatheory.jl/dev)
-![CI](https://github.com/0x0f0f0f/Metatheory.jl/workflows/CI/badge.svg)
-[![codecov](https://codecov.io/gh/0x0f0f0f/Metatheory.jl/branch/master/graph/badge.svg?token=EWNYPD7ASX)](https://codecov.io/gh/0x0f0f0f/Metatheory.jl)
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliasymbolics.github.io/Metatheory.jl/dev/)
+![CI](https://github.com/juliasymbolics/Metatheory.jl/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/juliasymbolics/Metatheory.jl/branch/master/graph/badge.svg?token=EWNYPD7ASX)](https://codecov.io/gh/juliasymbolics/Metatheory.jl)
 [![arXiv](https://img.shields.io/badge/arXiv-2102.07888-b31b1b.svg)](https://arxiv.org/abs/2102.07888)
 [![status](https://joss.theoj.org/papers/3266e8a08a75b9be2f194126a9c6f0e9/status.svg)](https://joss.theoj.org/papers/3266e8a08a75b9be2f194126a9c6f0e9)
 [![Zulip](https://img.shields.io/badge/Chat-Zulip-blue)](https://julialang.zulipchat.com/#narrow/stream/277860-metatheory.2Ejl)
@@ -36,8 +36,8 @@ Our library provides a simple, algebraically composable interface to help scient
 ## Contributing
 
 If you'd like to give us a hand and contribute to this repository you can:
-- Find a high level description of the project architecture in [ARCHITECTURE.md](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/ARCHITECTURE.md)
-- Read the contribution guidelines in [CONTRIBUTING.md](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/CONTRIBUTING.md)
+- Find a high level description of the project architecture in [ARCHITECTURE.md](https://github.com/juliasymbolics/Metatheory.jl/blob/master/ARCHITECTURE.md)
+- Read the contribution guidelines in [CONTRIBUTING.md](https://github.com/juliasymbolics/Metatheory.jl/blob/master/CONTRIBUTING.md)
 
 If you enjoy Metatheory.jl and would like to help, please also consider a [tiny donation](https://github.com/sponsors/0x0f0f0f/). 
 It can help me a lot in actively developing this project.
@@ -53,7 +53,7 @@ julia> using Pkg; Pkg.add("Metatheory")
 
 Or you can install the developer version (recommended by now for latest bugfixes)
 ```julia
-julia> using Pkg; Pkg.add(url="https://github.com/0x0f0f0f/Metatheory.jl")
+julia> using Pkg; Pkg.add(url="https://github.com/juliasymbolics/Metatheory.jl")
 ```
 ## Usage
 
@@ -61,16 +61,16 @@ TODO update usage
 
 ## Documentation
 
-Narrative and API documentation for Metatheory.jl is available [here](https://0x0f0f0f.github.io/Metatheory.jl/dev)
+Narrative and API documentation for Metatheory.jl is available [here](https://juliasymbolics.github.io/Metatheory.jl/dev)
 
 ## Citing
 
-If you use Metatheory.jl in your research, please [cite](https://github.com/0x0f0f0f/Metatheory.jl/blob/master/CITATION.bib) our works.
+If you use Metatheory.jl in your research, please [cite](https://github.com/juliasymbolics/Metatheory.jl/blob/master/CITATION.bib) our works.
 
 --- 
 
 <p align="center">
 <a href="https://planting.space"> 
-    <img width="300px" src="https://raw.githubusercontent.com/0x0f0f0f/Metatheory.jl/master/.github/plantingspace.png"/>
+    <img width="300px" src="https://raw.githubusercontent.com/juliasymbolics/Metatheory.jl/master/.github/plantingspace.png"/>
 </a>
 </p>
