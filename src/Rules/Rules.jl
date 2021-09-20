@@ -10,11 +10,15 @@ module Rules
     import ..cleanast
     import ..binarize
 
+    const EMPTY_DICT = Base.ImmutableDict{Int, Any}()
+
     include("rule_types.jl")
     include("rewriterule.jl")
     include("equalityrule.jl")
     include("unequalrule.jl")
     include("dynamicrule.jl")
+    include("utils.jl")
+    include("matchers.jl")
 
     # export Rule
     export SymbolicRule
@@ -26,6 +30,5 @@ module Rules
     export AbstractRule
 
 
-    include("utils.jl")
-    include("matchers.jl")
+
 end

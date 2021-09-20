@@ -40,12 +40,11 @@ Base.show(io::IO,  r::RewriteRule) = print(io, r.expr)
 
 
 function (r::RewriteRule)(term)
-    mem = Vector(undef, length(r.patvars))
     # n == 1 means that exactly one term of the input (term,) was matched
-    success(n) = n == 1 ? instantiate(term, r.right, mem) : nothing
+    success(bindings, n) = n == 1 ? instantiate(term, r.right, bindings) : nothing
         
     # try
-        return r.matcher(success, (term,), mem)
+        return r.matcher(success, (term,), EMPTY_DICT)
     
     # catch err
         # throw(RuleRewriteError(r, term))
