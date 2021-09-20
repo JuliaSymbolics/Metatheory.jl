@@ -13,7 +13,7 @@ end
 include("docstrings.jl")
 include("options.jl")
 include("util.jl")
-include("Patterns/Patterns.jl")
+include("Patterns.jl")
 include("ematch_compiler.jl")
 include("Rules/Rules.jl")
 include("NewSyntax/NewSyntax.jl")
