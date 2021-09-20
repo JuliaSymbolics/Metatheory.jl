@@ -8,7 +8,7 @@
 
 function matcher(val::Any)
     function literal_matcher(next, data, bindings)
-        islist(data) && isequal(car(data), val) ? next(1) : nothing
+        islist(data) && isequal(car(data), val) ? next(bindings, 1) : nothing
     end
 end
 
@@ -19,17 +19,16 @@ function matcher(slot::PatVar)
     end
     function slot_matcher(next, data, bindings)
         !islist(data) && return
-        if isassigned(bindings, slot.idx)
-            val = bindings[slot.idx]
+        val = get(bindings, slot.idx, nothing)
+        if val !== nothing
             if isequal(val, car(data))
-                return next(1)
+                return next(bindings, 1)
             end
         else
             # Variable is not bound, first time it is found
             # check the predicate            
             if pred(car(data))
-                bindings[slot.idx] = car(data)
-                next(1)
+                next(assoc(bindings, slot.idx, car(data)), 1)
             end
         end
     end
@@ -65,11 +64,11 @@ end
 
 function matcher(segment::PatSegment)
     function segment_matcher(success, data, bindings)
-        if isassigned(bindings, segment.idx)
-            val = bindings[segment.idx]
+        val = get(bindings, segment.idx, nothing)
+        if val !== nothing
             n = trymatchexpr(data, val, 0)
             if !isnothing(n)
-                success(n)
+                success(bindings, n)
             end
         else
             res = nothing
@@ -78,10 +77,9 @@ function matcher(segment::PatSegment)
                 subexpr = take_n(data, i)
 
                 if segment.predicate(subexpr)
-                    bindings[segment.idx] = subexpr
-                    res = success(i)
+                    res = success(assoc(bindings, segment.idx, subexpr), i)
                     !isnothing(res) && break
-            end
+                end
             end
 
             return res
@@ -105,7 +103,7 @@ function head_matcher(f::Symbol, mod)
     function head_matcher(next, data, bindings)
         h = car(data)
         if islist(data) && checkhead(h)
-            next(1)
+            next(bindings, 1)
         else 
             nothing
         end
@@ -121,27 +119,27 @@ function matcher(term::PatTerm)
         !islist(data) && return nothing
         !istree(car(data)) && return nothing
 
-        function loop(term, matchers′) # Get it to compile faster
+        function loop(term, bindings′, matchers′) # Get it to compile faster
             # Base case, no more matchers
             if !islist(matchers′)
                 # term is empty
                 if !islist(term)
                     # we have correctly matched the term
-                    return success(1)
+                    return success(bindings′, 1)
                 end
                 return nothing
             end
-            car(matchers′)(term, bindings) do n
+            car(matchers′)(term, bindings′) do b, n
                 # recursion case:
                 # take the first matcher, on success,
                 # keep looping by matching the rest 
                 # by removing the first n matched elements 
                 # from the term, with the bindings, 
-                loop(drop_n(term, n), cdr(matchers′))
+                loop(drop_n(term, n), b, cdr(matchers′))
             end
         end
 
-        loop(car(data), matchers) # Try to eat exactly one term
+        loop(car(data), bindings, matchers) # Try to eat exactly one term
     end
 end
 

@@ -40,13 +40,17 @@ Base.show(io::IO, r::DynamicRule) = print(io, r.expr)
 
 
 
-function (r::DynamicRule)(term)
-    mem = Vector(undef, length(r.patvars))
+function (r::DynamicRule)(term)    
     # n == 1 means that exactly one term of the input (term,) was matched
-    success(n) = n == 1 ? r.rhs_fun(term, mem, nothing, collect(mem)...) : nothing
+
+    # success(bindings, n) = n == 1 ? r.rhs_fun(term, bindings, nothing, values(bindings)...) : nothing
+    success(bindings, n) = if n == 1 
+        bvals = [bindings[i] for i in 1:length(r.patvars)] 
+        return r.rhs_fun(term, bindings, nothing, bvals...) 
+    end
 
     # try
-    return r.matcher(success, (term,), mem)
+    return r.matcher(success, (term,), EMPTY_DICT)
     
     # catch err
         # throw(RuleRewriteError(r, term))
