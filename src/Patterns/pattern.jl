@@ -116,7 +116,7 @@ Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
-patvars(p::PatTerm, s) = (foreach(x -> patvars(x, s), p.args) ; s)
+patvars(p::PatTerm, s) = (patvars(operation(p)); foreach(x -> patvars(x, s), arguments(p)) ; s)
 patvars(x, s) = s
 
 patvars(p) = unique!(patvars(p, Symbol[]))
