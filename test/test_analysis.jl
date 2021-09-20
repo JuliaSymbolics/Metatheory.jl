@@ -4,7 +4,6 @@
 
 using Metatheory
 using Metatheory.SUSyntax
-using Metatheory.Util
 
 include("numberfold.jl")
 
@@ -31,7 +30,7 @@ end
 
 @testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
     ex = :(a * 3 * b * 4)
-    G = EGraph(cleanast(ex))
+    G = EGraph(ex)
     analyze!(G, NumberFold)
     addexpr!(G, :(12 * a))
     println(saturate!(G, comm_monoid))
@@ -55,7 +54,7 @@ end
     @test (true == areequal(G, comm_monoid, :(3 * 4), 12, :(4 * 3), :(6 * 2)))
 
     ex = :(a * 3 * b * 4)
-    G = EGraph(cleanast(ex))
+    G = EGraph(ex)
     analyze!(G, NumberFold)
     params = SaturationParams(timeout=15)
     @test areequal(G, comm_monoid, :((3 * a) * (4 * b)), :((12 * a) * b),
@@ -67,7 +66,8 @@ end
         1 * ~x --> ~x
     end
 
-    G = EGraph(Util.cleanast(:(1 * x)))
+
+    G = EGraph(:(1 * x))
     params = SaturationParams(timeout=100)
     saturate!(G, boson, params)
     ex = extract!(G, ExtractionAnalysis{astsize})
@@ -84,7 +84,7 @@ end
         ~a * (~b * ~c) --> (~a * ~b) * ~c
     end
 
-    g = EGraph(Util.cleanast(:(c * c * cdag * cdag)))
+    g = EGraph(:(c * c * cdag * cdag))
     saturate!(g, boson)
     ex = extract!(g, astsize_inv)
 

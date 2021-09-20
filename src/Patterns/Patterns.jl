@@ -1,9 +1,9 @@
 module Patterns 
-    using ..Util
+import ..binarize
+import ..cleanast
+import ..alwaystrue
 
-    import ..alwaystrue
-
-    include("pattern.jl")
-    include("errors.jl")
-    include("exports.jl")
+include("pattern.jl")
+include("errors.jl")
+include("exports.jl")
 end

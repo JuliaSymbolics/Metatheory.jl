@@ -89,6 +89,11 @@ TermInterface.exprhead(e::PatTerm) = e.exprhead
 TermInterface.operation(p::PatTerm) = p.operation
 TermInterface.arguments(p::PatTerm) = p.args
 TermInterface.arity(p::PatTerm) = length(arguments(p))
+TermInterface.metadata(p::PatTerm) = p.mod
+
+function TermInterface.similarterm(x::Type{PatTerm}, head, args, symtype=nothing; metadata=@__MODULE__, exprhead=:call)
+    PatTerm(exprhead, head, args, metadata)
+end
 
 function Base.hash(t::PatTerm, salt::UInt)
     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)

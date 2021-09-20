@@ -1,6 +1,5 @@
 using Metatheory
 using Metatheory.EGraphs
-using Metatheory.Util
 # Description here:
 # https://www.philipzucker.com/metatheory-progress/
 
@@ -114,7 +113,6 @@ rules = typing_rules ∪ cat_rules ∪ monoidal_rules ∪ sym_rules ∪ diag_rul
 
 # A goofy little helper macro
 # Taking inspiration from Lean/Dafny/Agda
-using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 macro calc(e...)
     theory = eval(e[1])

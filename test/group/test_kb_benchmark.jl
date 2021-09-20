@@ -2,7 +2,6 @@ using Test
 using Metatheory
 using Metatheory.NewSyntax 
 using Metatheory.Library
-using Metatheory.Util
 using Metatheory.EGraphs
 using Metatheory.EGraphs.Schedulers
 
