@@ -1,10 +1,22 @@
+module Patterns 
+
+using Metatheory: binarize, cleanast, alwaystrue
 using AutoHashEquals
 using TermInterface
+
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
 """
 abstract type AbstractPat end
+
+
+struct UnsupportedPatternException <: Exception
+    p::AbstractPat
+end
+
+Base.showerror(io::IO, e::UnsupportedPatternException) = 
+    print(io, "Pattern ", e.p, " is unsupported in this context")
 
 
 Base.isequal(a::AbstractPat, b::AbstractPat) = false
@@ -116,7 +128,7 @@ Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
-patvars(p::PatTerm, s) = (patvars(operation(p)); foreach(x -> patvars(x, s), arguments(p)) ; s)
+patvars(p::PatTerm, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)) ; s)
 patvars(x, s) = s
 
 patvars(p) = unique!(patvars(p, Symbol[]))
@@ -133,6 +145,22 @@ end
 # literal case
 setdebrujin!(p, pvars) = nothing
 
-setdebrujin!(p::PatTerm, pvars) = foreach(x -> setdebrujin!(x, pvars), p.args)
+function setdebrujin!(p::PatTerm, pvars) 
+    setdebrujin!(operation(p), pvars)
+    foreach(x -> setdebrujin!(x, pvars), p.args)
+end
 
 
+
+# include("rules/patterns.jl")
+export AbstractPat
+export PatVar
+export PatTerm
+export PatSegment
+export patvars
+export setdebrujin!
+export isground
+export UnsupportedPatternException
+
+
+end
