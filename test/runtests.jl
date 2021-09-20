@@ -41,7 +41,7 @@ Metatheory.options.printiter = false
 end
    
 # exported consistency test
-for m ∈ [Metatheory, Metatheory.Util, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
+for m ∈ [Metatheory, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
    for i ∈ propertynames(m)
       xxx = getproperty(m, i)
    end

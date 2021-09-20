@@ -2,11 +2,7 @@ module Metatheory
 
 using Base.Meta
 using Reexport
-
-include("docstrings.jl")
-
-
-include("options.jl")
+using TermInterface
 
 macro log(args...)
     quote options.verbose && @info($(args...)) end |> esc
@@ -14,31 +10,25 @@ end
 
 @inline alwaystrue(x) = true
 
-export options
-
-include("Util/Util.jl")
-using .Util
-export Util
-
+include("docstrings.jl")
+include("options.jl")
+include("util.jl")
 include("Patterns/Patterns.jl")
-@reexport using .Patterns 
-
 include("ematch_compiler.jl")
-@reexport using .EMatchCompiler
-
 include("Rules/Rules.jl")
-@reexport using .Rules
-
 include("NewSyntax/NewSyntax.jl")
 include("SUSyntax/SUSyntax.jl")
-
 include("EGraphs/EGraphs.jl")
-@reexport using .EGraphs
-
 include("Library/Library.jl")
-export Library
-
 include("Rewriters/Rewriters.jl")
+
+
+export options
+@reexport using .Patterns 
+@reexport using .EMatchCompiler
+@reexport using .Rules
+@reexport using .EGraphs
+export Library
 using .Rewriters
 export Rewriters
 

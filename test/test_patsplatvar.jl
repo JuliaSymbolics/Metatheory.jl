@@ -2,7 +2,6 @@ using Metatheory
 using Test
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
 t = @theory begin 

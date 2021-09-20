@@ -1,10 +1,9 @@
 module SUSyntax
 using Metatheory.Rules 
 using Metatheory.Patterns
-using Metatheory.Util
 using TermInterface
 
-using Metatheory:alwaystrue
+using Metatheory:alwaystrue, cleanast, binarize
 
 export to_expr
 export Pattern 
@@ -13,6 +12,13 @@ export @theory
 export @methodrule
 export @methodtheory
 
+
+# FIXME this thing eats up macro calls!
+"""
+Remove LineNumberNode from quoted blocks of code
+"""
+rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
+rmlines(a) = a
 
 # Resolve `GlobalRef` instances to literals.
 resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
@@ -82,8 +88,6 @@ Pattern(x, mod=@__MODULE__, resolve_fun=false) = x
 Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false) = x.value isa Symbol ? x.value : x
 
 function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
-    ex = cleanast(ex)
-
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
@@ -291,7 +295,7 @@ of an expression.
 """
 macro rule(e, resolve_fun=false)
     e = macroexpand(__module__, e)
-    e = rmlines(copy(e))
+    e = rmlines(e)
     op = operation(e)
     RuleType = rule_sym_map(e)
     

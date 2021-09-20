@@ -1,7 +1,6 @@
 using Metatheory 
 using Metatheory.SUSyntax
 using Metatheory.Library
-using Metatheory.Util
 
 include("numberfold.jl")
 
@@ -20,7 +19,7 @@ t = comm_monoid ∪ fold_mul
     @test (12 == extract!(G, astsize))
 
     ex = :(a * 3 * b * 4)
-    G = EGraph(cleanast(ex))
+    G = EGraph(ex)
 	params = SaturationParams(timeout=15)
     saturate!(G, t, params)
     extr = extract!(G, astsize)
@@ -43,7 +42,7 @@ end
 
     # for i ∈ 1:20
     # sleep(0.3)
-    ex = cleanast(:((x * (a + b)) + (y * (a + b))))
+    ex = :((x * (a + b)) + (y * (a + b)))
     G = EGraph(ex)
     saturate!(G, t)
     # end
@@ -58,7 +57,7 @@ end
 
     # for i ∈ 1:20
     # sleep(0.3)
-    ex = cleanast(:((x * (a + b)) + (y * (a + b))))
+    ex = :((x * (a + b)) + (y * (a + b)))
     G = EGraph(ex)
     saturate!(G, t)
     # end
@@ -79,7 +78,7 @@ end
 
     # for i ∈ 1:100
     ex = :(a * 3 * b * 4)
-    G = EGraph(cleanast(ex))
+    G = EGraph(ex)
     analyze!(G, NumberFold)
 	params = SaturationParams(timeout=15)
     saturate!(G, comm_monoid, params)

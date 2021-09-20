@@ -119,15 +119,6 @@ foo = 12
 end
 
 
-# expr = cleanast(:(1 * 1 * 1 * 1 * 1 * zoo * 1 * 1 * foo * 1))
-#
-# G = EGraph(expr)
-#
-# @time saturate!(G, comm_monoid)
-#
-# G.memo |> display
-
-
 comm_monoid = @theory begin
     ~a * ~b --> ~b * ~a
     ~a * 1 --> ~a

@@ -3,10 +3,12 @@ module Rules
     using Parameters
     using AutoHashEquals
 
-    using ..Util
+    
     using ..EMatchCompiler
     using ..Patterns
     import Base.==
+    import ..cleanast
+    import ..binarize
 
     include("rule_types.jl")
     include("rewriterule.jl")

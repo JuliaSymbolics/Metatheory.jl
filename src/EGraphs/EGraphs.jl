@@ -2,12 +2,10 @@ module EGraphs
 
 include("../docstrings.jl")
 
+using Metatheory: alwaystrue, cleanast, binarize, @log
+using Metatheory.Patterns
+using Metatheory.Rules
 using TermInterface
-using ..Util
-using ..Patterns
-using ..Rules
-import ..@log
-import ..alwaystrue
 import ThreadsX
 
 include("enode.jl")

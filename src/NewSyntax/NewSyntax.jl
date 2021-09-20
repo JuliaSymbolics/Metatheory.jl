@@ -1,11 +1,11 @@
 module NewSyntax
 using Metatheory.Rules 
 using Metatheory.Patterns
-using Metatheory.Util
 using TermInterface
     # Pattern Syntax
 
-using Metatheory:alwaystrue
+using Metatheory: alwaystrue, cleanast, binarize 
+
 
 export to_expr
 export Pattern    
@@ -14,6 +14,12 @@ export @theory
 export @methodrule
 export @methodtheory
 
+# FIXME this thing eats up macro calls!
+"""
+Remove LineNumberNode from quoted blocks of code
+"""
+rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
+rmlines(a) = a
 
 # Resolve `GlobalRef` instances to literals.
 resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)

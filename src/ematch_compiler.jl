@@ -4,8 +4,8 @@ module EMatchCompiler
 
 using AutoHashEquals
 using TermInterface
-using ..Patterns
-import ..alwaystrue
+using Metatheory: alwaystrue, binarize
+using Metatheory.Patterns
 
 abstract type Instruction end 
 export Instruction
@@ -102,6 +102,8 @@ export Fail
 
 
 function compile_ground!(reg, p::PatTerm, prog)
+    p = binarize(p)
+
     if haskey(prog.ground_terms, p)
         # push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
@@ -143,6 +145,8 @@ end
 # =============================================
 
 function compile_pat!(reg, p::PatTerm, prog)
+    p = binarize(p)
+
     if haskey(prog.ground_terms, p)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
@@ -151,7 +155,6 @@ function compile_pat!(reg, p::PatTerm, prog)
     c = memsize(prog)
     nargs = arity(p)
     # registers unit range
-    # TODO remove -1?
     # a = c:(c + nargs - 1)
     a = c:(c + nargs - 1)
 

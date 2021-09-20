@@ -170,7 +170,7 @@ function gen_rule(axiom::Catlab.GAT.AxiomConstructor, mod; righttoleft=false)
             # return $(evalmod).eval($(Meta.quot(ax_right))) 
             return $rhs
         else 
-            return _lhs_expr end) |> Metatheory.Util.rmlines
+            return _lhs_expr end) |> Metatheory.rmlines
         push!(lines, the_big_if)
     else 
         push!(lines, :(return $rhs))
