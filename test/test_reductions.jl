@@ -157,7 +157,7 @@ end
 
 @testset "Pattern variable as pattern term head" begin 
 	foo(x) = x+2
-	ex = :(foo(bar, 2, pazz))
+	ex = :(($foo)(bar, 2, pazz))
 	r = @rule ((~f)(~x, 2, ~y) => (~f)(2))
 
 	@test r(ex) == 4
