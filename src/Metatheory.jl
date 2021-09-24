@@ -16,6 +16,7 @@ include("utils.jl")
 include("Patterns.jl")
 include("ematch_compiler.jl")
 include("Rules/Rules.jl")
+@reexport using .Rules
 include("NewSyntax.jl")
 include("SUSyntax.jl")
 include("EGraphs/EGraphs.jl")
