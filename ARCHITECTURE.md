@@ -23,24 +23,11 @@ Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` functio
 Contains code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
 
 - `egraphs.jl`: Definition of `ENode`, `EClass` and `EGraph` types, EClass unioning, metadata access, defintion of EGraphs, adding, merging, rebuilding.
-- `ematch.jl`: Pattern matching functions on egraphs
+- `ematch.jl`: E-Graph Pattern matching virtual machine interpreter.
 - `analysis.jl`: Core algorithms for analyzing egraphs and extracting terms from egraphs.
-- `equality.jl`: utility functions and macros to check equality of terms in egraphs.
-- `Schedulers/`: Module containing definition of Schedulers for equality saturation. 
+- `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs, e-graphs search.  Search phase of equality saturation. Uses multiple-dispatch on rules, Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results. Definition of `SaturationParams` type, parameters for equality saturation, Definition of equality saturation execution reports. Utility functions and macros to check equality of terms in egraphs.
+- `Schedulers.jl`: Module containing definition of Schedulers for equality saturation. 
 
 
-## Saturation 
-Inside of `EGraphs/saturation`
-
-- `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs. 
-- `search.jl`: Search phase of equality saturation. Uses multiple-dispatch on `Rule`s
-- `apply.jl`: Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results.
-- `params.jl`: Definition of `SaturationParams` type, parameters for equality saturation
-- `report.jl`: Definition of the type for displaying equality saturation execution reports.
-
-
-## Library Module
-Contains utility functions and examples of ready-to-use theories of rules.
-
-- `rules.jl`: Macros that generate single rules corresponding to common algebraic properties
-- `algebra.jl`: Macros for generating theories from common algebraic structures.  
+## `Library.jl`
+Contains utility functions and examples of ready-to-use theories of rules. Macros that generate single rules corresponding to common algebraic properties and macros for generating theories from common algebraic structures.  
