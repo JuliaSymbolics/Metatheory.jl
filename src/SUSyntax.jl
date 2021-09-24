@@ -1,6 +1,6 @@
 module SUSyntax
-using Metatheory.Rules 
 using Metatheory.Patterns
+using Metatheory.Rules
 using TermInterface
 
 using Metatheory:alwaystrue, cleanast, binarize

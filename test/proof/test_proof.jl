@@ -24,7 +24,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
     report = saturate!(g, t, params; mod=mod)
 
     # display(g.classes); println()
-    if !(report.reason isa EGraphs.Saturated) && !reached(g, goal)
+    if !(report.reason === :saturated) && !reached(g, goal)
         return missing # failed to prove
     end
 

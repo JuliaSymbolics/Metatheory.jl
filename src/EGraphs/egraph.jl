@@ -1,20 +1,209 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
-using DataStructures
-using TermInterface
 
 """
 Abstract type representing an [`EGraph`](@ref) analysis,
 attaching values from a join semi-lattice domain to
 an EGraph
 """
-const ClassMem = Dict{EClassId,EClass}
+abstract type AbstractAnalysis end
+abstract type AbstractENode{T} end
+
+const AnalysisData = Base.ImmutableDict{Type{<:AbstractAnalysis}, Any}
+const EClassId = Int64
 const HashCons = Dict{AbstractENode,EClassId}
 const Analyses = Set{Type{<:AbstractAnalysis}}
 const SymbolCache = Dict{Any, Set{EClassId}}
 const TermTypes = Dict{Tuple{Any, EClassId}, Type}
 
+mutable struct ENodeLiteral{T} <: AbstractENode{T}
+    value::T
+    hash::Ref{UInt}
+end
+
+mutable struct ENodeTerm{T} <: AbstractENode{T}
+    exprhead::Union{Symbol, Nothing}
+    operation::Any
+    args::Vector{EClassId}
+    hash::Ref{UInt} # hash cache
+end
+
+# parametrize metadata by M
+mutable struct EClass
+    id::EClassId
+    nodes::Vector{AbstractENode}
+    parents::Vector{Pair{AbstractENode, EClassId}}
+    data::Union{Nothing, AnalysisData}
+    # data::M
+end
+
+const ClassMem = Dict{EClassId,EClass}
+
+
+function ENodeTerm{T}(exprhead, operation, c_ids) where {T}
+    ENodeTerm{T}(exprhead, operation, c_ids, Ref{UInt}(0))
+end
+
+
+function Base.isequal(a::ENodeTerm, b::ENodeTerm)
+    isequal(a.args, b.args) && 
+    isequal(a.exprhead, b.exprhead) && isequal(a.operation, b.operation)
+end
+
+
+TermInterface.istree(n::ENodeTerm) = true
+TermInterface.exprhead(n::ENodeTerm) = n.exprhead
+TermInterface.operation(n::ENodeTerm) = n.operation 
+TermInterface.arguments(n::ENodeTerm) = n.args 
+TermInterface.arity(n::ENodeTerm) = length(n.args)
+
+# This optimization comes from SymbolicUtils
+# The hash of an enode is cached to avoid recomputing it.
+# Shaves off a lot of time in accessing dictionaries with ENodes as keys.
+function Base.hash(t::ENodeTerm{T}, salt::UInt) where {T}
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.args,  hash(t.exprhead, hash(t.operation, hash(T, salt))))
+    t.hash[] = h′
+    return h′
+end
+
+
+function toexpr(n::ENodeTerm)
+    eh = exprhead(n)
+    if isnothing(eh)
+        return operation(n) # n is a constant enode
+    end
+    similarterm(Expr, operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead=exprhead(n))
+end
+
+
+# ==================================================
+# ENode Literal
+# ==================================================
+
+TermInterface.istree(n::ENodeLiteral) = false
+TermInterface.exprhead(n::ENodeLiteral) = nothing
+TermInterface.operation(n::ENodeLiteral) = n.value 
+TermInterface.arity(n::ENodeLiteral) = 0
+
+ENodeLiteral(a::T) where{T} = ENodeLiteral{T}(a, Ref{UInt}(0))
+
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(a.value, b.value) 
+
+
+function Base.hash(t::ENodeLiteral{T}, salt::UInt) where {T}
+    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+    h = t.hash[]
+    !iszero(h) && return h
+    h′ = hash(t.value, hash(T, salt))
+    t.hash[] = h′
+    return h′
+end
+
+
+termtype(x::AbstractENode{T}) where T = T
+
+toexpr(n::ENodeLiteral) = operation(n)
+
+function Base.show(io::IO, x::ENodeTerm{T}) where {T}
+    print(io, "ENode{$T}(", toexpr(x), ")")
+end
+
+Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
+
+EClass(id) = EClass(id, AbstractENode[], Pair{AbstractENode, EClassId}[], nothing)
+EClass(id, nodes, parents) = EClass(id, nodes, parents, nothing)
+
+# Interface for indexing EClass
+Base.getindex(a::EClass, i) = a.nodes[i]
+Base.setindex!(a::EClass, v, i) = setindex!(a.nodes, v, i)
+Base.firstindex(a::EClass) = firstindex(a.nodes)
+Base.lastindex(a::EClass) = lastindex(a.nodes)
+
+# Interface for iterating EClass
+Base.iterate(a::EClass) = iterate(a.nodes)
+Base.iterate(a::EClass, state) = iterate(a.nodes, state)
+
+# Showing
+function Base.show(io::IO, a::EClass)
+    print(io, "EClass $(a.id) (")
+    
+    print(io, "[", Base.join(a.nodes, ", "), "]")
+    if a.data === nothing
+        print(io, ")")
+        return
+    end
+    print(io, ", analysis = {")
+    for (k, v) ∈ a.data
+        print(io, "$k => $v, ")
+    end
+    print(io, "})")
+end
+
+function addparent!(a::EClass, n::AbstractENode, id::EClassId)
+    push!(a.parents, (n => id))
+end
+
+function Base.union!(to::EClass, from::EClass)
+    append!(to.nodes, from.nodes)
+    append!(to.parents, from.parents)
+    if to.data !== nothing && from.data !== nothing
+        # merge!(to.data, from.data)
+        # to.data = join_analysis_data(to.data, from.data)
+        to.data = join_analysis_data(to.data, from.data)
+    elseif to.data === nothing
+        to.data = from.data
+    end
+    return to
+end
+
+function join_analysis_data(d::AnalysisData, dsrc::AnalysisData)
+    for (an, val_b) in dsrc
+        if haskey(d, an)
+            val_a = d[an]
+            nv = join(an, val_a, val_b)
+            # d[an] = nv
+            # WARNING immutable version
+            d = Base.ImmutableDict(d,an=>nv)
+        end
+    end
+    return d
+end
+
+# Thanks to Shashi Gowda
+function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
+    a.data === nothing && (return false)
+    return haskey(a.data, x)
+end
+
+function getdata(a::EClass, x::Type{<:AbstractAnalysis})
+    !hasdata(a, x) && error("EClass $a does not contain analysis data for $x")
+    return a.data[x]
+end
+
+function getdata(a::EClass, x::Type{<:AbstractAnalysis}, default)
+    hasdata(a, x) ? a.data[x] : default
+end
+
+function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value) 
+    # lazy allocation
+    a.data === nothing && (a.data = AnalysisData())
+    # a.data[x] = value
+    a.data = AnalysisData(a.data, x, value)
+end
+
+function funs(a::EClass)
+    map(operation, a.nodes)
+end
+
+function funs_arity(a::EClass)
+    map(a.nodes) do x 
+        (operation(x), arity(x))
+    end
+end
 
 """
 A concrete type representing an [`EGraph`].

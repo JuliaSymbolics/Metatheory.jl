@@ -6,6 +6,8 @@
 # 3. Vector of matches debrujin-indexed by pattern variables
 #
 
+using Metatheory: islist, car, cdr, assoc, drop_n, take_n
+
 function matcher(val::Any)
     function literal_matcher(next, data, bindings)
         islist(data) && isequal(car(data), val) ? next(bindings, 1) : nothing
@@ -144,9 +146,6 @@ function matcher(term::PatTerm)
 end
 
 
-
-    
-
 # TODO revise
 function instantiate(left, pat::PatTerm, mem)
     ar = arguments(pat)
@@ -159,16 +158,10 @@ instantiate(left, pat::Any, mem) = pat
 instantiate(left, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
 
 function instantiate(left, pat::PatVar, mem)
-    # println(left)
-    # println(pat)
-    # println(mem)
     mem[pat.idx]
 end
 
 function instantiate(left, pat::PatSegment, mem)
-    # println(left)
-    # println(pat)
-    # println(mem)
     mem[pat.idx]
 end
 

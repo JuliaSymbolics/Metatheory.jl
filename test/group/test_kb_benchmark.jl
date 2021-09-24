@@ -3,6 +3,7 @@ using Metatheory
 using Metatheory.NewSyntax 
 using Metatheory.Library
 using Metatheory.EGraphs
+using Metatheory.Rules
 using Metatheory.EGraphs.Schedulers
 
 Metatheory.options.printiter = true

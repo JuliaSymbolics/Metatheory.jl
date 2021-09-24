@@ -2,7 +2,6 @@ using Documenter
 using Metatheory
 
 using Metatheory.EGraphs
-using Metatheory.Rules
 using Metatheory.Library
 
 

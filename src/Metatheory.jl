@@ -12,21 +12,20 @@ end
 
 include("docstrings.jl")
 include("options.jl")
-include("util.jl")
+include("utils.jl")
 include("Patterns.jl")
 include("ematch_compiler.jl")
 include("Rules/Rules.jl")
-include("NewSyntax/NewSyntax.jl")
-include("SUSyntax/SUSyntax.jl")
+include("NewSyntax.jl")
+include("SUSyntax.jl")
 include("EGraphs/EGraphs.jl")
-include("Library/Library.jl")
-include("Rewriters/Rewriters.jl")
+include("Library.jl")
+include("Rewriters.jl")
 
 
 export options
 @reexport using .Patterns 
 @reexport using .EMatchCompiler
-@reexport using .Rules
 @reexport using .EGraphs
 export Library
 using .Rewriters

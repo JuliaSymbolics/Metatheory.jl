@@ -1,6 +1,6 @@
 module NewSyntax
-using Metatheory.Rules 
 using Metatheory.Patterns
+using Metatheory.Rules
 using TermInterface
     # Pattern Syntax
 
