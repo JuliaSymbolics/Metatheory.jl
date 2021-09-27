@@ -216,9 +216,6 @@ function simplify(ex, syntax)
     extract!(g, astsize)
 end
 
-Metatheory.options.printiter = true
-Metatheory.options.verbose = true
-
 A, B, C = Ob(SMC, :A, :B, :C)
 f = Hom(:f, A, B)
 

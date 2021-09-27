@@ -5,13 +5,12 @@ using Reexport
 using TermInterface
 
 macro log(args...)
-    quote options.verbose && @info($(args...)) end |> esc
+    quote haskey(ENV, "MT_DEBUG") && @info($(args...)) end |> esc
 end
 
 @inline alwaystrue(x) = true
 
 include("docstrings.jl")
-include("options.jl")
 include("utils.jl")
 include("Patterns.jl")
 include("ematch_compiler.jl")
@@ -24,7 +23,6 @@ include("Library.jl")
 include("Rewriters.jl")
 
 
-export options
 @reexport using .Patterns 
 @reexport using .EMatchCompiler
 @reexport using .EGraphs

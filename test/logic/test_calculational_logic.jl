@@ -25,7 +25,6 @@
 # Implication: p => q == p | q == q
 # Consequence: p <= q == q => p
 
-# Metatheory.options[:printiter] = true
 
 using Metatheory
 using Metatheory.NewSyntax

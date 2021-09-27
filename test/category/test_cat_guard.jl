@@ -2,10 +2,6 @@ using Metatheory
 using Metatheory.EGraphs
 # Description here:
 # https://www.philipzucker.com/metatheory-progress/
-
-Metatheory.options.verbose = false
-Metatheory.options.printiter = false
-
 # https://github.com/AlgebraicJulia/Catlab.jl/blob/ce2fde9c63a8aab65cf2a7697f43cd24e5e00b3a/src/theories/Monoidal.jl#L127
 
 cat_rules = @theory begin
@@ -209,10 +205,6 @@ end
     Δ(a ⊗ₒ b) ⋅ (proj1(a, b) ⊗ₘ proj2(a, b))
     pair(proj1(a, b), proj2(a, b))
 end
-
-Metatheory.options.verbose = true
-Metatheory.options.printiter = true
-Metatheory.options.multithreading = false
 
 G = EGraph( :(pair(proj1(a, b), proj2(a, b))))
 params = SaturationParams(timeout=10)

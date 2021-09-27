@@ -2,9 +2,6 @@ include("eggify.jl")
 using Metatheory.Library
 using Metatheory.EGraphs.Schedulers
 
-Metatheory.options.verbose = true
-Metatheory.options.printiter = true
-
 mult_t = commutative_monoid(:(*), 1)
 plus_t = commutative_monoid(:(+), 0)
 

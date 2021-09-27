@@ -1,4 +1,3 @@
-# Metatheory.options[:printiter] = true
 using Metatheory
 using Metatheory.EGraphs
 using Test

@@ -105,9 +105,6 @@ G = EGraph()
 
 ecs = [addexpr!(G, i) for i in exprs]
 
-Metatheory.options.verbose = true
-Metatheory.options.printiter = true
-
 
 saturate!(G, rules)
 extract!(G, astsize; root=ecs[2].id)
@@ -130,10 +127,6 @@ exprs = [gat_to_expr(i) for i in gats]
 G = EGraph()
 
 ecs = [addexpr!(G, i) for i in exprs]
-
-Metatheory.options.verbose = true
-Metatheory.options.printiter = true
-
 
 saturate!(G, rules, SaturationParams(timeout=1))
 extract!(G, astsize; root=ecs[2].id)

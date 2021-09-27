@@ -2,9 +2,6 @@ using Test
 include("cas_theory.jl")
 include("cas_simplify.jl")
 
-# Metatheory.options.verbose = true
-# Metatheory.options.printiter = true
-
 @test :(4a)         == @simplify 2a + a + a
 @test :(a*b*c)      == @simplify a * c * b
 @test :(2x)         == @simplify 1 * x * 2

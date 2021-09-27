@@ -76,6 +76,7 @@ Configurable Parameters for the equality saturation process.
     schedulerparams::Tuple=()
     threaded::Bool = false
     timer::Bool = true
+    printiter::Bool = false
 end
 
 struct Match
@@ -332,7 +333,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params=SaturationP
     while true
         curr_iter+=1
 
-        options.printiter && @info("iteration ", curr_iter)
+        params.printiter && @info("iteration ", curr_iter)
 
         report, egraph = eqsat_step!(g, theory, curr_iter, sched, match_hist, params, report)
 

@@ -6,7 +6,6 @@ using TermInterface
 using Metatheory:alwaystrue, cleanast, binarize
 
 export to_expr
-export Pattern 
 export @rule
 export @theory
 export @methodrule

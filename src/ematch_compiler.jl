@@ -208,6 +208,7 @@ end
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
 function compile_pat(p)
+    p = binarize(p)
     pvars = patvars(p)
     nvars = length(pvars)
 

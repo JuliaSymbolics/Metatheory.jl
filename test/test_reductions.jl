@@ -135,7 +135,7 @@ end
 module NonCall 
 using Metatheory 
 using Metatheory.NewSyntax
-t = @theory begin
+t = NewSyntax.@theory begin
 	(a, b) => ok(a,b)
 end
 
