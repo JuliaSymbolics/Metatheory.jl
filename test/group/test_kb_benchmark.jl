@@ -6,14 +6,18 @@ using Metatheory.EGraphs
 using Metatheory.Rules
 using Metatheory.EGraphs.Schedulers
 
-Metatheory.options.printiter = true
-Metatheory.options.verbose = true
-
 function rep(x, op, n::Int)
     foldl((x, y) -> :(($op)($x, $y)), repeat([x], n))
 end
 
+macro rep(x, op, n::Int)
+    expr = rep(x, op, n)
+    esc(expr)
+end
+
 rep(:a, :*, 3)
+
+@rule (@rep :a (*) 3) => :b
 
 Mid = @theory begin 
     a * :ε => a
@@ -31,8 +35,10 @@ T = [
     @rule :a * :a => :ε
     @rule :b * :b * :b => :ε
     @rule :B * :B => :B
-    RewriteRule(Pattern(rep(:(:a * :b), :*, 7)), Pattern(:(:ε)))
-    RewriteRule(Pattern(rep(:(:a * :b * :a * :B), :*, 12)), Pattern(:(:ε)))
+    @rule (@rep (:a * :b) (*) 7) => :ε
+    @rule (@rep (:a * :b * :a * :B) (*) 7) => :ε
+    # RewriteRule(makepattern(rep(:(:a * :b), :*, 7)), :ε)
+    # RewriteRule(makepattern(rep(:(:a * :b * :a * :B), :*, 12)), :ε)
 ]
 
 G = Mid ∪ Massoc ∪ T

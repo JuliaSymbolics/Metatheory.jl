@@ -2,9 +2,6 @@ include("eggify.jl")
 using Metatheory.Library
 using Metatheory.EGraphs.Schedulers
 
-Metatheory.options.verbose = true
-# Metatheory.options.printiter = true
-
 or_alg = @theory begin
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
     (p ∨ q)             ==  (q ∨ p)

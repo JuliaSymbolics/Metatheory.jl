@@ -32,10 +32,6 @@ canonical_t = @theory begin
     (+)(xs...)      |> Expr(:call, :+, sort!(xs; lt=customlt)...)
 end
 
-# Metatheory.options[:verbose] = true
-# Metatheory.options[:printiter] = true
-
-
 
 function simplcost(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = 0 + arity(n)

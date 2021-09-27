@@ -24,10 +24,6 @@ analyze!(G, NumberFold)
     @test (true == @areequalg G comm_monoid 3 * 4 12 4 * 3  6 * 2)
 end
 
-# Metatheory.EGraphs.PRINTIT[] = true
-# Metatheory.options.verbose = true
-# Metatheory.options.printiter = true
-
 @testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
     ex = :(a * 3 * b * 4)
     G = EGraph(ex)

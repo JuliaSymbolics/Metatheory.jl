@@ -8,7 +8,7 @@ using Metatheory: alwaystrue, cleanast, binarize
 
 
 export to_expr
-export Pattern    
+export makepattern
 export @rule
 export @theory
 export @methodrule
@@ -56,6 +56,7 @@ You can use `makepattern` to recursively convert an `Expr` (or
 any type satisfying [`Metatheory.TermInterface`](@ref)) into an expression that
 will build an [`AbstractPat`](@ref) if evaluated.
 """
+makepattern(x) = makepattern(x, [], @__MODULE__)
 makepattern(x::Symbol, pvars, mod=@__MODULE__) = makevar(x, pvars)
 makepattern(x, pvars, mod=@__MODULE__) = x
 function makepattern(ex::Expr, pvars, mod=@__MODULE__)
@@ -139,7 +140,6 @@ macro rule(e)
 
     return quote 
         $(__source__)
-        println($(esc(lhs)))
         ($RuleType)($(QuoteNode(e)), $(esc(lhs)), $rhs)
     end
 end
@@ -165,6 +165,9 @@ end
 to_expr(x::PatVar) = x.predicate == alwaystrue ? x.name : Expr(:(::), x.name, x.predicate)
     
 to_expr(x::Any) = x
+
+to_expr(x::Symbol) = QuoteNode(x)
+
 
 function to_expr(x::PatSegment)
     if x.predicate == alwaystrue

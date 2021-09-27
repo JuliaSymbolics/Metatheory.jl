@@ -177,11 +177,6 @@ proof = prove(EGraph(), t, :((x => (x ∨ x))), :((¬(x) ∧ y) => y))
 ex = :(((x ∨ y) ∨ ¬(z ∧ a)) ∨ a)
 proof = prove(EGraph(), t, ex, true)
 
-Metatheory.options.verbose = false
-
-
-
-
 # chat with oliver 
 # introduce a new type of enode at the proof generation stage 
 # set of unknown variables
