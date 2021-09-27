@@ -22,74 +22,67 @@ rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode)
 rmlines(a) = a
 
 
-function makesegment(s::Expr, mod::Module)
+function makesegment(s::Expr, pvars)
     if !(exprhead(s) == :(::))
         error("Syntax for specifying a segment is x::\$predicate..., where predicate is a boolean function or a type")
     end
 
     name = arguments(s)[1]
-    p = makepredicate(arguments(s)[2], mod)
-    PatSegment(name, -1, p)
+    name ∉ pvars && push!(pvars, name)
+    return :(PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
-makesegment(s::Symbol, mod) = PatSegment(s)
-
-function makevar(s::Expr, mod::Module)
+function makesegment(name::Symbol, pvars) 
+    name ∉ pvars && push!(pvars, name)
+    PatSegment(name)
+end
+function makevar(s::Expr, pvars)
     if !(exprhead(s) == :(::))
         error("Syntax for specifying a slot is x::\$predicate, where predicate is a boolean function or a type")
     end
 
     name = arguments(s)[1]
-    p = makepredicate(arguments(s)[2], mod)
-    PatVar(name, -1, p)
+    name ∉ pvars && push!(pvars, name)
+    return :(PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
-makevar(name::Symbol, mod) = PatVar(name)
-
-
-function makepredicate(f::Symbol, mod::Module)::Union{Function,Type}
-    getproperty(mod, f)
-end
-
-function makepredicate(f::Expr, mod::Module)::Union{Function,Type}
-    mod.eval(f)
+function makevar(name::Symbol, pvars) 
+    name ∉ pvars && push!(pvars, name)
+    PatVar(name)
 end
 
 
-PatternExpr(x::Symbol, mod=@__MODULE__) = PatVar(x)
 # treat as a literal
-PatternExpr(x, mod=@__MODULE__) = x
-PatternExpr(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
-
 """
-You can use the `Pattern` constructor to recursively convert an `Expr` (or
-any type satisfying [`Metatheory.TermInterface`](@ref)) to an
-[`AbstractPat`](@ref).
+You can use `makepattern` to recursively convert an `Expr` (or
+any type satisfying [`Metatheory.TermInterface`](@ref)) into an expression that
+will build an [`AbstractPat`](@ref) if evaluated.
 """
-
-function PatternExpr(ex::Expr, mod=@__MODULE__)
-    ex = cleanast(ex)
-
+makepattern(x::Symbol, pvars, mod=@__MODULE__) = makevar(x, pvars)
+makepattern(x, pvars, mod=@__MODULE__) = x
+function makepattern(ex::Expr, pvars, mod=@__MODULE__)
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
     istree(op) && throw(Meta.ParseError("Unsupported pattern syntax $ex"))
-    op = op isa Symbol ? Meta.quot(op) : op
+    op = op isa Symbol ? QuoteNode(op) : op
 
     
     if head === :call
-        patargs = map(i -> PatternExpr(i, mod), args) # recurse
-        return quote PatTerm(:call, $op, $patargs, $mod) end
+        patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
+        return :(PatTerm(:call, $op, [$(patargs...)], $mod))
     elseif head === :(...)
-        return makesegment(args[1], mod)
+        return makesegment(args[1], pvars)
     elseif head === :(::)
-        return makevar(ex, mod)
+        return makevar(ex, pvars)
     elseif head === :ref 
         # getindex 
-        return quote PatTerm($head, $getindex, $(map(i -> PatternExpr(i, mod), args)), $mod) end
+        patargs = map(i -> makepattern(i, pvars, mod), args)
+        return :(PatTerm(:ref, getindex, [$(patargs...)], $mod))
     elseif head === :$
         return esc(args[1])
     elseif head isa Symbol
         h = Meta.quot(head)
-        return quote PatTerm($h, $h, $(map(i -> PatternExpr(i, mod), args)), $mod) end
+        patargs = map(i -> makepattern(i, pvars, mod), args)
+        return :(PatTerm($h, $h, [$(patargs...)], $mod))
     end
 end
 
@@ -134,25 +127,21 @@ macro rule(e)
     RuleType = rule_sym_map(e)
     
     l, r = arguments(e)
-    lhs = PatternExpr(l, __module__)
-    rhs = RuleType <: SymbolicRule ? PatternExpr(r, __module__) : r
+    pvars = Symbol[]
+    lhs = makepattern(l, pvars, __module__)
+    rhs = RuleType <: SymbolicRule ? makepattern(r, [], __module__) : r
 
     if RuleType == DynamicRule
         rhs = rewrite_rhs(r)
-        pvars = patvars(lhs)
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
         rhs =  :($(esc(params)) -> $(esc(rhs)))
     end
 
     return quote 
         $(__source__)
-        ($RuleType)($(QuoteNode(e)), $lhs, $rhs)
+        println($(esc(lhs)))
+        ($RuleType)($(QuoteNode(e)), $(esc(lhs)), $rhs)
     end
-end
-
-
-macro methodrule(e)
-    esc(:(Metatheory.@rule($e,true)))
 end
 
 # Theories can just be vectors of rules!
@@ -170,22 +159,11 @@ macro theory(e)
     end
 end
 
-# TODO document this puts the function as pattern head instead of symbols
-macro methodtheory(e)
-    :(@theory($(esc(e)), true))
-end
-
 
 # TODO ADD ORIGINAL CODE OF PREDICATE TO PATVAR
 
-function to_expr(x::PatVar)
-    if x.predicate == alwaystrue
-        x.name
-    else
-        Expr(:(::), x.name, x.predicate)
-    end
-end
-
+to_expr(x::PatVar) = x.predicate == alwaystrue ? x.name : Expr(:(::), x.name, x.predicate)
+    
 to_expr(x::Any) = x
 
 function to_expr(x::PatSegment)
