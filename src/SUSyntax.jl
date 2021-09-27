@@ -88,7 +88,6 @@ Pattern(x, mod=@__MODULE__) = x
 Pattern(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
 
 function Pattern(ex::Expr, mod=@__MODULE__)
-    @show ex mod
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
