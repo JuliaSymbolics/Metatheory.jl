@@ -79,7 +79,7 @@ function makepattern(ex::Expr, pvars, mod=@__MODULE__)
         patargs = map(i -> makepattern(i, pvars, mod), args)
         return :(PatTerm(:ref, getindex, [$(patargs...)], $mod))
     elseif head === :$
-        return esc(args[1])
+        return args[1]
     elseif head isa Symbol
         h = Meta.quot(head)
         patargs = map(i -> makepattern(i, pvars, mod), args)
