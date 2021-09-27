@@ -102,7 +102,7 @@ function makepattern(ex::Expr, pvars, mod=@__MODULE__)
         patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
         return :(PatTerm(:ref, getindex, [$(patargs...)], mod))
     elseif head === :$
-        return esc(args[1])
+        return args[1]
     else 
         throw(Meta.ParseError("Unsupported pattern syntax $ex"))
     end
@@ -298,8 +298,8 @@ macro rule(expr)
         rhs =  :($(esc(params)) -> $(esc(rhs)))
     end
 
-    # dump(lhs)
-    # dump(rhs)
+    dump(lhs)
+    dump(rhs)
     return quote
         $(__source__)
         ($RuleType)($(QuoteNode(expr)), $(esc(lhs)), $rhs)
