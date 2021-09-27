@@ -101,7 +101,7 @@ function makepattern(ex::Expr, pvars, mod=@__MODULE__)
     elseif head === :ref 
         # getindex 
         patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
-        return :(PatTerm($head, $getindex, [$(patargs...)], mod))
+        return :(PatTerm(:ref, getindex, [$(patargs...)], mod))
     elseif head === :$
         return esc(args[1])
     else 
@@ -308,10 +308,6 @@ macro rule(expr)
 end
 
 
-macro methodrule(e)
-    esc(:(Metatheory.@rule($e,true)))
-end
-
 # Theories can just be vectors of rules!
 
 macro theory(e)
@@ -325,11 +321,6 @@ macro theory(e)
     else
         error("theory is not in form begin a => b; ... end")
     end
-end
-
-# TODO document this puts the function as pattern head instead of symbols
-macro methodtheory(e)
-    :(@theory($(esc(e)), true))
 end
 
 
