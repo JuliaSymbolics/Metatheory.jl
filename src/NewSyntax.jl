@@ -58,10 +58,10 @@ function makepredicate(f::Expr, mod::Module)::Union{Function,Type}
 end
 
 
-Pattern(x::Symbol, mod=@__MODULE__, resolve_fun=false) = PatVar(x)
+Pattern(x::Symbol, mod=@__MODULE__) = PatVar(x)
 # treat as a literal
-Pattern(x, mod=@__MODULE__, resolve_fun=false) = x
-Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false) = x.value isa Symbol ? x.value : x
+Pattern(x, mod=@__MODULE__) = x
+Pattern(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
 
 """
 You can use the `Pattern` constructor to recursively convert an `Expr` (or
@@ -69,7 +69,7 @@ any type satisfying [`Metatheory.TermInterface`](@ref)) to an
 [`AbstractPat`](@ref).
 """
 
-function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
+function Pattern(ex::Expr, mod=@__MODULE__)
     ex = cleanast(ex)
 
     head = exprhead(ex)
@@ -80,10 +80,7 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
 
     
     if head === :call
-        if resolve_fun && op isa Symbol 
-            op = resolve(GlobalRef(mod, op))
-        end         
-        patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
+        patargs = map(i -> Pattern(i, mod), args) # recurse
         PatTerm(head, op, patargs, mod)
     elseif head === :(...)
         makesegment(args[1], mod)
@@ -91,12 +88,11 @@ function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
         makevar(ex, mod)
     elseif head === :ref 
         # getindex 
-        PatTerm(head, resolve_fun ? getindex : :getindex,
-            map(i -> Pattern(i, mod, resolve_fun), args), mod)
+        PatTerm(head, getindex, map(i -> Pattern(i, mod), args), mod)
     elseif head === :$
         return mod.eval(args[1])
     else
-        return PatTerm(head, head, map(i -> Pattern(i, mod, resolve_fun), args), mod)
+        return PatTerm(head, head, map(i -> Pattern(i, mod), args), mod)
     end
 end
 
@@ -134,14 +130,14 @@ rewrite_rhs(x) = x
 """
 Construct an `AbstractRule` from an expression.
 """
-macro rule(e, resolve_fun=false)
+macro rule(e)
     e = macroexpand(__module__, e)
     e = rmlines(copy(e))
     op = operation(e)
     RuleType = rule_sym_map(e)
     
     l, r = arguments(e)
-    lhs = Pattern(l, __module__, resolve_fun)
+    lhs = Pattern(l, __module__)
     rhs = r
 
     if RuleType == DynamicRule
@@ -155,12 +151,12 @@ macro rule(e, resolve_fun=false)
         end
         
         return quote 
-            DynamicRule($(Meta.quot(e)), $lhs, $rhs_fun, $(__module__))
+            DynamicRule($(QuoteNode(e)), $lhs, $rhs_fun, $(__module__))
     end
     end
 
     if RuleType <: SymbolicRule
-        rhs = Pattern(rhs, __module__, resolve_fun)
+        rhs = Pattern(rhs, __module__)
     end
     
     return RuleType(e, lhs, rhs)
@@ -173,13 +169,13 @@ end
 
 # Theories can just be vectors of rules!
 
-macro theory(e, resolve_fun=false)
+macro theory(e)
     e = macroexpand(__module__, e)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
 
     if exprhead(e) == :block
-        ee = Expr(:vect, map(x -> :(@rule($x, $resolve_fun)), arguments(e))...)
+        ee = Expr(:vect, map(x -> :(@rule($x)), arguments(e))...)
         esc(ee)
     else
         error("theory is not in form begin a => b; ... end")
