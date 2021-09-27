@@ -219,11 +219,11 @@ function (r::DynamicRule)(term)
         return r.rhs_fun(term, bindings, nothing, bvals...) 
     end
 
-    # try
+    try
         return r.matcher(success, (term,), EMPTY_DICT)
-    # catch err
-        # throw(RuleRewriteError(r, term))
-    # end
+    catch err
+        throw(RuleRewriteError(r, term))
+    end
 end
 
 # export Rule
