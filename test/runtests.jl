@@ -20,7 +20,7 @@ using Test
         @safetestset "Calculational Logic" begin include("logic/test_calculational_logic.jl") end
         @safetestset "PROP Logic" begin include("logic/test_logic.jl") end
         @safetestset "CAS Infer" begin include("cas/test_infer.jl") end
-        @safetestset "Knuth Bendix Alternative Hurwitz Groups" begin include("group/test_kb_benchmark.jl") end
+        @safetestset "Knuth Bendix Alternative Hurwitz Groups" begin include("test_kb_benchmark.jl") end
         
         
         # @safetestset "Boson" begin include("test_boson.jl") end
