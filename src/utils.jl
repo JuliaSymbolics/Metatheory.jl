@@ -137,7 +137,6 @@ else
     return merged
 end
 
-# FIXME
 # Take a struct definition and make it be able to match in `@rule`
 macro matchable(expr)
     @assert expr.head == :struct
@@ -151,9 +150,10 @@ macro matchable(expr)
     fields = map(get_name, fields)
     quote
         $expr
-        SymbolicUtils.istree(::$name) = true
-        SymbolicUtils.operation(::$name) = $name
-        SymbolicUtils.arguments(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
+        TermInterface.istree(::$name) = true
+        TermInterface.operation(::$name) = $name
+        TermInterface.arguments(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
+        TermInterface.arity(x::$name) = $(length(fields))
         Base.length(x::$name) = $(length(fields) + 1)
     end |> esc
 end
