@@ -91,11 +91,12 @@ struct Car <: GroundVehicle end
 airpl = Airplane()
 car = Car()
 
+t = @theory begin
+	~a::AirVehicle * ~b => "flies"
+	~a::GroundVehicle * ~b => "doesnt_fly"
+end
+
 @testset "Subtyping" begin
-	t = @theory begin
-		~a::AirVehicle * ~b => "flies"
-		~a::GroundVehicle * ~b => "doesnt_fly"
-	end
 
 	sf = rewrite(:($airpl * c), t)
 	df = rewrite(:($car * c), t)
@@ -104,17 +105,17 @@ car = Car()
     @test df == "doesnt_fly"
 end
 
-airpl = Airplane()
-car = Car()
 
 @testset "Interpolation" begin
+	airpl = Airplane()
+	car = Car()
 	t = @theory begin
 		airpl * ~b => "flies"
 		car * ~b => "doesnt_fly"
 	end
 
-	sf = rewrite(:(airpl * c), t)
-	df = rewrite(:(car * c), t)
+	sf = rewrite(:($airpl * c), t)
+	df = rewrite(:($car * c), t)
 
     @test sf == "flies"
     @test df == "doesnt_fly"

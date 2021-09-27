@@ -21,10 +21,6 @@ Remove LineNumberNode from quoted blocks of code
 rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
 rmlines(a) = a
 
-# Resolve `GlobalRef` instances to literals.
-resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
-resolve(gr) = gr
-
 
 function makesegment(s::Expr, mod::Module)
     if !(exprhead(s) == :(::))
@@ -50,7 +46,7 @@ makevar(name::Symbol, mod) = PatVar(name)
 
 
 function makepredicate(f::Symbol, mod::Module)::Union{Function,Type}
-    resolve(GlobalRef(mod, f))
+    getproperty(mod, f)
 end
 
 function makepredicate(f::Expr, mod::Module)::Union{Function,Type}
@@ -58,10 +54,10 @@ function makepredicate(f::Expr, mod::Module)::Union{Function,Type}
 end
 
 
-Pattern(x::Symbol, mod=@__MODULE__) = PatVar(x)
+PatternExpr(x::Symbol, mod=@__MODULE__) = PatVar(x)
 # treat as a literal
-Pattern(x, mod=@__MODULE__) = x
-Pattern(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
+PatternExpr(x, mod=@__MODULE__) = x
+PatternExpr(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
 
 """
 You can use the `Pattern` constructor to recursively convert an `Expr` (or
@@ -69,30 +65,31 @@ any type satisfying [`Metatheory.TermInterface`](@ref)) to an
 [`AbstractPat`](@ref).
 """
 
-function Pattern(ex::Expr, mod=@__MODULE__)
+function PatternExpr(ex::Expr, mod=@__MODULE__)
     ex = cleanast(ex)
 
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
-
     istree(op) && throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+    op = op isa Symbol ? Meta.quot(op) : op
 
     
     if head === :call
-        patargs = map(i -> Pattern(i, mod), args) # recurse
-        PatTerm(head, op, patargs, mod)
+        patargs = map(i -> PatternExpr(i, mod), args) # recurse
+        return quote PatTerm(:call, $op, $patargs, $mod) end
     elseif head === :(...)
-        makesegment(args[1], mod)
+        return makesegment(args[1], mod)
     elseif head === :(::)
-        makevar(ex, mod)
+        return makevar(ex, mod)
     elseif head === :ref 
         # getindex 
-        PatTerm(head, getindex, map(i -> Pattern(i, mod), args), mod)
+        return quote PatTerm($head, $getindex, $(map(i -> PatternExpr(i, mod), args)), $mod) end
     elseif head === :$
-        return mod.eval(args[1])
-    else
-        return PatTerm(head, head, map(i -> Pattern(i, mod), args), mod)
+        return esc(args[1])
+    elseif head isa Symbol
+        h = Meta.quot(head)
+        return quote PatTerm($h, $h, $(map(i -> PatternExpr(i, mod), args)), $mod) end
     end
 end
 
@@ -137,29 +134,20 @@ macro rule(e)
     RuleType = rule_sym_map(e)
     
     l, r = arguments(e)
-    lhs = Pattern(l, __module__)
-    rhs = r
+    lhs = PatternExpr(l, __module__)
+    rhs = RuleType <: SymbolicRule ? PatternExpr(r, __module__) : r
 
     if RuleType == DynamicRule
         rhs = rewrite_rhs(r)
         pvars = patvars(lhs)
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-        rhs_fun =  :($(esc(params)) -> $(esc(rhs)))
-        
-        if lhs isa Union{Symbol,Expr}
-            lhs = Meta.quot(lhs)
-        end
-        
-        return quote 
-            DynamicRule($(QuoteNode(e)), $lhs, $rhs_fun, $(__module__))
-    end
+        rhs =  :($(esc(params)) -> $(esc(rhs)))
     end
 
-    if RuleType <: SymbolicRule
-        rhs = Pattern(rhs, __module__)
+    return quote 
+        $(__source__)
+        ($RuleType)($(QuoteNode(e)), $lhs, $rhs)
     end
-    
-    return RuleType(e, lhs, rhs)
 end
 
 

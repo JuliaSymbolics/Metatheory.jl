@@ -20,41 +20,34 @@ Remove LineNumberNode from quoted blocks of code
 rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
 rmlines(a) = a
 
-# Resolve `GlobalRef` instances to literals.
-resolve(gr::GlobalRef) = getproperty(gr.mod, gr.name)
-resolve(gr) = gr
 
-
-function makesegment(s::Expr, mod::Module)
+function makesegment(s::Expr, pvars)
     if !(exprhead(s) == :(::))
-        error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function")
+        error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
     end
 
     name = arguments(s)[1]
-    p = makepredicate(arguments(s)[2], mod)
-    PatSegment(name, -1, p)
+    name ∉ pvars && push!(pvars, name)
+    return :(PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
-makesegment(s::Symbol, mod) = PatSegment(s)
-
-function makevar(s::Expr, mod::Module)
+function makesegment(name::Symbol, pvars) 
+    name ∉ pvars && push!(pvars, name)
+    PatSegment(name)
+end
+function makevar(s::Expr, pvars)
     if !(exprhead(s) == :(::))
-        error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function")
+        error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
     end
 
     name = arguments(s)[1]
-    p = makepredicate(arguments(s)[2], mod)
-    PatVar(name, -1, p)
+    name ∉ pvars && push!(pvars, name)
+    return :(PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
-makevar(name::Symbol, mod) = PatVar(name)
-
-
-function makepredicate(f::Symbol, mod::Module)::Union{Function,Type}
-    resolve(GlobalRef(mod, f))
+function makevar(name::Symbol, pvars) 
+    name ∉ pvars && push!(pvars, name)
+    PatVar(name)
 end
 
-function makepredicate(f::Expr, mod::Module)::Union{Function,Type}
-    mod.eval(f)
-end
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
@@ -82,37 +75,35 @@ function makeconsequent(expr::Expr)
 end
 
 makeconsequent(x) = x
-
 # treat as a literal
-Pattern(x, mod=@__MODULE__) = x
-Pattern(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
+makepattern(x, pvars, mod=@__MODULE__) = x
 
-function Pattern(ex::Expr, mod=@__MODULE__)
+function makepattern(ex::Expr, pvars, mod=@__MODULE__)
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
-
-    istree(op) && (op = Pattern(op, mod))
+    istree(op) && (op = makepattern(op, pvars, mod))
+    op = op isa Symbol ? QuoteNode(op) : op
     #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
     
     if head === :call
         if operation(ex) === :(~) # is a variable or segment
             if args[1] isa Expr && operation(args[1]) == :(~)
-                return makesegment(arguments(args[1])[1], mod)
+                return makesegment(arguments(args[1])[1], pvars)
             else
-                return makevar(args[1], mod)
+                return makevar(args[1], pvars)
             end
         else # is a term
-            patargs = map(i -> Pattern(i, mod), args) # recurse
-            return PatTerm(head, op, patargs, mod)
+            patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
+            return :(PatTerm(:call, $op, [$(patargs...)], $mod))
         end
     elseif head === :ref 
         # getindex 
-        return PatTerm(head, resolve_fun ? getindex : :getindex,
-            map(i -> Pattern(i, mod), args), mod)
+        patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
+        return :(PatTerm($head, $getindex, [$(patargs...)], mod))
     elseif head === :$
-        return mod.eval(args[1])
+        return esc(args[1])
     else 
         throw(Meta.ParseError("Unsupported pattern syntax $ex"))
     end
@@ -141,7 +132,7 @@ function rewrite_rhs(ex::Expr)
         rhs = args[1]
         predicate = args[2]
         ex = :($predicate ? $rhs : nothing)
-end
+    end
     return ex
 end
 rewrite_rhs(x) = x
@@ -149,7 +140,7 @@ rewrite_rhs(x) = x
 
 
 """
-@rule LHS operator RHS
+    @rule LHS operator RHS
 
 Creates an `AbstractRule` object. A rule object is callable, and takes an expression and rewrites
 it if it matches the LHS pattern to the RHS pattern, returns `nothing` otherwise.
@@ -297,32 +288,23 @@ macro rule(expr)
     RuleType = rule_sym_map(e)
     
     l, r = arguments(e)
-    lhs = Pattern(l, __module__)
-    rhs = r
+    pvars = Symbol[]
+    lhs = makepattern(l, pvars, __module__)
+    rhs = RuleType <: SymbolicRule ? makepattern(r, [], __module__) : r
 
     if RuleType == DynamicRule
         rhs = rewrite_rhs(r)
         rhs = makeconsequent(rhs)
-        pvars = patvars(lhs)
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-        rhs_fun =  :($(esc(params)) -> $(esc(rhs)))
-        
-        if lhs isa Union{Symbol,Expr}
-            lhs = Meta.quot(lhs)
-        end
-        
-        return quote
-            $(__source__)
-            # println($(QuoteNode(expr)))
-            DynamicRule($(QuoteNode(expr)), $lhs, $rhs_fun, $(__module__))
-        end
+        rhs =  :($(esc(params)) -> $(esc(rhs)))
     end
 
-    if RuleType <: SymbolicRule
-        rhs = Pattern(rhs, __module__)
+    # dump(lhs)
+    # dump(rhs)
+    return quote
+        $(__source__)
+        ($RuleType)($(QuoteNode(expr)), $(esc(lhs)), $rhs)
     end
-    
-    return RuleType(e, lhs, rhs)
 end
 
 
