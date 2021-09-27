@@ -195,19 +195,18 @@ Dynamic rule
     matcher
     patvars::Vector{Symbol} # useful set of pattern variables
     ematch_program::Program
-    mod::Module
 end
 
 function DynamicRule(l, r)
     ex = :($(to_expr(l)) => $(to_expr(r)))
-    DynamicRule(ex, l, r, m)
+    DynamicRule(ex, l, r)
 end
 
-function DynamicRule(ex, l, r::Function, mod=@__MODULE__)
+function DynamicRule(ex, l, r::Function)
     pvars = patvars(l)
     setdebrujin!(l, pvars)
 
-    DynamicRule(ex, l, r, matcher(l), pvars, compile_pat(l), mod)
+    DynamicRule(ex, l, r, matcher(l), pvars, compile_pat(l))
 end
 
 
@@ -220,11 +219,11 @@ function (r::DynamicRule)(term)
         return r.rhs_fun(term, bindings, nothing, bvals...) 
     end
 
-    try
+    # try
         return r.matcher(success, (term,), EMPTY_DICT)
-    catch err
-        throw(RuleRewriteError(r, term))
-    end
+    # catch err
+        # throw(RuleRewriteError(r, term))
+    # end
 end
 
 # export Rule
