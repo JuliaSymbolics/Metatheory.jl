@@ -84,36 +84,34 @@ end
 makeconsequent(x) = x
 
 # treat as a literal
-Pattern(x, mod=@__MODULE__, resolve_fun=false) = x
-Pattern(x::QuoteNode, mod=@__MODULE__, resolve_fun=false) = x.value isa Symbol ? x.value : x
+Pattern(x, mod=@__MODULE__) = x
+Pattern(x::QuoteNode, mod=@__MODULE__) = x.value isa Symbol ? x.value : x
 
-function Pattern(ex::Expr, mod=@__MODULE__, resolve_fun=false)
+function Pattern(ex::Expr, mod=@__MODULE__)
+    @show ex mod
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
 
-    istree(op) && (op = Pattern(op, mod, resolve_fun))
+    istree(op) && (op = Pattern(op, mod))
     #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
     
     if head === :call
         if operation(ex) === :(~) # is a variable or segment
             if args[1] isa Expr && operation(args[1]) == :(~)
-                makesegment(arguments(args[1])[1], mod)
+                return makesegment(arguments(args[1])[1], mod)
             else
-                makevar(args[1], mod)
+                return makevar(args[1], mod)
             end
         else # is a term
-            if resolve_fun && op isa Symbol
-                op = resolve(GlobalRef(mod, op))
-            end
-            patargs = map(i -> Pattern(i, mod, resolve_fun), args) # recurse
-            PatTerm(head, op, patargs, mod)
+            patargs = map(i -> Pattern(i, mod), args) # recurse
+            return PatTerm(head, op, patargs, mod)
         end
     elseif head === :ref 
         # getindex 
-        PatTerm(head, resolve_fun ? getindex : :getindex,
-            map(i -> Pattern(i, mod, resolve_fun), args), mod)
+        return PatTerm(head, resolve_fun ? getindex : :getindex,
+            map(i -> Pattern(i, mod), args), mod)
     elseif head === :$
         return mod.eval(args[1])
     else 
@@ -293,14 +291,14 @@ whether the predicate holds or not.
 _In the consequent pattern_: Use `(@ctx)` to access the context object on the right hand side
 of an expression.
 """
-macro rule(e, resolve_fun=false)
-    e = macroexpand(__module__, e)
+macro rule(expr)
+    e = macroexpand(__module__, expr)
     e = rmlines(e)
     op = operation(e)
     RuleType = rule_sym_map(e)
     
     l, r = arguments(e)
-    lhs = Pattern(l, __module__, resolve_fun)
+    lhs = Pattern(l, __module__)
     rhs = r
 
     if RuleType == DynamicRule
@@ -314,13 +312,15 @@ macro rule(e, resolve_fun=false)
             lhs = Meta.quot(lhs)
         end
         
-        return quote 
-            DynamicRule($(Meta.quot(e)), $lhs, $rhs_fun, $(__module__))
+        return quote
+            $(__source__)
+            # println($(QuoteNode(expr)))
+            DynamicRule($(QuoteNode(expr)), $lhs, $rhs_fun, $(__module__))
         end
     end
 
     if RuleType <: SymbolicRule
-        rhs = Pattern(rhs, __module__, resolve_fun)
+        rhs = Pattern(rhs, __module__)
     end
     
     return RuleType(e, lhs, rhs)
@@ -333,13 +333,13 @@ end
 
 # Theories can just be vectors of rules!
 
-macro theory(e, resolve_fun=false)
+macro theory(e)
     e = macroexpand(__module__, e)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
 
     if exprhead(e) == :block
-        ee = Expr(:vect, map(x -> :(@rule($x, $resolve_fun)), arguments(e))...)
+        ee = Expr(:vect, map(x -> :(@rule($x)), arguments(e))...)
         esc(ee)
     else
         error("theory is not in form begin a => b; ... end")
