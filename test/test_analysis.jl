@@ -76,7 +76,7 @@ end
 
     using Metatheory.EGraphs
     boson = @theory begin
-        (c * cdag) --> cdag * c + 1
+        (:c * :cdag) --> :cdag * :c + 1
         ~a * (~b + ~c) --> (~a * ~b) + (~a * ~c)
         (~b + ~c) * ~a --> (~b * ~a) + (~c * ~a)
         # 1 * x => x

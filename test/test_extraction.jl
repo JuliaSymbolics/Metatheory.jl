@@ -195,9 +195,9 @@ resg = extract!(g, costfun)
 end
 
 co = @theory begin
-	foo(x ⋅ :bazoo ⋅ :woo) => Σ(:n * x)
+	foo(~x ⋅ :bazoo ⋅ :woo) --> Σ(:n * ~x)
 end
-@testset "Consistency with Matchcore backend" begin
+@testset "Consistency with classical backend" begin
 	ex = :(foo(wa(rio) ⋅ bazoo ⋅ woo))
 	g = EGraph(ex)
 	saturate!(g, co)
