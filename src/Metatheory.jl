@@ -12,6 +12,7 @@ end
 
 include("docstrings.jl")
 include("utils.jl")
+export @matchable
 include("Patterns.jl")
 include("ematch_compiler.jl")
 include("Rules/Rules.jl")
