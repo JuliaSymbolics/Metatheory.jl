@@ -298,8 +298,6 @@ macro rule(expr)
         rhs =  :($(esc(params)) -> $(esc(rhs)))
     end
 
-    dump(lhs)
-    dump(rhs)
     return quote
         $(__source__)
         ($RuleType)($(QuoteNode(expr)), $(esc(lhs)), $rhs)
