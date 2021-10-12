@@ -2,7 +2,6 @@
 # ENV["JULIA_DEBUG"] = Metatheory
 using Metatheory
 using Metatheory.EGraphs
-using Metatheory.SUSyntax
 using Metatheory.EGraphs: in_same_set, find_root
 
 @testset "Merging" begin

@@ -1,5 +1,4 @@
 using Metatheory 
-using Metatheory.SUSyntax
 using Metatheory.Library
 
 include("numberfold.jl")

@@ -1,5 +1,4 @@
 using Metatheory
-using Metatheory.SUSyntax 
 
 @testset "Reduction Basics" begin
 	t = @theory begin
@@ -134,10 +133,7 @@ end
 
 module NonCall 
 using Metatheory 
-using Metatheory.NewSyntax
-t = NewSyntax.@theory begin
-	(a, b) => ok(a,b)
-end
+t = [@rule a b (a, b) --> ok(a,b)]
 
 test() = rewrite(:(x,y), t)
 end

@@ -1,4 +1,4 @@
-module SUSyntax
+module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
@@ -10,6 +10,7 @@ export @rule
 export @theory
 export @methodrule
 export @methodtheory
+export @slots
 
 
 # FIXME this thing eats up macro calls!
@@ -75,13 +76,13 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
-makepattern(x, pvars, mod=@__MODULE__) = x
+makepattern(x, pvars, slots, mod=@__MODULE__) = x in slots ? makevar(x, pvars) : x
 
-function makepattern(ex::Expr, pvars, mod=@__MODULE__)
+function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
     head = exprhead(ex)
     op = operation(ex)
     args = arguments(ex)
-    istree(op) && (op = makepattern(op, pvars, mod))
+    istree(op) && (op = makepattern(op, pvars, slots, mod))
     op = op isa Symbol ? QuoteNode(op) : op
     #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
@@ -89,22 +90,32 @@ function makepattern(ex::Expr, pvars, mod=@__MODULE__)
     if head === :call
         if operation(ex) === :(~) # is a variable or segment
             if args[1] isa Expr && operation(args[1]) == :(~)
+                # matches ~~x::predicate or ~~x::predicate...
                 return makesegment(arguments(args[1])[1], pvars)
+            elseif splat
+                # matches ~x::predicate...
+                return makesegment(args[1], pvars)
             else
                 return makevar(args[1], pvars)
             end
         else # is a term
-            patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
+            patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
             return :(PatTerm(:call, $op, [$(patargs...)], $mod))
         end
+    elseif head === :... 
+        makepattern(args[1], pvars, slots, mod, true)
+    elseif head == :(::) && args[1] in slots
+        return splat ? makesegment(ex, pvars) : makevar(ex, pvars)
     elseif head === :ref 
         # getindex 
-        patargs = map(i -> makepattern(i, pvars, mod), args) # recurse
-        return :(PatTerm(:ref, getindex, [$(patargs...)], mod))
+        patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+        return :(PatTerm(:ref, getindex, [$(patargs...)], $mod))
     elseif head === :$
         return args[1]
     else 
-        throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+        patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+        return :(PatTerm($(head isa Symbol ? QuoteNode(head) : head), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)], $mod))
+        # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
     end
 end
 
@@ -137,19 +148,58 @@ end
 rewrite_rhs(x) = x
 
 
+function addslots(expr, slots)
+    if expr isa Expr
+        if expr.head === :macrocall && expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+            Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+        else
+            Expr(expr.head, addslots.(expr.args, (slots,))...)
+        end
+    else
+        expr
+    end
+end
+
 
 """
-    @rule LHS operator RHS
+    @slots [SLOTS...] ex
+Declare SLOTS as slot variables for all `@rule` or `@capture` invocations in the expression `ex`.
+_Example:_
+```julia
+julia> @slots x y z a b c Chain([
+    (@rule x^2 + 2x*y + y^2 => (x + y)^2),
+    (@rule x^a * y^b => (x*y)^a * y^(b-a)),
+    (@rule +(x...) => sum(x)),
+])
+```
+See also: [`@rule`](@ref), [`@capture`](@ref)
+"""
+macro slots(args...)
+    length(args) >= 1 || ArgumentError("@slots requires at least one argument")
+    slots = args[1:end-1]
+    expr = args[end]
 
-Creates an `AbstractRule` object. A rule object is callable, and takes an expression and rewrites
-it if it matches the LHS pattern to the RHS pattern, returns `nothing` otherwise.
-The rule language is described below.
+    return esc(addslots(expr, slots))
+end
+
+
+"""
+    @rule [SLOTS...] LHS operator RHS
+
+Creates an `AbstractRule` object. A rule object is callable, and takes an
+expression and rewrites it if it matches the LHS pattern to the RHS pattern,
+returns `nothing` otherwise. The rule language is described below.
 
 LHS can be any possibly nested function call expression where any of the arugments can
-optionally be a Slot (`~x`) or a Segment (`~~x`) (described below).
+optionally be a Slot (`~x`) or a Segment (`~x...`) (described below).
 
-If an expression matches LHS entirely, then it is rewritten to the pattern in the RHS
-Segment (`~x`) and slot variables (`~~x`) on the RHS will substitute the result of the
+SLOTS is an optional list of symbols to be interpeted as slots or segments
+directly (without using `~`).  To declare slots for several rules at once, see
+the `@slots` macro.
+
+If an expression matches LHS entirely, then it is rewritten to the pattern in
+the RHS , whose local scope includes the slot matches as variables. Segment
+(`~x`) and slot variables (`~~x`) on the RHS will substitute the result of the
 matches found for these variables in the LHS.
 
 **Rule operators**:
@@ -200,21 +250,32 @@ julia> r(sin(2a)^2 + cos(a)^2)
 # nothing
 ```
 
-**Segment**:
+A rule without `~`
+```julia
+julia> r = @slots x y z @rule x(y + z) => x*y + x*z
+x(y + z) => x*y + x*z
+```
 
-A Segment variable is written as `~~x` and matches zero or more expressions in the
-function call.
+**Segment**:
+A Segment variable matches zero or more expressions in the function call.
+Segments may be written by splatting slot variables (`~x...`).
 
 _Example:_
 
-This implements the distributive property of multiplication: `+(~~ys)` matches expressions
-like `a + b`, `a+b+c` and so on. On the RHS `~~ys` presents as any old julia array.
+This implements the distributive property of multiplication: `+(~ys...)` matches expressions
+like `a + b`, `a+b+c` and so on. On the RHS `ys` presents as any old julia array.
 
 ```julia
-julia> r = @rule ~x * +((~~ys)) => sum(map(y-> ~x * y, ~~ys));
-
+julia> r = @rule ~x * +((~ys...)) => sum(map(y-> x * y, ys));
 julia> r(2 * (a+b+c))
 ((2 * a) + (2 * b) + (2 * c))
+```
+
+A segment without `~`.
+```julia
+julia> r = @slots xs @rule min(xs...) => foldl(min, xs, Inf);
+julia> r(min(a, b, c))
+min(min(a, b), c)
 ```
 
 **Predicates**:
@@ -246,7 +307,7 @@ julia> r(sin(a+6π+c))
 sin((a + c))
 ```
 
-Predicate function gets an array of values if attached to a segment variable (`~~x`).
+Predicate function gets an array of values if attached to a segment variable (`~x...`).
 
 For the predicate over the whole rule, use `@rule <LHS> => <RHS> where <predicate>`:
 
@@ -279,8 +340,16 @@ whether the predicate holds or not.
 
 _In the consequent pattern_: Use `(@ctx)` to access the context object on the right hand side
 of an expression.
+
+**Compatibility**:
+Segment variables may still be written as (`~~x`), and slot (`~x`) and segment (`~x...` or `~~x`) syntaxes on the RHS will still substitute the result of the matches.
+See also: [`@capture`](@ref), [`@slots`](@ref)
 """
-macro rule(expr)
+macro rule(args...)
+    length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+    slots = args[1:end-1]
+    expr = args[end]
+
     e = macroexpand(__module__, expr)
     e = rmlines(e)
     op = operation(e)
@@ -288,8 +357,8 @@ macro rule(expr)
     
     l, r = arguments(e)
     pvars = Symbol[]
-    lhs = makepattern(l, pvars, __module__)
-    rhs = RuleType <: SymbolicRule ? makepattern(r, [], __module__) : r
+    lhs = makepattern(l, pvars, slots, __module__)
+    rhs = RuleType <: SymbolicRule ? makepattern(r, [], slots, __module__) : r
 
     if RuleType == DynamicRule
         rhs = rewrite_rhs(r)
@@ -307,13 +376,17 @@ end
 
 # Theories can just be vectors of rules!
 
-macro theory(e)
-    e = macroexpand(__module__, e)
+macro theory(args...)
+    length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+    slots = args[1:end-1]
+    expr = args[end]
+
+    e = macroexpand(__module__, expr)
     e = rmlines(e)
     # e = interp_dollar(e, __module__)
 
     if exprhead(e) == :block
-        ee = Expr(:vect, map(x -> :(@rule($x)), arguments(e))...)
+        ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
         esc(ee)
     else
         error("theory is not in form begin a => b; ... end")

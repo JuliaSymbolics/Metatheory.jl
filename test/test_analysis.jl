@@ -3,7 +3,6 @@
 # ENV["JULIA_DEBUG"] = Metatheory
 
 using Metatheory
-using Metatheory.SUSyntax
 
 include("numberfold.jl")
 

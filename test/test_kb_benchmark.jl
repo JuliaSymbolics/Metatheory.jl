@@ -1,6 +1,5 @@
 using Test
 using Metatheory
-using Metatheory.NewSyntax 
 using Metatheory.Library
 using Metatheory.EGraphs
 using Metatheory.Rules
@@ -19,24 +18,24 @@ rep(:a, :*, 3)
 
 @rule (@rep :a (*) 3) => :b
 
-Mid = @theory begin 
-    a * :ε => a
-    :ε * a => a
+Mid = @theory a begin 
+    a * :ε --> a
+    :ε * a --> a
 end 
 
-Massoc = @theory begin
-    a * (b * c) => (a * b) * c
-    (a * b) * c => a * (b * c) 
+Massoc = @theory a b c begin
+    a * (b * c) --> (a * b) * c
+    (a * b) * c --> a * (b * c) 
 end 
 
 
 T = [
-    @rule :b * :B => :ε
-    @rule :a * :a => :ε
-    @rule :b * :b * :b => :ε
-    @rule :B * :B => :B
-    @rule (@rep (:a * :b) (*) 7) => :ε
-    @rule (@rep (:a * :b * :a * :B) (*) 7) => :ε
+    @rule :b * :B --> :ε
+    @rule :a * :a --> :ε
+    @rule :b * :b * :b --> :ε
+    @rule :B * :B --> :B
+    @rule (@rep (:a * :b) (*) 7) --> :ε
+    @rule (@rep (:a * :b * :a * :B) (*) 7) --> :ε
     # RewriteRule(makepattern(rep(:(:a * :b), :*, 7)), :ε)
     # RewriteRule(makepattern(rep(:(:a * :b * :a * :B), :*, 12)), :ε)
 ]

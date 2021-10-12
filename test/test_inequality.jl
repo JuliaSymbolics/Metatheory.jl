@@ -1,11 +1,10 @@
 using Metatheory
-using Metatheory.NewSyntax
 
-failme = @theory begin
+failme = @theory p begin
     p ≠ ¬p
     :foo == ¬:foo
-    :foo => :bazoo
-    :bazoo => :wazoo
+    :foo --> :bazoo
+    :bazoo --> :wazoo
 end
 
 g = EGraph(:foo)
