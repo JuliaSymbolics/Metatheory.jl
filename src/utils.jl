@@ -176,10 +176,6 @@ macro iftimer(expr)
 end
 
 function timerewrite(f)
-    if !TIMER_OUTPUTS
-        error("timerewrite must be called after enabling " *
-              "TIMER_OUTPUTS in the main file of this package")
-    end
     reset_timer!()
     being_timed[] = true
     x = f()
