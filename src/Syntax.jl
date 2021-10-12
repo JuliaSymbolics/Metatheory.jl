@@ -373,7 +373,9 @@ end
 
 
 # Theories can just be vectors of rules!
-
+"""
+    @theory [SLOTS...] begin (LHS operator RHS)... end
+"""
 macro theory(args...)
     length(args) >= 1 || ArgumentError("@rule requires at least one argument")
     slots = args[1:end-1]
@@ -391,6 +393,51 @@ macro theory(args...)
     end
 end
 
+
+
+"""
+    @capture ex pattern
+Uses a `Rule` object to capture an expression if it matches the `pattern`. Returns `true` and injects
+slot variable match results into the calling scope when the `pattern` matches, otherwise returns false. The
+rule language for specifying the `pattern` is the same in @capture as it is in `@rule`. Contextual matching
+is not yet supported
+```julia
+julia> @syms a; ex = a^a;
+julia> if @capture ex (~x)^(~x)
+           @show x
+       elseif @capture ex 2(~y)
+           @show y
+       end;
+x = a
+```
+See also: [`@rule`](@ref)
+"""
+
+
+macro capture(args...)
+    length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
+    slots = args[1:end-2]
+    ex = args[end-1]
+    lhs = args[end]
+    lhs = macroexpand(__module__, lhs)
+    lhs = rmlines(lhs)
+
+    pvars = Symbol[]
+    lhs_term = makepattern(lhs, pvars, slots)
+    bind = Expr(:block, map(key-> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...)
+    quote
+        $(__source__)
+        lhs_pattern = $(lhs_term)
+        __MATCHES__ = DynamicRule($(QuoteNode(lhs)),
+            lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars)($(esc(ex)))
+        if __MATCHES__ !== nothing
+            $bind
+            true
+        else
+            false
+        end
+    end
+end
 
 # TODO ADD ORIGINAL CODE OF PREDICATE TO PATVAR
 
