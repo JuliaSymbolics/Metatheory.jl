@@ -6,16 +6,16 @@ taylor = @theory x a b  begin
     Σ(a) + Σ(b) --> Σ(a + b)
 end
 
-macro expand(iters)
-    esc(quote 
-        @rule a Σ(a) => $(QuoteNode(:(sum(n -> $a, 0:$iters))))
-    end)
+function expand(iters)
+    RewriteRule(PatTerm(:call, :Σ, [PatVar(:a)], @__MODULE__), 
+        PatTerm(:call, :sum, [PatTerm(:(->), :(->), [:n, PatVar(:a)], @__MODULE__), 0:iters], @__MODULE__))
 end
 
 a = rewrite(:(exp(x) + cos(x)), taylor)
 
-r = @expand(5000)
+r = expand(5000)
 bexpr = rewrite(a, [r])
+
 # you may want to do algebraic simplification
 # with egraphs here
 

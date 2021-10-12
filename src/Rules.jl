@@ -79,7 +79,8 @@ function (r::RewriteRule)(term)
     success(bindings, n) = n == 1 ? instantiate(term, r.right, bindings) : nothing
         
     try
-        return r.matcher(success, (term,), EMPTY_DICT)
+        resss =  r.matcher(success, (term,), EMPTY_DICT)
+        @show resss
     catch err
         throw(RuleRewriteError(r, term))
     end
