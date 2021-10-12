@@ -232,5 +232,4 @@ export UnequalRule
 export DynamicRule
 export AbstractRule
 
-
 end
