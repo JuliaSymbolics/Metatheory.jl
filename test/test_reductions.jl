@@ -160,3 +160,34 @@ end
 	@test r(ex) == 4
 end
 
+using TermInterface
+@testset "Capture form" begin
+    ex = :(a^a)
+
+    #note that @test inserts a soft local scope (try-catch) that would gobble
+    #the matches from assignment statements in @capture macro, so we call it
+    #outside the test macro 
+    ret = @capture ex (~x)^(~x)
+    @test ret
+    @test @isdefined x
+    @test x === :a
+
+    ex = :(b^a)
+    ret = @capture ex (~y)^(~y)
+    @test !ret
+    @test !(@isdefined y)
+
+    ret = @capture :(a + b) (+)(~~z)
+    @test ret
+    @test @isdefined z
+    @test all(z .=== arguments(:(a + b)))
+
+    #a more typical way to use the @capture macro
+
+    f(x) = if @capture x (~w)^(~w)
+        w
+    end
+
+    @test f(:(b^b)) == :b
+    @test isnothing(f(:(b+b)))
+end 
