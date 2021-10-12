@@ -1,5 +1,4 @@
 using Metatheory 
-using Metatheory.NewSyntax
 using Metatheory.EGraphs 
 using TermInterface
 using Test
@@ -61,14 +60,14 @@ settermtype!(g, :g, 1, MyExpr)
 # ========== !!! ============= !!! ===============
 
 # let's create an example theory
-t = @theory begin 
+t = @theory a begin 
     # this way, z will be a regular expr
     # f(g(2), a) => z(a)
     # we can use dynamic rules to construct values of type MyExpr
     # f(g(2), a) |> MyExpr(:z, [a])
 
     # terms in the RHS inherit the type of terms in the lhs
-    f(g(2), a) => f(a)
+    f(g(2), a) --> f(a)
 end
 
 saturate!(g, t)

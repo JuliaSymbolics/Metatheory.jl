@@ -1,7 +1,6 @@
 ## Theory for CAS
 using Metatheory
 using Metatheory.Library
-using Metatheory.NewSyntax
 using Metatheory.EGraphs
 using Metatheory.EGraphs.Schedulers
 using TermInterface

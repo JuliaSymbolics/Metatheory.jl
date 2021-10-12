@@ -1,5 +1,4 @@
 using Metatheory
-using Metatheory.NewSyntax
 using Test
 using Metatheory.Library
 using Metatheory.EGraphs

@@ -1,19 +1,18 @@
 # https://en.wikipedia.org/wiki/MU_puzzle#Solution
 
 using Metatheory
-using Metatheory.NewSyntax
 
-miu = @theory begin
+miu = @theory x y z begin
     # Composition of the string monoid is associative
-    x ⋅ (y ⋅ z) => (x ⋅ y) ⋅ z
+    x ⋅ (y ⋅ z) --> (x ⋅ y) ⋅ z
     # Add a uf to the end of any string ending in I
-    x ⋅ :I ⋅ :END =>  x ⋅ :I ⋅ :U ⋅ :END
+    x ⋅ :I ⋅ :END -->  x ⋅ :I ⋅ :U ⋅ :END
     # Double the string after the M
-    :M ⋅ x ⋅ :END => :M ⋅ x ⋅ x ⋅ :END
+    :M ⋅ x ⋅ :END --> :M ⋅ x ⋅ x ⋅ :END
     # Replace any III with a U
-    :I ⋅ :I ⋅ :I => :U 
+    :I ⋅ :I ⋅ :I --> :U 
     # Remove any UU
-    x ⋅ :U ⋅ :U ⋅ y => x ⋅ y 
+    x ⋅ :U ⋅ :U ⋅ y --> x ⋅ y 
 end
 
 

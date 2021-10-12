@@ -27,21 +27,20 @@
 
 
 using Metatheory
-using Metatheory.NewSyntax
 
-calc = @theory begin
+calc = @theory p q r begin
     ((p == q) == r)     ==  (p == (q == r))
     (p == q)            ==  (q == p)
-    (q == q)            =>  true
+    (q == q)            -->  true
 
     ¬(p == q)           ==  (¬(p) == q)
     (p != q)            ==  ¬(p == q)
 
     ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
     (p ∨ q)             ==  (q ∨ p)
-    (p ∨ p)             =>  p
+    (p ∨ p)             -->  p
     (p ∨ (q == r))      ==  (p ∨ q == p ∨ r)
-    (p ∨ ¬(p))          =>  true
+    (p ∨ ¬(p))          -->  true
 
     # DeMorgan
     ¬(p ∨ q)            ==  (¬p ∧ ¬q)
@@ -54,12 +53,12 @@ calc = @theory begin
     # (p <= q)            =>  (q => p)
 end
 
-fold = @theory begin
-    (p::Bool == q::Bool)    |>     (p == q)
-    (p::Bool ∨ q::Bool)     |>     (p || q)
-    (p::Bool => q::Bool)    |>     ((p || q) == q)
-    (p::Bool ∧ q::Bool)     |>     (p && q)
-    ¬(p::Bool)              |>     (!p)
+fold = @theory p q begin
+    (p::Bool == q::Bool)    =>     (p == q)
+    (p::Bool ∨ q::Bool)     =>     (p || q)
+    (p::Bool => q::Bool)    =>     ((p || q) == q)
+    (p::Bool ∧ q::Bool)     =>     (p && q)
+    ¬(p::Bool)              =>     (!p)
 end
 
 # t = or_alg ∪ and_alg ∪ neg_alg ∪ demorgan ∪ and_or_distrib ∪

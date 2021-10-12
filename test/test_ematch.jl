@@ -1,5 +1,4 @@
 using Metatheory
-using Metatheory.SUSyntax
 using Metatheory.Library
 
 falseormissing(x) = 
@@ -89,7 +88,6 @@ module Bar
 foo = 42
 export foo
     using Metatheory
-    using Metatheory.SUSyntax
     
     t = @theory begin
         :woo => foo
@@ -100,7 +98,6 @@ end
 module Foo
     foo = 12
     using Metatheory
-    using Metatheory.SUSyntax
 
     t = @theory begin
         :woo => foo

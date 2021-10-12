@@ -12,24 +12,36 @@ end
 
 include("docstrings.jl")
 include("utils.jl")
+export @timer 
+export @iftimer
+export @timerewrite
 export @matchable
+
 include("Patterns.jl")
-include("ematch_compiler.jl")
-include("Rules/Rules.jl")
-@reexport using .Rules
-include("NewSyntax.jl")
-include("SUSyntax.jl")
-include("EGraphs/EGraphs.jl")
-include("Library.jl")
-include("Rewriters.jl")
-
-
 @reexport using .Patterns 
+
+include("ematch_compiler.jl")
 @reexport using .EMatchCompiler
+
+include("matchers.jl")
+include("Rules.jl")
+@reexport using .Rules
+
+include("Syntax.jl")
+@reexport using .Syntax
+include("EGraphs/EGraphs.jl")
 @reexport using .EGraphs
+
+include("Library.jl")
 export Library
+
+include("Rewriters.jl")
 using .Rewriters
 export Rewriters
+
+
+
+
 
 function rewrite(expr, theory; order=:outer)
     if order == :inner 

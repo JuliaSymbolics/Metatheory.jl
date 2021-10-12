@@ -5,11 +5,9 @@ using Parameters
 using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
-using Metatheory: cleanast, binarize 
+using Metatheory: cleanast, binarize, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int, Any}()
-
-include("matchers.jl")
 
 abstract type AbstractRule end
 # Must override
@@ -226,7 +224,6 @@ function (r::DynamicRule)(term)
     end
 end
 
-# export Rule
 export SymbolicRule
 export RewriteRule
 export BidirRule
@@ -234,7 +231,6 @@ export EqualityRule
 export UnequalRule
 export DynamicRule
 export AbstractRule
-
 
 
 end
