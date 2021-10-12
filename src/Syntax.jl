@@ -8,8 +8,6 @@ using Metatheory:alwaystrue, cleanast, binarize
 export to_expr
 export @rule
 export @theory
-export @methodrule
-export @methodtheory
 export @slots
 
 
