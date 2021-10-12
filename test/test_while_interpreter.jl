@@ -63,7 +63,7 @@ eval_bool(ex, mem) =
 end
 
 if_rules = @theory guard t f σ begin
-	(if guard; t end, σ) => (if guard; t else :skip end, σ)
+	(if guard; t end, σ) --> (if guard; t else :skip end, σ)
 	(if guard; t else f end, σ) =>
 		(eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
 end

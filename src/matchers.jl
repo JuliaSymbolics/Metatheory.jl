@@ -150,7 +150,16 @@ end
 function instantiate(left, pat::PatTerm, mem)
     ar = arguments(pat)
     args = [ instantiate(left, p, mem) for p in ar] 
-    similarterm(typeof(left), operation(pat), args; exprhead=exprhead(pat))
+    @show "================="
+    @show pat
+    @show exprhead(pat)
+    @show operation(pat)
+    @show args
+    T = istree(typeof(left)) ? typeof(left) : Expr
+    @show T 
+    res = similarterm(T, operation(pat), args; exprhead=exprhead(pat))
+    @show res 
+    res
 end
 
 instantiate(left, pat::Any, mem) = pat
