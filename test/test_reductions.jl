@@ -161,6 +161,8 @@ end
 end
 
 using TermInterface
+
+using Metatheory.Syntax: @capture
 @testset "Capture form" begin
     ex = :(a^a)
 

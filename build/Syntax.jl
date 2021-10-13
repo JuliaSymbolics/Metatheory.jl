@@ -9,7 +9,6 @@ export to_expr
 export @rule
 export @theory
 export @slots
-export @capture 
 
 
 # FIXME this thing eats up macro calls!
