@@ -220,21 +220,3 @@ rule, so after a rule is hit it (re)starts again and it can apply all the other
 rules to the resulting expression. You can also use `Fixpoint` to apply the
 rules until there are no changes.
 
-
-## Syntax API docs
-
-```@autodocs
-Modules = [Metatheory.Syntax]
-```
-
-## Patterns
-
-```@autodocs
-Modules = [Metatheory.Patterns]
-```
-
-## Rules 
-
-```@autodocs
-Modules = [Metatheory.Rules]
-```

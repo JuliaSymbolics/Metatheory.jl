@@ -13,17 +13,14 @@ for m ∈ [Metatheory]
  end
 
 makedocs(
-    modules = [Metatheory],
+    modules = [Metatheory, Metatheory.EGraphs],
     sitename = "Metatheory.jl",
     pages = [
         "index.md"
         "rewrite.md"
-        "theories.md"
         "egraphs.md"
-        "analysis.md"
-        "extraction.md"
-        "schedulers.md"
-        "options.md"
+        "interface.md"
+        "api.md"
     ])
 
 deploydocs(repo = "github.com/0x0f0f0f/Metatheory.jl.git")
