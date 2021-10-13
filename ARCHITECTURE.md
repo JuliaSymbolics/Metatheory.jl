@@ -13,11 +13,8 @@ The `Rules` folder contains
 - `rules.jl`: definitions for rule types used in various rewriting backends.
 - `matchers.jl`: Classical rewriting pattern matcher.
 
-# `NewSyntax.jl`
-Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` function), using the new Metatheory.jl syntax.
-
-# `SUSyntax.jl`
-Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` function), using the SymbolicUtils.jl syntax.
+# `Syntax.jl`
+Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` function), using the compatible SymbolicUtils.jl syntax.
 
 # EGraphs Module 
 Contains code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
