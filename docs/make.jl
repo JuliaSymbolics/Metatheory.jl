@@ -17,12 +17,12 @@ makedocs(
     sitename = "Metatheory.jl",
     pages = [
         "index.md"
+        "rewrite.md"
         "theories.md"
         "egraphs.md"
         "analysis.md"
         "extraction.md"
         "schedulers.md"
-        "classic.md"
         "options.md"
     ])
 
