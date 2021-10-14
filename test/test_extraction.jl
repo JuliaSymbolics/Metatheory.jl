@@ -147,7 +147,7 @@ t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids  ∪
 		end
 
 		for id ∈ arguments(n)
-	        eclass = geteclass(g, id)
+	        eclass = g[id]
 	        !hasdata(eclass, an) && (cost += Inf; break)
 	        cost += last(getdata(eclass, an))
 	    end
@@ -171,7 +171,7 @@ end
 function costfun(n::ENodeTerm, g::EGraph, an)
 	arity(n) != 2 && (return 1)
 	left = arguments(n)[1]
-	left_class = geteclass(g, left)
+	left_class = g[left]
 	ENodeLiteral(:a) ∈ left_class.nodes ? 1 : 100
 end
 

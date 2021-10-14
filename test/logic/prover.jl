@@ -12,7 +12,7 @@ function prove(t, ex, steps=1, timeout=10, eclasslimit=5000)
     for i ∈ 1:steps
         g = EGraph(ex)
 
-        exprs = [true, geteclass(g, g.root)]
+        exprs = [true, g[g.root]]
         ids = [addexpr!(g, e)[1].id for e in exprs]
 
         goal=EqualityGoal(exprs, ids)

@@ -208,7 +208,7 @@ end
 """
 A concrete type representing an [`EGraph`].
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
-for implementation details
+for implementation details.
 """
 mutable struct EGraph
     """stores the equality relations over e-class ids"""
@@ -235,6 +235,10 @@ mutable struct EGraph
     # age::Int
 end
 
+"""
+    EGraph(expr)
+Construct an EGraph from a starting symbolic expression `expr`.
+"""
 function EGraph()
     EGraph(
         IntDisjointSet{EClassId}(),
@@ -293,17 +297,14 @@ function find(g::EGraph, a::EClassId)::EClassId
 end
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
-
-function geteclass(g::EGraph, a::EClassId)::EClass
-    id = find(g, a)
+function Base.getindex(g::EGraph, i::EClassId)
+    id = find(g, i)
     ec = g.classes[id]
     # @show ec.id id a
     # @assert ec.id == id
     # ec.id = id
     ec
 end
-# geteclass(g::EGraph, a::EClass)::EClassId = geteclass()
-Base.getindex(g::EGraph, i::EClassId) = geteclass(g, i)
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)
@@ -352,7 +353,7 @@ function add!(g::EGraph, n::AbstractENode)::EClass
 
     n = canonicalize(g, n)
     if haskey(g.memo, n)
-        eclass = geteclass(g, g.memo[n])
+        eclass = g[g.memo[n]]
         return eclass
     end
     @debug(n, " not found in memo")
@@ -522,7 +523,7 @@ end
 
 function repair!(g::EGraph, id::EClassId)
     id = find(g, id)
-    ecdata = geteclass(g, id)
+    ecdata = g[id]
     ecdata.id = id
     @debug "repairing " id
 
@@ -556,7 +557,7 @@ function repair!(g::EGraph, id::EClassId)
         # id = find(g, id)
         for (p_enode, p_id) ∈ ecdata.parents
             # p_eclass = find(g, p_eclass)
-            p_eclass = geteclass(g, p_id)
+            p_eclass = g[p_id]
             if !islazy(an) && !hasdata(p_eclass, an)
                 setdata!(p_eclass, an, make(an, g, p_enode))
             end

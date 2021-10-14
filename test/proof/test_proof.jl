@@ -41,7 +41,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
         node = nodes[i]
         if haskey(g.memo, node)
             # TODO really override the proof step here?
-            eclass = geteclass(g, g.memo[node])
+            eclass = g[g.memo[node]]
             for nn in eclass
                 if node == nn
                     # dbgproof(node)
