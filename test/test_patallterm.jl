@@ -2,13 +2,10 @@ using Metatheory
 using Test
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
-@metatheory_init
-
 t = [
-    RewriteRule(PatTerm(:call, PatVar(:f), [PatVar(:a), PatVar(:b)]), PatLiteral(:matched))
+    RewriteRule(PatTerm(:call, PatVar(:f), [PatVar(:a), PatVar(:b)], @__MODULE__), PatLiteral(:matched))
 ]
 
 g = EGraph(:(foo(bar)))

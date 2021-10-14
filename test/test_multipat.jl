@@ -2,7 +2,6 @@ using Metatheory
 using Test
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 
 
@@ -45,9 +44,9 @@ end
 
 # TODO syntax for MultiPatRewriteRule and PatEquiv
 #   ancestor(A, C) <<= teacher(B, C) & ancestor(A, B),
-lhs = @pat teacher(b, c)
-rhs = @pat ancestor(a,c)
-pat1 = PatEquiv((@pat ancestor(a, b)), @pat teacher(b,c))
+lhs = Pattern(:(teacher(b, c))
+rhs = Pattern(:(ancestor(a,c)))
+pat1 = PatEquiv(Pattern(:(ancestor(a, b))), Pattern(:(teacher(b,c)))
 q = MultiPatRewriteRule(lhs, rhs, [pat1]) 
 
 push!(clauses, q)

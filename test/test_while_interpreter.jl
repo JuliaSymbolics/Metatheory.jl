@@ -5,26 +5,26 @@
 # semantica dalle dispense degano
 
 using Metatheory
-using Rewriters
+using Metatheory.Rewriters
 
 Mem = Dict{Symbol, Union{Bool, Int}}
 
-read_mem = @theory begin
-	(v::Symbol, mem) |> mem[v]
+read_mem = @theory v σ begin
+	(v::Symbol, σ) => σ[v]
 end
 
 @testset "Reading Memory" begin
 	@test 2 == rewrite(:((x), $(Mem(:x => 2))), read_mem; order=:inner)
 end
 
-arithm_rules = @theory begin
-	(a + b, σ) 		  => (a, σ) + (b, σ)
-	(a * b, σ) 		  => (a, σ) * (b, σ)
-	(a - b, σ) 		  => (a, σ) - (b, σ)
-	(a::Int + b::Int) |> a + b
-	(a::Int * b::Int) |> a * b
-	(a::Int - b::Int) |> a - b
-	(n::Int, σ) |> n
+arithm_rules = @theory a b n σ begin
+	(a + b, σ) 		  	--> (a, σ) + (b, σ)
+	(a * b, σ) 		  	--> (a, σ) * (b, σ)
+	(a - b, σ) 		  	--> (a, σ) - (b, σ)
+	(a::Int + b::Int) 	=> a + b
+	(a::Int * b::Int) 	=> a * b
+	(a::Int - b::Int) 	=> a - b
+	(n::Int, σ) 		=> n
 end
 
 strategy = (Fixpoint ∘ Postwalk ∘ Fixpoint ∘ Chain)
@@ -39,16 +39,16 @@ eval_arithm(ex, mem) =
 end
 
 # don't need to access memory
-bool_rules = @theory begin
-	(a::Bool ∨ b::Bool) |> (a || b)
-	(a::Bool ∧ b::Bool) |> (a && b)
-	(a::Int < b::Int) 	|> (a < b)
-	¬a::Bool 			|> !a
-	(bv::Bool, σ) 		|> bv
-	(a < b, mem1) |> (eval_arithm(a, mem1) < eval_arithm(b, mem1))
-	(¬b, σ) |> !eval_bool(b, σ)
-	(a ∨ b, σ) => (a, σ) ∨ (b, σ)
-	(a ∧ b, σ) => (a, σ) ∧ (b, σ)
+bool_rules = @theory a b σ begin
+	(a::Bool ∨ b::Bool) => (a || b)
+	(a::Bool ∧ b::Bool) => (a && b)
+	(a::Int < b::Int) 	=> (a < b)
+	¬a::Bool 			=> !a
+	(a::Bool, σ) 		=> a
+	(a < b, σ) 			=> (eval_arithm(a, σ) < eval_arithm(b, σ))
+	(¬b, σ) 			=> !eval_bool(b, σ)
+	(a ∨ b, σ) 			--> (a, σ) ∨ (b, σ)
+	(a ∧ b, σ) 			--> (a, σ) ∧ (b, σ)
 end
 
 eval_bool(ex, mem) = 
@@ -62,9 +62,9 @@ eval_bool(ex, mem) =
 	@test true == eval_bool(:((2 < x) ∨ ¬(3 < 4)), Mem(:x => 4))
 end
 
-if_rules = @theory begin
-	(if guard; t end, σ) => (if guard; t else :skip end, σ)
-	(if guard; t else f end, σ) |>
+if_rules = @theory guard t f σ begin
+	(if guard; t end, σ) --> (if guard; t else :skip end, σ)
+	(if guard; t else f end, σ) =>
 		(eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
 end
 
@@ -78,21 +78,21 @@ eval_if(ex::Expr, mem::Mem) =
 	@test 0 == eval_if(:(if ¬(2 < x) x else 0 end), Mem(:x => 3))
 end
 
-while_rules = @theory begin
-	(:skip, σ) => σ
-	((:skip; c2), σ) => (c2, σ)
-	((c1; c2), σ) |> begin
-		r = eval_while(c1, σ);
-		(r isa Mem) ? :($c2, $r) : :($c2, $σ)
+while_rules = @theory guard a b σ begin
+	(:skip, σ) 		--> σ
+	((:skip; b), σ) --> (b, σ)
+	((a; b), σ) 	=> begin
+		r = eval_while(a, σ);
+		(r isa Mem) ? :($b, $r) : :($b, $σ)
 	end
-	(while guard body end, σ) =>
-		(if guard; (body; while guard body end) else :skip end, σ)
+	(while guard a end, σ) -->
+		(if guard; (a; while guard a end) else :skip end, σ)
 end
 
 
-write_mem = @theory begin
-	(sym::Symbol = val, memory) |>
-		(memory[sym] = eval_arithm(val, memory); memory)
+write_mem = @theory sym val σ begin
+	(sym::Symbol = val, σ) =>
+		(σ[sym] = eval_arithm(val, σ); σ)
 	# (println("BEFORE $memory"); memory[sym] = eval_arithm(val, memory); println("AFTER $memory"); memory)
 end
 
@@ -101,7 +101,6 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 eval_while(ex, mem) = 
 	strategy(while_language)(:($ex, $mem))
 
-# FIXME issue with threading?
 @testset "While Semantics" begin
 	# @test Mem(:x => 3) == eval_while(:((x = 3)), Mem(:x => 2))
 	@test Mem(:x => 5) == eval_while( :(x = 4; x = x + 1) , Mem(:x => 3))

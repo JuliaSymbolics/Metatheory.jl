@@ -11,8 +11,8 @@ function EGraphs.make(an::Type{NumberFold}, g::EGraph, n::ENodeTerm)
     if exprhead(n) == :call && arity(n) == 2
         op = operation(n)
         args = arguments(n)
-        l = geteclass(g, args[1])
-        r = geteclass(g, args[2])
+        l = g[args[1]]
+        r = g[args[2]]
         ldata = getdata(l, an, nothing)
         rdata = getdata(r, an, nothing)
 

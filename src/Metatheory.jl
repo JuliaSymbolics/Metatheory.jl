@@ -1,53 +1,50 @@
 module Metatheory
 
-using RuntimeGeneratedFunctions
 using Base.Meta
 using Reexport
-
-include("docstrings.jl")
-
-RuntimeGeneratedFunctions.init(@__MODULE__)
-
-include("options.jl")
+using TermInterface
 
 macro log(args...)
-    quote options.verbose && @info($(args...)) end |> esc
+    quote haskey(ENV, "MT_DEBUG") && @info($(args...)) end |> esc
 end
 
-export options
+@inline alwaystrue(x) = true
 
-include("Util/Util.jl")
-using .Util
-export Util
+include("docstrings.jl")
+include("utils.jl")
+export @timer 
+export @iftimer
+export @timerewrite
+export @matchable
 
-
-include("rgf.jl")
-export @metatheory_init
-
-include("Patterns/Patterns.jl")
+include("Patterns.jl")
 @reexport using .Patterns 
 
 include("ematch_compiler.jl")
 @reexport using .EMatchCompiler
 
-include("Rules/Rules.jl")
+include("matchers.jl")
+include("Rules.jl")
 @reexport using .Rules
 
-include("match.jl")
-
+include("Syntax.jl")
+@reexport using .Syntax
 include("EGraphs/EGraphs.jl")
 @reexport using .EGraphs
 
-include("Library/Library.jl")
+include("Library.jl")
 export Library
 
-using Rewriters
+include("Rewriters.jl")
+using .Rewriters
+export Rewriters
+
 function rewrite(expr, theory; order=:outer)
-   if order == :inner 
-      Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)
-   elseif order == :outer 
+    if order == :inner 
+        Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)
+    elseif order == :outer 
       Fixpoint(Postwalk(Fixpoint(Chain(theory))))(expr)
-   end
+    end
 end
 export rewrite
 

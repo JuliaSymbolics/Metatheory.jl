@@ -2,7 +2,49 @@
 # =============================================================
 # ================== INTERPRETER ==============================
 # =============================================================
-using ..EMatchCompiler
+
+struct Sub
+    # sourcenode::Union{Nothing, AbstractENode}
+    ids::Vector{EClassId}
+    nodes::Vector{Union{Nothing,ENodeLiteral}}
+end
+
+haseclassid(sub::Sub, p::PatVar) = sub.ids[p.idx] >= 0
+geteclassid(sub::Sub, p::PatVar) = sub.ids[p.idx]
+
+hasliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx] !== nothing
+getliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx] 
+
+## ====================== Instantiation =======================
+
+function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
+    if haseclassid(sub, pat)
+        ec = g[geteclassid(sub, pat)]
+        if hasliteral(sub, pat) 
+            node = getliteral(sub, pat)
+            return node.value
+        end 
+        return ec
+    else
+        error("unbound pattern variable $pat in rule $rule")
+    end
+end
+
+instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = pat
+instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule) = 
+    throw(UnsupportedPatternException(pat))
+
+function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
+    eh = exprhead(pat)
+    op = operation(pat)
+    ar = arity(pat)
+
+    T = gettermtype(g, op, ar)
+    children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
+    similarterm(T, op, children; exprhead=eh)
+end
+
+
 
 mutable struct Machine
     g::EGraph 
@@ -51,7 +93,7 @@ function (m::Machine)()
 end
 
 function next(m::Machine, pc)
-    m(m.program[pc+1], pc+1)
+    m(m.program[pc + 1], pc + 1)
 end
 
 function (m::Machine)(instr::Yield, pc)
@@ -82,7 +124,7 @@ function (m::Machine)(instr::CheckType, pc)
     eclass = m.g[id]
 
     for n in eclass 
-        if checktype(n, instr.type, success)
+        if checktype(n, instr.type)
             m.σ[instr.reg] = id
             m.n[instr.reg] = n
             next(m, pc)
@@ -92,9 +134,24 @@ function (m::Machine)(instr::CheckType, pc)
     return nothing
 end
 
-checktype(n, t, success) = false
+checktype(n, t) = false
+checktype(n::ENodeLiteral{<:T}, ::Type{T}) where {T} = true
 
-checktype(n::ENodeLiteral{<:T}, ::Type{T}, success) where {T} = true
+
+function (m::Machine)(instr::CheckPredicate, pc) 
+    # @show instr
+    id = m.σ[instr.reg]
+    eclass = m.g[id]
+
+    if instr.predicate(m.g, eclass)
+        m.σ[instr.reg] = id
+        !isempty(eclass.nodes) && (m.n[instr.reg] = eclass[1])
+        next(m, pc)
+    end
+
+    return nothing
+end
+
 
 function (m::Machine)(instr::Filter, pc)
     # @show instr
@@ -102,7 +159,7 @@ function (m::Machine)(instr::Filter, pc)
     eclass = m.g[id]
 
     if operation(instr) ∈ funs(eclass)
-        next(m, pc+1)
+        next(m, pc + 1)
     end
     return nothing
 end
@@ -131,11 +188,8 @@ function lookup_pat(g::EGraph, p::PatTerm)
     end
 end
 
-function lookup_pat(g::EGraph, p::PatLiteral)
-    # println("looking up literal $p")
-    ec = lookup(g, ENodeLiteral(p.val))
-    return ec
-end
+lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
+lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))
 
 function (m::Machine)(instr::Lookup, pc) 
     # @show instr
@@ -170,7 +224,7 @@ function (m::Machine)(instr::Bind, pc)
         # @show arity(n) == arity(instr.enodepat)
         if canbind(n, pat)
             # m.n[reg] = n
-            for (j,v) in enumerate(arguments(pat))
+            for (j, v) in enumerate(arguments(pat))
                 m.σ[v] = arguments(n)[j]
             end
             next(m, pc)
@@ -193,7 +247,7 @@ canbind(n::ENodeLiteral, pat::ENodePat) = false
 # use const to help the compiler see the type.
 # each machine has a corresponding lock to ensure thread-safety in case 
 # tasks migrate between threads.
-const MACHINES = Tuple{Machine, ReentrantLock}[] 
+const MACHINES = Tuple{Machine,ReentrantLock}[] 
 
 function __init__() 
     empty!(MACHINES)

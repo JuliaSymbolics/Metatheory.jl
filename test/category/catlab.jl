@@ -5,8 +5,6 @@ using Catlab.Syntax
 using Metatheory, Metatheory.EGraphs
 using TermInterface
 
-@metatheory_init
-
 
 abstract type CatType end
 struct ObType <: CatType
@@ -45,7 +43,7 @@ EGraphs.islazy(x::Type{CatlabAnalysis}) = false
 function infer(t::GATExpr)
     g = EGraph(t)
     analyze!(g, CatlabAnalysis)
-    getdata(geteclass(g, g.root), CatlabAnalysis)
+    getdata(g[g.root], CatlabAnalysis)
 end
 
 function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: ObExpr}
@@ -172,7 +170,7 @@ function gen_rule(axiom::Catlab.GAT.AxiomConstructor, mod; righttoleft=false)
             # return $(evalmod).eval($(Meta.quot(ax_right))) 
             return $rhs
         else 
-            return _lhs_expr end) |> Metatheory.Util.rmlines
+            return _lhs_expr end) |> Metatheory.rmlines
         push!(lines, the_big_if)
     else 
         push!(lines, :(return $rhs))
@@ -217,9 +215,6 @@ function simplify(ex, syntax)
     saturate!(g, t, params)
     extract!(g, astsize)
 end
-
-Metatheory.options.printiter = true
-Metatheory.options.verbose = true
 
 A, B, C = Ob(SMC, :A, :B, :C)
 f = Hom(:f, A, B)

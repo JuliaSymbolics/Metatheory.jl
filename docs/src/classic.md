@@ -1,3 +1,0 @@
-# Classical Rewriting
-
-<!-- TODO document -->

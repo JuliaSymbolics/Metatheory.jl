@@ -1,33 +1,30 @@
-# Code Structure
+# Code Structure in `src/`
 
-`src/`: Source Code for Metatheory.jl
-- `Rules`: This module contains core definition for rewrite rules and patterns
-  - `patterns.jl`: Pattern type definitions for various pattern matching backends.
-  - `patterns_syntax.jl`: Julia expressions to Patterns and pretty-printing patterns.
-  - `rule_types.jl`: Definition of `Rule` subtypes for rewrite rules. 
-  - `rule_dsl.jl`: Surface DSL for defining rules. 
-  - `rule_cache.jl`: Contains definition of global dynamic rule function cache. 
-- `rgf.jl`: Utility functions for handling and generating Runtime Generated Functions 
-- `EGraphs/`: Code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
-  - `enode.jl`: Definition of `ENode` type, constructors
-  - `eclass.jl`: Definition of `EClass` type. EClass unioning, metadata access
-  - `egg.jl`: Defintion of EGraphs, adding, merging, rebuilding
-  - `ematch.jl`: Pattern matching functions on egraphs
-  - `abstractanalysis.jl`: Definition of `AbstractAnalysis` interface
-  - `analysis.jl`: Core algorithms for analyzing egraphs.
-  - `extraction.jl`: Core algorithms for `ExtractionAnalysis`, extracting terms from egraphs.
-  - `saturation:`: 
-    - `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs. 
-    - `search.jl`: Search phase of equality saturation. Uses multiple-dispatch on `Rule`s
-    - `apply.jl`: Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results.
-    - `params.jl`: Definition of `SaturationParams` type, parameters for equality saturation
-    - `report.jl`: Definition of the type for displaying equality saturation execution reports.
-  - `equality.jl`: utility functions and macros to check equality of terms in egraphs.
-  - `Schedulers/`: Module containing definition of Schedulers for equality saturation. 
-- `Classic/`: Classical deterministic rewriting backend using MatchCore.jl
-  - `matchcore_compiler.jl`: Compiler from Metatheory rules to MatchCore pattern matching blocks, on top of RuntimeGeneratedFunctions.jl
-  - `rewrite.jl`: Core rewriting algorithm based on fixpoint iteration of rewrite steps.
-  - `match.jl`: Utility functions and macros for classical pattern matching with Metatheory.jl
-- `Library/`: Utility functions and examples of ready-to-use theories.
-  - `algebra.jl`: Functions for generating theories from common algebraic structures.  
-- `Util/`: Module containing various utilities for metaprogramming, expression walking, quoted code cleaning, fixed point iterators.
+## Patterns Module
+
+The `Patterns.jl` file contains type definitions for pattern matching building blocks 
+called `Pattern`s, shared between pattern matching backends.
+This module provides the type hierarchy required to build patterns, the
+left hand side of rules.
+
+## Rules 
+
+The `Rules` folder contains 
+- `rules.jl`: definitions for rule types used in various rewriting backends.
+- `matchers.jl`: Classical rewriting pattern matcher.
+
+# `Syntax.jl`
+Contains the frontend to Rules and Patterns (`@rule` macro and `Pattern` function), using the compatible SymbolicUtils.jl syntax.
+
+# EGraphs Module 
+Contains code for the e-graphs rewriting backend. See [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for an high level overview.
+
+- `egraphs.jl`: Definition of `ENode`, `EClass` and `EGraph` types, EClass unioning, metadata access, defintion of EGraphs, adding, merging, rebuilding.
+- `ematch.jl`: E-Graph Pattern matching virtual machine interpreter.
+- `analysis.jl`: Core algorithms for analyzing egraphs and extracting terms from egraphs.
+- `saturation.jl`: Core algorithm for equality saturation, rewriting on e-graphs, e-graphs search.  Search phase of equality saturation. Uses multiple-dispatch on rules, Write phase of equality saturation. Application and instantiation of `Patterns` from matching/search results. Definition of `SaturationParams` type, parameters for equality saturation, Definition of equality saturation execution reports. Utility functions and macros to check equality of terms in egraphs.
+- `Schedulers.jl`: Module containing definition of Schedulers for equality saturation. 
+
+
+## `Library.jl`
+Contains utility functions and examples of ready-to-use theories of rules. Macros that generate single rules corresponding to common algebraic properties and macros for generating theories from common algebraic structures.  

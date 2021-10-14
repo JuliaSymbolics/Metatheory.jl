@@ -4,7 +4,8 @@ module EMatchCompiler
 
 using AutoHashEquals
 using TermInterface
-using ..Patterns
+using Metatheory: alwaystrue, binarize
+using Metatheory.Patterns
 
 abstract type Instruction end 
 export Instruction
@@ -16,13 +17,13 @@ mutable struct Program
     first_nonground::Int
     memsize::Int
     regs::Vector{Register}
-    ground_terms::Dict{Pattern, Register}
+    ground_terms::Dict{Any,Register}
 end
 export Program
 
 
 function Program()
-    Program(Instruction[], 0, 0, [], Dict{Pattern, Register}())
+    Program(Instruction[], 0, 0, [], Dict{AbstractPat,Register}())
 end
 
 hasregister(prog::Program, i) = (prog.regs[i] != -1)
@@ -35,7 +36,7 @@ Base.getindex(p::Program, i) = p.instructions[i]
 Base.length(p::Program) = length(p.instructions) 
 
 @auto_hash_equals struct ENodePat
-    exprhead::Union{Symbol, Nothing}
+    exprhead::Union{Symbol,Nothing}
     operation::Any
     # args::Vector{Register} 
     args::UnitRange{Register}
@@ -65,6 +66,12 @@ export CheckClassEq
 end
 export CheckType
 
+@auto_hash_equals struct CheckPredicate <: Instruction
+    reg::Register
+    predicate::Function
+end
+export CheckPredicate
+
 @auto_hash_equals struct Yield <: Instruction
     yields::Vector{Register}
 end
@@ -80,14 +87,14 @@ export Filter
 
 @auto_hash_equals struct Lookup <: Instruction
     reg::Register
-    p::Pattern
+    p::Any # pattern
 end
 export Lookup
 
 @auto_hash_equals struct Fail <: Instruction
     err::Exception
 end
-export Lookup
+export Fail
 
 # =============================================
 # ========= GROUND patterns ================
@@ -95,6 +102,8 @@ export Lookup
 
 
 function compile_ground!(reg, p::PatTerm, prog)
+    p = binarize(p)
+
     if haskey(prog.ground_terms, p)
         # push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
@@ -116,11 +125,13 @@ function compile_ground!(reg, p::PatVar, prog)
     nothing
 end
 
-function compile_ground!(reg, p::PatTypeAssertion, prog)
-    nothing
+
+function compile_ground!(reg, p::AbstractPat, prog)
+    push!(prog.instructions, Fail(UnsupportedPatternException(p)))
 end
 
-function compile_ground!(reg, p::PatLiteral, prog)
+# A literal that is not a pattern
+function compile_ground!(reg, p::Any, prog)
     if haskey(prog.ground_terms, p)
         return nothing
     end
@@ -129,20 +140,13 @@ function compile_ground!(reg, p::PatLiteral, prog)
     increment(prog, 1)
 end
 
-function compile_ground!(reg, p::PatEquiv, prog)
-    compile_ground!(reg, p.left, prog)
-    compile_ground!(reg, p.right, prog)
-end
-
-function compile_ground!(reg, p::PatSplatVar, prog)
-    Fail(ErrorException("Splatting not yet supported"))
-end
-
 # =============================================
 # ========= NONGROUND patterns ================
 # =============================================
 
 function compile_pat!(reg, p::PatTerm, prog)
+    p = binarize(p)
+
     if haskey(prog.ground_terms, p)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
@@ -151,8 +155,7 @@ function compile_pat!(reg, p::PatTerm, prog)
     c = memsize(prog)
     nargs = arity(p)
     # registers unit range
-    # TODO remove -1?
-    #a = c:(c + nargs - 1)
+    # a = c:(c + nargs - 1)
     a = c:(c + nargs - 1)
 
     # println(p)
@@ -172,59 +175,56 @@ function compile_pat!(reg, p::PatTerm, prog)
     end
 end
 
+
 function compile_pat!(reg, p::PatVar, prog)
     if hasregister(prog, p.idx)
         push!(prog.instructions, CheckClassEq(reg, getregister(prog, p.idx)))
-    else
+    else # Variable is new
         setregister(prog, p.idx, reg)
+        if p.predicate isa Function && p.predicate != alwaystrue
+            push!(prog.instructions, CheckPredicate(reg, p.predicate))
+        elseif p.predicate isa Type
+            push!(prog.instructions, CheckType(reg, p.predicate))
+        end
     end
 end
 
-function compile_pat!(reg, p::PatTypeAssertion, prog)
-    if hasregister(prog, p.var.idx)
-        push!(prog.instructions, CheckClassEq(reg, getregister(prog, p.var.idx)))
-    else
-        setregister(prog, p.var.idx, reg)
-        push!(prog.instructions, CheckType(reg, p.type))
-    end
+function compile_pat!(reg, p::AbstractPat, prog)
+    push!(prog.instructions, Fail(UnsupportedPatternException(p)))
 end
 
-function compile_pat!(reg, p::PatLiteral, prog)
+# Literal values
+function compile_pat!(reg, p::Any, prog)
     if haskey(prog.ground_terms, p)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
     end
-    push!(prog.instructions, Bind(reg, ENodePat(nothing, p.val, 0:-1)))
+    @error "This shouldn't be printed. Report an issue for ematching literals"
+    push!(prog.instructions, Bind(reg, ENodePat(nothing, p, 0:-1)))
 end
 
-function compile_pat!(reg, p::PatEquiv, prog)
-    compile_pat!(reg, p.left, prog)
-    compile_pat!(reg, p.right, prog)
-end
 
-function compile_pat!(reg, p::PatSplatVar, prog)
-    Fail(ErrorException("Splatting not yet supported"))
-end
-
-#========================================================================================#
+#= ====================================================================================== =#
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
-function compile_pat(p::Pattern)
+function compile_pat(p)
+    p = binarize(p)
     pvars = patvars(p)
     nvars = length(pvars)
 
     # The program will try to match against ground terms first
-    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{Pattern, Register}())
+    prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{AbstractPat,Register}())
     # println("compiling pattern $p")
     compile_ground!(1, p, prog)
     # println("compiled ground pattern \n $prog")
     prog.first_nonground = prog.memsize
-    prog.memsize+=1
+    prog.memsize += 1
 
     # And then try to match against other patterns
     compile_pat!(prog.first_nonground, p, prog)
     push!(prog.instructions, Yield(prog.regs))
     # println("compiled pattern $p to \n $prog")
+    # @show prog
     return prog
 end
 

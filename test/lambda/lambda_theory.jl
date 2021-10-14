@@ -1,4 +1,3 @@
-# Metatheory.options[:printiter] = true
 using Metatheory
 using Metatheory.EGraphs
 using Test
@@ -77,14 +76,14 @@ function EGraphs.make(an::Type{FreeVarAnalysis}, g::EGraph, n::ENode)
         push!(free, n.args[1])
     elseif n.head == :llet
         v,a,b = n.args[1:3]
-        adata = getdata(geteclass(g, a), an, Set{Int64}())
-        bdata = getdata(geteclass(g, a), an, Set{Int64}())
+        adata = getdata(g[a], an, Set{Int64}())
+        bdata = getdata(g[a], an, Set{Int64}())
         union!(free, adata)
         delete!(free, v)
         union!(free, bdata)
     elseif n.head == :λ
         v,b = n.args[1:2]
-        bdata = getdata(geteclass(g, b), an, Set{Int64}())
+        bdata = getdata(g[b], an, Set{Int64}())
         union!(free, bdata)
         delete!(free, v)
     end
