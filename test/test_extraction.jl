@@ -136,9 +136,6 @@ t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids  ∪
 	end
 	@test ex == :(a^5)
 
-	# TODO could serve as example for more advanced
-	# symbolic mathematics simplification based on the computation cost
-    	# of the expressions
 	function cust_astsize(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
 		cost = 1 + arity(n)
 

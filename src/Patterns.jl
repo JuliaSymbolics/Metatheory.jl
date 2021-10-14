@@ -93,7 +93,6 @@ struct PatTerm <: AbstractPat
     operation::Any
     args::Vector
     mod::Module # useful to match against function head symbols and function objs at the same time
-    # hash::Ref{UInt} # TODO remove??
     PatTerm(eh, op, args, mod) = new(eh, op, args, mod) #Ref{UInt}(0))
 end
 TermInterface.istree(::Type{PatTerm}) = true
@@ -148,6 +147,37 @@ setdebrujin!(p, pvars) = nothing
 function setdebrujin!(p::PatTerm, pvars) 
     setdebrujin!(operation(p), pvars)
     foreach(x -> setdebrujin!(x, pvars), p.args)
+end
+
+#TODO ADD ORIGINAL CODE OF PREDICATE TO PATVAR ?
+function to_expr(x::PatVar)
+    if x.predicate == alwaystrue
+        Expr(:call, :~, x.name)
+    else
+        Expr(:call, :~, Expr(:(::), x.name, x.predicate))
+    end
+end
+
+to_expr(x::Any) = x
+
+function to_expr(x::PatSegment)
+    Expr(:...,  x.predicate == alwaystrue ? Expr(:call, :~, x.name) : 
+        Expr(:call, :~, Expr(:(::), x.name, x.predicate))
+    )
+end
+
+to_expr(x::PatSegment{typeof(alwaystrue)}) = 
+    Expr(:..., Expr(:call, :~, x.name))
+
+to_expr(x::PatSegment{T}) where {T <: Function} = 
+    Expr(:..., Expr(:call, :~, Expr(:(::), x.name, nameof(T))))
+
+to_expr(x::PatSegment{<:Type{T}}) where T = 
+    Expr(:..., Expr(:call, :~, Expr(:(::), x.name, T)))
+
+function to_expr(x::PatTerm) 
+    pl = operation(x)
+    similarterm(Expr, pl, arguments(x); exprhead=exprhead(x))
 end
 
 

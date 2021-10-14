@@ -90,6 +90,9 @@ function matcher(segment::PatSegment)
 end
 
 # TODO REVIEWME
+# Try to match both against a function symbol or a function object at the same time.
+# Slows things down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object
+# and SymbolicUtils-like objects that store function references as operations.
 function head_matcher(f::Symbol, mod)
     checkhead = try 
         fobj = getproperty(mod, f)
@@ -146,7 +149,7 @@ function matcher(term::PatTerm)
 end
 
 
-# TODO revise
+# TODO REVIEWME
 function instantiate(left, pat::PatTerm, mem)
     ar = arguments(pat)
     args = [ instantiate(left, p, mem) for p in ar] 

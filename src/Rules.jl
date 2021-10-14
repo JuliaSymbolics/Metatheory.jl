@@ -5,6 +5,7 @@ using Parameters
 using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
+using Metatheory.Patterns: to_expr
 using Metatheory: cleanast, binarize, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int, Any}()
@@ -61,8 +62,8 @@ end
 Base.isequal(a::RewriteRule, b::RewriteRule) = (a.left == b.left) && (a.right == b.right)
 
 function RewriteRule(l, r)
-    # ex = :($(to_expr(l)) --> $(to_expr(r)))
-    RewriteRule(gensym(:rule), l, r)
+    ex = :($(to_expr(l)) --> $(to_expr(r)))
+    RewriteRule(ex, l, r)
 end
 
 function RewriteRule(ex, l, r)
@@ -90,9 +91,12 @@ end
 # ============================================================
 # EqualityRule
 # ============================================================
-# TODO document
 
 """
+An `EqualityRule` can is a symbolic substitution rule that 
+can be rewritten bidirectional. Therefore, it should only be used 
+with the EGraphs backend.
+
 ```julia
 @rule ~a * ~b == ~b * ~a
 ```
@@ -120,7 +124,8 @@ function EqualityRule(ex, l, r)
 end
 
 function EqualityRule(l, r)
-    EqualityRule(gensym(:rule), l, r)
+    ex = :($(to_expr(l)) --> $(to_expr(r)))
+    EqualityRule(ex, l, r)
 end
 
 Base.show(io::IO,  r::EqualityRule) = print(io, r.expr)
@@ -133,12 +138,16 @@ end
 # ============================================================
 # UnequalRule
 # ============================================================
-# TODO document
 
 """
 This type of *anti*-rules is used for checking contradictions in the EGraph
 backend. If two terms, corresponding to the left and right hand side of an
 *anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
+
+```julia
+¬a ≠ a
+```
+
 """
 @auto_hash_equals struct UnequalRule <: BidirRule 
     expr # rule pattern stored for pretty printing
@@ -151,7 +160,8 @@ end
 
 
 function UnequalRule(l, r)
-    UnequalRule(gensym(:rule), l, r)
+    ex = :($(to_expr(l)) --> $(to_expr(r)))
+    UnequalRule(ex, l, r)
 end
 
 function UnequalRule(ex, l, r)
@@ -173,7 +183,6 @@ Base.show(io::IO, r::UnequalRule) = print(io, r.expr)
 # ============================================================
 # DynamicRule
 # ============================================================
-# TODO document the additional parameters
 """
 Rules defined as `left_hand => right_hand` are
 called `dynamic` rules. Dynamic rules behave like anonymous functions.
