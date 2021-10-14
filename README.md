@@ -48,8 +48,6 @@ If you'd like to give us a hand and contribute to this repository you can:
 - Find a high level description of the project architecture in [ARCHITECTURE.md](https://github.com/juliasymbolics/Metatheory.jl/blob/master/ARCHITECTURE.md)
 - Read the contribution guidelines in [CONTRIBUTING.md](https://github.com/juliasymbolics/Metatheory.jl/blob/master/CONTRIBUTING.md)
 
-If you enjoyed Metatheory.jl and would like to help, please also consider a [tiny donation 💕](https://github.com/sponsors/0x0f0f0f/)!
-
 ## Installation
 
 You can install the stable version:
@@ -71,6 +69,10 @@ Extensive Metatheory.jl is available [here](https://juliasymbolics.github.io/Met
 If you use Metatheory.jl in your research, please [cite](https://github.com/juliasymbolics/Metatheory.jl/blob/master/CITATION.bib) our works.
 
 --- 
+
+# Sponsors
+
+If you enjoyed Metatheory.jl and would like to help, you can donate a coffee or choose place your logo and name in this page. [See 0x0f0f0f's Github Sponsors page](https://github.com/sponsors/0x0f0f0f/)!
 
 <p align="center">
 <a href="https://planting.space"> 
