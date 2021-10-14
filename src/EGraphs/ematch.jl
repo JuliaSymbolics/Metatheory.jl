@@ -19,7 +19,7 @@ getliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx]
 
 function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
     if haseclassid(sub, pat)
-        ec = geteclass(g, geteclassid(sub, pat))
+        ec = g[geteclassid(sub, pat)]
         if hasliteral(sub, pat) 
             node = getliteral(sub, pat)
             return node.value

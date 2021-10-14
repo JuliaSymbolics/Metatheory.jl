@@ -35,7 +35,7 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENodeTerm{Expr})
     end
 
     symval = getfield(@__MODULE__, sym)
-    child_classes = map(x -> geteclass(g, x), arguments(n))
+    child_classes = map(x -> g[x], arguments(n))
     child_types = Tuple(map(x -> getdata(x, an, Any), child_classes))
 
     # t = t_arr[1]
@@ -55,5 +55,5 @@ EGraphs.islazy(x::Type{TypeAnalysis}) = true
 function infer(e)
     g = EGraph(e)
     analyze!(g, TypeAnalysis)
-    getdata(geteclass(g, g.root), TypeAnalysis)
+    getdata(g[g.root], TypeAnalysis)
 end

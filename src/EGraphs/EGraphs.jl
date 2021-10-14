@@ -28,7 +28,6 @@ export getdata
 export setdata!
 export find
 export lookup
-export geteclass
 export arity
 export EGraph
 export merge!

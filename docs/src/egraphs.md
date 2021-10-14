@@ -126,7 +126,7 @@ julia> @areequal some_theory (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))
 ```
 
 
-### Configurable Parameters
+## Configurable Parameters
 
 [`EGraphs.saturate!`](@ref) can accept an additional parameter of type
 [`EGraphs.SaturationParams`](@ref) to configure the equality saturation algorithm.
@@ -143,10 +143,24 @@ saturate!(egraph, theory, params)
 CurrentModule = Base
 ```
 
+## Outline of the Equality Saturation Algorithm
 
-# Extracting from an EGraph
+The `saturate!` function behaves as following.
+Given a starting e-graph `g`, a set of rewrite rules `t` and some parameters `p` (including an iteration limit `n`):
+* For each rule in `t`, search through the e-graph for l.h.s.
+* For each match produced, apply the rewrite
+* Do a bottom-up traversal of the e-graph to rebuild the congruence closure
+* If the e-graph hasn’t changed from last iteration, it has saturated. If so, halt saturation.
+* Loop at most n times.
 
-Since e-graphs represent the non-determinism of many equivalent symbolic terms,
+Note that knowing if an expression with a set of rules saturates an e-graph or never terminates
+is still an open research problem
+
+
+
+## Extracting from an EGraph
+
+Since e-graphs non-deterministically represent many equivalent symbolic terms,
 extracting an expression from an EGraph is the process of selecting and
 extracting a single symbolic expression from the set of all the possible
 expressions contained in the EGraph. Extraction is done through the `extract!`
@@ -203,6 +217,7 @@ ex = extract!(g, astsize)
 The second argument to `extract!` is a **cost function**. [astsize](@ref) is 
 a cost function provided by default, which computes the size of expressions.
 
+
 ## Defining custom cost functions for extraction.
 
 A *cost function* for *EGraph extraction* is a function used to determine
@@ -244,4 +259,154 @@ end
 
 # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
 cost_function(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis}) = 1
+```
+
+## EGraph Analyses
+
+An *EGraph Analysis* is an efficient and automated way of analyzing all the possible
+terms contained in an e-graph. Metatheory.jl provides a toolkit to ease and 
+automate the process of EGraph Analysis. An *EGraph Analysis* defines a domain
+of values and associates a value from the domain to each [EClass](@ref) in the graph.
+Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).
+Rewrites can cooperate with e-class analyses by depending on analysis facts and adding
+equivalences that in turn establish additional facts. 
+
+In Metatheory.jl, EGraph Analyses are identified by a *type* that is subtype of `AbstractAnalysis`.
+An [`EGraph`](@ref) can only contain one analysis per type.
+The following functions define an interface for analyses based on multiple dispatch 
+on `AbstractAnalysis` types: 
+* [islazy](@ref) should return true if the analysis should NOT be computed on-the-fly during egraphs operation, only when required.  
+* [make](@ref) should take an ENode and return a value from the analysis domain.
+* [join](@ref) should return the semilattice join of two values in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*)
+* [modify!](@ref) Can be optionally implemented. Can be used modify an EClass on-the-fly given its analysis value.
+
+### Defining a custom analysis
+
+In this example, we will provide a custom analysis that tags each EClass in an EGraph
+with `:even` if it contains an even number or with `:odd` if it represents an odd number,
+or `nothing` if it does not contain a number at all. Let's suppose that the language of the symbolic expressions
+that we are considering will contain *only integer numbers, variable symbols and the `*` and `+` operations.*
+
+Since we are in a symbolic computation context, we are not interested in the
+the actual numeric result of the expressions in the EGraph, but we only care to analyze and identify
+the symbolic expressions that will result in an even or an odd number.
+
+Defining an EGraph Analysis is similar to the process [Mathematical Induction](https://en.wikipedia.org/wiki/Mathematical_induction).
+To define a custom EGraph Analysis, one should start by defining a type that 
+subtypes `AbstractAnalysis` that will be used to identify this specific analysis and 
+to dispatch against the required methods.
+
+```julia
+using Metatheory
+using Metatheory.EGraphs
+abstract type OddEvenAnalysis <: AbstractAnalysis end
+```
+
+The next step, the base case of induction, is to define a method for
+[make](@ref) dispatching against our `OddEvenAnalysis`. First, we want to
+associate an analysis value only to the *literals* contained in the EGraph. To do this we
+take advantage of multiple dispatch against `ENodeLiteral`.
+
+```julia
+function EGraphs.make(an::Type{OddEvenAnalysis}, g::EGraph, n::ENodeLiteral)
+    if n.value isa Integer
+        return iseven(n.value) ? :even : :odd
+    else 
+        return nothing
+    end
+end
+```
+
+Now we have to consider the *induction step*. 
+Knowing that our language contains only `*` and `+` operations, and knowing that:
+* odd * odd = odd
+* odd * even = even
+* even * even = even
+
+And we know that 
+* odd + odd = even 
+* odd + even = odd 
+* even + even = even
+
+We can now define a method for `make` dispatching against 
+`OddEvenAnalysis` and `ENodeTerm`s to compute the analysis value for *nested* symbolic terms. 
+We take advantage of the methods in [TermInterface](https://github.com/JuliaSymbolics/TermInterface.jl) 
+to inspect the content of an `ENodeTerm`.
+From the definition of an [ENode](@ref), we know that children of ENodes are always IDs pointing
+to EClasses in the EGraph.
+
+```julia
+function EGraphs.make(an::Type{OddEvenAnalysis}, g::EGraph, n::ENodeTerm)
+    # Let's consider only binary function call terms.
+    if exprhead(n) == :call && arity(n) == 2
+        op = operation(n)
+        # Get the left and right child eclasses
+        child_eclasses = arguments(n)
+        l = g[child_eclasses[1]]
+        r = g[child_eclasses[2]]
+
+        # Get the corresponding OddEvenAnalysis value of the children
+        # defaulting to nothing 
+        ldata = getdata(l, an, nothing)
+        rdata = getdata(r, an, nothing)
+
+        if ldata isa Symbol && rdata isa Symbol
+            if op == :*
+                return (ldata == :even || rdata == :even) ? :even : :odd
+            elseif op == :+
+                return (ldata == rdata) ? :even : :odd
+            end
+        elseif isnothing(ldata) && rdata isa Symbol && op == :*
+            return rdata
+        elseif ldata isa Symbol && isnothing(rdata) && op == :*
+            return ldata
+        end
+    end
+
+    return nothing
+end
+```
+
+We have now defined a way of tagging each ENode in the EGraph with `:odd` or `:even`, reasoning 
+inductively on the analyses values. The [analyze!](@ref) function will do the dirty job of doing 
+a recursive walk over the EGraph. The missing piece, is now telling Metatheory.jl how to merge together
+analysis values. Since EClasses represent many equal ENodes, we have to inform the automated analysis
+how to extract a single value out of the many analyses values contained in an EGraph.
+We do this by defining a method for [join](@ref).
+
+```julia
+function EGraphs.join(an::Type{OddEvenAnalysis}, a, b)
+    if a == b 
+        return a 
+    else
+        # an expression cannot be odd and even at the same time!
+        # this is contradictory, so we ignore the analysis value
+        return nothing 
+    end
+end
+```
+
+We do not care to modify the content of EClasses in consequence of our analysis.
+Therefore, we can skip the definition of [modify!](@ref).
+We are now ready to test our analysis.
+
+```julia
+t = @theory a b c begin 
+    a * (b * c) == (a * b) * c
+    a + (b + c) == (a + b) + c
+    a * b == b * a
+    a + b == b + a
+    a * (b + c) == (a * b) + (a * c)
+end
+
+function custom_analysis(expr)
+    g = EGraph(expr)
+    saturate!(g, t)
+    analyze!(g, OddEvenAnalysis)
+    return getdata(g[g.root], OddEvenAnalysis)
+end
+
+custom_analysis(:(3*a)) # :odd
+custom_analysis(:(3*(2+a)*2)) # :even
+custom_analysis(:(3y * (2x*y))) # :even
 ```

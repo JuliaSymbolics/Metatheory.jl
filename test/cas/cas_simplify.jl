@@ -39,7 +39,7 @@ function simplcost(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
         cost += 20
     end
     for id ∈ arguments(n)
-        eclass = geteclass(g, id)
+        eclass = g[id]
         !hasdata(eclass, an) && (cost += Inf; break)
         cost += last(getdata(eclass, an))
     end
