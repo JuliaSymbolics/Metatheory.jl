@@ -101,7 +101,6 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 eval_while(ex, mem) = 
 	strategy(while_language)(:($ex, $mem))
 
-# FIXME issue with threading?
 @testset "While Semantics" begin
 	# @test Mem(:x => 3) == eval_while(:((x = 3)), Mem(:x => 2))
 	@test Mem(:x => 5) == eval_while( :(x = 4; x = x + 1) , Mem(:x => 3))

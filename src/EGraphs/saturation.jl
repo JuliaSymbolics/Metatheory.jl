@@ -32,10 +32,6 @@ function reached(g::EGraph, goal::FunctionGoal)::Bool
     fun(g)    
 end
 
-
-
-
-# TODO document
 mutable struct Report
     reason::Union{Symbol, Nothing}
     egraph::EGraph
