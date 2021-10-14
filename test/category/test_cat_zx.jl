@@ -37,7 +37,6 @@ import Catlab.Theories.Ob
 end
 
 using Metatheory, Metatheory.EGraphs
-@metatheory_init
 
 # Custom type APIs for the GATExpr
 using TermInterface
@@ -76,7 +75,7 @@ EGraphs.islazy(x::Type{CatlabAnalysis}) = false
 function infer(t::GATExpr)
     g = EGraph(t)
     analyze!(g, CatlabAnalysis)
-    getdata(geteclass(g, g.root), CatlabAnalysis)
+    getdata(g[g.root], CatlabAnalysis)
 end
 
 function EGraphs.extractnode(g::EGraph, n::ENode{T}, extractor::Function) where {T <: ObExpr}

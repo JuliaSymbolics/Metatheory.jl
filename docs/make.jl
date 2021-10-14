@@ -2,7 +2,6 @@ using Documenter
 using Metatheory
 
 using Metatheory.EGraphs
-using Metatheory.Rules
 using Metatheory.Library
 
 
@@ -14,17 +13,14 @@ for m ∈ [Metatheory]
  end
 
 makedocs(
-    modules = [Metatheory],
+    modules = [Metatheory, Metatheory.EGraphs],
     sitename = "Metatheory.jl",
     pages = [
         "index.md"
-        "theories.md"
+        "rewrite.md"
         "egraphs.md"
-        "analysis.md"
-        "extraction.md"
-        "schedulers.md"
-        "classic.md"
-        "options.md"
+        "interface.md"
+        "api.md"
     ])
 
 deploydocs(repo = "github.com/0x0f0f0f/Metatheory.jl.git")

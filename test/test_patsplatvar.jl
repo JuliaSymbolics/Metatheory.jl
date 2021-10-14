@@ -2,10 +2,7 @@ using Metatheory
 using Test
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
-
-@metatheory_init
 
 t = @theory begin 
     f(a...) |> (println.(a); 42)

@@ -5,7 +5,7 @@ using Metatheory.EGraphs
 using Metatheory.EGraphs: in_same_set, find_root
 
 @testset "Merging" begin
-    testexpr = :((a * 2)/2)
+    testexpr = :((a * 2) / 2)
     testmatch = :(a << 1)
     G = EGraph(testexpr)
     t2, _ = addexpr!(G, testmatch)
@@ -14,14 +14,14 @@ using Metatheory.EGraphs: in_same_set, find_root
     # DOES NOT UPWARD MERGE
 end
 
-#testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))
+# testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))
 
 @testset "Simple congruence - rebuilding" begin
     G = EGraph()
-    ec1, _ = addexpr!(G, :(f(a,b)))
-    ec2, _ = addexpr!(G, :(f(a,c)))
+    ec1, _ = addexpr!(G, :(f(a, b)))
+    ec2, _ = addexpr!(G, :(f(a, c)))
 
-    testexpr = :(f(a,b) + f(a,c))
+    testexpr = :(f(a, b) + f(a, c))
     
     testec, _ = addexpr!(G, testexpr)
 
@@ -50,7 +50,7 @@ end
 
 
 @testset "Simple nested congruence" begin
-    apply(n, f, x) = n == 0 ? x : apply(n-1,f,f(x))
+    apply(n, f, x) = n == 0 ? x : apply(n - 1, f, f(x))
     f(x) = Expr(:call, :f, x)
 
     G = EGraph(:a)

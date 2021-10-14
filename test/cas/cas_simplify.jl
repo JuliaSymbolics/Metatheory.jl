@@ -1,7 +1,6 @@
 using Metatheory
 using Metatheory.Library
 using Metatheory.EGraphs
-using Metatheory.Util
 using Metatheory.EGraphs.Schedulers
 using TermInterface
 
@@ -33,23 +32,21 @@ canonical_t = @theory begin
     (+)(xs...)      |> Expr(:call, :+, sort!(xs; lt=customlt)...)
 end
 
-# Metatheory.options[:verbose] = true
-# Metatheory.options[:printiter] = true
 
-
-
-function simplcost(n::ENode, g::EGraph, an::Type{<:AbstractAnalysis})
+function simplcost(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
     cost = 0 + arity(n)
     if operation(n) == :∂
         cost += 20
     end
     for id ∈ arguments(n)
-        eclass = geteclass(g, id)
+        eclass = g[id]
         !hasdata(eclass, an) && (cost += Inf; break)
         cost += last(getdata(eclass, an))
     end
     return cost
 end
+
+simplcost(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis}) = 0
 
 function simplify(ex; steps=4)
     params = SaturationParams(

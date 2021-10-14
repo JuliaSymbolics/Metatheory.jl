@@ -24,7 +24,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
     report = saturate!(g, t, params; mod=mod)
 
     # display(g.classes); println()
-    if !(report.reason isa EGraphs.Saturated) && !reached(g, goal)
+    if !(report.reason === :saturated) && !reached(g, goal)
         return missing # failed to prove
     end
 
@@ -41,7 +41,7 @@ function prove(g::EGraph, t::Vector{<:Rule}, exprs...;
         node = nodes[i]
         if haskey(g.memo, node)
             # TODO really override the proof step here?
-            eclass = geteclass(g, g.memo[node])
+            eclass = g[g.memo[node]]
             for nn in eclass
                 if node == nn
                     # dbgproof(node)
@@ -164,8 +164,6 @@ prove(EGraph(), t, :(2 * x), :(x + x))
 
 include("../logic/prop_logic_theory.jl")
 
-@metatheory_init
-
 ex = :((x => (y => z)) => ((x => y) => (x => z)))
 proof = prove(EGraph(), t, ex, true)
 
@@ -178,11 +176,6 @@ proof = prove(EGraph(), t, :((x => (x ∨ x))), :((¬(x) ∧ y) => y))
 # applied earliest but before (or after???) `t`  
 ex = :(((x ∨ y) ∨ ¬(z ∧ a)) ∨ a)
 proof = prove(EGraph(), t, ex, true)
-
-Metatheory.options.verbose = false
-
-
-
 
 # chat with oliver 
 # introduce a new type of enode at the proof generation stage 

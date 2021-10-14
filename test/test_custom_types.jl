@@ -3,8 +3,6 @@ using Metatheory.EGraphs
 using TermInterface
 using Test
 
-@metatheory_init
-
 struct MyExpr
     head::Any
     # NOTE! this will not work, when replacing 
@@ -32,11 +30,11 @@ TermInterface.operation(e::MyExpr) = e.head
 TermInterface.arguments(e::MyExpr) = e.args
 TermInterface.istree(e::Type{MyExpr}) = true
 # NamedTuple
-TermInterface.metadata(e::MyExpr) = (foo=e.foo, bar=e.bar, baz=e.baz)
+TermInterface.metadata(e::MyExpr) = (foo = e.foo, bar = e.bar, baz = e.baz)
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
 
 # f(g(2), h(4)) with some metadata in h
-hcall = MyExpr(:h, [4], "hello", [2+3im, 4+2im], Set{Int}([4,5,6]))
+hcall = MyExpr(:h, [4], "hello", [2 + 3im, 4 + 2im], Set{Int}([4,5,6]))
 ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
@@ -62,19 +60,19 @@ settermtype!(g, :g, 1, MyExpr)
 # ========== !!! ============= !!! ===============
 
 # let's create an example theory
-t = @theory begin 
+t = @theory a begin 
     # this way, z will be a regular expr
     # f(g(2), a) => z(a)
     # we can use dynamic rules to construct values of type MyExpr
     # f(g(2), a) |> MyExpr(:z, [a])
 
     # terms in the RHS inherit the type of terms in the lhs
-    f(g(2), a) => f(a)
+    f(g(2), a) --> f(a)
 end
 
 saturate!(g, t)
 
-#display(g.classes)
+# display(g.classes)
 
 expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 
