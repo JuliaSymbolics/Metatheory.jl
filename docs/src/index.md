@@ -72,8 +72,10 @@ If you use Metatheory.jl in your research, please [cite](https://github.com/juli
 
 --- 
 
+```@raw html
 <p align="center">
 <a href="https://planting.space"> 
     <img width="300px" src="https://raw.githubusercontent.com/juliasymbolics/Metatheory.jl/master/.github/plantingspace.png"/>
 </a>
 </p>
+```
