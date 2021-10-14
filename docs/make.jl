@@ -23,4 +23,4 @@ makedocs(
         "api.md"
     ])
 
-deploydocs(repo = "github.com/0x0f0f0f/Metatheory.jl.git")
+deploydocs(repo = "github.com/JuliaSymbolics/Metatheory.jl.git")
