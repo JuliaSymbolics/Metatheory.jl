@@ -10,8 +10,8 @@ A pre-requisite for using Metatheory.jl is to know at least a little about Julia
 
 ## Learning Metatheory.jl
 
-Our [main documentaion](https://github.com/0x0f0f0f/Metatheory.jl/) provides an overview and some examples of using Metatheory.jl.
-The core package is hosted at [Metatheory.jl](https://github.com/0x0f0f0f/Metatheory.jl/).
+Our [main documentaion](https://github.com/JuliaSymbolics/Metatheory.jl/) provides an overview and some examples of using Metatheory.jl.
+The core package is hosted at [Metatheory.jl](https://github.com/JuliaSymbolics/Metatheory.jl/).
 
 ## Before filing an issue
 
@@ -20,7 +20,7 @@ Julia's own "[How to file a bug report](https://github.com/JuliaLang/julia/blob/
 Try to report the issue in the package responsible for the error.
 You can often make good guesses by examining the backtrace (in cases where an
 error is thrown), using `@which`, stepping in with the debugger, or just
-using the search bar at the top left of [Metatheory.jl](https://github.com/0x0f0f0f/Metatheory.jl/).
+using the search bar at the top left of [Metatheory.jl](https://github.com/JuliaSymbolics/Metatheory.jl/).
 
 ## Contributing documentation
 
