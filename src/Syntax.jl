@@ -26,7 +26,7 @@ function makesegment(s::Expr, pvars)
 
     name = arguments(s)[1]
     name ∉ pvars && push!(pvars, name)
-    return :(PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
+    return :($PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
 function makesegment(name::Symbol, pvars) 
     name ∉ pvars && push!(pvars, name)
@@ -39,7 +39,7 @@ function makevar(s::Expr, pvars)
 
     name = arguments(s)[1]
     name ∉ pvars && push!(pvars, name)
-    return :(PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
+    return :($PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
 function makevar(name::Symbol, pvars) 
     name ∉ pvars && push!(pvars, name)
@@ -98,7 +98,7 @@ function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
             end
         else # is a term
             patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-            return :(PatTerm(:call, $op, [$(patargs...)], $mod))
+            return :($PatTerm(:call, $op, [$(patargs...)], $mod))
         end
     elseif head === :... 
         makepattern(args[1], pvars, slots, mod, true)
@@ -107,12 +107,12 @@ function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
     elseif head === :ref 
         # getindex 
         patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-        return :(PatTerm(:ref, getindex, [$(patargs...)], $mod))
+        return :($PatTerm(:ref, getindex, [$(patargs...)], $mod))
     elseif head === :$
         return args[1]
     else 
         patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-        return :(PatTerm($(head isa Symbol ? QuoteNode(head) : head), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)], $mod))
+        return :($PatTerm($(head isa Symbol ? QuoteNode(head) : head), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)], $mod))
         # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
     end
 end
