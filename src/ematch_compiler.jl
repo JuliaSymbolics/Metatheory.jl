@@ -40,6 +40,7 @@ Base.length(p::Program) = length(p.instructions)
     operation::Any
     # args::Vector{Register} 
     args::UnitRange{Register}
+    checkop::Function # function that checks both symbol or func. object as op
 end
 export ENodePat
 
@@ -155,21 +156,25 @@ function compile_pat!(reg, p::PatTerm, prog)
     c = memsize(prog)
     nargs = arity(p)
     # registers unit range
-    # a = c:(c + nargs - 1)
     a = c:(c + nargs - 1)
 
-    # println(p)
-    # println(a)
-    # filters = [] 
-    # for (i, child) in enumerate(p.args) 
-    #     if child isa PatTerm
-    #         push!(filters, Filter(a[i], child.head, arity(child)))
-    #     end
-    # end
-    # println(filters)
+    exhead = exprhead(p)
+    op = operation(p)
+    checkop = x -> isequal(x, op)
+
+    if op isa Symbol 
+        checkop = try 
+            fobj = getproperty(p.mod, op)
+            (x) -> (isequal(x, op) || isequal(x, fobj))
+        catch e 
+            e isa UndefVarError ? checkop : rethrow(e)
+        end 
+    end
 
     increment(prog, nargs)
-    push!(prog.instructions, Bind(reg, ENodePat(exprhead(p), operation(p), a)))
+    
+
+    push!(prog.instructions, Bind(reg, ENodePat(exhead, op, a, checkop)))
     for (reg, p2) in zip(a, arguments(p))
         compile_pat!(reg, p2, prog) 
     end
@@ -200,7 +205,6 @@ function compile_pat!(reg, p::Any, prog)
         return nothing
     end
     @error "This shouldn't be printed. Report an issue for ematching literals"
-    push!(prog.instructions, Bind(reg, ENodePat(nothing, p, 0:-1)))
 end
 
 

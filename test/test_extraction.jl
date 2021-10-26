@@ -223,3 +223,12 @@ end
 
     @test res == :(h())
 end    
+
+
+@testset "Symbol or function object operators in expressions in EGraphs" begin
+	ex = :(($+)(x, y))
+	t = [@rule a b a + b => 2]
+	g = EGraph(ex)
+	saturate!(g, t)
+	@test extract!(g, astsize) == 2
+end
