@@ -34,12 +34,14 @@ instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = pat
 instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule) = 
     throw(UnsupportedPatternException(pat))
 
+# FIXME instantiate function object as operation instead of symbol if present!!
 function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     eh = exprhead(pat)
     op = operation(pat)
     ar = arity(pat)
 
     T = gettermtype(g, op, ar)
+    println(T)
     children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
     similarterm(T, op, children; exprhead=eh)
 end
@@ -239,9 +241,6 @@ function canbind(n::ENodeTerm, pat::ENodePat)
 end
 
 canbind(n::ENodeLiteral, pat::ENodePat) = false
-
-
-
 
 # use const to help the compiler see the type.
 # each machine has a corresponding lock to ensure thread-safety in case 
