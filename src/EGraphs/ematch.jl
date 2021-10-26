@@ -218,7 +218,6 @@ function (m::Machine)(instr::Bind, pc)
         # @show arity(n) arity(instr.enodepat)
         # @show arguments(n) arguments(instr.enodepat)
 
-
         # @show exprhead(n) == exprhead(instr.enodepat)
         # @show operation(n) == operation(instr.enodepat)
         # @show arity(n) == arity(instr.enodepat)
@@ -235,7 +234,7 @@ end
 
 function canbind(n::ENodeTerm, pat::ENodePat)
     exprhead(n) == exprhead(pat) &&
-        operation(n) == operation(pat) && 
+        pat.checkop(operation(n)) && 
         arity(n) == arity(pat)
 end
 

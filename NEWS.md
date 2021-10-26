@@ -1,3 +1,8 @@
+## 1.1
+- EGraph pattern matcher can now match against both symbols and function objects
+- Fixes for Symbolics.jl integration
+
+
 ## 1.0
 
 Metatheory.jl + SymbolicUtils.jl = ❤️

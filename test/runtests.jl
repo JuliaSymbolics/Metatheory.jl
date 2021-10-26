@@ -9,7 +9,6 @@ using Test
         @safetestset "EMatch" begin include("test_ematch.jl") end
         @safetestset "EGraph Analysis" begin include("test_analysis.jl") end
         @safetestset "EGraph Extraction" begin include("test_extraction.jl") end
-        # # Introduce new syntax from here
         @safetestset "Mu Puzzle" begin include("test_mu.jl") end
         @safetestset "While Interpreter" begin include("test_while_interpreter.jl") end
         @safetestset "Taylor Series" begin include("test_taylor.jl") end
