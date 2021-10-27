@@ -156,7 +156,7 @@ function compile_pat!(reg, p::PatTerm, prog)
     c = memsize(prog)
     nargs = arity(p)
     # registers unit range
-    a = c:(c + nargs - 1)
+    regrange = c:(c + nargs - 1)
 
     exhead = exprhead(p)
     op = operation(p)
@@ -173,9 +173,8 @@ function compile_pat!(reg, p::PatTerm, prog)
 
     increment(prog, nargs)
     
-
-    push!(prog.instructions, Bind(reg, ENodePat(exhead, op, a, checkop)))
-    for (reg, p2) in zip(a, arguments(p))
+    push!(prog.instructions, Bind(reg, ENodePat(exhead, op, regrange, checkop)))
+    for (reg, p2) in zip(regrange, arguments(p))
         compile_pat!(reg, p2, prog) 
     end
 end
