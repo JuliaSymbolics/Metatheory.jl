@@ -41,12 +41,11 @@ function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     ar = arity(pat)
 
     T = gettermtype(g, op, ar)
-    println(T)
     children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
     similarterm(T, op, children; exprhead=eh)
 end
 
-
+## ====================== EMatching Machine =======================
 
 mutable struct Machine
     g::EGraph 
