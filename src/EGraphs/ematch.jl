@@ -17,7 +17,7 @@ getliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx]
 
 ## ====================== Instantiation =======================
 
-function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
+function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule; kws...)
     if haseclassid(sub, pat)
         ec = g[geteclassid(sub, pat)]
         if hasliteral(sub, pat) 
@@ -30,19 +30,19 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule)
     end
 end
 
-instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule) = pat
-instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule) = 
+instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule; kws...) = pat
+instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule; kws...) = 
     throw(UnsupportedPatternException(pat))
 
 # FIXME instantiate function object as operation instead of symbol if present!!
-function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
+# This needs a redesign of this pattern matcher
+function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule; simterm=TermInterface.similarterm)
     eh = exprhead(pat)
     op = operation(pat)
     ar = arity(pat)
-
     T = gettermtype(g, op, ar)
-    children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
-    similarterm(T, op, children; exprhead=eh)
+    children = map(x -> instantiate(g, x, sub, rule; simterm=simterm), arguments(pat))
+    simterm(T, op, children; exprhead=eh)
 end
 
 ## ====================== EMatching Machine =======================
