@@ -1,3 +1,7 @@
+## 1.2
+- Fixes when printing patterns
+- Can pass custom `similarterm` to `SaturationParams` by using `SaturationParams.simterm`.
+
 ## 1.1
 - EGraph pattern matcher can now match against both symbols and function objects
 - Fixes for Symbolics.jl integration
