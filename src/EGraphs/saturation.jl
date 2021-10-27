@@ -73,6 +73,7 @@ Configurable Parameters for the equality saturation process.
     threaded::Bool = false
     timer::Bool = true
     printiter::Bool = false
+    simterm::Function = similarterm
 end
 
 struct Match
@@ -213,9 +214,9 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
 end
     
 
-function (rule::UnequalRule)(g::EGraph, match::Match)
+function (rule::UnequalRule)(g::EGraph, match::Match; simterm=similarterm)
     lc = match.id
-    rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
+    rinst = instantiate(g, match.pat_to_inst, match.sub, rule; simterm=simterm)
     rc, node = addexpr!(g, rinst)
 
     if find(g, lc) == find(g, rc)
@@ -225,15 +226,15 @@ function (rule::UnequalRule)(g::EGraph, match::Match)
     return nothing
 end
 
-function (rule::SymbolicRule)(g::EGraph, match::Match)
-    rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
+function (rule::SymbolicRule)(g::EGraph, match::Match; simterm=similarterm)
+    rinst = instantiate(g, match.pat_to_inst, match.sub, rule; simterm=simterm)
     rc, node = addexpr!(g, rinst)
     merge!(g, match.id, rc.id)
     return nothing
 end
 
 
-function (rule::DynamicRule)(g::EGraph, match::Match)
+function (rule::DynamicRule)(g::EGraph, match::Match; simterm=similarterm)
     f = rule.rhs_fun
     actual_params = [instantiate(g, PatVar(v, i, alwaystrue), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(g[match.id], match.sub, g, actual_params...)
@@ -265,7 +266,7 @@ function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
         rule = match.rule
         # println("applying $rule")
 
-        halt_reason = rule(g, match)
+        halt_reason = rule(g, match; simterm=params.simterm)
         if (halt_reason !== nothing)
             rep.reason = halt_reason
             return 
