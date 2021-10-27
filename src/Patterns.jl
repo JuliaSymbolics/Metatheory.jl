@@ -177,7 +177,7 @@ to_expr(x::PatSegment{<:Type{T}}) where T =
 
 function to_expr(x::PatTerm) 
     pl = operation(x)
-    similarterm(Expr, pl, arguments(x); exprhead=exprhead(x))
+    similarterm(Expr, pl, map(to_expr, arguments(x)); exprhead=exprhead(x))
 end
 
 
