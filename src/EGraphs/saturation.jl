@@ -238,6 +238,7 @@ function (rule::DynamicRule)(g::EGraph, match::Match; simterm=similarterm)
     f = rule.rhs_fun
     actual_params = [instantiate(g, PatVar(v, i, alwaystrue), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
     r = f(g[match.id], match.sub, g, actual_params...)
+    isnothing(r) && return nothing
     rc, node = addexpr!(g, r)
     merge!(g, match.id, rc.id)
     return nothing
