@@ -160,6 +160,7 @@ t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids  ∪
 	@time begin
 		G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
 		saturate!(G, t)
+		@show getcost!(G, cust_astsize)
 		ex = extract!(G, cust_astsize)
 	end
 	@test ex == :(5 * log(a)) || ex == :(log(a) * 5)
@@ -219,6 +220,7 @@ end
 
 	gg = EGraph(ex)
 	saturate!(gg, t)
+	@show getcost!(gg, astsize)
 	res = extract!(gg, astsize);
 
     @test res == :(h())
