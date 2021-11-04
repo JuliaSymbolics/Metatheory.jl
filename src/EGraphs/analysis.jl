@@ -184,10 +184,8 @@ end
 Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-function extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm)
-    extran = ExtractionAnalysis{costfun}
-    extract!(g, extran; root=root)
-end
+extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm) = 
+    extract!(g, ExtractionAnalysis{costfun}; root=root, simterm=similarterm)
 
 macro extract(expr, theory, costfun)
     quote
@@ -197,4 +195,16 @@ macro extract(expr, theory, costfun)
             (g, ex)
         end
     end |> esc
+end
+
+
+getcost!(g::EGraph, costfun::Function; root=-1) = getcost!(g, ExtractionAnalysis{costfun}; root=root)
+
+function getcost!(g::EGraph, analysis::Type{ExtractionAnalysis{F}}; root=-1) where {F}
+    if root == -1
+        root = g.root
+    end
+    analyze!(g, analysis, root)
+    bestnode, cost = getdata(g[root], analysis)
+    return cost
 end
