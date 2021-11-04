@@ -139,7 +139,7 @@ join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : 
 
 islazy(a::Type{<:ExtractionAnalysis}) = true
 
-function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
+function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId; simterm=similarterm)
     eclass = g[id]
     anval = getdata(eclass, an, missing)
     if anval === missing 
@@ -147,25 +147,22 @@ function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId)
         anval = getdata(eclass, an)
     end
     (cn, ck) = anval
-    (!istree(termtype(cn)) || ck == Inf) && return operation(cn)
+    ck == Inf && error("Infinite cost when extracting enode")
 
-    extractnode(g, cn, an; eclass=eclass)
+    extractnode(g, eclass, cn, an; simterm=simterm)
 end
 
-function extractnode(g::EGraph, n::ENodeTerm, an::Type{<:ExtractionAnalysis}; eclass=nothing)
+function extractnode(g::EGraph, eclass::EClass, n::ENodeTerm, an::Type{<:ExtractionAnalysis}; simterm=similarterm)
     children = map(arguments(n)) do a
-        rec_extract(g, an, a)
+        rec_extract(g, an, a; simterm=simterm)
     end
     
-    meta = nothing
-    if !isnothing(eclass)
-        meta = getdata(eclass, MetadataAnalysis, nothing)
-    end
+    meta = getdata(eclass, MetadataAnalysis, nothing)
     T = termtype(n)
     similarterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
 end
 
-function extractnode(g::EGraph, n::ENodeLiteral, an::Type{<:ExtractionAnalysis}; eclass=nothing)
+function extractnode(g::EGraph, eclass::EClass, n::ENodeLiteral, an::Type{<:ExtractionAnalysis}; simterm=similarterm)
     n.value
 end
 
@@ -174,20 +171,20 @@ end
 Given an [`ExtractionAnalysis`](@ref), extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-function extract!(g::EGraph, a::Type{ExtractionAnalysis{F}} where F; root=-1)
+function extract!(g::EGraph, a::Type{ExtractionAnalysis{F}} where F; root=-1, simterm=similarterm)
     if root == -1
         root = g.root
     end
     analyze!(g, a, root)
     !(a ∈ g.analyses) && error("Extraction analysis is not associated to EGraph")
-    rec_extract(g, a, root)
+    rec_extract(g, a, root; simterm=simterm)
 end
 
 """
 Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-function extract!(g::EGraph, costfun::Function; root=-1)
+function extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm)
     extran = ExtractionAnalysis{costfun}
     extract!(g, extran; root=root)
 end
