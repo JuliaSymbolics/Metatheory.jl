@@ -195,6 +195,7 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
             rule_matches = pmap(i -> rule(egraph, i), ids)
 
             n_matches = isempty(rule_matches) ? 0 : sum(length, rule_matches)
+            # @show (rule, n_matches)
             can_yield = inform!(scheduler, rule, n_matches)
             if can_yield
                 @timeit append_time "appending matches" begin
@@ -251,11 +252,11 @@ function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
     for match ∈ matches
         i += 1
 
-        if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
-            @log "E-GRAPH SIZEOUT"
-            rep.reason = :eclasslimit
-            return
-        end
+        # if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
+        #     @log "E-GRAPH SIZEOUT"
+        #     rep.reason = :eclasslimit
+        #     return
+        # end
 
         if reached(g, params.goal)
             @log "Goal reached"
@@ -280,9 +281,7 @@ function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
     end
 end
 
-import ..options
 import ..@log
-
 
 
 """
@@ -346,6 +345,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params=SaturationP
         end
 
         if params.eclasslimit > 0 && g.numclasses > params.eclasslimit 
+            # println(params.eclasslimit)
             report.reason = :eclasslimit
             break
         end
