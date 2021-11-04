@@ -159,7 +159,7 @@ function extractnode(g::EGraph, eclass::EClass, n::ENodeTerm, an::Type{<:Extract
     
     meta = getdata(eclass, MetadataAnalysis, nothing)
     T = termtype(n)
-    similarterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
+    simterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
 end
 
 function extractnode(g::EGraph, eclass::EClass, n::ENodeLiteral, an::Type{<:ExtractionAnalysis}; simterm=similarterm)
@@ -185,7 +185,7 @@ Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
 extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm) = 
-    extract!(g, ExtractionAnalysis{costfun}; root=root, simterm=similarterm)
+    extract!(g, ExtractionAnalysis{costfun}; root=root, simterm=simterm)
 
 macro extract(expr, theory, costfun)
     quote
