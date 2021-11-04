@@ -9,9 +9,6 @@ module Library
 using Metatheory.Patterns
 using Metatheory.Rules
 
-@info "NOTE: The current implementation of the Metatheory library currently works
-correctly only with the EGraphs backend."
-
 macro associativity(op) 
 	quote 
 		[
