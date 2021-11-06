@@ -61,6 +61,7 @@ Configurable Parameters for the equality saturation process.
 """
 @with_kw mutable struct SaturationParams
     timeout::Int = 8
+    timelimit::Period = Second(-1)
     # default sizeout. TODO make this bytes
     # sizeout::Int = 2^14
     matchlimit::Int = 5000
@@ -323,9 +324,11 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params=SaturationP
     match_hist = MatchesBuf()
     report = Report(g)
 
-    if !params.timer
-        disable_timer!(report.to)
-    end
+    start_time = Dates.now().instant
+
+    !params.timer && disable_timer!(report.to)
+    timelimit = params.timelimit > Second(0)
+    
 
     while true
         curr_iter+=1
@@ -333,6 +336,13 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params=SaturationP
         params.printiter && @info("iteration ", curr_iter)
 
         report, egraph = eqsat_step!(g, theory, curr_iter, sched, match_hist, params, report)
+
+        elapsed = Dates.now().instant - start_time
+
+        if timelimit && params.timelimit <= elapsed
+            report.reason = :timelimit
+            break
+        end
 
         # report.reason == :matchlimit && break
         if !(report.reason isa Nothing)
