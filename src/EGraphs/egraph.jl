@@ -53,6 +53,7 @@ end
 
 
 TermInterface.istree(n::ENodeTerm) = true
+TermInterface.istree(t::Type{<:ENodeTerm}) = true
 TermInterface.exprhead(n::ENodeTerm) = n.exprhead
 TermInterface.operation(n::ENodeTerm) = n.operation 
 TermInterface.arguments(n::ENodeTerm) = n.args 
@@ -85,6 +86,7 @@ end
 # ==================================================
 
 TermInterface.istree(n::ENodeLiteral) = false
+TermInterface.istree(t::Type{<:ENodeLiteral}) = false
 TermInterface.exprhead(n::ENodeLiteral) = nothing
 TermInterface.operation(n::ENodeLiteral) = n.value 
 TermInterface.arity(n::ENodeLiteral) = 0
