@@ -139,64 +139,73 @@ join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : 
 
 islazy(a::Type{<:ExtractionAnalysis}) = true
 
-function rec_extract(g::EGraph, an::Type{<:ExtractionAnalysis}, id::EClassId; simterm=similarterm)
+function rec_extract(g::EGraph, an, id::EClassId; simterm=similarterm, cse_env=nothing)
     eclass = g[id]
-    anval = getdata(eclass, an, missing)
-    if anval === missing 
-        analyze!(g, an, id)
-        anval = getdata(eclass, an)
+    if !isnothing(cse_env) && haskey(cse_env, id)
+        (sym, _) = cse_env[id]
+        return sym
     end
-    (cn, ck) = anval
+    anval = getdata(eclass, an, (nothing, Inf))
+    (n, ck) = anval
     ck == Inf && error("Infinite cost when extracting enode")
 
-    extractnode(g, eclass, cn, an; simterm=simterm)
-end
-
-function extractnode(g::EGraph, eclass::EClass, n::ENodeTerm, an::Type{<:ExtractionAnalysis}; simterm=similarterm)
-    children = map(arguments(n)) do a
-        rec_extract(g, an, a; simterm=simterm)
+    if n isa ENodeLiteral
+        return n.value
+    elseif n isa ENodeTerm 
+        children = map(child -> rec_extract(g, an, child; simterm=simterm, cse_env=cse_env), arguments(n)) 
+        meta = getdata(eclass, MetadataAnalysis, nothing)
+        T = termtype(n)
+        simterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
+    else 
+        error("Unknown ENode Type $(typeof(cn))")
     end
-    
-    meta = getdata(eclass, MetadataAnalysis, nothing)
-    T = termtype(n)
-    simterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
-end
-
-function extractnode(g::EGraph, eclass::EClass, n::ENodeLiteral, an::Type{<:ExtractionAnalysis}; simterm=similarterm)
-    n.value
-end
-
-
-"""
-Given an [`ExtractionAnalysis`](@ref), extract the expression
-with the smallest computed cost from an [`EGraph`](@ref)
-"""
-function extract!(g::EGraph, a::Type{ExtractionAnalysis{F}} where F; root=-1, simterm=similarterm)
-    if root == -1
-        root = g.root
-    end
-    analyze!(g, a, root)
-    !(a ∈ g.analyses) && error("Extraction analysis is not associated to EGraph")
-    rec_extract(g, a, root; simterm=simterm)
 end
 
 """
 Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm) = 
-    extract!(g, ExtractionAnalysis{costfun}; root=root, simterm=simterm)
+function extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm, cse=false)
+    a = ExtractionAnalysis{costfun}
+    if root == -1
+        root = g.root
+    end
+    analyze!(g, a, root)
+    if cse
+        # TODO make sure there is no assignments/stateful code!!
+        cse_env = Dict{EClassId, Tuple{Symbol, Any}}() # 
+        collect_cse!(g, a, root, cse_env, Set{EClassId}(); simterm=simterm)
+        # @show root
+        # @show cse_env
 
-macro extract(expr, theory, costfun)
-    quote
-        let g = EGraph($expr)
-            saturate!(g, $theory)
-            ex = extract!(g, $costfun)
-            (g, ex)
-        end
-    end |> esc
+        body = rec_extract(g, a, root; simterm=simterm, cse_env=cse_env)
+
+        assignments = [Expr(:(=), name, val) for (id, (name, val)) in cse_env]
+        # return body
+        Expr(:let, Expr(:block, assignments...), body)
+    else
+        return rec_extract(g, a, root; simterm=simterm)
+    end
 end
 
+
+# Builds a dict e-class id => (symbol, extracted term) of common subexpressions in an e-graph
+function collect_cse!(g::EGraph, an, id, cse_env, seen; simterm=similarterm)
+    eclass = g[id]
+    anval = getdata(eclass, an, (nothing, Inf))
+    (cn, ck) = anval
+    ck == Inf && error("Error when computing CSE")
+    if cn isa ENodeTerm
+        if id in seen 
+            cse_env[id] = (gensym(), rec_extract(g, an, id; simterm=simterm, cse_env=cse_env)) # todo generalize symbol?
+            return 
+        end
+        for child_id in arguments(cn)
+            collect_cse!(g, an, child_id, cse_env, seen; simterm=simterm)
+        end
+        push!(seen, id)
+    end
+end
 
 getcost!(g::EGraph, costfun::Function; root=-1) = getcost!(g, ExtractionAnalysis{costfun}; root=root)
 

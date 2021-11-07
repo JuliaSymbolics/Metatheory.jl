@@ -65,7 +65,7 @@ end
     G = EGraph(:(1 * x))
     params = SaturationParams(timeout=100)
     saturate!(G, boson, params)
-    ex = extract!(G, ExtractionAnalysis{astsize})
+    ex = extract!(G, astsize)
 
     # println(ex)
 
