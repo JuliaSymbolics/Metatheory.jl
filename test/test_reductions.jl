@@ -128,6 +128,14 @@ end
 	sf = rewrite(:(f(1,2,3,4)), t)
 
     @test sf == :(ok(2,3,4))
+
+    t = @theory x y begin
+		f(x, y...) => Expr(:call, :ok, y...)
+	end
+
+	sf = rewrite(:(f(1,2,3,4)), t)
+
+    @test sf == :(ok(2,3,4))
 end
 
 
