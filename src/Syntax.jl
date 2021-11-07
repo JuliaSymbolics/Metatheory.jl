@@ -74,7 +74,13 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
-makepattern(x, pvars, slots, mod=@__MODULE__, splat=false) = x in slots ? makevar(x, pvars) : x
+function makepattern(x, pvars, slots, mod=@__MODULE__, splat=false) 
+    if splat 
+        x in slots ? makesegment(x, pvars) : x
+    else
+        x in slots ? makevar(x, pvars) : x
+    end
+end
 
 function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
     head = exprhead(ex)
