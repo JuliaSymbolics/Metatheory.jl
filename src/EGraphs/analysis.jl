@@ -173,7 +173,7 @@ function extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm, cs
     analyze!(g, a, root)
     if cse
         # TODO make sure there is no assignments/stateful code!!
-        cse_env = Dict{EClassId, Tuple{Symbol, Any}}() # 
+        cse_env = OrderedDict{EClassId, Tuple{Symbol, Any}}() # 
         collect_cse!(g, a, root, cse_env, Set{EClassId}(); simterm=simterm)
         # @show root
         # @show cse_env
@@ -197,7 +197,7 @@ function collect_cse!(g::EGraph, an, id, cse_env, seen; simterm=similarterm)
     ck == Inf && error("Error when computing CSE")
     if cn isa ENodeTerm
         if id in seen 
-            cse_env[id] = (gensym(), rec_extract(g, an, id; simterm=simterm, cse_env=cse_env)) # todo generalize symbol?
+            cse_env[id] = (gensym(), rec_extract(g, an, id; simterm=simterm))#, cse_env=cse_env)) # todo generalize symbol?
             return 
         end
         for child_id in arguments(cn)

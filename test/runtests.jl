@@ -20,7 +20,8 @@ using Test
         @safetestset "PROP Logic" begin include("logic/test_logic.jl") end
         @safetestset "CAS Infer" begin include("cas/test_infer.jl") end
         @safetestset "Knuth Bendix Alternative Hurwitz Groups" begin include("test_kb_benchmark.jl") end
-        
+        @safetestset "Stream Fusion" begin include("test_stream_fusion.jl") end
+
         
         # @safetestset "Boson" begin include("test_boson.jl") end
         # @safetestset "PatEquiv" begin include("test_patequiv.jl") end
