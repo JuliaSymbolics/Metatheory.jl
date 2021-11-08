@@ -411,8 +411,6 @@ x = a
 ```
 See also: [`@rule`](@ref)
 """
-
-
 macro capture(args...)
     length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
     slots = args[1:end-2]
