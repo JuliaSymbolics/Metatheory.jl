@@ -146,7 +146,12 @@ function (m::Machine)(instr::CheckPredicate, pc)
 
     if instr.predicate(m.g, eclass)
         m.σ[instr.reg] = id
-        !isempty(eclass.nodes) && (m.n[instr.reg] = eclass[1])
+        for n in eclass.nodes
+            if n isa ENodeLiteral
+                m.n[instr.reg] = n
+                break
+            end
+        end
         next(m, pc)
     end
 
