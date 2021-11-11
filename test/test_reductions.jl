@@ -201,3 +201,21 @@ using Metatheory.Syntax: @capture
     @test f(:(b^b)) == :b
     @test isnothing(f(:(b+b)))
 end 
+
+using TermInterface
+@testset "Matchable struct" begin
+    struct qux
+        args
+        qux(args...) = new(args)
+    end
+    TermInterface.operation(::qux) = qux
+    TermInterface.istree(::Type{qux}) = true
+    TermInterface.arguments(x::qux) = [x.args...]
+    
+    @capture qux(1, 2) qux(1, 2)
+    
+    @test (@rule qux(1, 2)=>"hello")(qux(1, 2)) == "hello"
+    @test (@rule qux(1, 2)=>"hello")(1) === nothing
+    @test (@rule 1=>"hello")(1) == "hello"
+    @test (@rule 1=>"hello")(qux(1, 2)) === nothing
+end
