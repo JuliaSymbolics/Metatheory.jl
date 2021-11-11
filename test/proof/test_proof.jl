@@ -94,7 +94,7 @@ end
 
 function oldest_node_extract(g::EGraph, n::ENode, age::Int)
     costfun = oldestatage(age)
-    ex = EGraphs.extractnode(g, n, ExtractionAnalysis{costfun})
+    ex = EGraphs.extractnode(g, n, costfun)
     # println("extracted $ex aged $(n.age) at age $age")
     return ex
 end
