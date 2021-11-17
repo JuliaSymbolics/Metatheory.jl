@@ -200,6 +200,10 @@ using Metatheory.Syntax: @capture
 
     @test f(:(b^b)) == :b
     @test isnothing(f(:(b+b)))
+
+    x = 1
+    r = (@capture x x)
+    @test r == true
 end 
 
 using TermInterface
@@ -218,4 +222,6 @@ using TermInterface
     @test (@rule qux(1, 2)=>"hello")(1) === nothing
     @test (@rule 1=>"hello")(1) == "hello"
     @test (@rule 1=>"hello")(qux(1, 2)) === nothing
+    @test (@capture qux(1, 2) qux(1, 2))
+    @test false == (@capture qux(1,2) qux(3,4))
 end

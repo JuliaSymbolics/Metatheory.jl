@@ -420,11 +420,13 @@ macro capture(args...)
     lhs = rmlines(lhs)
 
     pvars = Symbol[]
-    lhs_term = makepattern(lhs, pvars, slots)
+    lhs_term = makepattern(lhs, pvars, slots, __module__)
     bind = Expr(:block, map(key-> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...)
     quote
         $(__source__)
-        lhs_pattern = $(lhs_term)
+        lhs_pattern = $(esc(lhs_term))
+        println(lhs_pattern)
+        dump(lhs_pattern)
         __MATCHES__ = DynamicRule($(QuoteNode(lhs)),
             lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars)($(esc(ex)))
         if __MATCHES__ !== nothing

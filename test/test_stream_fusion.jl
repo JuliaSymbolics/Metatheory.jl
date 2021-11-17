@@ -100,3 +100,7 @@ opt = stream_optimize(ex)
 ex = :( map(x -> 7 * x, reverse(reverse(fill(13,40))) ))
 opt = stream_optimize(ex)
 opt = stream_optimize(opt)
+
+macro stream_optimize(ex)
+    stream_optimize(ex)
+end
