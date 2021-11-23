@@ -31,6 +31,7 @@ end
 
 # parametrize metadata by M
 mutable struct EClass
+    g # EGraph
     id::EClassId
     nodes::Vector{AbstractENode}
     parents::Vector{Pair{AbstractENode, EClassId}}
@@ -116,8 +117,8 @@ end
 
 Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
 
-EClass(id) = EClass(id, AbstractENode[], Pair{AbstractENode, EClassId}[], nothing)
-EClass(id, nodes, parents) = EClass(id, nodes, parents, nothing)
+EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode, EClassId}[], nothing)
+EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, nothing)
 
 # Interface for indexing EClass
 Base.getindex(a::EClass, i) = a.nodes[i]
@@ -370,7 +371,7 @@ function add!(g::EGraph, n::AbstractENode)::EClass
 
     g.memo[n] = id
 
-    classdata = EClass(id, AbstractENode[n], Pair{AbstractENode, EClassId}[])
+    classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode, EClassId}[])
     g.classes[id] = classdata
     g.numclasses += 1
 
