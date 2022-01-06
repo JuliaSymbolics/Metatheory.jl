@@ -85,7 +85,7 @@ of the equality saturation process.
 a `timeout` on the number of iterations, a `eclasslimit` on the number of e-classes in the EGraph, a `stopwhen` functions that stops saturation when it evaluates to true.
 ```julia
 g = EGraph(:((a * b) * (1 * (b + c))));
-report = saturate!(G, t);
+report = saturate!(g, t);
 # access the saturated EGraph
 report.egraph
 
