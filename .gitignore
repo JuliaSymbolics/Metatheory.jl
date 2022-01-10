@@ -30,7 +30,9 @@ coverage/
 
 .vscode/
 ideas/
-benchmarks/target
-benchmarks/Cargo.lock
 .lh
 .DS_Store
+
+benchmarks/tune.json
+benchmarks/against-egg/target
+benchmarks/against-egg/Cargo.lock
