@@ -33,6 +33,6 @@ ideas/
 .lh
 .DS_Store
 
-benchmarks/tune.json
-benchmarks/against-egg/target
-benchmarks/against-egg/Cargo.lock
+benchmark/tune.json
+benchmark/against-egg/target
+benchmark/against-egg/Cargo.lock
