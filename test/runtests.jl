@@ -20,9 +20,8 @@ end
         @safetestset "While Superinterpreter" begin include("test_while_superinterpreter.jl") end
         @safetestset "EGraphs Inequalities" begin include("test_inequality.jl") end
         @safetestset "Custom Types" begin include("test_custom_types.jl") end
-        @safetestset "Fibonacci" begin include("fib/test_fibonacci.jl") end
-        @safetestset "Calculational Logic" begin include("logic/test_calculational_logic.jl") end
-        @safetestset "PROP Logic" begin include("logic/test_logic.jl") end
+        @safetestset "Fibonacci" begin include("test_fibonacci.jl") end
+        @safetestset "Calculational Logic" begin include("test_logic.jl") end
         @safetestset "CAS Infer" begin include("cas/test_infer.jl") end
         @safetestset "Knuth Bendix Alternative Hurwitz Groups" begin include("test_kb_benchmark.jl") end
         @safetestset "Stream Fusion" begin include("test_stream_fusion.jl") end
