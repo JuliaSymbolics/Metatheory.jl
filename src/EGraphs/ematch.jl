@@ -109,10 +109,8 @@ function (m::Machine)(instr::Yield, pc)
 end
 
 function (m::Machine)(instr::CheckClassEq, pc) 
-    # @show instr
     l = m.σ[instr.left]
     r = m.σ[instr.right]
-    # println("checking eq $l == $r")
     if l == r 
         next(m, pc)
     end
@@ -173,7 +171,6 @@ end
 # Thanks to Max Willsey and Yihong Zhang
 
 function lookup_pat(g::EGraph, p::PatTerm)
-    # println("looking up $p")
     @assert isground(p)
 
     eh = exprhead(p)
@@ -185,7 +182,6 @@ function lookup_pat(g::EGraph, p::PatTerm)
 
     ids = [lookup_pat(g, pp) for pp in args]
     if all(i -> i isa EClassId, ids)
-        # println(ids)
         n = ENodeTerm{T}(eh, op, ids)
         ec = lookup(g, n)
         return ec
@@ -201,7 +197,6 @@ function (m::Machine)(instr::Lookup, pc)
     # @show instr
     ecid = lookup_pat(m.g, instr.p)
     if ecid isa EClassId
-        # println("found $(instr.p) in $ecid")
         m.σ[instr.reg] = ecid
         next(m, pc)
     end

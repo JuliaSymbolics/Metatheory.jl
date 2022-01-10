@@ -51,7 +51,6 @@ function Base.show(io::IO, x::Report)
     println(io, "=================")
     println(io, "\tStop Reason: $(x.reason)")
     println(io, "\tIterations: $(x.iterations)")
-    # println(io, "\tRules applied: $(g.age)")
     println(io, "\tEGraph Size: $(g.numclasses) eclasses, $(length(g.memo)) nodes")
     print_timer(io, x.to)
 end
@@ -107,12 +106,7 @@ end
 
 # FIXME 
 function cached_ids(g::EGraph, p::PatTerm)
-    # println("pattern $p, $(p.head)")
-    # println("all ids")
-    # keys(g.classes) |> println
-    # println("cached symbols")
     # cached = get(g.symcache, p.head, Set{Int64}())
-    # println("symbols where $(p.head) appears")
     # appears = Set{Int64}() 
     # for (id, class) ∈ g.classes 
     #     for n ∈ class 
@@ -121,7 +115,6 @@ function cached_ids(g::EGraph, p::PatTerm)
     #         end
     #     end
     # end
-    # # println(appears)
     # if !(cached == appears)
     #     @show cached 
     #     @show appears
@@ -189,7 +182,6 @@ function eqsat_search!(egraph::EGraph, theory::Vector{<:AbstractRule},
         @timeit report.to repr(rule) begin
             # don't apply banned rules
             if !cansearch(scheduler, rule)
-                # println("skipping banned rule $rule")
                 continue
             end
             ids = cached_ids(egraph, rule.left)
@@ -249,7 +241,6 @@ end
 
 function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
     i = 0
-    # println.(matches)
     for match ∈ matches
         i += 1
 
@@ -267,18 +258,11 @@ function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
 
 
         rule = match.rule
-        # println("applying $rule")
-
         halt_reason = rule(g, match; simterm=params.simterm)
         if (halt_reason !== nothing)
             rep.reason = halt_reason
             return 
         end 
-
-        # println(rule)
-        # println(sub)
-        # println(l); println(r)
-        # display(egraph.classes); println()
     end
 end
 
@@ -355,7 +339,6 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params=SaturationP
         end
 
         if params.eclasslimit > 0 && g.numclasses > params.eclasslimit 
-            # println(params.eclasslimit)
             report.reason = :eclasslimit
             break
         end
@@ -401,7 +384,6 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params=Saturat
 
     report = saturate!(g, t, params)
 
-    # display(g.classes); println()
     if !(report.reason === :saturated) && !reached(g, goal)
         return missing # failed to prove
     end

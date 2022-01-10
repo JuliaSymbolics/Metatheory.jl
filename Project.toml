@@ -26,10 +26,12 @@ TimerOutputs = "0.5"
 julia = "1"
 
 [extras]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
+PkgBenchmark = "32113eaa-f34f-5b0d-bd6c-c81e245fc73d"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Calculus", "Catlab", "SafeTestsets"]
+test = ["BenchmarkTools", "Test", "Calculus", "Catlab", "PkgBenchmark", "SafeTestsets"]

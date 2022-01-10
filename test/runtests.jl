@@ -2,6 +2,11 @@ using SafeTestsets
 using Metatheory
 using Test
 
+if haskey(ENV, "MT_BENCHMARK_ONLY")
+    include("benchmark.jl")
+    exit()
+end
+
 @timev begin
     @testset "All Tests" begin 
         @safetestset "Classical Rewriting" begin include("test_reductions.jl") end
