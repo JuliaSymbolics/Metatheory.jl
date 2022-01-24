@@ -14,6 +14,25 @@ function binarize(e::T) where {T}
     return e
 end 
 
+"""
+Recursive version of binarize
+"""
+function binarize_rec(e::T) where {T}
+    !istree(e) && return e
+    head = exprhead(e)
+    op = operation(e)
+    args = map(binarize_rec, arguments(e))
+    meta = metadata(e)
+    if head == :call
+        if op ∈ binarize_ops && arity(e) > 2
+            return foldl((x,y) -> similarterm(T, op, [x,y], symtype(e); metadata=meta, exprhead=head), args)
+        end
+    end
+    return similarterm(T, op, args, symtype(e); metadata=meta, exprhead=head)
+end 
+
+
+
 const binarize_ops = [:(+), :(*), (+), (*)]
 
 function cleanast(e::Expr)

@@ -4,7 +4,7 @@ module EMatchCompiler
 
 using AutoHashEquals
 using TermInterface
-using Metatheory: alwaystrue, binarize
+using Metatheory: alwaystrue, binarize, binarize_rec
 using Metatheory.Patterns
 
 abstract type Instruction end 
@@ -103,8 +103,6 @@ export Fail
 
 
 function compile_ground!(reg, p::PatTerm, prog)
-    p = binarize(p)
-
     if haskey(prog.ground_terms, p)
         # push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
@@ -146,8 +144,6 @@ end
 # =============================================
 
 function compile_pat!(reg, p::PatTerm, prog)
-    p = binarize(p)
-
     if haskey(prog.ground_terms, p)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
@@ -203,7 +199,7 @@ function compile_pat!(reg, p::Any, prog)
         push!(prog.instructions, CheckClassEq(reg, prog.ground_terms[p]))
         return nothing
     end
-    @error "This shouldn't be printed. Report an issue for ematching literals"
+    @error "This shouldn't be printed. Report an issue for ematching literals" p 
 end
 
 
@@ -211,7 +207,7 @@ end
 
 # EXPECTS INDEXES OF PATTERN VARIABLES TO BE ALREADY POPULATED
 function compile_pat(p)
-    p = binarize(p)
+    p = binarize_rec(p)
     pvars = patvars(p)
     nvars = length(pvars)
 
