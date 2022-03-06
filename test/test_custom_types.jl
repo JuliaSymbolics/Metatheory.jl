@@ -28,7 +28,7 @@ MyExpr(head) = MyExpr(head, [])
 TermInterface.exprhead(e::MyExpr) = :call
 TermInterface.operation(e::MyExpr) = e.head
 TermInterface.arguments(e::MyExpr) = e.args
-TermInterface.istree(e::Type{MyExpr}) = true
+TermInterface.istree(e::MyExpr) = true
 # NamedTuple
 TermInterface.metadata(e::MyExpr) = (foo = e.foo, bar = e.bar, baz = e.baz)
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
