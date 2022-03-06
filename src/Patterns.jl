@@ -95,7 +95,7 @@ struct PatTerm <: AbstractPat
     mod::Module # useful to match against function head symbols and function objs at the same time
     PatTerm(eh, op, args, mod) = new(eh, op, args, mod) #Ref{UInt}(0))
 end
-TermInterface.istree(::Type{PatTerm}) = true
+TermInterface.istree(::PatTerm) = true
 TermInterface.exprhead(e::PatTerm) = e.exprhead
 TermInterface.operation(p::PatTerm) = p.operation
 TermInterface.arguments(p::PatTerm) = p.args

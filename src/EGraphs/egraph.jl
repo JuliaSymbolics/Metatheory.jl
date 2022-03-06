@@ -54,7 +54,6 @@ end
 
 
 TermInterface.istree(n::ENodeTerm) = true
-TermInterface.istree(t::Type{<:ENodeTerm}) = true
 TermInterface.exprhead(n::ENodeTerm) = n.exprhead
 TermInterface.operation(n::ENodeTerm) = n.operation 
 TermInterface.arguments(n::ENodeTerm) = n.args 
@@ -87,7 +86,6 @@ end
 # ==================================================
 
 TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.istree(t::Type{<:ENodeLiteral}) = false
 TermInterface.exprhead(n::ENodeLiteral) = nothing
 TermInterface.operation(n::ENodeLiteral) = n.value 
 TermInterface.arity(n::ENodeLiteral) = 0
@@ -406,10 +404,9 @@ addexpr!(g::EGraph, se::EClass; keepmeta=false) = (se, se[1])
 function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, AbstractENode}
     # println("========== $e ===========")
     e = preprocess(se)
-    T = typeof(e)
     node = nothing
 
-    if istree(T)
+    if istree(se)
         exhead = exprhead(e)
         op = operation(e)
         args = arguments(e)
