@@ -425,8 +425,6 @@ macro capture(args...)
     quote
         $(__source__)
         lhs_pattern = $(esc(lhs_term))
-        println(lhs_pattern)
-        dump(lhs_pattern)
         __MATCHES__ = DynamicRule($(QuoteNode(lhs)),
             lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars)($(esc(ex)))
         if __MATCHES__ !== nothing
