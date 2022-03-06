@@ -36,13 +36,13 @@ instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule; kws...) =
 
 # FIXME instantiate function object as operation instead of symbol if present!!
 # This needs a redesign of this pattern matcher
-function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule; simterm=TermInterface.similarterm)
+function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     eh = exprhead(pat)
     op = operation(pat)
     ar = arity(pat)
     T = gettermtype(g, op, ar)
-    children = map(x -> instantiate(g, x, sub, rule; simterm=simterm), arguments(pat))
-    simterm(T, op, children; exprhead=eh)
+    children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
+    egraph_reconstruct_expression(T, op, children; metadata=nothing, exprhead=eh)
 end
 
 ## ====================== EMatching Machine =======================

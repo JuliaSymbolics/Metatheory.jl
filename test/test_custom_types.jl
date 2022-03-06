@@ -38,9 +38,14 @@ hcall = MyExpr(:h, [4], "hello", [2 + 3im, 4 + 2im], Set{Int}([4,5,6]))
 ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
 
 
-function TermInterface.similarterm(x::Type{MyExpr}, head, args; 
-        metadata=("", Complex[], Set{Int64}()), exprhead=:call)
-    MyExpr(head, args, metadata...)
+function TermInterface.similarterm(x::MyExpr, head, args; metadata=nothing, exprhead=:call)
+    meta = isnothing(metadata) ? ("", Complex[], Set{Int64}()) : metadata
+    MyExpr(head, args, meta...)
+end
+
+function EGraphs.egraph_reconstruct_expression(T::Type{MyExpr}, op, args; metadata=("", Complex[], Set{Int64}()), exprhead=nothing)
+    meta = isnothing(metadata) ? ("", Complex[], Set{Int64}()) : metadata
+    MyExpr(op, args, meta...)
 end
 
 # let's create an egraph 
@@ -73,6 +78,8 @@ end
 saturate!(g, t)
 
 # display(g.classes)
+
+# TODO test metadata
 
 expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 

@@ -77,7 +77,7 @@ function toexpr(n::ENodeTerm)
     if isnothing(eh)
         return operation(n) # n is a constant enode
     end
-    similarterm(Expr, operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead=exprhead(n))
+    similarterm(Expr(:call, :_), operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead=exprhead(n))
 end
 
 
@@ -610,4 +610,14 @@ function reachable(g::EGraph, id::EClassId)
     end
 
     return hist
+end
+
+
+"""
+When extracting symbolic expressions from an e-graph, we need 
+to instruct the e-graph how to rebuild expressions of a certain type. 
+This function must be extended by the user to add new types of expressions that can be manipulated by e-graphs.
+"""
+function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata=nothing, exprhead=:call)
+    similarterm(Expr(:call, :_), op, args; metadata=metadata, exprhead=exprhead)
 end

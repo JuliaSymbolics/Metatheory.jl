@@ -218,7 +218,7 @@ function (p::Walk{ord, C, F, true})(x) where {ord, C, F}
                 end
             end
             args = map((t,a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, arguments(x))
-            t = p.similarterm(x, operation(x), args)
+            t = p.similarterm(x, operation(x), args; exprhead=exprhead(x))
         end
         return ord === :post ? p.rw(t) : t
     else
