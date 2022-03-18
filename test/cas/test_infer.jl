@@ -1,6 +1,7 @@
 using Test
 
-if VERSION < v"1.9.0"
+# FIXME this is a hack to get the test to work.
+if VERSION < v"1.9.0-DEV"
   include("cas_infer.jl")
 
   ex1 = :(cos(1 + 3.0) + 4 + (4 - 4im))
