@@ -3,12 +3,12 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
 
-using Metatheory:alwaystrue, cleanast, binarize
+using Metatheory: alwaystrue, cleanast, binarize
 
 export @rule
 export @theory
 export @slots
-export @capture 
+export @capture
 
 
 # FIXME this thing eats up macro calls!
@@ -28,7 +28,7 @@ function makesegment(s::Expr, pvars)
     name ∉ pvars && push!(pvars, name)
     return :($PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
-function makesegment(name::Symbol, pvars) 
+function makesegment(name::Symbol, pvars)
     name ∉ pvars && push!(pvars, name)
     PatSegment(name)
 end
@@ -41,7 +41,7 @@ function makevar(s::Expr, pvars)
     name ∉ pvars && push!(pvars, name)
     return :($PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
-function makevar(name::Symbol, pvars) 
+function makevar(name::Symbol, pvars)
     name ∉ pvars && push!(pvars, name)
     PatVar(name)
 end
@@ -64,7 +64,7 @@ function makeconsequent(expr::Expr)
                 error("Error when parsing right hand side")
             end
         else
-            return Expr(head, makeconsequent(op), 
+            return Expr(head, makeconsequent(op),
                 map(makeconsequent, args)...)
         end
     else
@@ -74,8 +74,8 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
-function makepattern(x, pvars, slots, mod=@__MODULE__, splat=false) 
-    if splat 
+function makepattern(x, pvars, slots, mod=@__MODULE__, splat=false)
+    if splat
         x in slots ? makesegment(x, pvars) : x
     else
         x in slots ? makevar(x, pvars) : x
@@ -90,7 +90,7 @@ function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
     op = op isa Symbol ? QuoteNode(op) : op
     #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
-    
+
     if head === :call
         if operation(ex) === :(~) # is a variable or segment
             if args[1] isa Expr && operation(args[1]) == :(~)
@@ -106,17 +106,17 @@ function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
             patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
             return :($PatTerm(:call, $op, [$(patargs...)], $mod))
         end
-    elseif head === :... 
+    elseif head === :...
         makepattern(args[1], pvars, slots, mod, true)
     elseif head == :(::) && args[1] in slots
         return splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-    elseif head === :ref 
+    elseif head === :ref
         # getindex 
         patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
         return :($PatTerm(:ref, getindex, [$(patargs...)], $mod))
     elseif head === :$
         return args[1]
-    else 
+    else
         patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
         return :($PatTerm($(head isa Symbol ? QuoteNode(head) : head), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)], $mod))
         # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
@@ -125,11 +125,16 @@ end
 
 function rule_sym_map(ex::Expr)
     h = operation(ex)
-    if h == :(-->) || h == :(→) RewriteRule
-    elseif h == :(=>)  DynamicRule
-    elseif h == :(==) EqualityRule
-    elseif h == :(!=) || h == :(≠) UnequalRule
-    else error("Cannot parse rule with operator '$h'")
+    if h == :(-->) || h == :(→)
+        RewriteRule
+    elseif h == :(=>)
+        DynamicRule
+    elseif h == :(==)
+        EqualityRule
+    elseif h == :(!=) || h == :(≠)
+        UnequalRule
+    else
+        error("Cannot parse rule with operator '$h'")
     end
 end
 rule_sym_map(ex) = error("Cannot parse rule from $ex")
@@ -141,7 +146,7 @@ Rewrite the `expr` by dealing with `:where` if necessary.
 The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : nothing`.
 """
 function rewrite_rhs(ex::Expr)
-    if exprhead(ex) == :where 
+    if exprhead(ex) == :where
         args = arguments(ex)
         rhs = args[1]
         predicate = args[2]
@@ -330,17 +335,17 @@ macro rule(args...)
     e = rmlines(e)
     op = operation(e)
     RuleType = rule_sym_map(e)
-    
+
     l, r = arguments(e)
     pvars = Symbol[]
     lhs = makepattern(l, pvars, slots, __module__)
-    rhs = RuleType <: SymbolicRule ? makepattern(r, [], slots, __module__) : r
+    rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
 
     if RuleType == DynamicRule
         rhs = rewrite_rhs(r)
         rhs = makeconsequent(rhs)
         params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-        rhs =  :($(esc(params)) -> $(esc(rhs)))
+        rhs = :($(esc(params)) -> $(esc(rhs)))
     end
 
     return quote
@@ -421,7 +426,7 @@ macro capture(args...)
 
     pvars = Symbol[]
     lhs_term = makepattern(lhs, pvars, slots, __module__)
-    bind = Expr(:block, map(key-> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...)
+    bind = Expr(:block, map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...)
     quote
         $(__source__)
         lhs_pattern = $(esc(lhs_term))
