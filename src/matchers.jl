@@ -15,8 +15,8 @@ function matcher(val::Any)
 end
 
 function matcher(slot::PatVar)
-    pred = slot.predicate 
-    if slot.predicate isa Type 
+    pred = slot.predicate
+    if slot.predicate isa Type
         pred = x -> typeof(x) <: slot.predicate
     end
     function slot_matcher(next, data, bindings)
@@ -94,22 +94,22 @@ end
 # Slows things down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object
 # and SymbolicUtils-like objects that store function references as operations.
 function head_matcher(f::Symbol, mod)
-    checkhead = try 
+    checkhead = try
         fobj = getproperty(mod, f)
         (x) -> (isequal(x, f) || isequal(x, fobj))
-    catch e 
+    catch e
         if e isa UndefVarError
             (x) -> isequal(x, f)
         else
             rethrow(e)
         end
-    end 
+    end
 
     function head_matcher(next, data, bindings)
         h = car(data)
         if islist(data) && checkhead(h)
             next(bindings, 1)
-        else 
+        else
             nothing
         end
     end
@@ -152,9 +152,8 @@ end
 # TODO REVIEWME
 function instantiate(left, pat::PatTerm, mem)
     ar = arguments(pat)
-    args = [ instantiate(left, p, mem) for p in ar] 
-    T = istree(typeof(left)) ? typeof(left) : Expr
-    similarterm(T, operation(pat), args; exprhead=exprhead(pat))
+    args = [instantiate(left, p, mem) for p in ar]
+    similarterm(istree(left) ? left : Expr(:call, :_), operation(pat), args; exprhead = exprhead(pat))
 end
 
 instantiate(left, pat::Any, mem) = pat

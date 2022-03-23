@@ -95,14 +95,14 @@ struct PatTerm <: AbstractPat
     mod::Module # useful to match against function head symbols and function objs at the same time
     PatTerm(eh, op, args, mod) = new(eh, op, args, mod) #Ref{UInt}(0))
 end
-TermInterface.istree(::Type{PatTerm}) = true
+TermInterface.istree(::PatTerm) = true
 TermInterface.exprhead(e::PatTerm) = e.exprhead
 TermInterface.operation(p::PatTerm) = p.operation
 TermInterface.arguments(p::PatTerm) = p.args
 TermInterface.arity(p::PatTerm) = length(arguments(p))
 TermInterface.metadata(p::PatTerm) = p.mod
 
-function TermInterface.similarterm(x::Type{PatTerm}, head, args, symtype=nothing; metadata=@__MODULE__, exprhead=:call)
+function TermInterface.similarterm(x::PatTerm, head, args, symtype=nothing; metadata=@__MODULE__, exprhead=:call)
     PatTerm(exprhead, head, args, metadata)
 end
 
@@ -177,7 +177,7 @@ to_expr(x::PatSegment{<:Type{T}}) where T =
 
 function to_expr(x::PatTerm) 
     pl = operation(x)
-    similarterm(Expr, pl, map(to_expr, arguments(x)); exprhead=exprhead(x))
+    similarterm(Expr(:call, :x), pl, map(to_expr, arguments(x)); exprhead=exprhead(x))
 end
 
 

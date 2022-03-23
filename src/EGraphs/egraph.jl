@@ -54,7 +54,6 @@ end
 
 
 TermInterface.istree(n::ENodeTerm) = true
-TermInterface.istree(t::Type{<:ENodeTerm}) = true
 TermInterface.exprhead(n::ENodeTerm) = n.exprhead
 TermInterface.operation(n::ENodeTerm) = n.operation 
 TermInterface.arguments(n::ENodeTerm) = n.args 
@@ -78,7 +77,7 @@ function toexpr(n::ENodeTerm)
     if isnothing(eh)
         return operation(n) # n is a constant enode
     end
-    similarterm(Expr, operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead=exprhead(n))
+    similarterm(Expr(:call, :_), operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead=exprhead(n))
 end
 
 
@@ -87,7 +86,6 @@ end
 # ==================================================
 
 TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.istree(t::Type{<:ENodeLiteral}) = false
 TermInterface.exprhead(n::ENodeLiteral) = nothing
 TermInterface.operation(n::ENodeLiteral) = n.value 
 TermInterface.arity(n::ENodeLiteral) = 0
@@ -406,10 +404,9 @@ addexpr!(g::EGraph, se::EClass; keepmeta=false) = (se, se[1])
 function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, AbstractENode}
     # println("========== $e ===========")
     e = preprocess(se)
-    T = typeof(e)
     node = nothing
 
-    if istree(T)
+    if istree(se)
         exhead = exprhead(e)
         op = operation(e)
         args = arguments(e)
@@ -613,4 +610,14 @@ function reachable(g::EGraph, id::EClassId)
     end
 
     return hist
+end
+
+
+"""
+When extracting symbolic expressions from an e-graph, we need 
+to instruct the e-graph how to rebuild expressions of a certain type. 
+This function must be extended by the user to add new types of expressions that can be manipulated by e-graphs.
+"""
+function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata=nothing, exprhead=:call)
+    similarterm(Expr(:call, :_), op, args; metadata=metadata, exprhead=exprhead)
 end
