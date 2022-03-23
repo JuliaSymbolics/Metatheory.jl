@@ -36,13 +36,13 @@ instantiate(g::EGraph, pat::AbstractPat, sub::Sub, rule::AbstractRule; kws...) =
 
 # FIXME instantiate function object as operation instead of symbol if present!!
 # This needs a redesign of this pattern matcher
-function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule; simterm=TermInterface.similarterm)
+function instantiate(g::EGraph, pat::PatTerm, sub::Sub, rule::AbstractRule)
     eh = exprhead(pat)
     op = operation(pat)
     ar = arity(pat)
     T = gettermtype(g, op, ar)
-    children = map(x -> instantiate(g, x, sub, rule; simterm=simterm), arguments(pat))
-    simterm(T, op, children; exprhead=eh)
+    children = map(x -> instantiate(g, x, sub, rule), arguments(pat))
+    egraph_reconstruct_expression(T, op, children; metadata=nothing, exprhead=eh)
 end
 
 ## ====================== EMatching Machine =======================
@@ -98,7 +98,6 @@ function next(m::Machine, pc)
 end
 
 function (m::Machine)(instr::Yield, pc)
-    # @show instr
     # sourcenode = m.n[m.program.first_nonground]
     ecs = [m.σ[reg] for reg in instr.yields]
     nodes = [m.n[reg] for reg in instr.yields]
@@ -109,7 +108,6 @@ function (m::Machine)(instr::Yield, pc)
 end
 
 function (m::Machine)(instr::CheckClassEq, pc) 
-    # @show instr
     l = m.σ[instr.left]
     r = m.σ[instr.right]
     # println("checking eq $l == $r")
@@ -120,7 +118,6 @@ function (m::Machine)(instr::CheckClassEq, pc)
 end
 
 function (m::Machine)(instr::CheckType, pc) 
-    # @show instr
     id = m.σ[instr.reg]
     eclass = m.g[id]
 
@@ -140,7 +137,6 @@ checktype(n::ENodeLiteral{<:T}, ::Type{T}) where {T} = true
 
 
 function (m::Machine)(instr::CheckPredicate, pc) 
-    # @show instr
     id = m.σ[instr.reg]
     eclass = m.g[id]
 
@@ -160,7 +156,6 @@ end
 
 
 function (m::Machine)(instr::Filter, pc)
-    # @show instr
     id, _ = m.σ[instr.reg]
     eclass = m.g[id]
 
@@ -198,7 +193,6 @@ lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
 lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))
 
 function (m::Machine)(instr::Lookup, pc) 
-    # @show instr
     ecid = lookup_pat(m.g, instr.p)
     if ecid isa EClassId
         # println("found $(instr.p) in $ecid")
@@ -209,24 +203,12 @@ function (m::Machine)(instr::Lookup, pc)
 end
 
 function (m::Machine)(instr::Bind, pc) 
-    # @show instr
     ecid = m.σ[instr.reg]
     eclass = m.g[ecid]
     pat = instr.enodepat
     reg = instr.reg
 
     for n in eclass.nodes
-        # @show n
-        # @show exprhead(n) exprhead(instr.enodepat)
-        # @show operation(n) operation(instr.enodepat)
-        # dump(operation(n))
-        # dump(operation(instr.enodepat))
-        # @show arity(n) arity(instr.enodepat)
-        # @show arguments(n) arguments(instr.enodepat)
-
-        # @show exprhead(n) == exprhead(instr.enodepat)
-        # @show operation(n) == operation(instr.enodepat)
-        # @show arity(n) == arity(instr.enodepat)
         if canbind(n, pat)
             # m.n[reg] = n
             for (j, v) in enumerate(arguments(pat))
@@ -259,13 +241,11 @@ function __init__()
 end
 
 function ematch(g::EGraph, program::Program, id::EClassId)
-    # @show program
     tid = Threads.threadid() 
     m, mlock = MACHINES[tid]
     buf = lock(mlock) do
         reset(m, g, program, id)
         m()
     end
-    # @show buf
     buf
 end

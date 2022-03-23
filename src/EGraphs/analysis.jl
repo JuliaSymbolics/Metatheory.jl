@@ -139,7 +139,7 @@ join(a::Type{<:ExtractionAnalysis}, from, to) = last(from) <= last(to) ? from : 
 
 islazy(a::Type{<:ExtractionAnalysis}) = true
 
-function rec_extract(g::EGraph, an, id::EClassId; simterm=similarterm, cse_env=nothing)
+function rec_extract(g::EGraph, an, id::EClassId; cse_env=nothing)
     eclass = g[id]
     if !isnothing(cse_env) && haskey(cse_env, id)
         (sym, _) = cse_env[id]
@@ -152,10 +152,10 @@ function rec_extract(g::EGraph, an, id::EClassId; simterm=similarterm, cse_env=n
     if n isa ENodeLiteral
         return n.value
     elseif n isa ENodeTerm 
-        children = map(child -> rec_extract(g, an, child; simterm=simterm, cse_env=cse_env), arguments(n)) 
+        children = map(child -> rec_extract(g, an, child; cse_env=cse_env), arguments(n)) 
         meta = getdata(eclass, MetadataAnalysis, nothing)
         T = termtype(n)
-        simterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
+        egraph_reconstruct_expression(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
     else 
         error("Unknown ENode Type $(typeof(cn))")
     end
@@ -165,7 +165,7 @@ end
 Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-function extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm, cse=false)
+function extract!(g::EGraph, costfun::Function; root=-1, cse=false)
     a = ExtractionAnalysis{costfun}
     if root == -1
         root = g.root
@@ -174,34 +174,34 @@ function extract!(g::EGraph, costfun::Function; root=-1, simterm=similarterm, cs
     if cse
         # TODO make sure there is no assignments/stateful code!!
         cse_env = OrderedDict{EClassId, Tuple{Symbol, Any}}() # 
-        collect_cse!(g, a, root, cse_env, Set{EClassId}(); simterm=simterm)
+        collect_cse!(g, a, root, cse_env, Set{EClassId}())
         # @show root
         # @show cse_env
 
-        body = rec_extract(g, a, root; simterm=simterm, cse_env=cse_env)
+        body = rec_extract(g, a, root; cse_env=cse_env)
 
         assignments = [Expr(:(=), name, val) for (id, (name, val)) in cse_env]
         # return body
         Expr(:let, Expr(:block, assignments...), body)
     else
-        return rec_extract(g, a, root; simterm=simterm)
+        return rec_extract(g, a, root)
     end
 end
 
 
 # Builds a dict e-class id => (symbol, extracted term) of common subexpressions in an e-graph
-function collect_cse!(g::EGraph, an, id, cse_env, seen; simterm=similarterm)
+function collect_cse!(g::EGraph, an, id, cse_env, seen)
     eclass = g[id]
     anval = getdata(eclass, an, (nothing, Inf))
     (cn, ck) = anval
     ck == Inf && error("Error when computing CSE")
     if cn isa ENodeTerm
         if id in seen 
-            cse_env[id] = (gensym(), rec_extract(g, an, id; simterm=simterm))#, cse_env=cse_env)) # todo generalize symbol?
+            cse_env[id] = (gensym(), rec_extract(g, an, id))#, cse_env=cse_env)) # todo generalize symbol?
             return 
         end
         for child_id in arguments(cn)
-            collect_cse!(g, an, child_id, cse_env, seen; simterm=simterm)
+            collect_cse!(g, an, child_id, cse_env, seen)
         end
         push!(seen, id)
     end

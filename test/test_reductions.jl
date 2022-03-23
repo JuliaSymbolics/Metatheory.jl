@@ -213,7 +213,7 @@ using TermInterface
         qux(args...) = new(args)
     end
     TermInterface.operation(::qux) = qux
-    TermInterface.istree(::Type{qux}) = true
+    TermInterface.istree(::qux) = true
     TermInterface.arguments(x::qux) = [x.args...]
     
     @capture qux(1, 2) qux(1, 2)

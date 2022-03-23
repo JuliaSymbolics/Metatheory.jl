@@ -8,7 +8,7 @@ function binarize(e::T) where {T}
         args = arguments(e)
         meta = metadata(e)
         if op ∈ binarize_ops && arity(e) > 2
-            return foldl((x,y) -> similarterm(T, op, [x,y], symtype(e); metadata=meta, exprhead=head), args)
+            return foldl((x,y) -> similarterm(e, op, [x,y], symtype(e); metadata=meta, exprhead=head), args)
         end
     end
     return e
@@ -25,10 +25,10 @@ function binarize_rec(e::T) where {T}
     meta = metadata(e)
     if head == :call
         if op ∈ binarize_ops && arity(e) > 2
-            return foldl((x,y) -> similarterm(T, op, [x,y], symtype(e); metadata=meta, exprhead=head), args)
+            return foldl((x,y) -> similarterm(e, op, [x,y], symtype(e); metadata=meta, exprhead=head), args)
         end
     end
-    return similarterm(T, op, args, symtype(e); metadata=meta, exprhead=head)
+    return similarterm(e, op, args, symtype(e); metadata=meta, exprhead=head)
 end 
 
 
