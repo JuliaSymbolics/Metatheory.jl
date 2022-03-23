@@ -41,4 +41,3 @@ jobs:
               write(stdout, out)
               exit(1)
           end'
-      
