@@ -13,8 +13,7 @@ using Test
 
 # WE HAVE TO REDEFINE THE SYNTAX TO AVOID ASSOCIATIVITY AND N-ARY FUNCTIONS
 import Catlab.Theories: id, compose, otimes, ⋅, braid, σ, ⊗, Ob, Hom
-@syntax SMC{ObExpr,HomExpr} SymmetricMonoidalCategory begin
-end
+@syntax SMC{ObExpr,HomExpr} SymmetricMonoidalCategory begin end
 
 A, B, C, D = Ob(SMC, :A, :B, :C, :D)
 X, Y, Z = Ob(SMC, :X, :Y, :Z)
@@ -29,7 +28,7 @@ gat_to_expr(A)
 
 A isa ObExpr{H} where {H}
 
-gat_to_expr(id(Z)) == :(id(Z)~(Hom(Z,Z))) 
+gat_to_expr(id(Z)) == :(id(Z) ~ (Hom(Z, Z)))
 
 gat_to_expr(id(Z) ⋅ f)
 
@@ -55,11 +54,11 @@ gat_to_expr(otimes(f, g))
 A, B, C, D = Ob(SMC, :A, :B, :C, :D)
 X, Y, Z = Ob(SMC, :X, :Y, :Z)
 
-tt = theory(SymmetricMonoidalCategory) ; 
-ax = tt.axioms[10] ; 
+tt = theory(SymmetricMonoidalCategory);
+ax = tt.axioms[10];
 get_concrete_type_expr(tt, ax.left, ax.context)
 tag_expr(ax.left, ax, tt)
-ax = tt.axioms[4] 
+ax = tt.axioms[4]
 get_concrete_type_expr(tt, ax.left, ax.context)
 tag_expr(ax.left, ax, tt)
 
@@ -85,18 +84,15 @@ rules = gen_theory(tt)
 expr = gat_to_expr(id(A) ⋅ id(A) ⋅ f ⋅ id(B))
 G = EGraph(expr)
 saturate!(G, rules)
-@test extract!(G, astsize)  == :(f ~ Hom(A,B))
+@test extract!(G, astsize) == :(f ~ Hom(A, B))
 
 tt = theory(SymmetricMonoidalCategory)
 
-rules = Rule[axiom_to_rule(tt, ax) for ax in tt.axioms] 
+rules = Rule[axiom_to_rule(tt, ax) for ax in tt.axioms]
 
 # push!(rules, EqualityRule( @pat(otimes(Hom(A, B), Hom(X, Y))), @pat(Hom(otimes(A, X), otimes(B, Y))) ))
 
-gats = [
-    σ(A,B⊗C),
-    (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(A,C))
-]
+gats = [σ(A, B ⊗ C), (σ(A, B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(A, C))]
 
 exprs = [gat_to_expr(i) for i in gats]
 
@@ -107,7 +103,7 @@ ecs = [addexpr!(G, i) for i in exprs]
 
 
 saturate!(G, rules)
-extract!(G, astsize; root=ecs[2].id)
+extract!(G, astsize; root = ecs[2].id)
 
 @test in_same_class(G, ecs[1], ecs[2])
 
@@ -115,10 +111,10 @@ extract!(G, astsize; root=ecs[2].id)
 # YANG BAXTER EQUATION
 
 gats = [
-    (σ(A,B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(C,A)) ⋅ (σ(B,C) ⊗ id(A)),
-    σ(A, B ⊗ C) ⋅ (σ(B,C) ⊗ id(A)),
-    (id(A) ⊗ σ(B,C)) ⋅ σ(A, C⊗B),
-    (id(A) ⊗ σ(B,C)) ⋅ (σ(A,C) ⊗ id(B)) ⋅ (id(C) ⊗ σ(A,B))
+  (σ(A, B) ⊗ id(C)) ⋅ (id(B) ⊗ σ(C, A)) ⋅ (σ(B, C) ⊗ id(A)),
+  σ(A, B ⊗ C) ⋅ (σ(B, C) ⊗ id(A)),
+  (id(A) ⊗ σ(B, C)) ⋅ σ(A, C ⊗ B),
+  (id(A) ⊗ σ(B, C)) ⋅ (σ(A, C) ⊗ id(B)) ⋅ (id(C) ⊗ σ(A, B)),
 ]
 
 exprs = [gat_to_expr(i) for i in gats]
@@ -128,11 +124,11 @@ G = EGraph()
 
 ecs = [addexpr!(G, i) for i in exprs]
 
-saturate!(G, rules, SaturationParams(timeout=1))
-extract!(G, astsize; root=ecs[2].id)
+saturate!(G, rules, SaturationParams(timeout = 1))
+extract!(G, astsize; root = ecs[2].id)
 
-[ in_same_class(G, ecs[i], ecs[i+1]) for i in 1:length(gats)-1 ]
-    
+[in_same_class(G, ecs[i], ecs[i + 1]) for i in 1:(length(gats) - 1)]
+
 
 
 # ========================================================================================
@@ -147,7 +143,7 @@ h = Hom(:h, C, D)
 l = pair(proj1(A, B), proj2(A, B))
 r = id(A ⊗ B)
 
-rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms]
 
 l = gat_to_expr(l)
 r = gat_to_expr(r)
@@ -159,7 +155,7 @@ rc, _ = addexpr!(G, r)
 # and use regular rewrite rules instead of (==) rules
 saturate!(G, rules)
 extract!(G, astsize)
-extract!(G, astsize; root=rc.id)
+extract!(G, astsize; root = rc.id)
 
 l = f ⋅ delete(B)
 
@@ -175,7 +171,7 @@ mu = FreeCartesianCategory.munit(FreeCartesianCategory.Ob)
 l = σ(A, mu)
 r = id(A)
 
-rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms]
 
 l = gat_to_expr(l)
 r = gat_to_expr(r)
@@ -186,13 +182,13 @@ rc, _ = addexpr!(G, r)
 # TODO identify the rules where there are more patvars on the lhs than the rhs 
 # and use regular rewrite rules instead of (==) rules
 saturate!(G, rules)
-extract!(G, astsize; root=rc.id)
+extract!(G, astsize; root = rc.id)
 extract!(G, astsize)
 
 l = σ(A, B) ⋅ σ(B, A)
 r = id(A ⊗ B)
 
-rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms]
 
 l = gat_to_expr(l)
 r = gat_to_expr(r)
@@ -203,12 +199,12 @@ rc, _ = addexpr!(G, r)
 # TODO identify the rules where there are more patvars on the lhs than the rhs 
 # and use regular rewrite rules instead of (==) rules
 saturate!(G, rules)
-extract!(G, astsize; root=rc.id) == extract!(G, astsize)
+extract!(G, astsize; root = rc.id) == extract!(G, astsize)
 
 l = σ(A, mu)
 r = id(A)
 
-rules = [axiom_to_rule(tt, ax) for ax in tt.axioms] 
+rules = [axiom_to_rule(tt, ax) for ax in tt.axioms]
 
 l = gat_to_expr(l)
 r = gat_to_expr(r)
@@ -221,4 +217,3 @@ rc, _ = addexpr!(G, r)
 saturate!(G, rules)
 # extract!(G, astsize; root=rc.id) ==
 extract!(G, astsize)
-

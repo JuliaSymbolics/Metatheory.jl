@@ -10,7 +10,7 @@ using Metatheory.EGraphs.Schedulers
 
 lhs = PatEquiv(Pattern(:foo), Pattern(:bar))
 rhs = Pattern(:zoo)
-q = RewriteRule(lhs, rhs) 
+q = RewriteRule(lhs, rhs)
 
 
 g = EGraph()
