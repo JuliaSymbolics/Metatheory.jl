@@ -20,122 +20,126 @@ rmlines(a) = a
 
 
 function makesegment(s::Expr, pvars)
-    if !(exprhead(s) == :(::))
-        error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
-    end
+  if !(exprhead(s) == :(::))
+    error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
+  end
 
-    name = arguments(s)[1]
-    name ∉ pvars && push!(pvars, name)
-    return :($PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
+  name = arguments(s)[1]
+  name ∉ pvars && push!(pvars, name)
+  return :($PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
 function makesegment(name::Symbol, pvars)
-    name ∉ pvars && push!(pvars, name)
-    PatSegment(name)
+  name ∉ pvars && push!(pvars, name)
+  PatSegment(name)
 end
 function makevar(s::Expr, pvars)
-    if !(exprhead(s) == :(::))
-        error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
-    end
+  if !(exprhead(s) == :(::))
+    error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
+  end
 
-    name = arguments(s)[1]
-    name ∉ pvars && push!(pvars, name)
-    return :($PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
+  name = arguments(s)[1]
+  name ∉ pvars && push!(pvars, name)
+  return :($PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
 end
 function makevar(name::Symbol, pvars)
-    name ∉ pvars && push!(pvars, name)
-    PatVar(name)
+  name ∉ pvars && push!(pvars, name)
+  PatVar(name)
 end
 
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
-    head = exprhead(expr)
-    args = arguments(expr)
-    op = operation(expr)
-    if head === :call
-        if op === :(~)
-            if args[1] isa Symbol
-                return args[1]
-            elseif args[1] isa Expr && operation(args[1]) == :(~)
-                n = arguments(args[1])[1]
-                @assert n isa Symbol
-                return n
-            else
-                error("Error when parsing right hand side")
-            end
-        else
-            return Expr(head, makeconsequent(op),
-                map(makeconsequent, args)...)
-        end
+  head = exprhead(expr)
+  args = arguments(expr)
+  op = operation(expr)
+  if head === :call
+    if op === :(~)
+      if args[1] isa Symbol
+        return args[1]
+      elseif args[1] isa Expr && operation(args[1]) == :(~)
+        n = arguments(args[1])[1]
+        @assert n isa Symbol
+        return n
+      else
+        error("Error when parsing right hand side")
+      end
     else
-        return Expr(head, map(makeconsequent, args)...)
+      return Expr(head, makeconsequent(op), map(makeconsequent, args)...)
     end
+  else
+    return Expr(head, map(makeconsequent, args)...)
+  end
 end
 
 makeconsequent(x) = x
 # treat as a literal
-function makepattern(x, pvars, slots, mod=@__MODULE__, splat=false)
-    if splat
-        x in slots ? makesegment(x, pvars) : x
-    else
-        x in slots ? makevar(x, pvars) : x
-    end
+function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
+  if splat
+    x in slots ? makesegment(x, pvars) : x
+  else
+    x in slots ? makevar(x, pvars) : x
+  end
 end
 
-function makepattern(ex::Expr, pvars, slots, mod=@__MODULE__, splat=false)
-    head = exprhead(ex)
-    op = operation(ex)
-    args = arguments(ex)
-    istree(op) && (op = makepattern(op, pvars, slots, mod))
-    op = op isa Symbol ? QuoteNode(op) : op
-    #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
+  head = exprhead(ex)
+  op = operation(ex)
+  args = arguments(ex)
+  istree(op) && (op = makepattern(op, pvars, slots, mod))
+  op = op isa Symbol ? QuoteNode(op) : op
+  #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
 
 
-    if head === :call
-        if operation(ex) === :(~) # is a variable or segment
-            if args[1] isa Expr && operation(args[1]) == :(~)
-                # matches ~~x::predicate or ~~x::predicate...
-                return makesegment(arguments(args[1])[1], pvars)
-            elseif splat
-                # matches ~x::predicate...
-                return makesegment(args[1], pvars)
-            else
-                return makevar(args[1], pvars)
-            end
-        else # is a term
-            patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-            return :($PatTerm(:call, $op, [$(patargs...)], $mod))
-        end
-    elseif head === :...
-        makepattern(args[1], pvars, slots, mod, true)
-    elseif head == :(::) && args[1] in slots
-        return splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-    elseif head === :ref
-        # getindex 
-        patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-        return :($PatTerm(:ref, getindex, [$(patargs...)], $mod))
-    elseif head === :$
-        return args[1]
-    else
-        patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-        return :($PatTerm($(head isa Symbol ? QuoteNode(head) : head), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)], $mod))
-        # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+  if head === :call
+    if operation(ex) === :(~) # is a variable or segment
+      if args[1] isa Expr && operation(args[1]) == :(~)
+        # matches ~~x::predicate or ~~x::predicate...
+        return makesegment(arguments(args[1])[1], pvars)
+      elseif splat
+        # matches ~x::predicate...
+        return makesegment(args[1], pvars)
+      else
+        return makevar(args[1], pvars)
+      end
+    else # is a term
+      patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+      return :($PatTerm(:call, $op, [$(patargs...)], $mod))
     end
+  elseif head === :...
+    makepattern(args[1], pvars, slots, mod, true)
+  elseif head == :(::) && args[1] in slots
+    return splat ? makesegment(ex, pvars) : makevar(ex, pvars)
+  elseif head === :ref
+    # getindex 
+    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+    return :($PatTerm(:ref, getindex, [$(patargs...)], $mod))
+  elseif head === :$
+    return args[1]
+  else
+    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+    return :($PatTerm(
+      $(head isa Symbol ? QuoteNode(head) : head),
+      $(op isa Symbol ? QuoteNode(op) : op),
+      [$(patargs...)],
+      $mod,
+    ))
+    # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+  end
 end
 
 function rule_sym_map(ex::Expr)
-    h = operation(ex)
-    if h == :(-->) || h == :(→)
-        RewriteRule
-    elseif h == :(=>)
-        DynamicRule
-    elseif h == :(==)
-        EqualityRule
-    elseif h == :(!=) || h == :(≠)
-        UnequalRule
-    else
-        error("Cannot parse rule with operator '$h'")
-    end
+  h = operation(ex)
+  if h == :(-->) || h == :(→)
+    RewriteRule
+  elseif h == :(=>)
+    DynamicRule
+  elseif h == :(==)
+    EqualityRule
+  elseif h == :(!=) || h == :(≠)
+    UnequalRule
+  else
+    error("Cannot parse rule with operator '$h'")
+  end
 end
 rule_sym_map(ex) = error("Cannot parse rule from $ex")
 
@@ -146,27 +150,28 @@ Rewrite the `expr` by dealing with `:where` if necessary.
 The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : nothing`.
 """
 function rewrite_rhs(ex::Expr)
-    if exprhead(ex) == :where
-        args = arguments(ex)
-        rhs = args[1]
-        predicate = args[2]
-        ex = :($predicate ? $rhs : nothing)
-    end
-    return ex
+  if exprhead(ex) == :where
+    args = arguments(ex)
+    rhs = args[1]
+    predicate = args[2]
+    ex = :($predicate ? $rhs : nothing)
+  end
+  return ex
 end
 rewrite_rhs(x) = x
 
 
 function addslots(expr, slots)
-    if expr isa Expr
-        if expr.head === :macrocall && expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
-            Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
-        else
-            Expr(expr.head, addslots.(expr.args, (slots,))...)
-        end
+  if expr isa Expr
+    if expr.head === :macrocall &&
+       expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+      Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
     else
-        expr
+      Expr(expr.head, addslots.(expr.args, (slots,))...)
     end
+  else
+    expr
+  end
 end
 
 
@@ -184,11 +189,11 @@ julia> @slots x y z a b c Chain([
 See also: [`@rule`](@ref), [`@capture`](@ref)
 """
 macro slots(args...)
-    length(args) >= 1 || ArgumentError("@slots requires at least one argument")
-    slots = args[1:end-1]
-    expr = args[end]
+  length(args) >= 1 || ArgumentError("@slots requires at least one argument")
+  slots = args[1:(end - 1)]
+  expr = args[end]
 
-    return esc(addslots(expr, slots))
+  return esc(addslots(expr, slots))
 end
 
 
@@ -327,31 +332,31 @@ Segment variables may still be written as (`~~x`), and slot (`~x`) and segment (
 See also: [`@capture`](@ref), [`@slots`](@ref)
 """
 macro rule(args...)
-    length(args) >= 1 || ArgumentError("@rule requires at least one argument")
-    slots = args[1:end-1]
-    expr = args[end]
+  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+  slots = args[1:(end - 1)]
+  expr = args[end]
 
-    e = macroexpand(__module__, expr)
-    e = rmlines(e)
-    op = operation(e)
-    RuleType = rule_sym_map(e)
+  e = macroexpand(__module__, expr)
+  e = rmlines(e)
+  op = operation(e)
+  RuleType = rule_sym_map(e)
 
-    l, r = arguments(e)
-    pvars = Symbol[]
-    lhs = makepattern(l, pvars, slots, __module__)
-    rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
+  l, r = arguments(e)
+  pvars = Symbol[]
+  lhs = makepattern(l, pvars, slots, __module__)
+  rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
 
-    if RuleType == DynamicRule
-        rhs = rewrite_rhs(r)
-        rhs = makeconsequent(rhs)
-        params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-        rhs = :($(esc(params)) -> $(esc(rhs)))
-    end
+  if RuleType == DynamicRule
+    rhs = rewrite_rhs(r)
+    rhs = makeconsequent(rhs)
+    params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
+    rhs = :($(esc(params)) -> $(esc(rhs)))
+  end
 
-    return quote
-        $(__source__)
-        ($RuleType)($(QuoteNode(expr)), $(esc(lhs)), $rhs)
-    end
+  return quote
+    $(__source__)
+    ($RuleType)($(QuoteNode(expr)), $(esc(lhs)), $rhs)
+  end
 end
 
 
@@ -381,20 +386,20 @@ julia> v = [
 ```
 """
 macro theory(args...)
-    length(args) >= 1 || ArgumentError("@rule requires at least one argument")
-    slots = args[1:end-1]
-    expr = args[end]
+  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+  slots = args[1:(end - 1)]
+  expr = args[end]
 
-    e = macroexpand(__module__, expr)
-    e = rmlines(e)
-    # e = interp_dollar(e, __module__)
+  e = macroexpand(__module__, expr)
+  e = rmlines(e)
+  # e = interp_dollar(e, __module__)
 
-    if exprhead(e) == :block
-        ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
-        esc(ee)
-    else
-        error("theory is not in form begin a => b; ... end")
-    end
+  if exprhead(e) == :block
+    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
+    esc(ee)
+  else
+    error("theory is not in form begin a => b; ... end")
+  end
 end
 
 
@@ -417,30 +422,32 @@ x = a
 See also: [`@rule`](@ref)
 """
 macro capture(args...)
-    length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
-    slots = args[1:end-2]
-    ex = args[end-1]
-    lhs = args[end]
-    lhs = macroexpand(__module__, lhs)
-    lhs = rmlines(lhs)
+  length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
+  slots = args[1:(end - 2)]
+  ex = args[end - 1]
+  lhs = args[end]
+  lhs = macroexpand(__module__, lhs)
+  lhs = rmlines(lhs)
 
-    pvars = Symbol[]
-    lhs_term = makepattern(lhs, pvars, slots, __module__)
-    bind = Expr(:block, map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...)
-    quote
-        $(__source__)
-        lhs_pattern = $(esc(lhs_term))
-        __MATCHES__ = DynamicRule($(QuoteNode(lhs)),
-            lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars)($(esc(ex)))
-        if __MATCHES__ !== nothing
-            $bind
-            true
-        else
-            false
-        end
+  pvars = Symbol[]
+  lhs_term = makepattern(lhs, pvars, slots, __module__)
+  bind = Expr(
+    :block,
+    map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
+  )
+  quote
+    $(__source__)
+    lhs_pattern = $(esc(lhs_term))
+    __MATCHES__ =
+      DynamicRule($(QuoteNode(lhs)), lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars)($(esc(ex)))
+    if __MATCHES__ !== nothing
+      $bind
+      true
+    else
+      false
     end
+  end
 end
 
 
 end
-

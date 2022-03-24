@@ -29,36 +29,36 @@
 using Metatheory
 
 calc = @theory p q r begin
-    ((p == q) == r)     ==  (p == (q == r))
-    (p == q)            ==  (q == p)
-    (q == q)            -->  true
+  ((p == q) == r) == (p == (q == r))
+  (p == q) == (q == p)
+  (q == q) --> true
 
-    ¬(p == q)           ==  (¬(p) == q)
-    (p != q)            ==  ¬(p == q)
+  ¬(p == q) == (¬(p) == q)
+  (p != q) == ¬(p == q)
 
-    ((p ∨ q) ∨ r)       ==  (p ∨ (q ∨ r))
-    (p ∨ q)             ==  (q ∨ p)
-    (p ∨ p)             -->  p
-    (p ∨ (q == r))      ==  (p ∨ q == p ∨ r)
-    (p ∨ ¬(p))          -->  true
+  ((p ∨ q) ∨ r) == (p ∨ (q ∨ r))
+  (p ∨ q) == (q ∨ p)
+  (p ∨ p) --> p
+  (p ∨ (q == r)) == (p ∨ q == p ∨ r)
+  (p ∨ ¬(p)) --> true
 
-    # DeMorgan
-    ¬(p ∨ q)            ==  (¬p ∧ ¬q)
-    ¬(p ∧ q)            ==  (¬p ∨ ¬q)
+  # DeMorgan
+  ¬(p ∨ q) == (¬p ∧ ¬q)
+  ¬(p ∧ q) == (¬p ∨ ¬q)
 
-    (p ∧ q)             ==  ((p == q) == p ∨ q)
+  (p ∧ q) == ((p == q) == p ∨ q)
 
-    (p => q)            ==  ((p ∨ q) == q)
-    # (p => q)            ==  (¬p ∨ q)
-    # (p <= q)            =>  (q => p)
+  (p => q) == ((p ∨ q) == q)
+  # (p => q)            ==  (¬p ∨ q)
+  # (p <= q)            =>  (q => p)
 end
 
 fold = @theory p q begin
-    (p::Bool == q::Bool)    =>     (p == q)
-    (p::Bool ∨ q::Bool)     =>     (p || q)
-    (p::Bool => q::Bool)    =>     ((p || q) == q)
-    (p::Bool ∧ q::Bool)     =>     (p && q)
-    ¬(p::Bool)              =>     (!p)
+  (p::Bool == q::Bool) => (p == q)
+  (p::Bool ∨ q::Bool)  => (p || q)
+  (p::Bool => q::Bool) => ((p || q) == q)
+  (p::Bool ∧ q::Bool)  => (p && q)
+  ¬(p::Bool)           => (!p)
 end
 
 # t = or_alg ∪ and_alg ∪ neg_alg ∪ demorgan ∪ and_or_distrib ∪
@@ -74,19 +74,18 @@ extract!(g, astsize)
 @test @areequal t true ((¬p == ¬p) == true)
 @test @areequal t true ((¬p ∨ ¬p) == ¬p) (¬p ∨ p) ¬(¬p ∧ p)
 @test @areequal t true ((p => (p ∨ p)) == true)
-params = SaturationParams(timeout=12, eclasslimit=10000, schedulerparams=(1000, 5))
+params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (1000, 5))
 
-@test areequal(t, true, :(((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true); params=params)
+@test areequal(t, true, :(((p => (p ∨ p)) == ((¬(p) ∧ q) => q)) == true); params = params)
 
 # Frege's theorem
 # params = SaturationParams(timeout=12, eclasslimit=15000, scheduler=Schedulers.ScoredScheduler)
 # params = SaturationParams(timeout=12, eclasslimit=15000, schedulerparams=(500, 2))
-@test_skip areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); params=params)
+@test_skip areequal(t, true, :((p => (q => r)) => ((p => q) => (p => r))); params = params)
 
 # Demorgan's
 @test @areequal t true (¬(p ∨ q) == (¬p ∧ ¬q))
 
 # Consensus theorem
 # @test_skip
-areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬x ∧ z)); params=params)
-
+areequal(t, :((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)), :((x ∧ y) ∨ (¬x ∧ z)); params = params)
