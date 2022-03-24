@@ -2,33 +2,30 @@
 
 using DocStringExtensions
 
-@template (FUNCTIONS, METHODS, MACROS) =
-"""
-$(DOCSTRING)
+@template (FUNCTIONS, METHODS, MACROS) = """
+                                         $(DOCSTRING)
 
----
-# Signatures
-$(TYPEDSIGNATURES)
----
-## Methods
-$(METHODLIST)
-"""
+                                         ---
+                                         # Signatures
+                                         $(TYPEDSIGNATURES)
+                                         ---
+                                         ## Methods
+                                         $(METHODLIST)
+                                         """
 
-@template (TYPES) =
-"""
-$(TYPEDEF)
-$(DOCSTRING)
+@template (TYPES) = """
+                    $(TYPEDEF)
+                    $(DOCSTRING)
 
----
-## Fields
-$(TYPEDFIELDS)
-"""
+                    ---
+                    ## Fields
+                    $(TYPEDFIELDS)
+                    """
 
-@template MODULES =
-"""
-$(DOCSTRING)
+@template MODULES = """
+                    $(DOCSTRING)
 
----
-## Imports
-$(IMPORTS)
-"""
+                    ---
+                    ## Imports
+                    $(IMPORTS)
+                    """

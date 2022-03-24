@@ -20,5 +20,4 @@ ex = rewrite(:(((p => q) ∧ (r => s) ∧ (p ∨ r)) => (q ∨ s)), impl)
 @test @areequal t true (¬(p ∨ q) == (¬p ∧ ¬q))
 
 # Consensus theorem
-@test @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z))   ((x ∧ y) ∨ (¬x ∧ z))
-
+@test @areequal t ((x ∧ y) ∨ (¬x ∧ z) ∨ (y ∧ z)) ((x ∧ y) ∨ (¬x ∧ z))

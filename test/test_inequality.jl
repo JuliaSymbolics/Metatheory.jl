@@ -1,10 +1,10 @@
 using Metatheory
 
 failme = @theory p begin
-    p ≠ ¬p
-    :foo == ¬:foo
-    :foo --> :bazoo
-    :bazoo --> :wazoo
+  p ≠ ¬p
+  :foo == ¬:foo
+  :foo --> :bazoo
+  :bazoo --> :wazoo
 end
 
 g = EGraph(:foo)
