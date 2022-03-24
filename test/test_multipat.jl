@@ -21,33 +21,33 @@ using Metatheory.EGraphs.Schedulers
 # ]
 
 facts = [
-    :(ancestor(sakyamuni, bodhidharma)),
-    :(teacher(bodhidharma, huike)),
-    :(teacher(huike, sengcan)),
-    :(teacher(sengcan, daoxin)),
-    :(teacher(daoxin, hongren)),
-    :(teacher(hongren, huineng)),
+  :(ancestor(sakyamuni, bodhidharma)),
+  :(teacher(bodhidharma, huike)),
+  :(teacher(huike, sengcan)),
+  :(teacher(sengcan, daoxin)),
+  :(teacher(daoxin, hongren)),
+  :(teacher(hongren, huineng)),
 ]
 
 function addfacts!(g::EGraph, facts)
-    for fact ∈ facts 
-        fc, _ = addexpr!(g, fact)
-        tc, _ = addexpr!(g, true)
-        merge!(g, fc.id, tc.id)
-    end
+  for fact in facts
+    fc, _ = addexpr!(g, fact)
+    tc, _ = addexpr!(g, true)
+    merge!(g, fc.id, tc.id)
+  end
 end
 
-clauses = @theory begin 
-    teacher(a, b) => ancestor(a, b)
-    # grandteacher(A, C) <<= teacher(A, B) & teacher(B, C)
-end 
+clauses = @theory begin
+  teacher(a, b) => ancestor(a, b)
+  # grandteacher(A, C) <<= teacher(A, B) & teacher(B, C)
+end
 
 # TODO syntax for MultiPatRewriteRule and PatEquiv
 #   ancestor(A, C) <<= teacher(B, C) & ancestor(A, B),
-lhs = Pattern(:(teacher(b, c))
-rhs = Pattern(:(ancestor(a,c)))
-pat1 = PatEquiv(Pattern(:(ancestor(a, b))), Pattern(:(teacher(b,c)))
-q = MultiPatRewriteRule(lhs, rhs, [pat1]) 
+lhs = Pattern(:(teacher(b, c)))
+rhs = Pattern(:(ancestor(a, c)))
+pat1 = PatEquiv(Pattern(:(ancestor(a, b))), Pattern(:(teacher(b, c))))
+q = MultiPatRewriteRule(lhs, rhs, [pat1])
 
 push!(clauses, q)
 
@@ -58,10 +58,11 @@ addfacts!(g, facts)
 query = :(ancestor(sakyamuni, huineng))
 addexpr!(g, query)
 
-params = SaturationParams(timeout=14)
+params = SaturationParams(timeout = 14)
 saturate!(g, clauses, params)
 
-# display(g.classes); println()
+display(g.classes);
+println();
 
 emptyt = @theory begin end
 @test areequal(g, emptyt, true, query)

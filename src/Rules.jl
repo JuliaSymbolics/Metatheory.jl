@@ -8,7 +8,7 @@ using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
 using Metatheory: cleanast, binarize, matcher, instantiate
 
-const EMPTY_DICT = Base.ImmutableDict{Int, Any}()
+const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 
 abstract type AbstractRule end
 # Must override
@@ -19,19 +19,19 @@ abstract type SymbolicRule <: AbstractRule end
 abstract type BidirRule <: SymbolicRule end
 
 struct RuleRewriteError
-    rule
-    expr
+  rule
+  expr
 end
 
 getdepth(::Any) = typemax(Int)
 
-showraw(io, t) = Base.show(IOContext(io, :simplify=>false), t)
+showraw(io, t) = Base.show(IOContext(io, :simplify => false), t)
 showraw(t) = showraw(stdout, t)
 
 @noinline function Base.showerror(io::IO, err::RuleRewriteError)
-    msg = "Failed to apply rule $(err.rule) on expression "
-    msg *= sprint(io->showraw(io, err.expr))
-    print(io, msg)
+  msg = "Failed to apply rule $(err.rule) on expression "
+  msg *= sprint(io -> showraw(io, err.expr))
+  print(io, msg)
 end
 
 
@@ -50,42 +50,42 @@ variables.
 @rule ~a * ~b --> ~b * ~a
 ```
 """
-@auto_hash_equals struct RewriteRule <: SymbolicRule 
-    expr # rule pattern stored for pretty printing
-    left
-    right
-    matcher
-    patvars::Vector{Symbol}
-    ematch_program::Program
+@auto_hash_equals struct RewriteRule <: SymbolicRule
+  expr # rule pattern stored for pretty printing
+  left
+  right
+  matcher
+  patvars::Vector{Symbol}
+  ematch_program::Program
 end
 
 Base.isequal(a::RewriteRule, b::RewriteRule) = (a.left == b.left) && (a.right == b.right)
 
 function RewriteRule(l, r)
-    ex = :($(to_expr(l)) --> $(to_expr(r)))
-    RewriteRule(ex, l, r)
+  ex = :($(to_expr(l)) --> $(to_expr(r)))
+  RewriteRule(ex, l, r)
 end
 
 function RewriteRule(ex, l, r)
-    pvars = patvars(l) ∪ patvars(r)
-    # sort!(pvars)
-    setdebrujin!(l, pvars)
-    setdebrujin!(r, pvars)
-    RewriteRule(ex, l, r, matcher(l), pvars, compile_pat(l))
+  pvars = patvars(l) ∪ patvars(r)
+  # sort!(pvars)
+  setdebrujin!(l, pvars)
+  setdebrujin!(r, pvars)
+  RewriteRule(ex, l, r, matcher(l), pvars, compile_pat(l))
 end
 
-Base.show(io::IO,  r::RewriteRule) = print(io, r.expr)
+Base.show(io::IO, r::RewriteRule) = print(io, r.expr)
 
 
 function (r::RewriteRule)(term)
-    # n == 1 means that exactly one term of the input (term,) was matched
-    success(bindings, n) = n == 1 ? instantiate(term, r.right, bindings) : nothing
-        
-    try
-        r.matcher(success, (term,), EMPTY_DICT)
-    catch err
-        throw(RuleRewriteError(r, term))
-    end
+  # n == 1 means that exactly one term of the input (term,) was matched
+  success(bindings, n) = n == 1 ? instantiate(term, r.right, bindings) : nothing
+
+  try
+    r.matcher(success, (term,), EMPTY_DICT)
+  catch err
+    throw(RuleRewriteError(r, term))
+  end
 end
 
 # ============================================================
@@ -101,37 +101,37 @@ with the EGraphs backend.
 @rule ~a * ~b == ~b * ~a
 ```
 """
-@auto_hash_equals struct EqualityRule <: BidirRule 
-    expr # rule pattern stored for pretty printing
-    left
-    right
-    patvars::Vector{Symbol}
-    ematch_program_l::Program
-    ematch_program_r::Program
+@auto_hash_equals struct EqualityRule <: BidirRule
+  expr # rule pattern stored for pretty printing
+  left
+  right
+  patvars::Vector{Symbol}
+  ematch_program_l::Program
+  ematch_program_r::Program
 end
 
 function EqualityRule(ex, l, r)
-    pvars = patvars(l) ∪ patvars(r)
-    extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
-    if !isempty(extravars)
-        error("unbound pattern variables $extravars when creating bidirectional rule")
-    end
-    setdebrujin!(l, pvars)
-    setdebrujin!(r, pvars)
-    progl = compile_pat(l)
-    progr = compile_pat(r)
-    EqualityRule(ex, l, r, pvars, progl, progr)
+  pvars = patvars(l) ∪ patvars(r)
+  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
+  if !isempty(extravars)
+    error("unbound pattern variables $extravars when creating bidirectional rule")
+  end
+  setdebrujin!(l, pvars)
+  setdebrujin!(r, pvars)
+  progl = compile_pat(l)
+  progr = compile_pat(r)
+  EqualityRule(ex, l, r, pvars, progl, progr)
 end
 
 function EqualityRule(l, r)
-    ex = :($(to_expr(l)) --> $(to_expr(r)))
-    EqualityRule(ex, l, r)
+  ex = :($(to_expr(l)) --> $(to_expr(r)))
+  EqualityRule(ex, l, r)
 end
 
-Base.show(io::IO,  r::EqualityRule) = print(io, r.expr)
+Base.show(io::IO, r::EqualityRule) = print(io, r.expr)
 
 function (r::EqualityRule)(x)
-    throw(RuleRewriteError(r, x))
+  throw(RuleRewriteError(r, x))
 end
 
 
@@ -149,33 +149,33 @@ backend. If two terms, corresponding to the left and right hand side of an
 ```
 
 """
-@auto_hash_equals struct UnequalRule <: BidirRule 
-    expr # rule pattern stored for pretty printing
-    left
-    right
-    patvars::Vector{Symbol}
-    ematch_program_l::Program
-    ematch_program_r::Program
+@auto_hash_equals struct UnequalRule <: BidirRule
+  expr # rule pattern stored for pretty printing
+  left
+  right
+  patvars::Vector{Symbol}
+  ematch_program_l::Program
+  ematch_program_r::Program
 end
 
 
 function UnequalRule(l, r)
-    ex = :($(to_expr(l)) --> $(to_expr(r)))
-    UnequalRule(ex, l, r)
+  ex = :($(to_expr(l)) --> $(to_expr(r)))
+  UnequalRule(ex, l, r)
 end
 
 function UnequalRule(ex, l, r)
-    pvars = patvars(l) ∪ patvars(r)
-    extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
-    if !isempty(extravars)
-        error("unbound pattern variables $extravars when creating bidirectional rule")
-    end
-# sort!(pvars)
-    setdebrujin!(l, pvars)
-    setdebrujin!(r, pvars)
-    progl = compile_pat(l)
-    progr = compile_pat(r)
-    UnequalRule(ex, l, r, pvars, progl, progr)
+  pvars = patvars(l) ∪ patvars(r)
+  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
+  if !isempty(extravars)
+    error("unbound pattern variables $extravars when creating bidirectional rule")
+  end
+  # sort!(pvars)
+  setdebrujin!(l, pvars)
+  setdebrujin!(r, pvars)
+  progl = compile_pat(l)
+  progr = compile_pat(r)
+  UnequalRule(ex, l, r, pvars, progl, progr)
 end
 
 Base.show(io::IO, r::UnequalRule) = print(io, r.expr)
@@ -198,41 +198,42 @@ Dynamic rule
 ```
 """
 @auto_hash_equals struct DynamicRule <: AbstractRule
-    expr # rule pattern stored for pretty printing
-    left
-    rhs_fun::Function
-    matcher
-    patvars::Vector{Symbol} # useful set of pattern variables
-    ematch_program::Program
+  expr # rule pattern stored for pretty printing
+  left
+  rhs_fun::Function
+  matcher
+  patvars::Vector{Symbol} # useful set of pattern variables
+  ematch_program::Program
 end
 
 function DynamicRule(l, r)
-    ex = :($(to_expr(l)) => $(to_expr(r)))
-    DynamicRule(ex, l, r)
+  ex = :($(to_expr(l)) => $(to_expr(r)))
+  DynamicRule(ex, l, r)
 end
 
 function DynamicRule(ex, l, r::Function)
-    pvars = patvars(l)
-    setdebrujin!(l, pvars)
+  pvars = patvars(l)
+  setdebrujin!(l, pvars)
 
-    DynamicRule(ex, l, r, matcher(l), pvars, compile_pat(l))
+  DynamicRule(ex, l, r, matcher(l), pvars, compile_pat(l))
 end
 
 
 Base.show(io::IO, r::DynamicRule) = print(io, r.expr)
 
-function (r::DynamicRule)(term)    
-    # n == 1 means that exactly one term of the input (term,) was matched
-    success(bindings, n) = if n == 1 
-        bvals = [bindings[i] for i in 1:length(r.patvars)] 
-        return r.rhs_fun(term, bindings, nothing, bvals...) 
+function (r::DynamicRule)(term)
+  # n == 1 means that exactly one term of the input (term,) was matched
+  success(bindings, n) =
+    if n == 1
+      bvals = [bindings[i] for i in 1:length(r.patvars)]
+      return r.rhs_fun(term, bindings, nothing, bvals...)
     end
 
-    try
-        return r.matcher(success, (term,), EMPTY_DICT)
-    catch err
-        throw(RuleRewriteError(r, term))
-    end
+  try
+    return r.matcher(success, (term,), EMPTY_DICT)
+  catch err
+    throw(RuleRewriteError(r, term))
+  end
 end
 
 export SymbolicRule

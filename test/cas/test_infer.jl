@@ -12,5 +12,3 @@ if VERSION < v"1.9.0-DEV"
   @test_throws MethodError infer(ex2)
   @test String == infer(ex3)
 end
-
-
