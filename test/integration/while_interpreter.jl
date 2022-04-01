@@ -118,7 +118,8 @@ while_rules = @theory guard a b σ begin
   (while guard
     a
   end, σ) --> (if guard
-    (a; while guard
+    (a;
+    while guard
       a
     end)
   else
