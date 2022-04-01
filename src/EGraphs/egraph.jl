@@ -148,10 +148,10 @@ end
 
 function join_analysis_data!(dst::AnalysisData, src::AnalysisData)
   new_dst = merge(dst, src)
-  for (analysis_name, src_val) in zip(keys(src), src)
+  for analysis_name in keys(src)
     if hasproperty(dst, analysis_name)
       ref = getproperty(new_dst, analysis_name)
-      ref[] = join(analysis_name, ref[], src_val)
+      ref[] = join(analysis_name, ref[], getproperty(src, analysis_name)[])
     end
   end
   new_dst
