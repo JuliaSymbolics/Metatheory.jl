@@ -138,7 +138,8 @@ while_rules = @theory a b σ begin
   (while a
     b
   end, σ::Mem) --> (if a
-    (b; while a
+    (b;
+    while a
       b
     end)
   else
