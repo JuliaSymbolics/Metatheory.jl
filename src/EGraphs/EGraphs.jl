@@ -43,8 +43,6 @@ export analyze!
 export extract!
 export astsize
 export astsize_inv
-export AbstractAnalysis
-export MetadataAnalysis
 export getcost!
 
 include("ematch.jl")
