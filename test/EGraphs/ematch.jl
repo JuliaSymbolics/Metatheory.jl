@@ -24,8 +24,6 @@ end
   g = EGraph(:(a * 1))
   addexpr!(g, :foo)
   saturate!(g, r)
-  display(g.classes)
-  println()
 
   @test (@areequal r a * 1 foo) == true
   @test (@areequal r a * 2 foo) == false
@@ -146,7 +144,6 @@ end
 
   g = EGraph(:(2 * 3))
   saturate!(g, some_theory)
-  # display(g.classes)
 
   @test true == areequal(g, some_theory, :(2 * 3), :(matched(2, 3)))
   @test true == areequal(g, some_theory, :(matched(2, 3)), :(specific(3, 2)))
@@ -165,7 +162,20 @@ end
 
   g = EGraph(:(2 * 3))
   saturate!(g, some_theory)
-  # display(g.classes)
 
   @test true == areequal(g, some_theory, :(a * b * 0), 0)
+end
+
+@testset "Inequalities" begin
+
+  failme = @theory p begin
+    p ≠ ¬p
+    :foo == ¬:foo
+    :foo --> :bazoo
+    :bazoo --> :wazoo
+  end
+
+  g = EGraph(:foo)
+  report = saturate!(g, failme)
+  @test report.reason === :contradiction
 end
