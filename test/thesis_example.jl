@@ -2,9 +2,9 @@ using Metatheory
 using Metatheory.EGraphs
 using TermInterface
 
-abstract type SignAnalysis <: AbstractAnalysis end
+# TODO update
 
-function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeLiteral{<:Real})
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral{<:Real})
   if n.value == Inf
     return Inf
   elseif n.value == -Inf
@@ -16,7 +16,7 @@ function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeLiteral{<:Real}
   end
 end
 
-function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeTerm)
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeTerm)
   # Let's consider only binary function call terms.
   if exprhead(n) == :call && arity(n) == 2
     # get the symbol name of the operation
@@ -54,11 +54,11 @@ function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeTerm)
   return nothing
 end
 
-function EGraphs.join(an::Type{SignAnalysis}, a, b)
+function EGraphs.join(::Val{:sign_analysis}, a, b)
   return a == b ? a : nothing
 end
 
-function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeLiteral{Symbol})
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral{Symbol})
   s = n.value
   s == :x && return 1
   s == :y && return -1
@@ -68,7 +68,7 @@ function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeLiteral{Symbol}
 end
 
 # we are cautious, so we return false by default 
-isnotzero(g::EGraph, x::EClass) = getdata(x, SignAnalysis, false)
+isnotzero(g::EGraph, x::EClass) = getdata(x, :sign_analysis, false)
 
 # t = @theory a b c begin 
 #   a * (b * c) == (a * b) * c
@@ -83,8 +83,8 @@ isnotzero(g::EGraph, x::EClass) = getdata(x, SignAnalysis, false)
 function custom_analysis(expr)
   g = EGraph(expr)
   # saturate!(g, t)
-  analyze!(g, SignAnalysis)
-  return getdata(g[g.root], SignAnalysis)
+  analyze!(g, :sign_analysis)
+  return getdata(g[g.root], :sign_analysis)
 end
 
 custom_analysis(:(3 * x)) # :odd
