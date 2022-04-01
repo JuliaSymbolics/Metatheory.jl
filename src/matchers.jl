@@ -151,9 +151,13 @@ end
 
 # TODO REVIEWME
 function instantiate(left, pat::PatTerm, mem)
-  ar = arguments(pat)
-  args = [instantiate(left, p, mem) for p in ar]
-  similarterm(istree(left) ? left : Expr(:call, :_), operation(pat), args; exprhead = exprhead(pat))
+  args = []
+  for parg in arguments(pat)
+    enqueue = parg isa PatSegment ? append! : push!
+    enqueue(args, instantiate(left, parg, mem))
+  end
+  reference = istree(left) ? left : Expr(:call, :_)
+  similarterm(reference, operation(pat), args; exprhead = exprhead(pat))
 end
 
 instantiate(left, pat::Any, mem) = pat
