@@ -7,7 +7,7 @@ abstract type AbstractENode{T} end
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
 const EClassId = Int64
 const HashCons = Dict{AbstractENode,EClassId}
-const Analyses = Set{Union{Symbol,Function}}
+const Analyses = Dict{Union{Symbol,Function},Union{Symbol,Function}}
 const SymbolCache = Dict{Any,Set{EClassId}}
 const TermTypes = Dict{Tuple{Any,EClassId},Type}
 
@@ -139,19 +139,20 @@ function Base.union!(to::EClass, from::EClass)
   append!(to.parents, from.parents)
   if to.data !== nothing && from.data !== nothing
     # merge!(to.data, from.data)
-    to.data = join_analysis_data!(to.data, from.data)
+    to.data = join_analysis_data!(to.g, to.data, from.data)
   elseif to.data === nothing
     to.data = from.data
   end
   return to
 end
 
-function join_analysis_data!(dst::AnalysisData, src::AnalysisData)
+function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
   new_dst = merge(dst, src)
   for analysis_name in keys(src)
+    analysis_ref = g.analyses[analysis_name]
     if hasproperty(dst, analysis_name)
       ref = getproperty(new_dst, analysis_name)
-      ref[] = join(analysis_name, ref[], getproperty(src, analysis_name)[])
+      ref[] = join(analysis_ref, ref[], getproperty(src, analysis_name)[])
     end
   end
   new_dst
@@ -241,13 +242,20 @@ end
 
 function EGraph(e; keepmeta = false)
   g = EGraph()
-  if keepmeta
-    push!(g.analyses, :metadata_analysis)
-  end
+  keepmeta && addanalysis!(g, :metadata_analysis)
 
   rootclass, rootnode = addexpr!(g, e; keepmeta = keepmeta)
   g.root = rootclass.id
   g
+end
+
+function addanalysis!(g::EGraph, costfun::Function)
+  g.analyses[nameof(costfun)] = costfun
+  g.analyses[costfun] = costfun
+end
+
+function addanalysis!(g::EGraph, analysis_name::Symbol)
+  g.analyses[analysis_name] = analysis_name
 end
 
 function settermtype!(g::EGraph, f, ar, T)
@@ -353,7 +361,7 @@ function add!(g::EGraph, n::AbstractENode)::EClass
   g.classes[id] = classdata
   g.numclasses += 1
 
-  for an in g.analyses
+  for an in values(g.analyses)
     if !islazy(an) && an !== :metadata_analysis
       setdata!(classdata, an, make(an, g, n))
       modify!(an, g, id)
@@ -529,7 +537,7 @@ function repair!(g::EGraph, id::EClassId)
   # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
   # Analysis invariant maintenance
-  for an in g.analyses
+  for an in values(g.analyses)
     hasdata(ecdata, an) && modify!(an, g, id)
     for (p_enode, p_id) in ecdata.parents
       # p_eclass = find(g, p_eclass)

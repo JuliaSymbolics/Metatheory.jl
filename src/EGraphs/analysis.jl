@@ -12,7 +12,7 @@ analyses are instead computed on-the-fly every time ENodes are added to the EGra
 EClasses are merged.  
 """
 islazy(::Val{analysis_name}) where {analysis_name} = false
-islazy(analysis_name) = islazy(Val(analysis_name))
+islazy(analysis_name) = islazy(analysis_reference(analysis_name))
 
 """
     modify!(::Val{analysis_name}, g, id)
@@ -59,7 +59,7 @@ After `analyze!` is called, an analysis value will be associated to each EClass 
 One can inspect and retrieve analysis values by using [hasdata](@ref) and [getdata](@ref).
 """
 function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
-  push!(g.analyses, analysis_ref)
+  addanalysis!(g, analysis_ref)
   ids = sort(ids)
   # @assert isempty(g.dirty)
 
@@ -135,6 +135,7 @@ make(f::Function, g::EGraph, n::AbstractENode) = (n, f(n, g))
 join(f::Function, from, to) = last(from) <= last(to) ? from : to
 
 islazy(::Function) = true
+modify!(::Function, g, id) = nothing
 
 function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
   eclass = g[id]
