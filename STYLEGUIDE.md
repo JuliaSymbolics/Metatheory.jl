@@ -1,4 +1,4 @@
-
+# Style guide
 ### IDE
 
 It is recommended to use VSCode when programming in Julia. Its Julia extension
