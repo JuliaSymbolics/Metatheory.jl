@@ -65,22 +65,11 @@ mutable struct PatSegment{P} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
-  # hash::Ref{UInt}
 end
 
 PatSegment(v) = PatSegment(v, -1, alwaystrue)
 PatSegment(v, i) = PatSegment(v, i, alwaystrues)
-# PatSegment(v, i, p) = PatSegment{typeof(p)}(v, i, p), Ref{UInt}(0))
 
-
-# function Base.hash(t::PatSegment, salt::UInt)
-#     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-#     h = t.hash[]
-#     !iszero(h) && return h
-#     h′ = hash(t.name, hash(t.predicate, salt))
-#     t.hash[] = h′
-#     return h′
-# end
 
 """
 Term patterns will match
