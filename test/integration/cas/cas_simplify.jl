@@ -69,17 +69,10 @@ function simplify(ex; steps = 4)
       return ex
     end
     if hash(ex) ∈ hist
-      println("loop detected $ex")
       return ex
     end
-    println(ex)
     push!(hist, hash(ex))
   end
-  # println(res)
-  # for (id, ec) ∈ g.classes
-  #     println(id, " => ", collect(ec.nodes))
-  #     println("\t\t", getdata(ec, ExtractionAnalysis{astsize}))
-  # end
 
 end
 macro simplify(ex)

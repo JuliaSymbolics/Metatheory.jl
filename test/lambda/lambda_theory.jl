@@ -62,8 +62,6 @@ ex = :(λ(x, 4 + app(λ(y, var(y)), 4)))
 g = EGraph(ex)
 # analyze!(g, FreeVarAnalysis)
 saturate!(g, λT)
-display(g.classes);
-println();
 extract!(g, astsize)
 
 
