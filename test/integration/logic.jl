@@ -23,12 +23,10 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
     params.goal = goal
     saturate!(g, t, params)
     ex = extract!(g, astsize)
-    println(ex)
     if !TermInterface.istree(ex)
       return ex
     end
     if hash(ex) ∈ hist
-      println("loop detected")
       return ex
     end
     push!(hist, hash(ex))

@@ -82,8 +82,6 @@ end
 
 saturate!(g, t)
 
-# display(g.classes)
-
 # TODO test metadata
 
 expected =

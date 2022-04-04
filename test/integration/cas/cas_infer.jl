@@ -21,16 +21,12 @@ end
 
 function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENodeTerm{Expr})
   if exprhead(n) != :call
-    # println("$n is not a call")
     t = Any
-    # println("analyzed type of $n is $t")
     return t
   end
   sym = operation(n)
   if !(sym isa Symbol)
-    # println("head $sym is not a symbol")
     t = Any
-    # println("analyzed type of $n is $t")
     return t
   end
 
@@ -44,7 +40,6 @@ function EGraphs.make(an::Type{TypeAnalysis}, g::EGraph, n::ENodeTerm{Expr})
   if t == Union{}
     throw(MethodError(symval, child_types))
   end
-  # println("analyzed type of $n is $t")
   return t
 end
 
