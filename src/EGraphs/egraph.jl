@@ -2,18 +2,12 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 
-"""
-Abstract type representing an [`EGraph`](@ref) analysis,
-attaching values from a join semi-lattice domain to
-an EGraph
-"""
-abstract type AbstractAnalysis end
 abstract type AbstractENode{T} end
 
-const AnalysisData = Base.ImmutableDict{Type{<:AbstractAnalysis},Any}
+const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
 const EClassId = Int64
 const HashCons = Dict{AbstractENode,EClassId}
-const Analyses = Set{Type{<:AbstractAnalysis}}
+const Analyses = Dict{Union{Symbol,Function},Union{Symbol,Function}}
 const SymbolCache = Dict{Any,Set{EClassId}}
 const TermTypes = Dict{Tuple{Any,EClassId},Type}
 
@@ -35,7 +29,7 @@ mutable struct EClass
   id::EClassId
   nodes::Vector{AbstractENode}
   parents::Vector{Pair{AbstractENode,EClassId}}
-  data::Union{Nothing,AnalysisData}
+  data::AnalysisData
   # data::M
 end
 
@@ -115,7 +109,7 @@ end
 Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
 
 EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode,EClassId}[], nothing)
-EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, nothing)
+EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
 Base.getindex(a::EClass, i) = a.nodes[i]
@@ -131,16 +125,9 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 function Base.show(io::IO, a::EClass)
   print(io, "EClass $(a.id) (")
 
-  print(io, "[", Base.join(a.nodes, ", "), "]")
-  if a.data === nothing
-    print(io, ")")
-    return
-  end
-  print(io, ", analysis = {")
-  for (k, v) in a.data
-    print(io, "$k => $v, ")
-  end
-  print(io, "})")
+  print(io, "[", Base.join(a.nodes, ", "), "], ")
+  print(io, a.data)
+  print(io, ")")
 end
 
 function addparent!(a::EClass, n::AbstractENode, id::EClassId)
@@ -152,47 +139,42 @@ function Base.union!(to::EClass, from::EClass)
   append!(to.parents, from.parents)
   if to.data !== nothing && from.data !== nothing
     # merge!(to.data, from.data)
-    # to.data = join_analysis_data(to.data, from.data)
-    to.data = join_analysis_data(to.data, from.data)
+    to.data = join_analysis_data!(to.g, to.data, from.data)
   elseif to.data === nothing
     to.data = from.data
   end
   return to
 end
 
-function join_analysis_data(d::AnalysisData, dsrc::AnalysisData)
-  for (an, val_b) in dsrc
-    if haskey(d, an)
-      val_a = d[an]
-      nv = join(an, val_a, val_b)
-      # d[an] = nv
-      # WARNING immutable version
-      d = Base.ImmutableDict(d, an => nv)
+function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
+  new_dst = merge(dst, src)
+  for analysis_name in keys(src)
+    analysis_ref = g.analyses[analysis_name]
+    if hasproperty(dst, analysis_name)
+      ref = getproperty(new_dst, analysis_name)
+      ref[] = join(analysis_ref, ref[], getproperty(src, analysis_name)[])
     end
   end
-  return d
+  new_dst
 end
 
 # Thanks to Shashi Gowda
-function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
-  a.data === nothing && (return false)
-  return haskey(a.data, x)
-end
+hasdata(a::EClass, analysis_name::Symbol) = hasproperty(a.data, analysis_name)
+hasdata(a::EClass, f::Function) = hasproperty(a.data, nameof(f))
+getdata(a::EClass, analysis_name::Symbol) = getproperty(a.data, analysis_name)[]
+getdata(a::EClass, f::Function) = getproperty(a.data, nameof(f))[]
+getdata(a::EClass, analysis_ref::Union{Symbol,Function}, default) =
+  hasdata(a, analysis_ref) ? getdata(a, analysis_ref) : default
 
-function getdata(a::EClass, x::Type{<:AbstractAnalysis})
-  !hasdata(a, x) && error("EClass $a does not contain analysis data for $x")
-  return a.data[x]
-end
 
-function getdata(a::EClass, x::Type{<:AbstractAnalysis}, default)
-  hasdata(a, x) ? a.data[x] : default
-end
-
-function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
-  # lazy allocation
-  a.data === nothing && (a.data = AnalysisData())
-  # a.data[x] = value
-  a.data = AnalysisData(a.data, x, value)
+setdata!(a::EClass, f::Function, value) = setdata!(a, nameof(f), value)
+function setdata!(a::EClass, analysis_name::Symbol, value)
+  if hasdata(a, analysis_name)
+    ref = getproperty(a.data, analysis_name)
+    ref[] = value
+  else
+    a.data = merge(a.data, NamedTuple{(analysis_name,)}((Ref{Any}(value),)))
+  end
 end
 
 function funs(a::EClass)
@@ -260,13 +242,20 @@ end
 
 function EGraph(e; keepmeta = false)
   g = EGraph()
-  if keepmeta
-    push!(g.analyses, MetadataAnalysis)
-  end
+  keepmeta && addanalysis!(g, :metadata_analysis)
 
   rootclass, rootnode = addexpr!(g, e; keepmeta = keepmeta)
   g.root = rootclass.id
   g
+end
+
+function addanalysis!(g::EGraph, costfun::Function)
+  g.analyses[nameof(costfun)] = costfun
+  g.analyses[costfun] = costfun
+end
+
+function addanalysis!(g::EGraph, analysis_name::Symbol)
+  g.analyses[analysis_name] = analysis_name
 end
 
 function settermtype!(g::EGraph, f, ar, T)
@@ -372,8 +361,8 @@ function add!(g::EGraph, n::AbstractENode)::EClass
   g.classes[id] = classdata
   g.numclasses += 1
 
-  for an in g.analyses
-    if !islazy(an) && an !== MetadataAnalysis
+  for an in values(g.analyses)
+    if !islazy(an) && an !== :metadata_analysis
       setdata!(classdata, an, make(an, g, n))
       modify!(an, g, id)
     end
@@ -423,7 +412,7 @@ function addexpr!(g::EGraph, se; keepmeta = false)::Tuple{EClass,AbstractENode}
   if keepmeta
     # TODO check if eclass already has metadata?
     meta = TermInterface.metadata(e)
-    setdata!(ec, MetadataAnalysis, meta)
+    setdata!(ec, :metadata_analysis, meta)
   end
   return (ec, node)
 end
@@ -542,10 +531,8 @@ function repair!(g::EGraph, id::EClassId)
   # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
   # Analysis invariant maintenance
-  for an in g.analyses
+  for an in values(g.analyses)
     hasdata(ecdata, an) && modify!(an, g, id)
-    # modify!(an, id)
-    # id = find(g, id)
     for (p_enode, p_id) in ecdata.parents
       # p_eclass = find(g, p_eclass)
       p_eclass = g[p_id]
