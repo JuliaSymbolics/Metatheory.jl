@@ -243,7 +243,7 @@ Here's an example:
 # This is a cost function that behaves like `astsize` but increments the cost 
 # of nodes containing the `^` operation. This results in a tendency to avoid 
 # extraction of expressions containing '^'.
-function cost_function(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
+function cost_function(n::ENodeTerm, g::EGraph)
     cost = 1 + arity(n)
 
     operation(n) == :^ && (cost += 2)
@@ -251,14 +251,14 @@ function cost_function(n::ENodeTerm, g::EGraph, an::Type{<:AbstractAnalysis})
     for id in arguments(n)
         eclass = g[id]
         # if the child e-class has not yet been analyzed, return +Inf
-        !hasdata(eclass, an) && (cost += Inf; break)
-        cost += last(getdata(eclass, an))
+        !hasdata(eclass, cost_function) && (cost += Inf; break)
+        cost += last(getdata(eclass, cost_function))
     end
     return cost
 end
 
 # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
-cost_function(n::ENodeLiteral, g::EGraph, an::Type{<:AbstractAnalysis}) = 1
+cost_function(n::ENodeLiteral, g::EGraph) = 1
 ```
 
 ## EGraph Analyses
@@ -271,10 +271,10 @@ Theoretically, the domain should form a [join semilattice](https://en.wikipedia.
 Rewrites can cooperate with e-class analyses by depending on analysis facts and adding
 equivalences that in turn establish additional facts. 
 
-In Metatheory.jl, EGraph Analyses are identified by a *type* that is subtype of `AbstractAnalysis`.
+In Metatheory.jl, EGraph Analyses are identified by a unique name of type `Symbol`.
 An [`EGraph`](@ref) can only contain one analysis per type.
 The following functions define an interface for analyses based on multiple dispatch 
-on `AbstractAnalysis` types: 
+on `Val{analysis_name}` types: 
 * [islazy](@ref) should return true if the analysis should NOT be computed on-the-fly during egraphs operation, only when required.  
 * [make](@ref) should take an ENode and return a value from the analysis domain.
 * [join](@ref) should return the semilattice join of two values in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*)
@@ -292,14 +292,11 @@ the actual numeric result of the expressions in the EGraph, but we only care to 
 the symbolic expressions that will result in an even or an odd number.
 
 Defining an EGraph Analysis is similar to the process [Mathematical Induction](https://en.wikipedia.org/wiki/Mathematical_induction).
-To define a custom EGraph Analysis, one should start by defining a type that 
-subtypes `AbstractAnalysis` that will be used to identify this specific analysis and 
-to dispatch against the required methods.
+To define a custom EGraph Analysis, one should start by defining a name of type `Symbol` that will be used to identify this specific analysis and to dispatch against the required methods.
 
 ```julia
 using Metatheory
 using Metatheory.EGraphs
-abstract type OddEvenAnalysis <: AbstractAnalysis end
 ```
 
 The next step, the base case of induction, is to define a method for
@@ -308,7 +305,7 @@ associate an analysis value only to the *literals* contained in the EGraph. To d
 take advantage of multiple dispatch against `ENodeLiteral`.
 
 ```julia
-function EGraphs.make(an::Type{OddEvenAnalysis}, g::EGraph, n::ENodeLiteral)
+function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENodeLiteral)
     if n.value isa Integer
         return iseven(n.value) ? :even : :odd
     else 
@@ -336,7 +333,7 @@ From the definition of an [ENode](@ref), we know that children of ENodes are alw
 to EClasses in the EGraph.
 
 ```julia
-function EGraphs.make(an::Type{OddEvenAnalysis}, g::EGraph, n::ENodeTerm)
+function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENodeTerm)
     # Let's consider only binary function call terms.
     if exprhead(n) == :call && arity(n) == 2
         op = operation(n)
@@ -347,8 +344,8 @@ function EGraphs.make(an::Type{OddEvenAnalysis}, g::EGraph, n::ENodeTerm)
 
         # Get the corresponding OddEvenAnalysis value of the children
         # defaulting to nothing 
-        ldata = getdata(l, an, nothing)
-        rdata = getdata(r, an, nothing)
+        ldata = getdata(l, :OddEvenAnalysis, nothing)
+        rdata = getdata(r, :OddEvenAnalysis, nothing)
 
         if ldata isa Symbol && rdata isa Symbol
             if op == :*
@@ -375,7 +372,7 @@ how to extract a single value out of the many analyses values contained in an EG
 We do this by defining a method for [join](@ref).
 
 ```julia
-function EGraphs.join(an::Type{OddEvenAnalysis}, a, b)
+function EGraphs.join(::Val{:OddEvenAnalysis}, a, b)
     if a == b 
         return a 
     else
