@@ -33,7 +33,7 @@ function EGraphs.make(::Val{:numberfold}, g::EGraph, n::ENodeTerm)
   return nothing
 end
 
-function EGraphs.join(an::Type{NumberFold}, from, to)
+function EGraphs.join(an::Val{:numberfold}, from, to)
   if from isa Number
     if to isa Number
       @assert from == to
