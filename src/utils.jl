@@ -202,6 +202,7 @@ function timerewrite(f)
   x = f()
   being_timed[] = false
   print_timer()
+  println()
   x
 end
 
