@@ -223,4 +223,19 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
     return p.rw(x)
   end
 end
+
+function instrument_io(x)
+  function io_instrumenter(r)
+    function (args...)
+      println("Rule: ", r)
+      println("Input: ", args)
+      res = r(args...)
+      println("Output: ", res)
+      res
+    end
+  end
+
+  instrument(x, io_instrumenter)
+end
+
 end # end module
