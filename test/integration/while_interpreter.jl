@@ -131,7 +131,6 @@ end
 write_mem = @theory sym val σ begin
   (sym::Symbol = val, σ) => (σ[sym] = eval_arithm(val, σ);
   σ)
-  # (println("BEFORE $memory"); memory[sym] = eval_arithm(val, memory); println("AFTER $memory"); memory)
 end
 
 while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_rules;
