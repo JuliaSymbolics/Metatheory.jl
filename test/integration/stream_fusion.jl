@@ -61,7 +61,6 @@ function tryinlineanonymous(ex::Expr)
   f = operation(ex)
   (!(f isa Expr) || exprhead(f) !== :->) && return nothing
   arg = arguments(ex)[1]
-  println(arg)
   try
     return inlineanonymous(f, arg)
   catch e

@@ -213,17 +213,13 @@ function compile_pat(p)
 
   # The program will try to match against ground terms first
   prog = Program(Instruction[], 1, 1, fill(-1, nvars), Dict{AbstractPat,Register}())
-  # println("compiling pattern $p")
   compile_ground!(1, p, prog)
-  # println("compiled ground pattern \n $prog")
   prog.first_nonground = prog.memsize
   prog.memsize += 1
 
   # And then try to match against other patterns
   compile_pat!(prog.first_nonground, p, prog)
   push!(prog.instructions, Yield(prog.regs))
-  # println("compiled pattern $p to \n $prog")
-  # @show prog
   return prog
 end
 

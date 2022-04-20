@@ -390,7 +390,6 @@ insert the literal into the [`EGraph`](@ref).
 addexpr!(g::EGraph, se::EClass; keepmeta = false) = (se, se[1])
 
 function addexpr!(g::EGraph, se; keepmeta = false)::Tuple{EClass,AbstractENode}
-  # println("========== $e ===========")
   e = preprocess(se)
   node = nothing
 
@@ -486,7 +485,6 @@ function rebuild!(g::EGraph)
   # INVARIANTS ASSERTIONS
   # for (id, c) ∈  egraph.classes
   #     # ecdata.nodes = map(n -> canonicalize(egraph.uf, n), ecdata.nodes)
-  #     println(id, "=>", c.id)
   #     @assert(id == c.id)
   #     # for an ∈ egraph.analyses
   #     #     if haskey(an, id)
@@ -495,14 +493,10 @@ function rebuild!(g::EGraph)
   #     # end
 
   #     for n ∈ c
-  #         println(n)
-  #         println("canon = ", canonicalize(egraph, n))
   #         hr = egraph.memo[canonicalize(egraph, n)]
-  #         println(hr)
   #         @assert hr == find(egraph, id)
   #     end
   # end
-  # display(egraph.classes); println()
   # @show egraph.dirty
 
 end
