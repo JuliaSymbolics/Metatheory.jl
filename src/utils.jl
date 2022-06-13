@@ -151,6 +151,7 @@ macro matchable(expr)
     quote
         $expr
         TermInterface.istree(::$name) = true
+        TermInterface.istree(::Type{<:$name}) = true
         TermInterface.operation(::$name) = $name
         TermInterface.arguments(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
         TermInterface.arity(x::$name) = $(length(fields))
