@@ -86,7 +86,7 @@ Matcher pattern may contain slot variables with attached predicates, written as 
 - A function that takes a matched expression and returns a boolean value. Such a slot will be considered a match only if `p` returns true.
 - A Julia type. Will be considered a match if and only if the value matching against `x` has a type that is a subtype of `p` (`typeof(x) <: p`)
 
-Similarly `~x::g...` is a way of attaching a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more expressions and must return a boolean value. If the same slot or segment variable appears twice in the matcher pattern, then at most one of the occurance should have a predicate.
+Similarly `~x::g...` is a way of attaching a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more expressions and must return a boolean value. If the same slot or segment variable appears twice in the matcher pattern, then at most one of the occurrence should have a predicate.
 
 For example,
 
@@ -174,7 +174,7 @@ t = comm_monoid ∪ comm_group ∪ distrib
 ## Composing rewriters
 
 Rules may be *chained together* into more
-sophisticated rewirters to avoid manual application of the rules. A rewriter is
+sophisticated rewriters to avoid manual application of the rules. A rewriter is
 any callable object which takes an expression and returns an expression or
 `nothing`. If `nothing` is returned that means there was no changes applicable
 to the input expression. The Rules we created above are rewriters.
@@ -189,7 +189,7 @@ rewriters.
 - `RestartedChain(itr)` like `Chain(itr)` but restarts from the first rewriter once on the
    first successful application of one of the chained rewriters.
 - `IfElse(cond, rw1, rw2)` runs the `cond` function on the input, applies `rw1` if cond
-   returns true, `rw2` if it retuns false
+   returns true, `rw2` if it returns false
 - `If(cond, rw)` is the same as `IfElse(cond, rw, Empty())`
 - `Prewalk(rw; threaded=false, thread_cutoff=100)` returns a rewriter which does a pre-order 
    (*from top to bottom and from left to right*) traversal of a given expression and applies 
