@@ -86,8 +86,6 @@ struct Match
   id::EClassId
 end
 
-const MatchesBuf = Vector{Match}
-
 function cached_ids(g::EGraph, p::AbstractPat)# ::Vector{Int64}
   if isground(p)
     id = lookup_pat(g, p)
@@ -299,7 +297,7 @@ function eqsat_step!(
   theory::Vector{<:AbstractRule},
   curr_iter,
   scheduler::AbstractScheduler,
-  match_hist::MatchesBuf,
+  match_hist::Vector{Match},
   params::SaturationParams,
   report,
 )
@@ -333,7 +331,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   curr_iter = 0
 
   sched = params.scheduler(g, theory, params.schedulerparams...)
-  match_hist = MatchesBuf()
+  match_hist = Match[]
   report = Report(g)
 
   start_time = Dates.now().instant
