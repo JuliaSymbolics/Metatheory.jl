@@ -24,23 +24,26 @@ function makesegment(s::Expr, pvars)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
-  name = arguments(s)[1]
+  name, predicate = arguments(s)
   name ∉ pvars && push!(pvars, name)
-  return :($PatSegment($(QuoteNode(name)), -1, $(arguments(s)[2])))
+  return :($PatSegment($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
 end
+
 function makesegment(name::Symbol, pvars)
   name ∉ pvars && push!(pvars, name)
   PatSegment(name)
 end
+
 function makevar(s::Expr, pvars)
   if !(exprhead(s) == :(::))
     error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
   end
 
-  name = arguments(s)[1]
+  name, predicate = arguments(s)
   name ∉ pvars && push!(pvars, name)
-  return :($PatVar($(QuoteNode(name)), -1, $(arguments(s)[2])))
+  return :($PatVar($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
 end
+
 function makevar(name::Symbol, pvars)
   name ∉ pvars && push!(pvars, name)
   PatVar(name)
@@ -347,15 +350,19 @@ macro rule(args...)
   rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
 
   if RuleType == DynamicRule
-    rhs = rewrite_rhs(r)
-    rhs = makeconsequent(rhs)
+    rhs_rewritten = rewrite_rhs(r)
+    rhs_consequent = makeconsequent(rhs)
     params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
-    rhs = :($(esc(params)) -> $(esc(rhs)))
+    rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
+    return quote
+      $(__source__)
+      DynamicRule($(esc(lhs)), $rhs, $(QuoteNode(rhs_consequent)))
+    end
   end
 
-  return quote
+  quote
     $(__source__)
-    ($RuleType)($(QuoteNode(expr)), $(esc(lhs)), $rhs)
+    ($RuleType)($(esc(lhs)), $rhs)
   end
 end
 
@@ -438,8 +445,7 @@ macro capture(args...)
   quote
     $(__source__)
     lhs_pattern = $(esc(lhs_term))
-    __MATCHES__ =
-      DynamicRule($(QuoteNode(lhs)), lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars)($(esc(ex)))
+    __MATCHES__ = DynamicRule(lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars, nothing)($(esc(ex)))
     if __MATCHES__ !== nothing
       $bind
       true

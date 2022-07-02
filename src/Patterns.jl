@@ -46,13 +46,14 @@ mutable struct PatVar{P} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
+  predicate_code
 end
 function Base.isequal(a::PatVar, b::PatVar)
   # (a.name == b.name)
   a.idx == b.idx
 end
-PatVar(var) = PatVar(var, -1, alwaystrue)
-PatVar(var, i) = PatVar(var, i, alwaystrue)
+PatVar(var) = PatVar(var, -1, alwaystrue, nothing)
+PatVar(var, i) = PatVar(var, i, alwaystrue, nothing)
 
 """
 If you want to match a variable number of subexpressions at once, you will need
@@ -65,10 +66,11 @@ mutable struct PatSegment{P} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
+  predicate_code
 end
 
-PatSegment(v) = PatSegment(v, -1, alwaystrue)
-PatSegment(v, i) = PatSegment(v, i, alwaystrues)
+PatSegment(v) = PatSegment(v, -1, alwaystrue, nothing)
+PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
@@ -94,15 +96,6 @@ function TermInterface.similarterm(x::PatTerm, head, args, symtype = nothing; me
   PatTerm(exprhead, head, args, metadata)
 end
 
-# function Base.hash(t::PatTerm, salt::UInt)
-#     !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-#     h = t.hash[]
-#     !iszero(h) && return h
-#     h′ = hash(t.exprhead, hash(t.operation, hash(t.args, salt)))
-#     t.hash[] = h′
-#     return h′
-# end
-
 isground(p::PatTerm) = all(isground, p.args)
 
 
@@ -117,7 +110,6 @@ patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
 patvars(p::PatTerm, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
 patvars(x, s) = s
-
 patvars(p) = unique!(patvars(p, Symbol[]))
 
 
@@ -137,32 +129,15 @@ function setdebrujin!(p::PatTerm, pvars)
   foreach(x -> setdebrujin!(x, pvars), p.args)
 end
 
-#TODO ADD ORIGINAL CODE OF PREDICATE TO PATVAR ?
-function to_expr(x::PatVar)
-  if x.predicate == alwaystrue
-    Expr(:call, :~, x.name)
-  else
-    Expr(:call, :~, Expr(:(::), x.name, x.predicate))
-  end
-end
 
-to_expr(x::Any) = x
-
-function to_expr(x::PatSegment)
-  Expr(:..., x.predicate == alwaystrue ? Expr(:call, :~, x.name) : Expr(:call, :~, Expr(:(::), x.name, x.predicate)))
-end
-
+to_expr(x) = x
+to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate_code))
+to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
+to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
+to_expr(x::PatTerm) = similarterm(Expr(:call, :x), operation(x), map(to_expr, arguments(x)); exprhead = exprhead(x))
 
-to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, nameof(T))))
-
-to_expr(x::PatSegment{<:Type{T}}) where {T} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, T)))
-
-function to_expr(x::PatTerm)
-  pl = operation(x)
-  similarterm(Expr(:call, :x), pl, map(to_expr, arguments(x)); exprhead = exprhead(x))
-end
-
+Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 
 
 # include("rules/patterns.jl")
