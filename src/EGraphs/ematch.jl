@@ -5,29 +5,22 @@
 
 struct Sub
   # sourcenode::Union{Nothing, AbstractENode}
-  ids::Vector{EClassId}
-  nodes::Vector{Union{Nothing,ENodeLiteral}}
+  ids::NTuple{N,EClassId} where {N}
+  nodes::NTuple{N,Union{Nothing,ENodeLiteral}} where {N}
 end
 
 haseclassid(sub::Sub, p::PatVar) = sub.ids[p.idx] >= 0
 geteclassid(sub::Sub, p::PatVar) = sub.ids[p.idx]
 
-hasliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx] !== nothing
+hasliteral(sub::Sub, p::PatVar) = !isnothing(sub.nodes[p.idx])
 getliteral(sub::Sub, p::PatVar) = sub.nodes[p.idx]
 
 ## ====================== Instantiation =======================
 
 function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule; kws...)
-  if haseclassid(sub, pat)
-    ec = g[geteclassid(sub, pat)]
-    if hasliteral(sub, pat)
-      node = getliteral(sub, pat)
-      return node.value
-    end
-    return ec
-  else
-    error("unbound pattern variable $pat in rule $rule")
-  end
+  hasliteral(sub, pat) && return getliteral(sub, pat).value
+  !haseclassid(sub, pat) && error("unbound pattern variable $pat in rule $rule")
+  g[geteclassid(sub, pat)]
 end
 
 instantiate(g::EGraph, pat::Any, sub::Sub, rule::AbstractRule; kws...) = pat
@@ -98,9 +91,8 @@ end
 
 function (m::Machine)(instr::Yield, pc)
   # sourcenode = m.n[m.program.first_nonground]
-  ecs = [m.σ[reg] for reg in instr.yields]
-  nodes = [m.n[reg] for reg in instr.yields]
-  # push!(m.buf, Sub(sourcenode, ecs, nodes))
+  ecs = ntuple(i -> m.σ[instr.yields[i]], length(instr.yields))
+  nodes = ntuple(i -> m.n[instr.yields[i]], length(instr.yields))
   push!(m.buf, Sub(ecs, nodes))
 
   return nothing
@@ -177,15 +169,8 @@ function lookup_pat(g::EGraph, p::PatTerm)
 
   T = gettermtype(g, op, ar)
 
-  ids = [lookup_pat(g, pp) for pp in args]
-  if all(i -> i isa EClassId, ids)
-    # println(ids)
-    n = ENodeTerm{T}(eh, op, ids)
-    ec = lookup(g, n)
-    return ec
-  else
-    return nothing
-  end
+  ids = ntuple(i -> lookup_pat(g, args[i]), ar)
+  all(i -> i > 0, ids) ? lookup(g, ENodeTerm{T}(eh, op, ids)) : -1
 end
 
 lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
@@ -193,7 +178,7 @@ lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))
 
 function (m::Machine)(instr::Lookup, pc)
   ecid = lookup_pat(m.g, instr.p)
-  if ecid isa EClassId
+  if ecid > 0
     # println("found $(instr.p) in $ecid")
     m.σ[instr.reg] = ecid
     next(m, pc)
