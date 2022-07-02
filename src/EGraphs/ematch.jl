@@ -101,7 +101,6 @@ end
 function (m::Machine)(instr::CheckClassEq, pc)
   l = m.σ[instr.left]
   r = m.σ[instr.right]
-  # println("checking eq $l == $r")
   if l == r
     next(m, pc)
   end
@@ -159,7 +158,6 @@ end
 # Thanks to Max Willsey and Yihong Zhang
 
 function lookup_pat(g::EGraph, p::PatTerm)
-  # println("looking up $p")
   @assert isground(p)
 
   eh = exprhead(p)

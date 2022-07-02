@@ -10,7 +10,7 @@ A pre-requisite for using Metatheory.jl is to know at least a little about Julia
 
 ## Learning Metatheory.jl
 
-Our [main documentaion](https://github.com/JuliaSymbolics/Metatheory.jl/) provides an overview and some examples of using Metatheory.jl.
+Our [main documentation](https://github.com/JuliaSymbolics/Metatheory.jl/) provides an overview and some examples of using Metatheory.jl.
 The core package is hosted at [Metatheory.jl](https://github.com/JuliaSymbolics/Metatheory.jl/).
 
 ## Before filing an issue

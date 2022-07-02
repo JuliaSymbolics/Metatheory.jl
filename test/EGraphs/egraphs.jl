@@ -27,25 +27,11 @@ end
 
   t1, _ = addexpr!(G, :b)
   t2, _ = addexpr!(G, :c)
-  display(G.classes)
-  println()
 
   c_id = merge!(G, t2.id, t1.id)
-  # display(G.classes); println()
   @test in_same_set(G.uf, c_id, t1.id)
   @test in_same_set(G.uf, t2.id, t1.id)
-  # println(find_root!(G.uf, t2.id))
-  # @test find_root(G.uf, t2.id) == 4
   rebuild!(G)
-  # f(a,b) = f(a,c)
-  # display(G.classes); println()
-  # display(G.memo); println()
-
-  # for (id, ec) ∈ G.classes
-  #     println(id)
-  #     dump.(ec.nodes)
-  # end
-
   @test in_same_set(G.uf, ec1.id, ec2.id)
 end
 
@@ -62,11 +48,9 @@ end
   c_id = merge!(G, t1.id, EClassId(1)) # a == apply(6,f,a)
   c2_id = merge!(G, t2.id, EClassId(1)) # a == apply(9,f,a)
 
-  # display(G.classes); println()
 
   rebuild!(G)
 
-  # display(G.classes); println()
 
   t3, _ = addexpr!(G, apply(3, f, :a))
   t4, _ = addexpr!(G, apply(7, f, :a))

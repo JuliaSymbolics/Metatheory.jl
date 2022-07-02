@@ -33,8 +33,7 @@ function EGraphs.make(::Val{:numberfold}, g::EGraph, n::ENodeTerm)
   return nothing
 end
 
-function EGraphs.join(::Val{:numberfold}, from, to)
-  # println("joining!")
+function EGraphs.join(an::Val{:numberfold}, from, to)
   if from isa Number
     if to isa Number
       @assert from == to
@@ -79,9 +78,6 @@ end
   G = EGraph(ex)
   analyze!(G, :numberfold)
   addexpr!(G, :(12 * a))
-  println(saturate!(G, comm_monoid))
-  display(G.classes)
-  println()
   @test (true == @areequalg G comm_monoid (12 * a) * b ((6 * 2) * b) * a)
   @test (true == @areequalg G comm_monoid (3 * a) * (4 * b) (12 * a) * b ((6 * 2) * b) * a)
 end
@@ -93,10 +89,6 @@ end
   addexpr!(G, :(a * 2))
   analyze!(G, :numberfold)
   saturate!(G, comm_monoid)
-
-  # display(G.classes); println()
-  # println(G.root)
-  # display(G.analyses[1].data); println()
 
   @test (true == areequal(G, comm_monoid, :(3 * 4), 12, :(4 * 3), :(6 * 2)))
 
@@ -118,7 +110,6 @@ end
   saturate!(G, boson, params)
   ex = extract!(G, astsize)
 
-  # println(ex)
 
   boson = @theory begin
     (:c * :cdag) --> :cdag * :c + 1
@@ -133,7 +124,6 @@ end
   saturate!(g, boson)
   ex = extract!(g, astsize_inv)
 
-  # println(ex)
 end
 
 @testset "Extraction" begin
@@ -156,7 +146,6 @@ end
     params = SaturationParams(timeout = 15)
     saturate!(G, t, params)
     extr = extract!(G, astsize)
-    println(extr)
     @test extr == :((12 * a) * b) ||
           extr == :(12 * (a * b)) ||
           extr == :(a * (b * 12)) ||
@@ -261,7 +250,6 @@ end
     G = EGraph(:(log(e) * log(e)))
     params = SaturationParams(timeout = 8)
     saturate!(G, t, params)
-    # display(G.classes);println()
     @test extract!(G, astsize) == 1
 
     G = EGraph(:(log(e) * (log(e) * e^(log(3)))))
