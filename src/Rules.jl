@@ -51,7 +51,6 @@ variables.
 ```
 """
 @auto_hash_equals struct RewriteRule <: SymbolicRule
-  expr # rule pattern stored for pretty printing
   left
   right
   matcher
@@ -62,19 +61,14 @@ end
 Base.isequal(a::RewriteRule, b::RewriteRule) = (a.left == b.left) && (a.right == b.right)
 
 function RewriteRule(l, r)
-  ex = :($(to_expr(l)) --> $(to_expr(r)))
-  RewriteRule(ex, l, r)
-end
-
-function RewriteRule(ex, l, r)
   pvars = patvars(l) ∪ patvars(r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  RewriteRule(ex, l, r, matcher(l), pvars, compile_pat(l))
+  RewriteRule(l, r, matcher(l), pvars, compile_pat(l))
 end
 
-Base.show(io::IO, r::RewriteRule) = print(io, r.expr)
+Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
 
 
 function (r::RewriteRule)(term)
@@ -102,7 +96,6 @@ with the EGraphs backend.
 ```
 """
 @auto_hash_equals struct EqualityRule <: BidirRule
-  expr # rule pattern stored for pretty printing
   left
   right
   patvars::Vector{Symbol}
@@ -110,7 +103,7 @@ with the EGraphs backend.
   ematch_program_r::Program
 end
 
-function EqualityRule(ex, l, r)
+function EqualityRule(l, r)
   pvars = patvars(l) ∪ patvars(r)
   extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
   if !isempty(extravars)
@@ -120,15 +113,11 @@ function EqualityRule(ex, l, r)
   setdebrujin!(r, pvars)
   progl = compile_pat(l)
   progr = compile_pat(r)
-  EqualityRule(ex, l, r, pvars, progl, progr)
+  EqualityRule(l, r, pvars, progl, progr)
 end
 
-function EqualityRule(l, r)
-  ex = :($(to_expr(l)) --> $(to_expr(r)))
-  EqualityRule(ex, l, r)
-end
 
-Base.show(io::IO, r::EqualityRule) = print(io, r.expr)
+Base.show(io::IO, r::EqualityRule) = print(io, :($(r.left) == $(r.right)))
 
 function (r::EqualityRule)(x)
   throw(RuleRewriteError(r, x))
@@ -150,7 +139,6 @@ backend. If two terms, corresponding to the left and right hand side of an
 
 """
 @auto_hash_equals struct UnequalRule <: BidirRule
-  expr # rule pattern stored for pretty printing
   left
   right
   patvars::Vector{Symbol}
@@ -158,13 +146,7 @@ backend. If two terms, corresponding to the left and right hand side of an
   ematch_program_r::Program
 end
 
-
 function UnequalRule(l, r)
-  ex = :($(to_expr(l)) --> $(to_expr(r)))
-  UnequalRule(ex, l, r)
-end
-
-function UnequalRule(ex, l, r)
   pvars = patvars(l) ∪ patvars(r)
   extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
   if !isempty(extravars)
@@ -175,10 +157,10 @@ function UnequalRule(ex, l, r)
   setdebrujin!(r, pvars)
   progl = compile_pat(l)
   progr = compile_pat(r)
-  UnequalRule(ex, l, r, pvars, progl, progr)
+  UnequalRule(l, r, pvars, progl, progr)
 end
 
-Base.show(io::IO, r::UnequalRule) = print(io, r.expr)
+Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
 
 # ============================================================
 # DynamicRule
@@ -198,28 +180,24 @@ Dynamic rule
 ```
 """
 @auto_hash_equals struct DynamicRule <: AbstractRule
-  expr # rule pattern stored for pretty printing
   left
   rhs_fun::Function
+  rhs_code
   matcher
   patvars::Vector{Symbol} # useful set of pattern variables
   ematch_program::Program
 end
 
-function DynamicRule(l, r)
-  ex = :($(to_expr(l)) => $(to_expr(r)))
-  DynamicRule(ex, l, r)
-end
-
-function DynamicRule(ex, l, r::Function)
+function DynamicRule(l, r::Function, rhs_code = nothing)
   pvars = patvars(l)
   setdebrujin!(l, pvars)
+  isnothing(rhs_code) && (rhs_code = repr(rhs_code))
 
-  DynamicRule(ex, l, r, matcher(l), pvars, compile_pat(l))
+  DynamicRule(l, r, rhs_code, matcher(l), pvars, compile_pat(l))
 end
 
 
-Base.show(io::IO, r::DynamicRule) = print(io, r.expr)
+Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_code)))
 
 function (r::DynamicRule)(term)
   # n == 1 means that exactly one term of the input (term,) was matched

@@ -85,8 +85,6 @@ struct Match
   id::EClassId
 end
 
-const MatchesBuf = Vector{Match}
-
 function cached_ids(g::EGraph, p::AbstractPat)# ::Vector{Int64}
   if isground(p)
     id = lookup_pat(g, p)
@@ -235,7 +233,7 @@ end
 
 function (rule::DynamicRule)(g::EGraph, match::Match)
   f = rule.rhs_fun
-  actual_params = [instantiate(g, PatVar(v, i, alwaystrue), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
+  actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
   r = f(g[match.id], match.sub, g, actual_params...)
   isnothing(r) && return nothing
   rc, node = addexpr!(g, r)
@@ -283,7 +281,7 @@ function eqsat_step!(
   theory::Vector{<:AbstractRule},
   curr_iter,
   scheduler::AbstractScheduler,
-  match_hist::MatchesBuf,
+  match_hist::Vector{Match},
   params::SaturationParams,
   report,
 )
@@ -317,7 +315,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   curr_iter = 0
 
   sched = params.scheduler(g, theory, params.schedulerparams...)
-  match_hist = MatchesBuf()
+  match_hist = Match[]
   report = Report(g)
 
   start_time = Dates.now().instant

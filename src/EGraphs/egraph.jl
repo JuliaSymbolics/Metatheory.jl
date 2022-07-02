@@ -19,8 +19,12 @@ end
 mutable struct ENodeTerm{T} <: AbstractENode{T}
   exprhead::Union{Symbol,Nothing}
   operation::Any
-  args::Vector{EClassId}
+  args::NTuple{N,EClassId} where {N}
   hash::Ref{UInt} # hash cache
+end
+
+function ENodeTerm{T}(exprhead, operation, c_ids) where {T}
+  ENodeTerm{T}(exprhead, operation, c_ids, Ref{UInt}(0))
 end
 
 # parametrize metadata by M
@@ -30,16 +34,9 @@ mutable struct EClass
   nodes::Vector{AbstractENode}
   parents::Vector{Pair{AbstractENode,EClassId}}
   data::AnalysisData
-  # data::M
 end
 
 const ClassMem = Dict{EClassId,EClass}
-
-
-function ENodeTerm{T}(exprhead, operation, c_ids) where {T}
-  ENodeTerm{T}(exprhead, operation, c_ids, Ref{UInt}(0))
-end
-
 
 function Base.isequal(a::ENodeTerm, b::ENodeTerm)
   isequal(a.args, b.args) && isequal(a.exprhead, b.exprhead) && isequal(a.operation, b.operation)
@@ -64,13 +61,12 @@ function Base.hash(t::ENodeTerm{T}, salt::UInt) where {T}
   return h′
 end
 
-
 function toexpr(n::ENodeTerm)
-  eh = exprhead(n)
-  if isnothing(eh)
-    return operation(n) # n is a constant enode
-  end
-  similarterm(Expr(:call, :_), operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead = exprhead(n))
+  similarterm(Expr(:call, :_), operation(n), map(i -> Symbol(i, "ₑ"), collect(arguments(n))); exprhead = exprhead(n))
+end
+
+function Base.show(io::IO, x::ENodeTerm{T}) where {T}
+  print(io, "ENode{$T}(", toexpr(x), ")")
 end
 
 
@@ -97,14 +93,9 @@ function Base.hash(t::ENodeLiteral{T}, salt::UInt) where {T}
   return h′
 end
 
-
 termtype(x::AbstractENode{T}) where {T} = T
 
 toexpr(n::ENodeLiteral) = operation(n)
-
-function Base.show(io::IO, x::ENodeTerm{T}) where {T}
-  print(io, "ENode{$T}(", toexpr(x), ")")
-end
 
 Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
 
@@ -137,7 +128,7 @@ end
 function Base.union!(to::EClass, from::EClass)
   append!(to.nodes, from.nodes)
   append!(to.parents, from.parents)
-  if to.data !== nothing && from.data !== nothing
+  if !isnothing(to.data) && !isnothing(from.data)
     # merge!(to.data, from.data)
     to.data = join_analysis_data!(to.g, to.data, from.data)
   elseif to.data === nothing
@@ -278,22 +269,10 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-# function find(g::EGraph, a::EClassId)::EClassId
-#     find_root_if_normal(g.uf, a)
-# end
-function find(g::EGraph, a::EClassId)::EClassId
-  find_root(g.uf, a)
-end
+find(g::EGraph, a::EClassId)::EClassId = find_root(g.uf, a)
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
-function Base.getindex(g::EGraph, i::EClassId)
-  id = find(g, i)
-  ec = g.classes[id]
-  # @show ec.id id a
-  # @assert ec.id == id
-  # ec.id = id
-  ec
-end
+Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)
@@ -304,17 +283,14 @@ canonicalize(g::EGraph, n::ENodeLiteral) = n
 
 function canonicalize(g::EGraph, n::ENodeTerm{T}) where {T}
   if arity(n) > 0
-    new_args = map(x -> find(g, x), arguments(n))
+    new_args = ntuple(i -> find(g, n.args[i]), length(n.args))
     return ENodeTerm{T}(exprhead(n), operation(n), new_args)
   end
   return n
 end
 
 function canonicalize!(g::EGraph, n::ENodeTerm)
-  args = arguments(n)
-  for i in 1:arity(n)
-    args[i] = find(g, args[i])
-  end
+  n.args = ntuple(i -> find(g, n.args[i]), length(n.args))
   n.hash[] = UInt(0)
   return n
 end
@@ -326,12 +302,9 @@ function canonicalize!(g::EGraph, e::EClass)
   e.id = find(g, e.id)
 end
 
-function lookup(g::EGraph, n::AbstractENode)
+function lookup(g::EGraph, n::AbstractENode)::EClassId
   cc = canonicalize(g, n)
-  if !haskey(g.memo, cc)
-    return nothing
-  end
-  return find(g, g.memo[cc])
+  haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
 end
 
 """
@@ -341,11 +314,7 @@ function add!(g::EGraph, n::AbstractENode)::EClass
   @debug("adding ", n)
 
   n = canonicalize(g, n)
-  if haskey(g.memo, n)
-    eclass = g[g.memo[n]]
-    return eclass
-  end
-  @debug(n, " not found in memo")
+  haskey(g.memo, n) && return g[g.memo[n]]
 
   id = push!(g.uf) # create new singleton eclass
 
@@ -394,15 +363,9 @@ function addexpr!(g::EGraph, se; keepmeta = false)::Tuple{EClass,AbstractENode}
   node = nothing
 
   if istree(se)
-    exhead = exprhead(e)
-    op = operation(e)
     args = arguments(e)
-
-    n = length(args)
-
-    class_ids = EClassId[first(addexpr!(g, child; keepmeta = keepmeta)).id for child in args]
-
-    node = ENodeTerm{typeof(e)}(exhead, op, class_ids)
+    class_ids = ntuple(i -> first(addexpr!(g, args[i]; keepmeta = keepmeta)).id, length(args))
+    node = ENodeTerm{typeof(e)}(exprhead(e), operation(e), class_ids)
   else
     # constant enode
     node = ENodeLiteral(e)
@@ -478,27 +441,6 @@ function rebuild!(g::EGraph)
   end
 
   normalize!(g.uf)
-
-  # for i ∈ 1:length(egraph.uf)
-  #     find_root!(egraph.uf, i)
-  # end
-  # INVARIANTS ASSERTIONS
-  # for (id, c) ∈  egraph.classes
-  #     # ecdata.nodes = map(n -> canonicalize(egraph.uf, n), ecdata.nodes)
-  #     @assert(id == c.id)
-  #     # for an ∈ egraph.analyses
-  #     #     if haskey(an, id)
-  #     #         @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
-  #     #     end
-  #     # end
-
-  #     for n ∈ c
-  #         hr = egraph.memo[canonicalize(egraph, n)]
-  #         @assert hr == find(egraph, id)
-  #     end
-  # end
-  # @show egraph.dirty
-
 end
 
 function repair!(g::EGraph, id::EClassId)

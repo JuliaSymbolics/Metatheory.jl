@@ -143,17 +143,16 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
     (sym, _) = cse_env[id]
     return sym
   end
-  anval = getdata(eclass, costfun, (nothing, Inf))
-  (n, ck) = anval
+  (n, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Infinite cost when extracting enode")
 
   if n isa ENodeLiteral
     return n.value
   elseif n isa ENodeTerm
-    children = map(child -> rec_extract(g, costfun, child; cse_env = cse_env), arguments(n))
+    children = ntuple(i -> rec_extract(g, costfun, n.args[i]; cse_env = cse_env), length(n.args))
     meta = getdata(eclass, :metadata_analysis, nothing)
     T = termtype(n)
-    egraph_reconstruct_expression(T, operation(n), children; metadata = meta, exprhead = exprhead(n))
+    egraph_reconstruct_expression(T, operation(n), collect(children); metadata = meta, exprhead = exprhead(n))
   else
     error("Unknown ENode Type $(typeof(cn))")
   end
@@ -189,8 +188,7 @@ end
 # Builds a dict e-class id => (symbol, extracted term) of common subexpressions in an e-graph
 function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
   eclass = g[id]
-  anval = getdata(eclass, costfun, (nothing, Inf))
-  (cn, ck) = anval
+  (cn, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Error when computing CSE")
   if cn isa ENodeTerm
     if id in seen
