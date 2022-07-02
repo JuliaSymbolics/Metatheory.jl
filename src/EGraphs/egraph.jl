@@ -34,7 +34,6 @@ mutable struct EClass
   nodes::Vector{AbstractENode}
   parents::Vector{Pair{AbstractENode,EClassId}}
   data::AnalysisData
-  # data::M
 end
 
 const ClassMem = Dict{EClassId,EClass}
@@ -62,13 +61,12 @@ function Base.hash(t::ENodeTerm{T}, salt::UInt) where {T}
   return h′
 end
 
-
 function toexpr(n::ENodeTerm)
-  eh = exprhead(n)
-  if isnothing(eh)
-    return operation(n) # n is a constant enode
-  end
   similarterm(Expr(:call, :_), operation(n), map(i -> Symbol(i, "ₑ"), collect(arguments(n))); exprhead = exprhead(n))
+end
+
+function Base.show(io::IO, x::ENodeTerm{T}) where {T}
+  print(io, "ENode{$T}(", toexpr(x), ")")
 end
 
 
@@ -95,14 +93,9 @@ function Base.hash(t::ENodeLiteral{T}, salt::UInt) where {T}
   return h′
 end
 
-
 termtype(x::AbstractENode{T}) where {T} = T
 
 toexpr(n::ENodeLiteral) = operation(n)
-
-function Base.show(io::IO, x::ENodeTerm{T}) where {T}
-  print(io, "ENode{$T}(", toexpr(x), ")")
-end
 
 Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
 
@@ -276,22 +269,10 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-# function find(g::EGraph, a::EClassId)::EClassId
-#     find_root_if_normal(g.uf, a)
-# end
-function find(g::EGraph, a::EClassId)::EClassId
-  find_root(g.uf, a)
-end
+find(g::EGraph, a::EClassId)::EClassId = find_root(g.uf, a)
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
-function Base.getindex(g::EGraph, i::EClassId)
-  id = find(g, i)
-  ec = g.classes[id]
-  # @show ec.id id a
-  # @assert ec.id == id
-  # ec.id = id
-  ec
-end
+Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)

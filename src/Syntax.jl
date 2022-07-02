@@ -77,11 +77,7 @@ end
 makeconsequent(x) = x
 # treat as a literal
 function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
-  if splat
-    x in slots ? makesegment(x, pvars) : x
-  else
-    x in slots ? makevar(x, pvars) : x
-  end
+  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : x
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
@@ -154,12 +150,10 @@ The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : n
 """
 function rewrite_rhs(ex::Expr)
   if exprhead(ex) == :where
-    args = arguments(ex)
-    rhs = args[1]
-    predicate = args[2]
-    ex = :($predicate ? $rhs : nothing)
+    rhs, predicate = arguments(ex)
+    return :($predicate ? $rhs : nothing)
   end
-  return ex
+  ex
 end
 rewrite_rhs(x) = x
 
