@@ -121,15 +121,12 @@ cansaturate(s::BackoffScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned
 
 
 function inform!(s::BackoffScheduler, rule::AbstractRule, n_matches)
-  # println(s.data[rule])
-
   rd = s.data[rule]
   treshold = rd.match_limit << rd.times_banned
   if n_matches > treshold
     ban_length = rd.ban_length << rd.times_banned
     rd.times_banned += 1
     rd.banned_until = s.curr_iter + ban_length
-    # @info "banning rule $rule until $(rd.banned_until)!"
     return false
   end
   return true
@@ -217,7 +214,6 @@ function ScoredScheduler(
 
     cl = complexity(l)
     cr = complexity(r)
-    # println("$rule HAS SCORE $((cl, cr))")
     if cl > cr
       w = 1   # reduces complexity
     elseif cr > cl
@@ -225,7 +221,6 @@ function ScoredScheduler(
     else
       w = 2   # complexity is equal
     end
-    # println(w)
     data[rule] = ScoredSchedulerEntry(match_limit, ban_length, 0, 0, w)
   end
 
@@ -237,8 +232,6 @@ cansaturate(s::ScoredScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_
 
 
 function inform!(s::ScoredScheduler, rule::AbstractRule, n_matches)
-  # println(s.data[rule])
-
   rd = s.data[rule]
   treshold = rd.match_limit * (rd.weight^rd.times_banned)
   if n_matches > treshold

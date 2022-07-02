@@ -378,7 +378,6 @@ insert the literal into the [`EGraph`](@ref).
 addexpr!(g::EGraph, se::EClass; keepmeta = false) = (se, se[1])
 
 function addexpr!(g::EGraph, se; keepmeta = false)::Tuple{EClass,AbstractENode}
-  # println("========== $e ===========")
   e = preprocess(se)
   node = nothing
 
@@ -461,9 +460,6 @@ function rebuild!(g::EGraph)
   end
 
   normalize!(g.uf)
-
-
-
 end
 
 function repair!(g::EGraph, id::EClassId)
