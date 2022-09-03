@@ -157,7 +157,7 @@ function rec_extract(g::EGraph, an, id::EClassId; simterm=similarterm, cse_env=n
         T = termtype(n)
         simterm(T, operation(n), children; metadata=meta, exprhead=exprhead(n));
     else 
-        error("Unknown ENode Type $(typeof(cn))")
+        error("Unknown ENode Type $(typeof(n))")
     end
 end
 
