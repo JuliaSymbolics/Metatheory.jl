@@ -81,9 +81,6 @@ end
 isliteral(::Type{T}) where {T} = x -> x isa T
 is_literal_number(x) = isliteral(Number)(x)
 
-issortedₑ(args) = issorted(args, lt=<ₑ)
-needs_sorting(f) = x -> is_operation(f)(x) && !issortedₑ(arguments(x))
-
 # are there nested ⋆ terms?
 function isnotflat(⋆)
     function (x)
