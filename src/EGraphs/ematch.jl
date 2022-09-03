@@ -21,7 +21,7 @@ function instantiate(g::EGraph, pat::PatVar, sub::Sub, rule::AbstractRule; kws..
     if haseclassid(sub, pat)
         ec = g[geteclassid(sub, pat)]
         if hasliteral(sub, pat) 
-            node = getliteral(sub, pat)
+            node = something(getliteral(sub, pat))
             return node.value
         end 
         return ec
