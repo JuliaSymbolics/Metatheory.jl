@@ -140,7 +140,7 @@ function Base.show(io::IO, a::EClass)
         return
     end
     print(io, ", analysis = {")
-    for (k, v) ∈ a.data
+    for (k, v) ∈ something(a.data)
         print(io, "$k => $v, ")
     end
     print(io, "})")
@@ -156,7 +156,7 @@ function Base.union!(to::EClass, from::EClass)
     if to.data !== nothing && from.data !== nothing
         # merge!(to.data, from.data)
         # to.data = join_analysis_data(to.data, from.data)
-        to.data = join_analysis_data(to.data, from.data)
+        to.data = join_analysis_data(something(to.data), something(from.data))
     elseif to.data === nothing
         to.data = from.data
     end
@@ -195,7 +195,7 @@ function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value)
     # lazy allocation
     a.data === nothing && (a.data = AnalysisData())
     # a.data[x] = value
-    a.data = AnalysisData(a.data, x, value)
+    a.data = AnalysisData(something(a.data), x, value)
 end
 
 function funs(a::EClass)
