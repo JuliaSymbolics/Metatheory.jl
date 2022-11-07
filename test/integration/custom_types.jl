@@ -42,8 +42,8 @@ function EGraphs.egraph_reconstruct_expression(T::Type{MyExpr}, op, args; metada
 end
 
 
-function f end 
-function h end 
+function f end
+function h end
 function z end
 
 # let's create an example theory
@@ -68,8 +68,7 @@ saturate!(g, t)
 
 # TODO test metadata
 
-expected =
-  MyExpr(f, [MyExpr(h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+expected = MyExpr(f, [MyExpr(h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 
 extracted = extract!(g, astsize)
 

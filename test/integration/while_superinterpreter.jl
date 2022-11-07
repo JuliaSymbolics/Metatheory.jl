@@ -43,11 +43,11 @@ bool_rules = @theory a b σ begin
   (a && b, σ::Mem) --> (a, σ) && (b, σ)
   (!(a), σ::Mem) --> !((a, σ))
 
-  (a::Bool, σ::Mem)   => a
-  (!a::Bool)          => !a
+  (a::Bool, σ::Mem) => a
+  (!a::Bool) => !a
   (a::Bool || b::Bool) => (a || b)
   (a::Bool && b::Bool) => (a && b)
-  (a::Int < b::Int)   => (a < b)
+  (a::Int < b::Int) => (a < b)
 end
 
 t = read_mem ∪ arithm_rules ∪ bool_rules

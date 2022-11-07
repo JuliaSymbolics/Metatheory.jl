@@ -166,11 +166,11 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
   ar = arity(p)
 
   T = gettermtype(g, op, ar)
-  
+
   ids = ntuple(i -> lookup_pat(g, args[i]), ar)
   !all(i -> i > 0, ids) && return -1
 
-  id = lookup(g, ENodeTerm{T}(eh, op, ids)) 
+  id = lookup(g, ENodeTerm{T}(eh, op, ids))
   if id < 0 && op isa Union{Function,DataType}
     return lookup(g, ENodeTerm{T}(eh, nameof(op), ids))
   end
@@ -207,8 +207,8 @@ function (m::Machine)(instr::Bind, pc)
   end
   return nothing
 end
-checkop(x::Union{Function,DataType},op) = isequal(x, op) || isequal(nameof(x), op)
-checkop(x,op)= isequal(x, op)
+checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
+checkop(x, op) = isequal(x, op)
 
 function canbind(n::ENodeTerm, pat::ENodePat)
   exprhead(n) == exprhead(pat) && checkop(operation(pat), operation(n)) && arity(n) == arity(pat)
