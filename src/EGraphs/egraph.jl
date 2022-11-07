@@ -485,10 +485,12 @@ function repair!(g::EGraph, id::EClassId)
       if hasdata(p_eclass, an)
         p_data = getdata(p_eclass, an)
 
-        new_data = join(an, p_data, make(an, g, p_enode))
-        if new_data != p_data
-          setdata!(p_eclass, an, new_data)
-          push!(g.dirty, p_id)
+        if an !== :metadata_analysis
+          new_data = join(an, p_data, make(an, g, p_enode))
+          if new_data != p_data
+            setdata!(p_eclass, an, new_data)
+            push!(g.dirty, p_id)
+          end
         end
       end
     end
@@ -541,3 +543,4 @@ This function must be extended by the user to add new types of expressions that 
 function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothing, exprhead = :call)
   similarterm(Expr(:call, :_), op, args; metadata = metadata, exprhead = exprhead)
 end
+

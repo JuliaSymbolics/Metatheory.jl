@@ -14,24 +14,11 @@ using Metatheory
 end
 
 
-import Base.(+)
-@testset "Extending Algebra Operators" begin
-  t = @theory begin
-    ~a + ~a --> 2(~a)
-  end
-
-  # Let's extend an operator from base, for sake of example
-  function +(x::Symbol, y)
-    rewrite(:($x + $y), t)
-  end
-
-  @test (:x + :x) == :(2x)
-end
-
 ## Free Monoid
 
 @testset "Free Monoid - Overriding identity" begin
   # support symbol literals
+  function ⋅ end
   symbol_monoid = @theory begin
     ~a ⋅ :ε --> ~a
     :ε ⋅ ~a --> ~a
@@ -47,6 +34,9 @@ end
 
 
 @testset "Calculator" begin
+  function ⊗ end 
+  function ⊕ end
+  function ⊖ end
   calculator = @theory begin
     ~x::Number ⊕ ~y::Number => ~x + ~y
     ~x::Number ⊗ ~y::Number => ~x * ~y
@@ -121,6 +111,8 @@ end
 end
 
 @testset "Segment Variables" begin
+  function f end
+  function ok end
   t = @theory begin
     f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
   end
@@ -143,6 +135,7 @@ end
 
 module NonCall
 using Metatheory
+function ok end
 t = [@rule a b (a, b) --> ok(a, b)]
 
 test() = rewrite(:(x, y), t)

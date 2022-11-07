@@ -1,21 +1,21 @@
 using Metatheory
 
+struct Σ end
+
 taylor = @theory x a b begin
   exp(x) --> Σ(x^:n / factorial(big(:n)))
   cos(x) --> Σ((-1)^:n * x^2(:n) / factorial(big(2 * :n)))
   Σ(a) + Σ(b) --> Σ(a + b)
 end
 
-function expand(iters)
-  RewriteRule(
-    PatTerm(:call, :Σ, [PatVar(:a)], @__MODULE__),
-    PatTerm(:call, :sum, [PatTerm(:(->), :(->), [:n, PatVar(:a)], @__MODULE__), 0:iters], @__MODULE__),
-  )
+macro expand(iters)
+  quote @rule a Σ(a) --> sum((:n -> a), $(0:iters)) end
 end
 
 a = rewrite(:(exp(x) + cos(x)), taylor)
 
-r = expand(5000)
+r = @expand(5000)
+# r = expand(5000)
 bexpr = rewrite(a, [r])
 
 # you may want to do algebraic simplification

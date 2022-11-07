@@ -39,25 +39,25 @@ end
 
 # don't need to access memory
 bool_rules = @theory a b σ begin
-  (a::Bool ∨ b::Bool) => (a || b)
-  (a::Bool ∧ b::Bool) => (a && b)
+  (a::Bool || b::Bool) => (a || b)
+  (a::Bool && b::Bool) => (a && b)
   (a::Int < b::Int) => (a < b)
-  ¬a::Bool => !a
+  !a::Bool => !a
   (a::Bool, σ) => a
   (a < b, σ) => (eval_arithm(a, σ) < eval_arithm(b, σ))
-  (¬b, σ) => !eval_bool(b, σ)
-  (a ∨ b, σ) --> (a, σ) ∨ (b, σ)
-  (a ∧ b, σ) --> (a, σ) ∧ (b, σ)
+  (!b, σ) => !eval_bool(b, σ)
+  (a || b, σ) --> (a, σ) || (b, σ)
+  (a && b, σ) --> (a, σ) && (b, σ)
 end
 
 eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
 
 @testset "Booleans" begin
-  @test false == eval_bool(:(false ∨ false), Mem())
-  @test true == eval_bool(:((false ∨ false) ∨ ¬(false ∨ false)), Mem(:x => 2))
-  @test true == eval_bool(:((2 < 3) ∧ (3 < 4)), Mem(:x => 2))
-  @test false == eval_bool(:((2 < x) ∨ ¬(3 < 4)), Mem(:x => 2))
-  @test true == eval_bool(:((2 < x) ∨ ¬(3 < 4)), Mem(:x => 4))
+  @test false == eval_bool(:(false || false), Mem())
+  @test true == eval_bool(:((false || false) || !(false || false)), Mem(:x => 2))
+  @test true == eval_bool(:((2 < 3) && (3 < 4)), Mem(:x => 2))
+  @test false == eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 2))
+  @test true == eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 4))
 end
 
 if_rules = @theory guard t f σ begin
@@ -93,14 +93,14 @@ eval_if(ex::Expr, mem::Mem) = strategy(read_mem ∪ arithm_rules ∪ if_rules)(:
     end
   ), Mem(:x => 2))
   @test 2 == eval_if(:(
-    if ¬(false)
+    if !(false)
       x
     else
       0
     end
   ), Mem(:x => 2))
   @test 0 == eval_if(:(
-    if ¬(2 < x)
+    if !(2 < x)
       x
     else
       0

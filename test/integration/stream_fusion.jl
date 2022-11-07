@@ -4,6 +4,9 @@ using Test
 using TermInterface
 # using SymbolicUtils
 
+apply(f,x) = f(x)
+fand(f,g) = x -> f(x) && g(x)
+
 array_theory = @theory x y f g M N begin
   #map(f,x)[n:m] = map(f,x[n:m]) # but does NOT commute with filter
   map(f, fill(x, N)) == fill(apply(f, x), N) # hmm

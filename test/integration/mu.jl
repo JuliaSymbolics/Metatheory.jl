@@ -2,6 +2,7 @@
 
 using Metatheory
 
+function ⋅ end
 miu = @theory x y z begin
   # Composition of the string monoid is associative
   x ⋅ (y ⋅ z) --> (x ⋅ y) ⋅ z
