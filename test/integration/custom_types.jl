@@ -32,46 +32,19 @@ TermInterface.istree(e::MyExpr) = true
 TermInterface.metadata(e::MyExpr) = (foo = e.foo, bar = e.bar, baz = e.baz)
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo), e.bar, e.baz)
 
-# f(g(2), h(4)) with some metadata in h
-hcall = MyExpr(:h, [4], "hello", [2 + 3im, 4 + 2im], Set{Int}([4, 5, 6]))
-ex = MyExpr(:f, [MyExpr(:g, [2]), hcall])
-
-
 function TermInterface.similarterm(x::MyExpr, head, args; metadata = nothing, exprhead = :call)
   meta = isnothing(metadata) ? ("", Complex[], Set{Int64}()) : metadata
   MyExpr(head, args, meta...)
-end
-
-function EGraphs.egraph_reconstruct_expression(
-  T::Type{MyExpr},
-  op,
-  args;
-  metadata = ("", Complex[], Set{Int64}()),
-  exprhead = nothing,
-)
-  meta = isnothing(metadata) ? ("", Complex[], Set{Int64}()) : metadata
-  MyExpr(op, args, meta...)
 end
 
 function EGraphs.egraph_reconstruct_expression(T::Type{MyExpr}, op, args; metadata = nothing, exprhead = nothing)
   MyExpr(op, args, (isnothing(metadata) ? () : metadata)...)
 end
 
-# let's create an egraph 
-g = EGraph(ex; keepmeta = true)
 
-
-# ========== !!! ============= !!! ===============
-# ========== !!! ============= !!! ===============
-# ========== !!! ============= !!! ===============
-
-settermtype!(g, :f, 2, MyExpr)
-settermtype!(g, :f, 1, MyExpr)
-settermtype!(g, :g, 1, MyExpr)
-
-# ========== !!! ============= !!! ===============
-# ========== !!! ============= !!! ===============
-# ========== !!! ============= !!! ===============
+function f end 
+function h end 
+function z end
 
 # let's create an example theory
 t = @theory a begin
@@ -81,15 +54,22 @@ t = @theory a begin
   # f(g(2), a) |> MyExpr(:z, [a])
 
   # terms in the RHS inherit the type of terms in the lhs
-  f(g(2), a) --> f(a)
+  f(z(2), a) --> f(a)
 end
+
+# f(z(2), h(4)) with some metadata in h
+hcall = MyExpr(h, [4], "hello", [2 + 3im, 4 + 2im], Set{Int}([4, 5, 6]))
+# let's create an egraph 
+ex = MyExpr(f, [MyExpr(:z, [2]), hcall])
+g = EGraph(ex; keepmeta = true)
+settermtype!(g, MyExpr)
 
 saturate!(g, t)
 
 # TODO test metadata
 
 expected =
-  MyExpr(:f, [MyExpr(:h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
+  MyExpr(f, [MyExpr(h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 
 extracted = extract!(g, astsize)
 

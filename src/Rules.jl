@@ -134,7 +134,7 @@ backend. If two terms, corresponding to the left and right hand side of an
 *anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
 
 ```julia
-¬a ≠ a
+!a ≠ a
 ```
 
 """

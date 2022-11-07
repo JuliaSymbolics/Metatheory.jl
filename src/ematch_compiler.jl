@@ -40,7 +40,6 @@ Base.length(p::Program) = length(p.instructions)
   operation::Any
   # args::Vector{Register} 
   args::UnitRange{Register}
-  checkop::Function # function that checks both symbol or func. object as op
 end
 export ENodePat
 
@@ -156,20 +155,10 @@ function compile_pat!(reg, p::PatTerm, prog)
 
   exhead = exprhead(p)
   op = operation(p)
-  checkop = x -> isequal(x, op)
-
-  if op isa Symbol
-    checkop = try
-      fobj = getproperty(p.mod, op)
-      (x) -> (isequal(x, op) || isequal(x, fobj))
-    catch e
-      e isa UndefVarError ? checkop : rethrow(e)
-    end
-  end
 
   increment(prog, nargs)
 
-  push!(prog.instructions, Bind(reg, ENodePat(exhead, op, regrange, checkop)))
+  push!(prog.instructions, Bind(reg, ENodePat(exhead, op, regrange)))
   for (reg, p2) in zip(regrange, arguments(p))
     compile_pat!(reg, p2, prog)
   end

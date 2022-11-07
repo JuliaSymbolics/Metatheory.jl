@@ -89,22 +89,12 @@ function matcher(segment::PatSegment)
   end
 end
 
-# TODO REVIEWME
 # Try to match both against a function symbol or a function object at the same time.
-# Slows things down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object
+# Slows compile time down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object.
+# Execution time should not be affected.
 # and SymbolicUtils-like objects that store function references as operations.
-function head_matcher(f::Symbol, mod)
-  checkhead = try
-    fobj = getproperty(mod, f)
-    (x) -> (isequal(x, f) || isequal(x, fobj))
-  catch e
-    if e isa UndefVarError
-      (x) -> isequal(x, f)
-    else
-      rethrow(e)
-    end
-  end
-
+function head_matcher(f::Union{Function,DataType,UnionAll})
+  checkhead(x) = isequal(x, f) || isequal(x, nameof(f))
   function head_matcher(next, data, bindings)
     h = car(data)
     if islist(data) && checkhead(h)
@@ -115,11 +105,11 @@ function head_matcher(f::Symbol, mod)
   end
 end
 
-head_matcher(x, mod) = matcher(x)
+head_matcher(x) = matcher(x)
 
 function matcher(term::PatTerm)
   op = operation(term)
-  matchers = (head_matcher(op, term.mod), map(matcher, arguments(term))...)
+  matchers = (head_matcher(op), map(matcher, arguments(term))...)
   function term_matcher(success, data, bindings)
     !islist(data) && return nothing
     !istree(car(data)) && return nothing
@@ -148,7 +138,16 @@ function matcher(term::PatTerm)
   end
 end
 
-
+function TermInterface.similarterm(
+  x::Expr,
+  head::Union{Function,DataType},
+  args,
+  symtype = nothing;
+  metadata = nothing,
+  exprhead = exprhead(x),
+)
+  similarterm(x, nameof(head), args, symtype; metadata, exprhead)
+end
 # TODO REVIEWME
 function instantiate(left, pat::PatTerm, mem)
   args = []

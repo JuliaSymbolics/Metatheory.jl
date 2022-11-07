@@ -39,23 +39,23 @@ end
 # don't need to access memory
 bool_rules = @theory a b σ begin
   (a < b, σ::Mem) --> (a, σ) < (b, σ)
-  (a ∨ b, σ::Mem) --> (a, σ) ∨ (b, σ)
-  (a ∧ b, σ::Mem) --> (a, σ) ∧ (b, σ)
-  (¬(a), σ::Mem) --> ¬((a, σ))
+  (a || b, σ::Mem) --> (a, σ) || (b, σ)
+  (a && b, σ::Mem) --> (a, σ) && (b, σ)
+  (!(a), σ::Mem) --> !((a, σ))
 
   (a::Bool, σ::Mem)   => a
-  (¬a::Bool)          => !a
-  (a::Bool ∨ b::Bool) => (a || b)
-  (a::Bool ∧ b::Bool) => (a && b)
+  (!a::Bool)          => !a
+  (a::Bool || b::Bool) => (a || b)
+  (a::Bool && b::Bool) => (a && b)
   (a::Int < b::Int)   => (a < b)
 end
 
 t = read_mem ∪ arithm_rules ∪ bool_rules
 
 @testset "Booleans" begin
-  @test areequal(t, :((false ∨ false), $(Mem())), false)
+  @test areequal(t, :((false || false), $(Mem())), false)
 
-  exx = :((false ∨ false) ∨ ¬(false ∨ false), $(Mem(:x => 2)))
+  exx = :((false || false) || !(false || false), $(Mem(:x => 2)))
   g = EGraph(exx)
   saturate!(g, t)
   ex = extract!(g, astsize)
@@ -63,9 +63,9 @@ t = read_mem ∪ arithm_rules ∪ bool_rules
   params = SaturationParams(timeout = 12)
   @test areequal(t, exx, true; params = params)
 
-  @test areequal(t, :((2 < 3) ∧ (3 < 4), $(Mem(:x => 2))), true)
-  @test areequal(t, :((2 < x) ∨ ¬(3 < 4), $(Mem(:x => 2))), false)
-  @test areequal(t, :((2 < x) ∨ ¬(3 < 4), $(Mem(:x => 4))), true)
+  @test areequal(t, :((2 < 3) && (3 < 4), $(Mem(:x => 2))), true)
+  @test areequal(t, :((2 < x) || !(3 < 4), $(Mem(:x => 2))), false)
+  @test areequal(t, :((2 < x) || !(3 < 4), $(Mem(:x => 4))), true)
 end
 
 if_rules = @theory guard t f σ begin
@@ -115,13 +115,13 @@ if_language = read_mem ∪ arithm_rules ∪ bool_rules ∪ if_rules
   else
     0
   end, $(Mem(:x => 2))))
-  @test areequal(if_language, 2, :(if ¬(false)
+  @test areequal(if_language, 2, :(if !(false)
     x
   else
     0
   end, $(Mem(:x => 2))))
   params = SaturationParams(timeout = 10)
-  @test areequal(if_language, 0, :(if ¬(2 < x)
+  @test areequal(if_language, 0, :(if !(2 < x)
     x
   else
     0

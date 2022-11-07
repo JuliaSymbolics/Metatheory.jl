@@ -83,11 +83,9 @@ end
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   head = exprhead(ex)
   op = operation(ex)
+  # Retrieve the function object if available
   args = arguments(ex)
   istree(op) && (op = makepattern(op, pvars, slots, mod))
-  op = op isa Symbol ? QuoteNode(op) : op
-  #throw(Meta.ParseError("Unsupported pattern syntax $ex"))
-
 
   if head === :call
     if operation(ex) === :(~) # is a variable or segment
@@ -102,7 +100,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # is a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      return :($PatTerm(:call, $op, [$(patargs...)], $mod))
+      return :($PatTerm(:call, $op, [$(patargs...)]))
     end
   elseif head === :...
     makepattern(args[1], pvars, slots, mod, true)
@@ -111,16 +109,15 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   elseif head === :ref
     # getindex 
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    return :($PatTerm(:ref, getindex, [$(patargs...)], $mod))
+    return :($PatTerm(:ref, getindex, [$(patargs...)]))
   elseif head === :$
     return args[1]
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
     return :($PatTerm(
-      $(head isa Symbol ? QuoteNode(head) : head),
+      $(QuoteNode(head)),
       $(op isa Symbol ? QuoteNode(op) : op),
       [$(patargs...)],
-      $mod,
     ))
     # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
   end
@@ -345,7 +342,7 @@ macro rule(args...)
 
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
-    rhs_consequent = makeconsequent(rhs)
+    rhs_consequent = makeconsequent(rhs_rewritten)
     params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote

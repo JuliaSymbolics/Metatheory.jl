@@ -45,7 +45,7 @@ expr = :(a * b * a * a * a * b * b * b * a * B * B * B * B * a)
 
 ex = expr
 g = EGraph(expr)
-params = SaturationParams(timeout = 8, scheduler = BackoffScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
+params = SaturationParams(timeout = 9, scheduler = BackoffScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
 @timev saturate!(g, G, params)
 ex = extract!(g, astsize)
 @test ex == :ε

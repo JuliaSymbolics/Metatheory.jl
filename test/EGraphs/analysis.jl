@@ -176,22 +176,7 @@ end
     saturate!(G, t)
     # end
 
-    extract!(G, astsize) == :((x + y) * (b + a))
-  end
-
-  @testset "Lazy Extraction 2" begin
-    comm_group = @commutative_group (+) 0 inv
-
-    t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ fold_mul ∪ fold_add
-
-    # for i ∈ 1:20
-    # sleep(0.3)
-    ex = :((x * (a + b)) + (y * (a + b)))
-    G = EGraph(ex)
-    saturate!(G, t)
-    # end
-
-    extract!(G, astsize) == :((x + y) * (b + a))
+    extract!(G, astsize) == :((y + x) * (b + a))
   end
 
   @testset "Extraction - Adding analysis after saturation" begin
@@ -244,11 +229,17 @@ end
     :e^(log(~x)) --> ~x
   end
 
+  G = EGraph(:(log(e)))
+  params = SaturationParams(timeout = 9)
+  saturate!(G, logids, params)
+  @test extract!(G, astsize) == 1
+
+
   t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids ∪ fold_mul ∪ fold_add
 
   @testset "Complex Extraction" begin
     G = EGraph(:(log(e) * log(e)))
-    params = SaturationParams(timeout = 8)
+    params = SaturationParams(timeout = 9)
     saturate!(G, t, params)
     @test extract!(G, astsize) == 1
 
@@ -323,11 +314,12 @@ end
     @test resg == res == :(a * (a * (a * (b * b))))
   end
 
+  function ⋅ end
   co = @theory begin
-    foo(~x ⋅ :bazoo ⋅ :woo) --> Σ(:n * ~x)
+    sum(~x ⋅ :bazoo ⋅ :woo) --> sum(:n * ~x)
   end
   @testset "Consistency with classical backend" begin
-    ex = :(foo(wa(rio) ⋅ bazoo ⋅ woo))
+    ex = :(sum(wa(rio) ⋅ bazoo ⋅ woo))
     g = EGraph(ex)
     saturate!(g, co)
 
@@ -344,10 +336,10 @@ end
     g = EGraph(ex)
     @test :(f()) == extract!(g, astsize)
 
-    ex = :(f() + g())
+    ex = :(sin() + cos())
 
     t = @theory begin
-      f() + g() --> h()
+      sin() + cos() --> tan()
     end
 
     gg = EGraph(ex)
@@ -355,7 +347,7 @@ end
     @show getcost!(gg, astsize)
     res = extract!(gg, astsize)
 
-    @test res == :(h())
+    @test res == :(tan())
   end
 
 

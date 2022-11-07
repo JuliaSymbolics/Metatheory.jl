@@ -4,12 +4,12 @@ using Metatheory.Library
 falseormissing(x) = x === missing || !x
 
 r = @theory begin
-  foo(~x, ~y) → 2 * ~x % ~y
-  foo(~x, ~y) → sin(~x)
-  sin(~x) → foo(~x, ~x)
+  max(~x, ~y) → 2 * ~x % ~y
+  max(~x, ~y) → sin(~x)
+  sin(~x) → max(~x, ~x)
 end
 @testset "Basic Equalities 1" begin
-  @test (@areequal r foo(b, c) foo(d, d)) == false
+  @test (@areequal r max(b, c) max(d, d)) == false
 end
 
 
@@ -75,12 +75,11 @@ end
 
 # Issue 21
 simp_theory = @theory begin
-  munit() => :foo
+  sin() => :foo
 end
-G = EGraph(:(munit()))
-params = SaturationParams(timeout = 1)
-saturate!(G, simp_theory, params)
-
+G = EGraph(:(sin()))
+saturate!(G, simp_theory)
+extract!(G, astsize)
 
 module Bar
 foo = 42
@@ -137,16 +136,16 @@ end
 @testset "Type Assertions in Ematcher" begin
   some_theory = @theory begin
     ~a * ~b --> ~b * ~a
-    ~a::Number * ~b::Number --> matched(~a, ~b)
-    ~a::Int64 * ~b::Int64 --> specific(~a, ~b)
+    ~a::Number * ~b::Number --> sin(~a, ~b)
+    ~a::Int64 * ~b::Int64 --> cos(~a, ~b)
     ~a * (~b * ~c) --> (~a * ~b) * ~c
   end
 
   g = EGraph(:(2 * 3))
   saturate!(g, some_theory)
 
-  @test true == areequal(g, some_theory, :(2 * 3), :(matched(2, 3)))
-  @test true == areequal(g, some_theory, :(matched(2, 3)), :(specific(3, 2)))
+  @test true == areequal(g, some_theory, :(2 * 3), :(sin(2, 3)))
+  @test true == areequal(g, some_theory, :(sin(2, 3)), :(cos(3, 2)))
 end
 
 function Base.iszero(g::EGraph, ec::EClass)
@@ -169,8 +168,8 @@ end
 @testset "Inequalities" begin
 
   failme = @theory p begin
-    p ≠ ¬p
-    :foo == ¬:foo
+    p ≠ !p
+    :foo == !:foo
     :foo --> :bazoo
     :bazoo --> :wazoo
   end
