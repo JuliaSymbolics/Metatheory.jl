@@ -39,9 +39,9 @@ function ⟹ end
 
 fold = @theory p q begin
   (p::Bool == q::Bool) => (p == q)
-  (p::Bool || q::Bool)  => (p || q)
-  (p::Bool ⟹ q::Bool) => ((p || q) == q)
-  (p::Bool && q::Bool)  => (p && q)
+  (p::Bool || q::Bool) => (p || q)
+  (p::Bool ⟹ q::Bool)  => ((p || q) == q)
+  (p::Bool && q::Bool) => (p && q)
   !(p::Bool)           => (!p)
 end
 

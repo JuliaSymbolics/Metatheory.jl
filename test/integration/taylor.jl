@@ -9,7 +9,9 @@ taylor = @theory x a b begin
 end
 
 macro expand(iters)
-  quote @rule a Σ(a) --> sum((:n -> a), $(0:iters)) end
+  quote
+    @rule a Σ(a) --> sum((:n -> a), $(0:iters))
+  end
 end
 
 a = rewrite(:(exp(x) + cos(x)), taylor)

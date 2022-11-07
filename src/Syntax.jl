@@ -114,11 +114,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     return args[1]
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    return :($PatTerm(
-      $(QuoteNode(head)),
-      $(op isa Symbol ? QuoteNode(op) : op),
-      [$(patargs...)],
-    ))
+    return :($PatTerm($(QuoteNode(head)), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)]))
     # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
   end
 end

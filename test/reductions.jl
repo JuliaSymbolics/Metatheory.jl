@@ -34,7 +34,7 @@ end
 
 
 @testset "Calculator" begin
-  function ⊗ end 
+  function ⊗ end
   function ⊕ end
   function ⊖ end
   calculator = @theory begin
