@@ -107,6 +107,7 @@ Base.getindex(a::EClass, i) = a.nodes[i]
 Base.setindex!(a::EClass, v, i) = setindex!(a.nodes, v, i)
 Base.firstindex(a::EClass) = firstindex(a.nodes)
 Base.lastindex(a::EClass) = lastindex(a.nodes)
+Base.length(a::EClass) = length(a.nodes)
 
 # Interface for iterating EClass
 Base.iterate(a::EClass) = iterate(a.nodes)
