@@ -171,8 +171,6 @@ function extract!(g::EGraph, costfun::Function; root = -1, cse = false)
     # TODO make sure there is no assignments/stateful code!!
     cse_env = OrderedDict{EClassId,Tuple{Symbol,Any}}() # 
     collect_cse!(g, costfun, root, cse_env, Set{EClassId}())
-    # @show root
-    # @show cse_env
 
     body = rec_extract(g, costfun, root; cse_env = cse_env)
 
