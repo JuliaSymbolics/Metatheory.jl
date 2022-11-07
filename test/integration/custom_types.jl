@@ -53,6 +53,10 @@ function EGraphs.egraph_reconstruct_expression(
   MyExpr(op, args, meta...)
 end
 
+function EGraphs.egraph_reconstruct_expression(T::Type{MyExpr}, op, args; metadata = nothing, exprhead = nothing)
+  MyExpr(op, args, (isnothing(metadata) ? () : metadata)...)
+end
+
 # let's create an egraph 
 g = EGraph(ex; keepmeta = true)
 

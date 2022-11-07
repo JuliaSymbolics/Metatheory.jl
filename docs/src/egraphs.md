@@ -226,14 +226,14 @@ which *e-node* will be extracted from an *e-class*.
 It must return a positive, non-complex number value and, must accept 3 arguments.
 1) The current [ENode](@ref) `n` that is being inspected. 
 2) The current [EGraph](@ref) `g`.
-3) The current analysis type `an`.
+3) The current analysis name `an::Symbol`.
 
 From those 3 parameters, one can access all the data needed to compute
 the cost of an e-node recursively.
 
 * One can use [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl) methods to access the operation and child arguments of an e-node: `operation(n)`, `arity(n)` and `arguments(n)`
 * Since e-node children always point to e-classes in the same e-graph, one can retrieve the [EClass](@ref) object for each child of the currently visited enode with `g[id] for id in arguments(n)`
-* One can inspect the analysis data for a given eclass and a given analysis type `an`, by using [hasdata](@ref) and [getdata](@ref).
+* One can inspect the analysis data for a given eclass and a given analysis name `an`, by using [hasdata](@ref) and [getdata](@ref).
 * Extraction analyses always associate a tuple of 2 values to a single e-class: which e-node is the one that minimizes the cost
 and its cost. More details can be found in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) in the *Analyses* section. 
 
@@ -265,20 +265,22 @@ cost_function(n::ENodeLiteral, g::EGraph) = 1
 
 An *EGraph Analysis* is an efficient and automated way of analyzing all the possible
 terms contained in an e-graph. Metatheory.jl provides a toolkit to ease and 
-automate the process of EGraph Analysis. An *EGraph Analysis* defines a domain
-of values and associates a value from the domain to each [EClass](@ref) in the graph.
-Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).
-Rewrites can cooperate with e-class analyses by depending on analysis facts and adding
-equivalences that in turn establish additional facts. 
+automate the process of EGraph Analysis. 
 
-In Metatheory.jl, EGraph Analyses are identified by a unique name of type `Symbol`.
-An [`EGraph`](@ref) can only contain one analysis per type.
-The following functions define an interface for analyses based on multiple dispatch 
-on `Val{analysis_name}` types: 
-* [islazy](@ref) should return true if the analysis should NOT be computed on-the-fly during egraphs operation, only when required.  
-* [make](@ref) should take an ENode and return a value from the analysis domain.
-* [join](@ref) should return the semilattice join of two values in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*)
-* [modify!](@ref) Can be optionally implemented. Can be used modify an EClass on-the-fly given its analysis value.
+An *EGraph Analysis* defines a domain of values and associates a value from the domain to each [EClass](@ref) in the graph. Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).  Rewrites can cooperate with e-class analyses by depending on analysis facts and adding equivalences that in turn establish additional facts. 
+
+In Metatheory.jl, **EGraph Analyses are uniquely identified** by either
+
+* An unique name of type `Symbol`. 
+* A function object `f`, used for cost function analysis. This will use built-in definitions of `make` and `join`.
+
+If you are specifying a custom analysis by its `Symbol` name, 
+the following functions define an interface for analyses based on multiple dispatch 
+on `Val{analysis_name::Symbol}`: 
+* [islazy(an)](@ref) should return true if the analysis name `an` should NOT be computed on-the-fly during egraphs operation, but only when inspected.  
+* [make(an, egraph, n)](@ref) should take an ENode `n` and return a value from the analysis domain.
+* [join(an, x,y)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*). If `an` is a `Function`, it is treated as a cost function analysis, it is automatically defined to be the minimum analysis value between `x` and `y`. Typically, the domain value of cost functions are real numbers, but if you really do want to have your own cost type, make sure that `Base.isless` is defined.
+* [modify!(an, egraph, eclassid)](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclassid]` on-the-fly during an e-graph saturation iteration, given its analysis value.
 
 ### Defining a custom analysis
 
