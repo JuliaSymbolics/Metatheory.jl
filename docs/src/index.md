@@ -1,4 +1,4 @@
-# Metatheory.jl 1.0
+# Metatheory.jl 2.0
 
 ```@raw html
 <p align="center">
