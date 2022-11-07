@@ -130,7 +130,7 @@ astsize_inv(n::ENodeLiteral, g::EGraph) = -1
 """
 When passing a function to analysis functions it is considered as a cost function
 """
-make(f::Function, g::EGraph, n::AbstractENode) = (n,f(n, g))
+make(f::Function, g::EGraph, n::AbstractENode) = (n, f(n, g))
 
 join(f::Function, from, to) = last(from) <= last(to) ? from : to
 
