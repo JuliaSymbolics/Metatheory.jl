@@ -144,7 +144,7 @@ function (rw::FixpointNoCycle)(x)
   f = rw.rw
   push!(rw.hist, hash(x))
   y = @timer cached_repr(f) f(x)
-  while x !== y && hash(x) ∉ hist
+  while x !== y && hash(x) ∉ rw.hist
     if y === nothing
       empty!(rw.hist)
       return x

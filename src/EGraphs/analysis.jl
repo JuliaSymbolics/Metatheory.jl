@@ -154,7 +154,7 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
     T = termtype(n)
     egraph_reconstruct_expression(T, operation(n), collect(children); metadata = meta, exprhead = exprhead(n))
   else
-    error("Unknown ENode Type $(typeof(cn))")
+    error("Unknown ENode Type $(typeof(n))")
   end
 end
 
