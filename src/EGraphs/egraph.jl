@@ -130,8 +130,7 @@ function Base.union!(to::EClass, from::EClass)
   append!(to.nodes, from.nodes)
   append!(to.parents, from.parents)
   if !isnothing(to.data) && !isnothing(from.data)
-    # merge!(to.data, from.data)
-    to.data = join_analysis_data!(to.g, to.data, from.data)
+    to.data = join_analysis_data!(to.g, something(to.data), something(from.data))
   elseif to.data === nothing
     to.data = from.data
   end

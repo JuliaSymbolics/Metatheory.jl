@@ -29,7 +29,7 @@ struct FunctionGoal <: SaturationGoal
 end
 
 function reached(g::EGraph, goal::FunctionGoal)::Bool
-  fun(g)
+    goal.fun(g)    
 end
 
 mutable struct Report
