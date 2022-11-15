@@ -55,7 +55,7 @@ variables.
   right
   matcher
   patvars::Vector{Symbol}
-  ematch_program::Program
+  ematcher!
 end
 
 Base.isequal(a::RewriteRule, b::RewriteRule) = (a.left == b.left) && (a.right == b.right)
@@ -65,7 +65,7 @@ function RewriteRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher(l), pvars, compile_pat(l))
+  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)))
 end
 
 Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
@@ -99,8 +99,7 @@ with the EGraphs backend.
   left
   right
   patvars::Vector{Symbol}
-  ematch_program_l::Program
-  ematch_program_r::Program
+  ematcher!
 end
 
 function EqualityRule(l, r)
@@ -111,9 +110,8 @@ function EqualityRule(l, r)
   end
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  progl = compile_pat(l)
-  progr = compile_pat(r)
-  EqualityRule(l, r, pvars, progl, progr)
+
+  EqualityRule(l, r, pvars, ematcher_yield_bidir(l,r, length(pvars)))
 end
 
 
@@ -142,8 +140,7 @@ backend. If two terms, corresponding to the left and right hand side of an
   left
   right
   patvars::Vector{Symbol}
-  ematch_program_l::Program
-  ematch_program_r::Program
+  ematcher!
 end
 
 function UnequalRule(l, r)
@@ -155,9 +152,7 @@ function UnequalRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  progl = compile_pat(l)
-  progr = compile_pat(r)
-  UnequalRule(l, r, pvars, progl, progr)
+  UnequalRule(l, r, pvars, ematcher_yield_bidir(l,r, length(pvars)))
 end
 
 Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
@@ -185,7 +180,7 @@ Dynamic rule
   rhs_code
   matcher
   patvars::Vector{Symbol} # useful set of pattern variables
-  ematch_program::Program
+  ematcher!
 end
 
 function DynamicRule(l, r::Function, rhs_code = nothing)
@@ -193,7 +188,7 @@ function DynamicRule(l, r::Function, rhs_code = nothing)
   setdebrujin!(l, pvars)
   isnothing(rhs_code) && (rhs_code = repr(rhs_code))
 
-  DynamicRule(l, r, rhs_code, matcher(l), pvars, compile_pat(l))
+  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)))
 end
 
 

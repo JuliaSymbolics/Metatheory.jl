@@ -32,22 +32,22 @@ function reached(g::EGraph, goal::FunctionGoal)::Bool
     goal.fun(g)    
 end
 
-mutable struct Report
+mutable struct SaturationReport
   reason::Union{Symbol,Nothing}
   egraph::EGraph
   iterations::Int
   to::TimerOutput
 end
 
-Report() = Report(nothing, EGraph(), 0, TimerOutput())
-Report(g::EGraph) = Report(nothing, g, 0, TimerOutput())
+SaturationReport() = SaturationReport(nothing, EGraph(), 0, TimerOutput())
+SaturationReport(g::EGraph) = SaturationReport(nothing, g, 0, TimerOutput())
 
 
 
 # string representation of timedata
-function Base.show(io::IO, x::Report)
+function Base.show(io::IO, x::SaturationReport)
   g = x.egraph
-  println(io, "Equality Saturation Report")
+  println(io, "SaturationReport")
   println(io, "=================")
   println(io, "\tStop Reason: $(x.reason)")
   println(io, "\tIterations: $(x.iterations)")
@@ -126,13 +126,6 @@ end
 #     get(g.symcache, p.val, [])
 # end
 
-function (r::SymbolicRule)(g::EGraph, id::EClassId)
-  ematch(g, r.ematch_program, id) .|> sub -> Match(r, r.right, sub, id)
-end
-
-function (r::DynamicRule)(g::EGraph, id::EClassId)
-  ematch(g, r.ematch_program, id) .|> sub -> Match(r, nothing, sub, id)
-end
 
 function (r::BidirRule)(g::EGraph, id::EClassId)
   vcat(
@@ -149,123 +142,107 @@ function eqsat_search!(
   egraph::EGraph,
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
-  report;
-  threaded = false,
-)
-  match_groups = Vector{Match}[]
-  function pmap(f, xs)
-    # const propagation should be able to optimze one of the branch away
-    if threaded
-      # # try to divide the work evenly between threads without adding much overhead
-      # chunks = Threads.nthreads() * 10
-      # basesize = max(length(xs) ÷ chunks, 1)
-      # ThreadsX.mapi(f, xs; basesize=basesize) 
-      ThreadsX.map(f, xs)
-    else
-      map(f, xs)
-    end
-  end
-
-  inequalities = filter(Base.Fix2(isa, UnequalRule), theory)
-  # never skip contradiction checks
-  append_time = TimerOutput()
-  for rule in inequalities
-    @timeit report.to repr(rule) begin
-      ids = cached_ids(egraph, rule.left)
-      rule_matches = pmap(i -> rule(egraph, i), ids)
-      @timeit append_time "appending matches" begin
-        append!(match_groups, rule_matches)
-      end
-    end
-  end
-
-  other_rules = filter(theory) do rule
-    !(rule isa UnequalRule)
-  end
-  for rule in other_rules
+  report::SaturationReport
+)::Int
+  for (rule_idx, rule) in other_rules
     @timeit report.to repr(rule) begin
       # don't apply banned rules
       if !cansearch(scheduler, rule)
         continue
       end
-      ids = cached_ids(egraph, rule.left)
-      rule_matches = pmap(i -> rule(egraph, i), ids)
-
-      n_matches = isempty(rule_matches) ? 0 : sum(length, rule_matches)
-      can_yield = inform!(scheduler, rule, n_matches)
-      if can_yield
-        @timeit append_time "appending matches" begin
-          append!(match_groups, rule_matches)
-        end
+      # ids = cached_ids(egraph, rule.left)
+      for i in keys(g.classes) 
+        n_matches += rule.ematcher!(egraph, rule_idx, i)
       end
+      # TODO can_yield = inform!(scheduler, rule, n_matches)
     end
   end
 
-  # @timeit append_time "appending matches" begin
-  #     result = reduce(vcat, match_groups) # this should be more efficient than multiple appends
-  # end
-  merge!(report.to, append_time, tree_point = ["Search"])
-
-  return Iterators.flatten(match_groups)
-  # return result
+  return n_matches
 end
 
 
-function (rule::UnequalRule)(g::EGraph, match::Match)
-  lc = match.id
-  rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-  rc, node = addexpr!(g, rinst)
+function drop_n!(D::CircularDeque, nn)
+  D.n -= nn
+  tmp = D.first + nn
+  D.first = tmp > D.capacity ?  1 : tmp
+end
 
-  if find(g, lc) == find(g, rc)
+instantiate_enode!(g::EGraph, pat::Any)::EClassId = add!(g, ENodeLiteral(pat)).id
+instantiate_enode!(g::EGraph, p::PatVar)::EClassId = g.match_buffer[p.idx][1]
+function instantiate_enode!(g::EGraph, p::PatTerm)::EClassId = g.match_buffer[p.idx][1]
+  eh = exprhead(pat)
+  op = operation(pat)
+  ar = arity(pat)
+  T = gettermtype(g, op, ar)
+  add!(g, ENodeTerm{}(eh, op, map!(x -> instantiate_enode!(g, x), arguments(pat)))).id
+end
+
+function apply_rule!(g::EGraph, rule::RewriteRule, id, direction)
+  merge!(g, id, instantiate_enode!(g, rule.right))
+  nothing
+end
+
+
+function apply_rule!(g::EGraph, rule::UnequalRule, id, direction)
+  pat_to_inst = direction == 1 ? rule.right : rule.left
+  other_id = instantiate_enode!(g, pat_to_inst)
+
+  if find(g, id) == find(g, other_id)
     @log "Contradiction!" rule
     return :contradiction
   end
-  return nothing
+  nothing
 end
 
-function (rule::SymbolicRule)(g::EGraph, match::Match)
-  rinst = instantiate(g, match.pat_to_inst, match.sub, rule)
-  rc, node = addexpr!(g, rinst)
-  merge!(g, match.id, rc.id)
-  return nothing
+"""
+Instantiate argument for dynamic rule application in e-graph
+"""
+function instantiate_actual_param!(g::EGraph, i)
+  ecid, literal_position = g.match_buffer[i]
+  ecid <= 0 && error("unbound pattern variable $pat in rule $rule")
+  if literal_position > 0
+    eclass = g[ecid]
+    @assert eclass[literal_position] isa ENodeLiteral
+    return eclass[literal_position].value # TODO getliteral from e-class
+  end
+  return eclass
 end
 
-
-function (rule::DynamicRule)(g::EGraph, match::Match)
+function apply_rule!(g::EGraph, rule::DynamicRule, id, direction)
   f = rule.rhs_fun
-  actual_params = [instantiate(g, PatVar(v, i), match.sub, rule) for (i, v) in enumerate(rule.patvars)]
-  r = f(g[match.id], match.sub, g, actual_params...)
+  r = f(id, g, (instantiate_actual_param!(g, i) for i in 1:length(rule.pvars))...)
   isnothing(r) && return nothing
   rc, node = addexpr!(g, r)
-  merge!(g, match.id, rc.id)
+  merge!(g, id, rc.id)
   return nothing
 end
 
 
-function eqsat_apply!(g::EGraph, matches, rep::Report, params::SaturationParams)
+
+function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
   i = 0
-  for match in matches
-    i += 1
+  lock(g.match_buffer_lock) do 
+    while !isempty(g.match_buffer)
+      if reached(g, params.goal)
+        @log "Goal reached"
+        rep.reason = :goalreached
+        return
+      end
 
-    # if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
-    #     @log "E-GRAPH SIZEOUT"
-    #     rep.reason = :eclasslimit
-    #     return
-    # end
+      rule_idx, id = popfirst!(g.match_buffer)
+      direction = sign(rule_idx)
+      rule_idx = abs(rule_idx)
+      rule = theory[rule_idx]
 
-    if reached(g, params.goal)
-      @log "Goal reached"
-      rep.reason = :goalreached
-      return
-    end
+      halt_reason = apply_rule!(g, rule, id, direction)
+      drop_n!(g.match_buffer, npvars)
+      @assert popfirst!(g.match_buffer) == (0,0)
 
-
-    rule = match.rule
-
-    halt_reason = rule(g, match)
-    if (halt_reason !== nothing)
-      rep.reason = halt_reason
-      return
+      if (halt_reason !== nothing)
+        rep.reason = halt_reason
+        return
+      end
     end
   end
 end
@@ -281,30 +258,22 @@ function eqsat_step!(
   theory::Vector{<:AbstractRule},
   curr_iter,
   scheduler::AbstractScheduler,
-  match_hist::Vector{Match},
   params::SaturationParams,
   report,
 )
 
-  instcache = Dict{AbstractRule,Dict{Sub,EClassId}}()
-
   setiter!(scheduler, curr_iter)
 
-  matches = @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report; threaded = params.threaded)
+  n_matches = @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
 
-  # matches = setdiff!(matches, match_hist)
-
-  @timeit report.to "Apply" eqsat_apply!(g, matches, report, params)
-
-
-  # union!(match_hist, matches)
+  @timeit report.to "Apply" eqsat_apply!(g, n_matches, report, params)
 
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
     report.reason = :saturated
   end
   @timeit report.to "Rebuild" rebuild!(g)
 
-  return report, g
+  return report
 end
 
 """
@@ -315,8 +284,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   curr_iter = 0
 
   sched = params.scheduler(g, theory, params.schedulerparams...)
-  match_hist = Match[]
-  report = Report(g)
+  report = SaturationReport(g)
 
   start_time = Dates.now().instant
 
@@ -329,7 +297,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
 
     params.printiter && @info("iteration ", curr_iter)
 
-    report, egraph = eqsat_step!(g, theory, curr_iter, sched, match_hist, params, report)
+    report = eqsat_step!(g, theory, curr_iter, sched, params, report)
 
     elapsed = Dates.now().instant - start_time
 
