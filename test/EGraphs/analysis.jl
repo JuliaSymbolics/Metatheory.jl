@@ -286,6 +286,7 @@ end
       @show getcost!(G, cust_astsize)
       ex = extract!(G, cust_astsize)
     end
+    @show ex
     @test ex == :(5 * log(a)) || ex == :(log(a) * 5)
   end
 

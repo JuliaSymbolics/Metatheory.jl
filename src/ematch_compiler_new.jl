@@ -1,3 +1,10 @@
+module EMatchCompiler
+
+using TermInterface
+using ..Patterns
+using Metatheory: islist, car, cdr, assoc, drop_n
+using Metatheory: lookup_pat
+
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
     !islist(data) && return
@@ -8,17 +15,16 @@ function ematcher(p::Any)
   end
 end
 
-checktype(n, t) = false
-checktype(n::ENodeLiteral{<:T}, ::Type{T}) where {T} = true
+checktype(n, T) = istree(n) ? symtype(n) <: T : false
 
-function predicate_matcher(p::PatVar, pred::Type)
+function predicate_ematcher(p::PatVar, pred::Type)
   function predicate_ematcher(next, g, data, bindings)
     !islist(data) && return
     id = car(data)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      if typeof(n.value) <: pred
-        next(assoc(bindings, p.idx, (id, enode_idx)))
+      if !istree(n) && typeof(n.value) <: pred
+        next(assoc(bindings, p.idx, (id, enode_idx)), 1)
       end
     end
   end
@@ -27,14 +33,14 @@ end
 function predicate_ematcher(p::PatVar, pred)
   function predicate_ematcher(next, g, data, bindings)
     !islist(data) && return
-    id = car(data)
+    id::Int = car(data)
     eclass = g[id]
-    if pred(m.g, eclass)
+    if pred(eclass)
       enode_idx = 0
       # Is this for cycle needed?
       for (j, n) in enumerate(eclass)
         # Find first literal if available
-        if n isa ENodeLiteral
+        if !istree(n)
           enode_idx = j
           break
         end
@@ -43,17 +49,16 @@ function predicate_ematcher(p::PatVar, pred)
     end
   end
 end
-
-
+  
 function ematcher(p::PatVar)
-  pred_matcher = predicate_matcher(p, p.predicate)
+  pred_matcher = predicate_ematcher(p, p.predicate)
 
   # TODO check if variable is already bound
   function var_ematcher(next, g, data, bindings)
     id = car(data)
-    ecid = get(bindings, p.idx, 0)
+    ecid = get(bindings, p.idx, 0)[1]
     if ecid > 0
-      cid == id ? next(bindings, 1) : nothing
+      ecid == id ? next(bindings, 1) : nothing
     else
       # Variable is not bound, check predicate and bind 
       pred_matcher(next, g, data, bindings)
@@ -69,34 +74,36 @@ function canbind(p::PatTerm)
   op = operation(p)
   ar = arity(p)
   function canbind(n)
-    n isa ENodeTerm && exprhead(n) == eh && checkop(op, operation(n)) && arity(n) == ar
+    istree(n) && exprhead(n) == eh && checkop(op, operation(n)) && arity(n) == ar
   end
 end
 
 
 function ematcher(p::PatTerm)
-  ematchers = map(ematcher, arguments(p))...
+  ematchers = map(ematcher, arguments(p))
 
   canbindtop = canbind(p)
   function term_ematcher(success, g, data, bindings)
     !islist(data) && return nothing
 
     function loop(children_eclass_ids, bindings′, ematchers′)
-      if !islist(matchers′)
+      if !islist(ematchers′)
         # term is empty
         if !islist(children_eclass_ids)
           # we have correctly matched the term
-          return success(bindings′, 1)
+          success(bindings′, 1)
+          return 
         end
         return nothing
       end
-      car(ematchers′)(g, children_eclass_ids, bindings′) do (b, n_of_matched) # next
+      car(ematchers′)(g, children_eclass_ids, bindings′) do b, n_of_matched # next
         # recursion case:
         # take the first matcher, on success,
         # keep looping by matching the rest 
         # by removing the first n matched elements 
         # from the term, with the bindings, 
-        loop(drop_n(children_eclass_ids, n_of_matched), b, cdr(matchers′))
+        loop(drop_n(children_eclass_ids, n_of_matched), b, cdr(ematchers′))
+        return
       end
     end
 
@@ -108,9 +115,8 @@ function ematcher(p::PatTerm)
   end
 end 
 
-ematcher_yield(p,npvars) = ematch_yield(p,npvars,1)
 
-const EMPTY_ECLASS_DICT = Base.ImmutableDict{EClassId,(EClassId, Int)}
+const EMPTY_ECLASS_DICT = Base.ImmutableDict{Int,Tuple{Int, Int}}()
 
 """
 Substitutions are efficiently represented in memory as vector of tuples of two integers.
@@ -128,7 +134,7 @@ function ematcher_yield(p, npvars::Int, direction::Int)
     em = ematcher(p)
     function ematcher_yield(g, rule_idx, id)::Int
         n_matches = 0
-        em(g, (id,), EMPTY_ECLASS_DICT) do (b,n)
+        em(g, (id,), EMPTY_ECLASS_DICT) do b,n
             lock(g.match_buffer_lock) do
                 push!(g.match_buffer, (rule_idx * direction, id))
                 for i in 1:npvars
@@ -142,6 +148,8 @@ function ematcher_yield(p, npvars::Int, direction::Int)
     end
 end
 
+ematcher_yield(p,npvars) = ematcher_yield(p,npvars,1)
+
 function ematcher_yield_bidir(l, r, npvars::Int)
     eml, emr = ematcher_yield(l, npvars, 1), ematcher_yield(r, npvars, -1)
     function ematcher_yield_bidir(g, rule_idx, id)::Int
@@ -150,5 +158,7 @@ function ematcher_yield_bidir(l, r, npvars::Int)
 end
 
 ematcher(p::AbstractPattern) = error("Unsupported pattern in e-matching $p")
+
+export ematcher_yield, ematcher_yield_bidir
 
 end

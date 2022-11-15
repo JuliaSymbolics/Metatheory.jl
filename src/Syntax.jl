@@ -432,7 +432,7 @@ macro capture(args...)
   quote
     $(__source__)
     lhs_pattern = $(esc(lhs_term))
-    __MATCHES__ = DynamicRule(lhs_pattern, (_lhs_expr, _subst, _egraph, pvars...) -> pvars, nothing)($(esc(ex)))
+    __MATCHES__ = DynamicRule(lhs_pattern, (_lhs_expr, _egraph, pvars...) -> pvars, nothing)($(esc(ex)))
     if __MATCHES__ !== nothing
       $bind
       true
