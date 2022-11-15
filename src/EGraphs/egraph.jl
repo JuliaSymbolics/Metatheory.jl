@@ -44,6 +44,7 @@ end
 
 
 TermInterface.istree(n::ENodeTerm) = true
+TermInterface.symtype(::ENodeTerm{T}) where T = T
 TermInterface.exprhead(n::ENodeTerm) = n.exprhead
 TermInterface.operation(n::ENodeTerm) = n.operation
 TermInterface.arguments(n::ENodeTerm) = n.args
@@ -197,6 +198,7 @@ mutable struct EGraph
   """A buffer storing e-matching results"""
   match_buffer::CircularDeque{Tuple{EClassId,EClassId}}
   match_buffer_lock::ReentrantLock
+  merges_buf::CircularDeque{Tuple{EClassId,EClassId}}
   """A vector of analyses associated to the EGraph"""
   analyses::Analyses
   # """
@@ -212,6 +214,8 @@ mutable struct EGraph
   # age::Int
 end
 
+const DEFAULT_BUFFER_SIZE = 1024 * 1024 * 8
+
 """
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
@@ -226,16 +230,16 @@ function EGraph()
     EClassId[],
     -1,
     # One-Megabyte match buffer - TODO auto resize
-    CircularDeque{Tuple{EClassId,EClassId}}(8388608),
+    CircularDeque{Tuple{EClassId,EClassId}}(DEFAULT_BUFFER_SIZE),
     ReentrantLock(),
+    # Merges buffer 
+    CircularDeque{Tuple{EClassId,EClassId}}(round(Int,DEFAULT_BUFFER_SIZE/2)),
     Analyses(),
     # SymbolCache(),
     Expr,
     TermTypes(),
     0,
-    0,
-    fill(-1, DEFAULT_MEM_SIZE), # memory
-    fill(nothing, DEFAULT_MEM_SIZE), # memory
+    0
     # 0
   )
 end
@@ -553,6 +557,8 @@ function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothi
 end
 
 # Thanks to Max Willsey and Yihong Zhang
+
+import Metatheory: lookup_pat
 
 function lookup_pat(g::EGraph, p::PatTerm)::EClassId
   @assert isground(p)

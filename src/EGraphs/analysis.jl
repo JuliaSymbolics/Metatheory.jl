@@ -201,7 +201,7 @@ function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
 end
 
 
-function getcost!(g::EGraph, costfun; root = -1) where {F}
+function getcost!(g::EGraph, costfun; root = -1)
   if root == -1
     root = g.root
   end

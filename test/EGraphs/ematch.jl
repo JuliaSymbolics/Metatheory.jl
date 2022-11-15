@@ -1,4 +1,5 @@
 using Metatheory
+using Test
 using Metatheory.Library
 
 falseormissing(x) = x === missing || !x
@@ -79,7 +80,7 @@ simp_theory = @theory begin
 end
 G = EGraph(:(sin()))
 saturate!(G, simp_theory)
-extract!(G, astsize)
+@test extract!(G, astsize) == :foo
 
 module Bar
 foo = 42
@@ -148,10 +149,7 @@ end
   @test true == areequal(g, some_theory, :(sin(2, 3)), :(cos(3, 2)))
 end
 
-function Base.iszero(g::EGraph, ec::EClass)
-  n = ENodeLiteral(0)
-  return n ∈ ec
-end
+Base.iszero(ec::EClass) = ENodeLiteral(0) ∈ ec
 
 @testset "Predicates in Ematcher" begin
   some_theory = @theory begin
@@ -166,7 +164,6 @@ end
 end
 
 @testset "Inequalities" begin
-
   failme = @theory p begin
     p ≠ !p
     :foo == !:foo

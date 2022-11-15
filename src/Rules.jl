@@ -199,12 +199,13 @@ function (r::DynamicRule)(term)
   success(bindings, n) =
     if n == 1
       bvals = [bindings[i] for i in 1:length(r.patvars)]
-      return r.rhs_fun(term, bindings, nothing, bvals...)
+      return r.rhs_fun(term, nothing, bvals...)
     end
 
   try
     return r.matcher(success, (term,), EMPTY_DICT)
   catch err
+    rethrow(err)
     throw(RuleRewriteError(r, term))
   end
 end

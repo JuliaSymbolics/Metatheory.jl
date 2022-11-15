@@ -36,26 +36,36 @@ T = [
   @rule :B * :B --> :B
   @rule (@rep (:a * :b) (*) 7) --> :ε
   @rule (@rep (:a * :b * :a * :B) (*) 7) --> :ε
-  # RewriteRule(makepattern(rep(:(:a * :b), :*, 7)), :ε)
-  # RewriteRule(makepattern(rep(:(:a * :b * :a * :B), :*, 12)), :ε)
 ]
 
 G = Mid ∪ Massoc ∪ T
-expr = :(a * b * a * a * a * b * b * b * a * B * B * B * B * a)
 
-ex = expr
-g = EGraph(expr)
-params = SaturationParams(timeout = 9, scheduler = BackoffScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
-@timev saturate!(g, G, params)
-ex = extract!(g, astsize)
-@test ex == :ε
 
 another_expr = :(b * B)
 g = EGraph(another_expr)
 saturate!(g, G, params)
+ex = extract!(g, astsize)
+@test ex == :ε
+
+
 
 another_expr = :(a * a * a * a)
 some_eclass, _ = addexpr!(g, another_expr)
-saturate!(g, G, params)
+saturate!(g, G)
 ex = extract!(g, astsize; root = some_eclass.id)
 @test ex == :ε
+
+another_expr = :(((((((a * b) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b))
+some_eclass, _ = addexpr!(g, another_expr)
+saturate!(g, G)
+ex = extract!(g, astsize; root = some_eclass.id)
+@test ex == :ε
+
+
+expr = :(a * b * a * a * a * b * b * b * a * B * B * B * B * a)
+g = EGraph(expr)
+params = SaturationParams(timeout = 10, scheduler = BackoffScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
+@timev saturate!(g, G, params)
+ex = extract!(g, astsize)
+@test ex == :ε
+

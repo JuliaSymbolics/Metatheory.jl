@@ -12,6 +12,8 @@ end
 
 @inline alwaystrue(x) = true
 
+function lookup_pat end
+
 include("docstrings.jl")
 include("utils.jl")
 export @timer
