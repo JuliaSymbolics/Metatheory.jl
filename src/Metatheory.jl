@@ -22,7 +22,7 @@ export @matchable
 include("Patterns.jl")
 @reexport using .Patterns
 
-include("ematch_compiler.jl")
+include("ematch_compiler_new.jl")
 @reexport using .EMatchCompiler
 
 include("matchers.jl")

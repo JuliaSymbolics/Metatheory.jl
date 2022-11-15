@@ -339,7 +339,7 @@ macro rule(args...)
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
     rhs_consequent = makeconsequent(rhs_rewritten)
-    params = Expr(:tuple, :_lhs_expr, :_subst, :_egraph, pvars...)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote
       $(__source__)

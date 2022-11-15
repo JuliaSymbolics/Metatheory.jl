@@ -127,6 +127,7 @@ function addparent!(a::EClass, n::AbstractENode, id::EClassId)
 end
 
 function Base.union!(to::EClass, from::EClass)
+  # TODO revisit
   append!(to.nodes, from.nodes)
   append!(to.parents, from.parents)
   if !isnothing(to.data) && !isnothing(from.data)
@@ -193,6 +194,9 @@ mutable struct EGraph
   """worklist for ammortized upwards merging"""
   dirty::Vector{EClassId}
   root::EClassId
+  """A buffer storing e-matching results"""
+  match_buffer::CircularDeque{Tuple{EClassId,EClassId}}
+  match_buffer_lock::ReentrantLock
   """A vector of analyses associated to the EGraph"""
   analyses::Analyses
   # """
@@ -221,12 +225,17 @@ function EGraph()
     # ParentMem(),
     EClassId[],
     -1,
+    # One-Megabyte match buffer - TODO auto resize
+    CircularDeque{Tuple{EClassId,EClassId}}(8388608),
+    ReentrantLock(),
     Analyses(),
     # SymbolCache(),
     Expr,
     TermTypes(),
     0,
     0,
+    fill(-1, DEFAULT_MEM_SIZE), # memory
+    fill(nothing, DEFAULT_MEM_SIZE), # memory
     # 0
   )
 end
@@ -543,3 +552,27 @@ function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothi
   similarterm(Expr(:call, :_), op, args; metadata = metadata, exprhead = exprhead)
 end
 
+# Thanks to Max Willsey and Yihong Zhang
+
+function lookup_pat(g::EGraph, p::PatTerm)::EClassId
+  @assert isground(p)
+
+  eh = exprhead(p)
+  op = operation(p)
+  args = arguments(p)
+  ar = arity(p)
+
+  T = gettermtype(g, op, ar)
+
+  ids = ntuple(i -> lookup_pat(g, args[i]), ar)
+  !all(i -> i > 0, ids) && return -1
+
+  id = lookup(g, ENodeTerm{T}(eh, op, ids))
+  if id < 0 && op isa Union{Function,DataType}
+    return lookup(g, ENodeTerm{T}(eh, nameof(op), ids))
+  end
+  id
+end
+
+lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
+lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))
