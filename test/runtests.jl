@@ -1,6 +1,9 @@
 using SafeTestsets
+using Documenter
 using Metatheory
 using Test
+
+doctest(Metatheory)
 
 function test(file::String)
   @info file
@@ -27,13 +30,12 @@ const INTEGRATION_TEST_FILES = map(
 
 @timev begin
   @timev map(test, TEST_FILES)
-  @timev map(test, INTEGRATION_TEST_FILES)
+  # @timev map(test, INTEGRATION_TEST_FILES)
 end
 
-# TODO: use Aqua.jl
 # exported consistency test
 for m in [Metatheory, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
   for i in propertynames(m)
-    xxx = getproperty(m, i)
+    !hasproperty(m, i) && error("Module $m exports undefined symbol $i")
   end
 end

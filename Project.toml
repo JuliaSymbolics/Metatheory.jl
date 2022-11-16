@@ -6,10 +6,7 @@ version = "2.0.0"
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
-Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 StaticTools = "86c06d3c-3f03-46de-9781-57580aa96d0a"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
@@ -20,7 +17,6 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 AutoHashEquals = "0.2.0"
 DataStructures = "0.18.9"
 DocStringExtensions = "0.8, 0.9"
-Parameters = "0.12"
 Reexport = "0.2, 1"
 TermInterface = "0.3.3"
 ThreadsX = "0.1.7"
@@ -28,10 +24,9 @@ TimerOutputs = "0.5"
 julia = "1.8"
 
 [extras]
-Calculus = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
-Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Calculus", "SafeTestsets"]
+test = ["Test", "Documenter", "SafeTestsets"]

@@ -1,5 +1,13 @@
 module Metatheory
 
+using DataStructures
+
+const DEFAULT_BUFFER_SIZE = 1024 * 1024 * 8
+const BUFFER_T = CircularDeque{Tuple{Int,Int}}
+const BUFFERS = Vector{Tuple{BUFFER_T,ReentrantLock}}(undef, Threads.nthreads())
+const MERGES_BUF = Ref(BUFFER_T(DEFAULT_BUFFER_SIZE))
+const MERGES_BUF_LOCK = ReentrantLock()
+
 using Base.Meta
 using Reexport
 using TermInterface

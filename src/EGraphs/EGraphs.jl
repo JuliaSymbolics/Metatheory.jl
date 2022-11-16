@@ -5,12 +5,11 @@ include("../docstrings.jl")
 using DataStructures
 using TermInterface
 using TimerOutputs
-using Parameters
-using Metatheory: alwaystrue, cleanast, binarize, @log
+using Metatheory:
+  alwaystrue, cleanast, binarize, @log, DEFAULT_BUFFER_SIZE, BUFFER_T, BUFFERS, MERGES_BUF, MERGES_BUF_LOCK
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
-using Dates
 
 import ThreadsX
 
