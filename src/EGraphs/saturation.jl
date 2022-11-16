@@ -29,7 +29,7 @@ struct FunctionGoal <: SaturationGoal
 end
 
 function reached(g::EGraph, goal::FunctionGoal)::Bool
-    goal.fun(g)    
+  goal.fun(g)
 end
 
 mutable struct SaturationReport
@@ -58,12 +58,11 @@ end
 """
 Configurable Parameters for the equality saturation process.
 """
-@with_kw mutable struct SaturationParams
+Base.@kwdef mutable struct SaturationParams
   timeout::Int = 8
-  timelimit::Period = Second(-1)
-  # default sizeout. TODO make this bytes
-  # sizeout::Int = 2^14
-  buffer_size::Int                      = DEFAULT_BUFFER_SIZE
+  "Timeout in nanoseconds"
+  timelimit::UInt64 = 0
+  "Maximum number of eclasses allowed"
   eclasslimit::Int                     = 5000
   enodelimit::Int                      = 15000
   goal::Union{Nothing,SaturationGoal}  = nothing
@@ -116,7 +115,16 @@ end
 #     get(g.symcache, p.val, [])
 # end
 
+function resetbuffers!(bufsize)
+  for i in 1:Threads.nthreads()
+    BUFFERS[i] = (BUFFER_T(bufsize), ReentrantLock())
+  end
+  MERGES_BUF[] = BUFFER_T(bufsize)
+end
 
+function __init__()
+  resetbuffers!(DEFAULT_BUFFER_SIZE)
+end
 
 """
 Returns an iterator of `Match`es.
@@ -125,9 +133,15 @@ function eqsat_search!(
   g::EGraph,
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
-  report::SaturationReport
+  report::SaturationReport,
 )::Int
-  n_matches=0
+  n_matches = 0
+  match_buf, match_buf_lock = BUFFERS[Threads.threadid()]
+
+  lock(match_buf_lock) do
+    empty!(match_buf)
+  end
+
   for (rule_idx, rule) in enumerate(theory)
     @timeit report.to repr(rule) begin
       # don't apply banned rules
@@ -135,7 +149,7 @@ function eqsat_search!(
         continue
       end
       # ids = cached_ids(egraph, rule.left)
-      for i in keys(g.classes) 
+      for i in keys(g.classes)
         n_matches += rule.ematcher!(g, rule_idx, i)
       end
       inform!(scheduler, rule, n_matches)
@@ -149,36 +163,36 @@ end
 function drop_n!(D::CircularDeque, nn)
   D.n -= nn
   tmp = D.first + nn
-  D.first = tmp > D.capacity ?  1 : tmp
+  D.first = tmp > D.capacity ? 1 : tmp
 end
 
-instantiate_enode!(g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p)).id
-instantiate_enode!(g::EGraph, p::PatVar)::EClassId = g.match_buffer[p.idx][1]
-function instantiate_enode!(g::EGraph, p::PatTerm)::EClassId
+instantiate_enode!(buf, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
+instantiate_enode!(buf, g::EGraph, p::PatVar)::EClassId = buf[p.idx][1]
+function instantiate_enode!(buf, g::EGraph, p::PatTerm)::EClassId
   eh = exprhead(p)
   op = operation(p)
   ar = arity(p)
   args = arguments(p)
   T = gettermtype(g, op, ar)
   new_op = T == Expr && op isa Union{Function,DataType} ? nameof(op) : op
-  add!(g, ENodeTerm{T}(eh, new_op, ntuple(x -> instantiate_enode!(g, args[x]), length(args)))).id
+  add!(g, ENodeTerm{T}(eh, new_op, map(arg -> instantiate_enode!(buf, g, arg), args)))
 end
 
-function apply_rule!(g::EGraph, rule::RewriteRule, id, direction)
-  push!(g.merges_buf, (id, instantiate_enode!(g, rule.right)))
+function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
+  push!(MERGES_BUF[], (id, instantiate_enode!(buf, g, rule.right)))
   nothing
 end
 
-function apply_rule!(g::EGraph, rule::EqualityRule, id, direction)
+function apply_rule!(buf::BUFFER_T, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  push!(g.merges_buf, (id, instantiate_enode!(g, pat_to_inst)))
+  push!(MERGES_BUF[], (id, instantiate_enode!(buf, g, pat_to_inst)))
   nothing
 end
 
 
-function apply_rule!(g::EGraph, rule::UnequalRule, id, direction)
+function apply_rule!(buf::BUFFER_T, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  other_id = instantiate_enode!(g, pat_to_inst)
+  other_id = instantiate_enode!(buf, g, pat_to_inst)
 
   if find(g, id) == find(g, other_id)
     @log "Contradiction!" rule
@@ -190,8 +204,8 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(g::EGraph, i)
-  ecid, literal_position = g.match_buffer[i]
+function instantiate_actual_param!(buf, g::EGraph, i)
+  ecid, literal_position = buf[i]
   ecid <= 0 && error("unbound pattern variable $pat in rule $rule")
   if literal_position > 0
     eclass = g[ecid]
@@ -201,12 +215,12 @@ function instantiate_actual_param!(g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(g::EGraph, rule::DynamicRule, id, direction)
+function apply_rule!(buf::BUFFER_T, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
   f = rule.rhs_fun
-  r = f(id, g, (instantiate_actual_param!(g, i) for i in 1:length(rule.patvars))...)
+  r = f(id, g, (instantiate_actual_param!(buf, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
-  rc, node = addexpr!(g, r)
-  push!(g.merges_buf, (id, rc.id))
+  rcid = addexpr!(g, r)
+  push!(MERGES_BUF[], (id, rcid))
   return nothing
 end
 
@@ -214,33 +228,41 @@ end
 
 function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
   i = 0
-  lock(g.match_buffer_lock) do 
-    while !isempty(g.match_buffer)
-      if reached(g, params.goal)
-        @log "Goal reached"
-        rep.reason = :goalreached
-        return
-      end
+  @assert isempty(MERGES_BUF[])
 
-      rule_idx, id = popfirst!(g.match_buffer)
-      direction = sign(rule_idx)
-      rule_idx = abs(rule_idx)
-      rule = theory[rule_idx]
+  for threadid in 1:Threads.nthreads()
+    match_buf, match_buf_lock = BUFFERS[Threads.threadid()]
+    lock(match_buf_lock) do
+      while !isempty(match_buf)
+        if reached(g, params.goal)
+          @log "Goal reached"
+          rep.reason = :goalreached
+          return
+        end
 
-      halt_reason = apply_rule!(g, rule, id, direction)
-      drop_n!(g.match_buffer, length(rule.patvars))
-      @assert popfirst!(g.match_buffer) == (0,0)
+        rule_idx, id = popfirst!(match_buf)
+        direction = sign(rule_idx)
+        rule_idx = abs(rule_idx)
+        rule = theory[rule_idx]
 
-      if (halt_reason !== nothing)
-        rep.reason = halt_reason
-        return
+        halt_reason = lock(MERGES_BUF_LOCK) do
+          apply_rule!(match_buf, g, rule, id, direction)
+        end
+        drop_n!(match_buf, length(rule.patvars))
+        @assert popfirst!(match_buf) == (0, 0)
+
+        if (halt_reason !== nothing)
+          rep.reason = halt_reason
+          return
+        end
       end
     end
   end
-
-  while !isempty(g.merges_buf)
-    (l,r) = popfirst!(g.merges_buf)
-    merge!(g,l,r)
+  lock(MERGES_BUF_LOCK) do
+    while !isempty(MERGES_BUF[])
+      (l, r) = popfirst!(MERGES_BUF[])
+      merge!(g, l, r)
+    end
   end
 end
 
@@ -285,15 +307,10 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   sched = params.scheduler(g, theory, params.schedulerparams...)
   report = SaturationReport(g)
 
-  start_time = Dates.now().instant
+  start_time = time_ns()
 
   !params.timer && disable_timer!(report.to)
-  timelimit = params.timelimit > Second(0)
-
-  if params.buffer_size != DEFAULT_BUFFER_SIZE
-    @assert isempty(g.match_buffer)
-    g.match_buffer = CircularDeque{Tuple{EClassId,EClassId}}(params.buffer_size)
-  end
+  timelimit = params.timelimit > 0
 
   while true
     curr_iter += 1
@@ -302,7 +319,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
 
     report = eqsat_step!(g, theory, curr_iter, sched, params, report)
 
-    elapsed = Dates.now().instant - start_time
+    elapsed = time_ns() - start_time
 
     if timelimit && params.timelimit <= elapsed
       report.reason = :timelimit
@@ -349,20 +366,10 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = Satur
   @log "starting saturation"
 
   n = length(exprs)
-  ids = Vector{EClassId}(undef, n)
-  nodes = Vector{AbstractENode}(undef, n)
-  for i in 1:n
-    ec, node = addexpr!(g, exprs[i])
-    ids[i] = ec.id
-    nodes[i] = node
-  end
-
+  ids = map(Base.Fix1(addexpr!, g), collect(exprs))
   goal = EqualityGoal(collect(exprs), ids)
 
-  # alleq = () -> (all(x -> in_same_set(G.uf, ids[1], x), ids[2:end]))
-
   params.goal = goal
-  # params.stopwhen = alleq
 
   report = saturate!(g, t, params)
 

@@ -4,14 +4,6 @@ using Metatheory
 using Metatheory.EGraphs
 using Metatheory.Library
 
-
-for m in [Metatheory]
-  for i in propertynames(m)
-    xxx = getproperty(m, i)
-    println(xxx)
-  end
-end
-
 makedocs(
   modules = [Metatheory, Metatheory.EGraphs],
   sitename = "Metatheory.jl",

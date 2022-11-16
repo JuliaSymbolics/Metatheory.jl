@@ -10,8 +10,18 @@ the [egg](https://egraphs-good.github.io/) library for Rust. You can read more
 about the design of the EGraph data structure and equality saturation algorithm
 in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304).
 
-See [Alessandro Cheli](https://0x0f0f0f.github.io/) and [Philip Zucker](https://www.philipzucker.com/)'s 
-[talk at JuliaCon 2021](https://www.youtube.com/watch?v=tdXfsTliRJk) for an overview of the concepts introduced in this chapter of the manual (**NOTE**: Syntax in the talk slideshow is out of date).
+Let's load Metatheory and the rule library
+```julia
+using Metatheory
+using Metatheory.Library
+```
+
+```@meta
+DocTestSetup = quote 
+    using Metatheory
+    using Metatheory.Library
+end
+```
 
 ## What can I do with EGraphs in Metatheory.jl?
 
@@ -52,10 +62,17 @@ are **EGraph Analyses**. They allow you to annotate expressions and equivalence 
 The `Metatheory.Library` module contains utility functions and macros for creating
 rules and theories from commonly used algebraic structures and
 properties, to be used with the e-graph backend.
-```julia
-using Metatheory.Library
-
+```jldoctest
 comm_monoid = @commutative_monoid (*) 1
+
+# output
+
+4-element Vector{RewriteRule}:
+ ~a * ~b --> ~b * ~a
+ (~a * ~b) * ~c --> ~a * (~b * ~c)
+ ~a * (~b * ~c) --> (~a * ~b) * ~c
+ 1 * ~a --> ~a
+
 ```
 
 
@@ -66,54 +83,35 @@ commutativity and distributivity**, rules that are
 otherwise known of causing loops and require extensive user reasoning 
 in classical rewriting.
 
-```julia
+```jldoctest
 t = @theory a b c begin
     a * b == b * a
     a * 1 == a
     a * (b * c) == (a * b) * c
 end
+
+# output
+
+3-element Vector{EqualityRule}:
+ ~a * ~b == ~b * ~a
+ ~a * 1 == ~a
+ ~a * (~b * ~c) == (~a * ~b) * ~c
+
 ```
 
 
 ## Equality Saturation
 
-We can programmatically build and saturate an EGraph.
-The function `saturate!` takes an `EGraph` and a theory, and executes
-equality saturation. Returns a report
-of the equality saturation process.
-`saturate!` is configurable, customizable parameters include
-a `timeout` on the number of iterations, a `eclasslimit` on the number of e-classes in the EGraph, a `stopwhen` functions that stops saturation when it evaluates to true.
-```julia
+We can programmatically build and saturate an EGraph. The function `saturate!`
+takes an `EGraph` and a theory, and executes equality saturation. Returns a
+report of the equality saturation process. `saturate!` is configurable,
+customizable parameters include a `timeout` on the number of iterations, a
+`eclasslimit` on the number of e-classes in the EGraph, a `stopwhen` functions
+that stops saturation when it evaluates to true.
+
+```@example
 g = EGraph(:((a * b) * (1 * (b + c))));
 report = saturate!(g, t);
-# access the saturated EGraph
-report.egraph
-
-# show some fancy stats
-report
-```
-
-```
-Equality Saturation Report
-=================
-        Stop Reason: saturated
-        Iterations: 1
-        EGraph Size: 9 eclasses, 51 nodes
- ───────────────────────────────────────────────────────────────────────────────────────
-                                                Time                   Allocations      
-                                        ──────────────────────   ───────────────────────
-            Tot / % measured:                1.18s / 0.45%            955KiB / 68.1%    
-
- Section                        ncalls     time   %tot     avg     alloc   %tot      avg
- ───────────────────────────────────────────────────────────────────────────────────────
- Apply                               1   4.63ms  87.5%  4.63ms    512KiB  78.7%   512KiB
- Search                              1    656μs  12.4%   656μs    139KiB  21.3%   139KiB
-   a * (b * c) == (a * b) * c        1    242μs  4.58%   242μs   79.2KiB  12.2%  79.2KiB
-   a * b == b * a                    1    153μs  2.89%   153μs   34.2KiB  5.26%  34.2KiB
-   a * 1 == a                        1    115μs  2.17%   115μs   14.4KiB  2.21%  14.4KiB
-   appending matches                 3   4.06μs  0.08%  1.35μs      544B  0.08%     181B
- Rebuild                             1   3.75μs  0.07%  3.75μs     0.00B  0.00%    0.00B
- ───────────────────────────────────────────────────────────────────────────────────────
 ```
 
 With the EGraph equality saturation backend, Metatheory.jl can prove **simple**

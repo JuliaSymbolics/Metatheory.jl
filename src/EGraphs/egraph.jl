@@ -19,7 +19,7 @@ end
 mutable struct ENodeTerm{T} <: AbstractENode{T}
   exprhead::Union{Symbol,Nothing}
   operation::Any
-  args::NTuple{N,EClassId} where {N}
+  args::Vector{EClassId}
   hash::Ref{UInt} # hash cache
 end
 
@@ -44,7 +44,7 @@ end
 
 
 TermInterface.istree(n::ENodeTerm) = true
-TermInterface.symtype(::ENodeTerm{T}) where T = T
+TermInterface.symtype(::ENodeTerm{T}) where {T} = T
 TermInterface.exprhead(n::ENodeTerm) = n.exprhead
 TermInterface.operation(n::ENodeTerm) = n.operation
 TermInterface.arguments(n::ENodeTerm) = n.args
@@ -195,10 +195,6 @@ mutable struct EGraph
   """worklist for ammortized upwards merging"""
   dirty::Vector{EClassId}
   root::EClassId
-  """A buffer storing e-matching results"""
-  match_buffer::CircularDeque{Tuple{EClassId,EClassId}}
-  match_buffer_lock::ReentrantLock
-  merges_buf::CircularDeque{Tuple{EClassId,EClassId}}
   """A vector of analyses associated to the EGraph"""
   analyses::Analyses
   # """
@@ -214,7 +210,6 @@ mutable struct EGraph
   # age::Int
 end
 
-const DEFAULT_BUFFER_SIZE = 1024 * 1024 * 8
 
 """
     EGraph(expr)
@@ -229,17 +224,12 @@ function EGraph()
     # ParentMem(),
     EClassId[],
     -1,
-    # One-Megabyte match buffer - TODO auto resize
-    CircularDeque{Tuple{EClassId,EClassId}}(DEFAULT_BUFFER_SIZE),
-    ReentrantLock(),
-    # Merges buffer 
-    CircularDeque{Tuple{EClassId,EClassId}}(round(Int,DEFAULT_BUFFER_SIZE/2)),
     Analyses(),
     # SymbolCache(),
     Expr,
     TermTypes(),
     0,
-    0
+    0,
     # 0
   )
 end
@@ -247,9 +237,7 @@ end
 function EGraph(e; keepmeta = false)
   g = EGraph()
   keepmeta && addanalysis!(g, :metadata_analysis)
-
-  rootclass, rootnode = addexpr!(g, e; keepmeta = keepmeta)
-  g.root = rootclass.id
+  g.root = addexpr!(g, e; keepmeta = keepmeta)
   g
 end
 
@@ -296,14 +284,16 @@ canonicalize(g::EGraph, n::ENodeLiteral) = n
 
 function canonicalize(g::EGraph, n::ENodeTerm{T}) where {T}
   if arity(n) > 0
-    new_args = ntuple(i -> find(g, n.args[i]), length(n.args))
+    new_args = map(Base.Fix1(find, g), n.args)
     return ENodeTerm{T}(exprhead(n), operation(n), new_args)
   end
   return n
 end
 
 function canonicalize!(g::EGraph, n::ENodeTerm)
-  n.args = ntuple(i -> find(g, n.args[i]), length(n.args))
+  for (i, arg) in enumerate(n.args)
+    n.args[i] = find(g, arg)
+  end
   n.hash[] = UInt(0)
   return n
 end
@@ -323,11 +313,11 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::AbstractENode)::EClass
+function add!(g::EGraph, n::AbstractENode)::EClassId
   @debug("adding ", n)
 
   n = canonicalize(g, n)
-  haskey(g.memo, n) && return g[g.memo[n]]
+  haskey(g.memo, n) && return g.memo[n]
 
   id = push!(g.uf) # create new singleton eclass
 
@@ -349,7 +339,7 @@ function add!(g::EGraph, n::AbstractENode)::EClass
       modify!(an, g, id)
     end
   end
-  return classdata
+  return id
 end
 
 
@@ -369,28 +359,22 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-addexpr!(g::EGraph, se::EClass; keepmeta = false) = (se, se[1])
-
-function addexpr!(g::EGraph, se; keepmeta = false)::Tuple{EClass,AbstractENode}
+function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
   e = preprocess(se)
-  node = nothing
 
-  if istree(se)
-    args = arguments(e)
-    class_ids = ntuple(i -> first(addexpr!(g, args[i]; keepmeta = keepmeta)).id, length(args))
-    node = ENodeTerm{typeof(e)}(exprhead(e), operation(e), class_ids)
+  id = add!(g, if istree(se)
+    class_ids = map(arg -> addexpr!(g, arg; keepmeta = keepmeta), arguments(e))
+    ENodeTerm{typeof(e)}(exprhead(e), operation(e), class_ids)
   else
     # constant enode
-    node = ENodeLiteral(e)
-  end
-
-  ec = add!(g, node)
+    ENodeLiteral(e)
+  end)
   if keepmeta
     # TODO check if eclass already has metadata?
     meta = TermInterface.metadata(e)
-    setdata!(ec, :metadata_analysis, meta)
+    !isnothing(meta) && setdata!(g.classes[id], :metadata_analysis, meta)
   end
-  return (ec, node)
+  return id
 end
 
 
@@ -570,8 +554,8 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
 
   T = gettermtype(g, op, ar)
 
-  ids = ntuple(i -> lookup_pat(g, args[i]), ar)
-  !all(i -> i > 0, ids) && return -1
+  ids = map(Base.Fix1(lookup_pat, g), args)
+  !all((>)(0), ids) && return -1
 
   id = lookup(g, ENodeTerm{T}(eh, op, ids))
   if id < 0 && op isa Union{Function,DataType}

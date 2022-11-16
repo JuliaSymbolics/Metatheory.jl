@@ -171,7 +171,7 @@ while_language = if_language ∪ write_mem ∪ while_rules;
   params = SaturationParams(timeout = 10)
   @test areequal(while_language, Mem(:x => 5), exx; params = params)
 
-  params = SaturationParams(timeout = 14)
+  params = SaturationParams(timeout = 14, timer=false)
   exx = :((
     if x < 10
       x = x + 1

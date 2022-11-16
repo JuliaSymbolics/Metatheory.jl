@@ -71,9 +71,7 @@ function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
       eclass = g[id]
       id = eclass.id
       pass = mapreduce(x -> make(analysis_ref, g, x), (x, y) -> join(analysis_ref, x, y), eclass)
-      # pass = make_pass(G, analysis, find(G,id))
 
-      # if pass !== missing
       if !isequal(pass, getdata(eclass, analysis_ref, missing))
         setdata!(eclass, analysis_ref, pass)
         did_something = true
@@ -149,7 +147,7 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
   if n isa ENodeLiteral
     return n.value
   elseif n isa ENodeTerm
-    children = ntuple(i -> rec_extract(g, costfun, n.args[i]; cse_env = cse_env), length(n.args))
+    children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
     meta = getdata(eclass, :metadata_analysis, nothing)
     T = termtype(n)
     egraph_reconstruct_expression(T, operation(n), collect(children); metadata = meta, exprhead = exprhead(n))
