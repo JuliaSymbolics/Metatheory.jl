@@ -555,13 +555,13 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
 
   T = gettermtype(g, op, ar)
 
-  ids = map(Base.Fix1(lookup_pat, g), args)
+  ids = map(x -> lookup_pat(g, x), args)
   !all((>)(0), ids) && return -1
 
-  if T isa Expr && op isa Union{Function,DataType}
+  if T == Expr && op isa Union{Function,DataType}
     id = lookup(g, ENodeTerm(eh, op, T, ids))
     id < 0 && return lookup(g, ENodeTerm(eh, nameof(op), T, ids))
-    return id 
+    return id
   else
     return lookup(g, ENodeTerm(eh, op, T, ids))
   end

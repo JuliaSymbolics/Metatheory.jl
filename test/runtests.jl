@@ -25,6 +25,7 @@ const INTEGRATION_TEST_FILES = map(
     "taylor.jl",
     "while_interpreter.jl",
     "while_superinterpreter.jl",
+    "lambda_theory.jl"
   ],
 )
 

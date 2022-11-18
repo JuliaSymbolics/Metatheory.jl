@@ -78,9 +78,9 @@ end
 simp_theory = @theory begin
   sin() => :foo
 end
-G = EGraph(:(sin()))
-saturate!(G, simp_theory)
-@test extract!(G, astsize) == :foo
+g = EGraph(:(sin()))
+saturate!(g, simp_theory)
+@test extract!(g, astsize) == :foo
 
 module Bar
 foo = 42

@@ -60,7 +60,7 @@ end
 # f(z(2), h(4)) with some metadata in h
 hcall = MyExpr(h, [4], "hello", [2 + 3im, 4 + 2im], Set{Int}([4, 5, 6]))
 # let's create an egraph 
-ex = MyExpr(f, [MyExpr(:z, [2]), hcall])
+ex = MyExpr(f, [MyExpr(z, [2]), hcall])
 g = EGraph(ex; keepmeta = true)
 settermtype!(g, MyExpr)
 
