@@ -43,7 +43,9 @@ end
 
 TermInterface.exprhead(::LambdaExpr) = :call
 
-Base.:(+)(a::LambdaExpr, b::Any) = Apply((+), )
+function EGraphs.egraph_reconstruct_expression(::Type{<:LambdaExpr}, op, args; metadata=nothing, exprhead=:call)
+  op(args...)
+end
 
 #%%
 EGraphs.make(::Val{:freevar}, ::EGraph, n::ENodeLiteral) = Set{Int64}()
@@ -84,7 +86,7 @@ open_term = @theory x e then alt a b c begin
   IfThenElse(false, then, alt) --> alt
   # if-elim
   IfThenElse(Variable(x) == e, then, alt) =>
-    if addexpr!(_egraph, :(Let($x, $e, $then))) == addexpr!(_egraph, :(Let($x, $e, $alt)))
+    if addexpr!(_egraph, Let(x, e, then)) == addexpr!(_egraph, Let(x, e, alt))
       alt
     else
       _lhs_expr

@@ -73,6 +73,8 @@ fold_t = @theory a b begin
 end
 
 using Calculus: differentiate
+function ∂ end
+
 diff_t = @theory x y begin
   ∂(y, x::Symbol) => begin
     z = extract!(_egraph, simplcost; root = y.id)

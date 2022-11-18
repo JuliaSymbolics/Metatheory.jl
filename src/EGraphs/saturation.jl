@@ -126,7 +126,7 @@ function eqsat_search!(
   end
 
   for (rule_idx, rule) in enumerate(theory)
-    @timeit report.to repr(rule) begin
+    @timeit report.to string(rule_idx) begin
       # don't apply banned rules
       if !cansearch(scheduler, rule)
         continue

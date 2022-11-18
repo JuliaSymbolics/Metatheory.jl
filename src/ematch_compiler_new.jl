@@ -81,6 +81,16 @@ end
 function ematcher(p::PatTerm)
   ematchers = map(ematcher, arguments(p))
 
+  if isground(p)
+    return function ground_term_ematcher(next, g, data, bindings)
+      !islist(data) && return
+      ecid = lookup_pat(g, p)
+      if ecid > 0 && ecid == car(data)
+        next(bindings, 1)
+      end
+    end
+  end
+
   canbindtop = canbind(p)
   function term_ematcher(success, g, data, bindings)
     !islist(data) && return nothing
