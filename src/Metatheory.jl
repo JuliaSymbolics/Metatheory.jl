@@ -2,11 +2,25 @@ module Metatheory
 
 using DataStructures
 
-const DEFAULT_BUFFER_SIZE = 1024 * 1024 * 8
-const BUFFER_T = CircularDeque{Tuple{Int,Int}}
+import Base.ImmutableDict
+
+const Bindings = ImmutableDict{Int,Tuple{Int,Int}}
+const DEFAULT_BUFFER_SIZE = 1048576
+const BUFFER_T = CircularDeque{Bindings}
 const BUFFERS = Vector{Tuple{BUFFER_T,ReentrantLock}}(undef, Threads.nthreads())
-const MERGES_BUF = Ref(BUFFER_T(DEFAULT_BUFFER_SIZE))
+const MERGES_BUF = Ref(CircularDeque{Tuple{Int,Int}}(DEFAULT_BUFFER_SIZE))
 const MERGES_BUF_LOCK = ReentrantLock()
+
+function resetbuffers!(bufsize)
+  for i in 1:Threads.nthreads()
+    BUFFERS[i] = (BUFFER_T(bufsize), ReentrantLock())
+  end
+  MERGES_BUF[] = CircularDeque{Tuple{Int,Int}}(bufsize)
+end
+
+function __init__()
+  resetbuffers!(DEFAULT_BUFFER_SIZE)
+end
 
 using Base.Meta
 using Reexport

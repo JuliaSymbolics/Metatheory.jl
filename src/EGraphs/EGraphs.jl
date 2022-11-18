@@ -6,12 +6,10 @@ using DataStructures
 using TermInterface
 using TimerOutputs
 using Metatheory:
-  alwaystrue, cleanast, binarize, @log, DEFAULT_BUFFER_SIZE, BUFFER_T, BUFFERS, MERGES_BUF, MERGES_BUF_LOCK
+  alwaystrue, cleanast, binarize, @log, DEFAULT_BUFFER_SIZE, BUFFER_T, BUFFERS, MERGES_BUF, MERGES_BUF_LOCK, Bindings
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
-
-import ThreadsX
 
 include("intdisjointmap.jl")
 export IntDisjointSet

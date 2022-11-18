@@ -1,97 +1,146 @@
 using Metatheory
 using Metatheory.EGraphs
+using Metatheory.Library
+using TermInterface
 using Test
 
-open_term = @theory begin
-  # if-true 
-  cond(true, then, alt) => then
-  cond(false, then, alt) => alt
-  # if-elim
-  cond(var(x) == e, then, alt) |>
-  if addexpr!(_egraph, :(llet($x, $e, $then))) == addexpr!(_egraph, :(llet($x, $e, $alt)))
-    alt
-  else
-    _lhs_expr
-  end
-  a + b => b + a
-  a + (b + c) => (a + b) + c
-  (a == b) => (b == a)
+abstract type LambdaExpr end
+
+@matchable struct IfThenElse <: LambdaExpr 
+  guard
+  then 
+  otherwise
 end
 
-subst_intro = @theory begin
-  fix(v, e) => llet(v, fix(v, e), e)
-  # beta reduction 
-  app(λ(v, body), e) => llet(v, e, body)
+@matchable struct Variable <: LambdaExpr
+  x::Symbol
 end
 
-subst_prop = @theory begin
-  # let-app
-  llet(v, e, app(a, b)) => app(llet(v, e, a), llet(v, e, b))
-  # let-add
-  llet(v, e, a + b) => llet(v, e, a) + llet(v, e, b)
-  # let-eq
-  llet(v, e, a == b) => llet(v, e, a) == llet(v, e, b)
-  # let-cond (let-if)
-  llet(v, e, cond(guard, then, alt)) => cond(llet(v, e, guard), llet(v, e, then), llet(v, e, alt))
+@matchable struct Fix <: LambdaExpr
+  variable 
+  expression
 end
 
-subst_elim = @theory begin
-  # let-const 
-  llet(v, e, c::Any) => c
-  # let-var-same 
-  llet(v1, e, var(v1)) => e
-  # TODO fancy let-var-diff 
-  llet(v1, e, var(v2)) |> if find(_egraph, v1) != find(_egraph, v2)
-    :(var($v2))
-  else
-    _lhs_expr
-  end
-  # let-lam-same 
-  llet(v1, e, λ(v1, body)) => λ(v1, body)
-  # let-lam-diff #TODO captureavoid
-  llet(v1, e, λ(v2, body)) |> if v2.id ∈ getdata(e, FreeVarAnalysis, Set()) # is free
-    :(λ($fresh, llet($v1, $e, llet($v2, var($fresh), $body))))
-  else
-    :(λ($v2, llet($v1, $e, $body)))
-  end
+@matchable struct Let <: LambdaExpr
+  variable
+  value 
+  body
+end
+@matchable struct λ <: LambdaExpr
+  x::Symbol
+  body
 end
 
-λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
+@matchable struct Apply <: LambdaExpr 
+  lambda
+  value
+end
 
-ex = :(λ(x, 4 + app(λ(y, var(y)), 4)))
-g = EGraph(ex)
-# analyze!(g, FreeVarAnalysis)
-saturate!(g, λT)
-extract!(g, astsize)
+@matchable struct Add <: LambdaExpr 
+  x
+  y
+end
 
+TermInterface.exprhead(::LambdaExpr) = :call
 
-@test @areequal λT 2 app(λ(x, var(x)), 2)
+Base.:(+)(a::LambdaExpr, b::Any) = Apply((+), )
 
-abstract type FreeVarAnalysis <: AbstractAnalysis end
+#%%
+EGraphs.make(::Val{:freevar}, ::EGraph, n::ENodeLiteral) = Set{Int64}()
 
-function EGraphs.make(an::Type{FreeVarAnalysis}, g::EGraph, n::ENode)
+function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENodeTerm)
   free = Set{Int64}()
-  if n.head == :var
-    push!(free, n.args[1])
-  elseif n.head == :llet
-    v, a, b = n.args[1:3]
-    adata = getdata(g[a], an, Set{Int64}())
-    bdata = getdata(g[a], an, Set{Int64}())
-    union!(free, adata)
-    delete!(free, v)
-    union!(free, bdata)
-  elseif n.head == :λ
-    v, b = n.args[1:2]
-    bdata = getdata(g[b], an, Set{Int64}())
-    union!(free, bdata)
-    delete!(free, v)
+  if exprhead(n) == :call
+    op = operation(n)
+    args = arguments(n)
+
+    if op == Variable
+      push!(free, args[1])
+    elseif op == Let
+      v, a, b = args[1:3]
+      adata = getdata(g[a], :freevar, Set{Int64}())
+      bdata = getdata(g[a], :freevar, Set{Int64}())
+      union!(free, adata)
+      delete!(free, v)
+      union!(free, bdata)
+    elseif op == λ
+      v, b = args[1:2]
+      bdata = getdata(g[b], :freevar, Set{Int64}())
+      union!(free, bdata)
+      delete!(free, v)
+    end
   end
 
   return free
 end
 
-function EGraphs.join(an::Type{FreeVarAnalysis}, from, to)
-  union(from, to)
+EGraphs.join(::Val{:freevar}, from, to) = union(from, to)
+
+islazy(::Val{:freevar}) = false
+
+open_term = @theory x e then alt a b c begin
+  # if-true 
+  IfThenElse(true, then, alt) --> then
+  IfThenElse(false, then, alt) --> alt
+  # if-elim
+  IfThenElse(Variable(x) == e, then, alt) =>
+    if addexpr!(_egraph, :(Let($x, $e, $then))) == addexpr!(_egraph, :(Let($x, $e, $alt)))
+      alt
+    else
+      _lhs_expr
+    end
+  Add(a, b) == Add(b, a)
+  Add(a, Add(b,c)) == Add(Add(a,b),c)
+  # (a == b) == (b == a)
 end
 
-islazy(an::Type{FreeVarAnalysis}) = false
+subst_intro = @theory v body e begin
+  Fix(v, e) --> Let(v, Fix(v, e), e)
+  # beta reduction 
+  Apply(λ(v, body), e) --> Let(v, e, body)
+end
+
+subst_prop = @theory v e a b then alt guard begin
+  # let-Apply
+  Let(v, e, Apply(a, b)) --> Apply(Let(v, e, a), Let(v, e, b))
+  # let-add
+  Let(v, e, a + b) --> Let(v, e, a) + Let(v, e, b)
+  # let-eq
+  # Let(v, e, a == b) --> Let(v, e, a) == Let(v, e, b)
+  # let-IfThenElse (let-if)
+  Let(v, e, IfThenElse(guard, then, alt)) --> IfThenElse(Let(v, e, guard), Let(v, e, then), Let(v, e, alt))
+end
+
+
+subst_elim = @theory v e c v1 v2 body begin
+  # let-const 
+  Let(v, e, c::Any) --> c
+  # let-Variable-same 
+  Let(v1, e, Variable(v1)) --> e
+  # TODO fancy let-Variable-diff 
+  Let(v1, e, Variable(v2)) => if addexpr!(_egraph, v1) != addexpr!(_egraph, v2)
+    :(Variable($v2))
+  else
+    _lhs_expr
+  end
+  # let-lam-same 
+  Let(v1, e, λ(v1, body)) --> λ(v1, body)
+  # let-lam-diff #TODO captureavoid
+  Let(v1, e, λ(v2, body)) => if v2.id ∈ getdata(e, :freevar, Set()) # is free
+    :(λ($fresh, Let($v1, $e, Let($v2, Variable($fresh), $body))))
+  else
+    :(λ($v2, Let($v1, $e, $body)))
+  end
+end
+
+λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
+
+ex = λ(:x, Add(4, Apply(λ(:y, Variable(:y)), 4)))
+g = EGraph(ex)
+
+settermtype!(g, LambdaExpr)
+saturate!(g, λT)
+extract!(g, astsize) # expected: :(λ(x, 4 + 4))
+
+#%%
+@test @areequal λT 2 Apply(λ(x, Variable(x)), 2)

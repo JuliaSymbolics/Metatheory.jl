@@ -17,12 +17,12 @@ end
 checktype(n, T) = istree(n) ? symtype(n) <: T : false
 
 function predicate_ematcher(p::PatVar, pred::Type)
-  function predicate_ematcher(next, g, data, bindings)
+  function type_ematcher(next, g, data, bindings)
     !islist(data) && return
     id = car(data)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      if !istree(n) && typeof(n.value) <: pred
+      if !istree(n) && operation(n) isa pred
         next(assoc(bindings, p.idx, (id, enode_idx)), 1)
       end
     end
@@ -65,8 +65,8 @@ function ematcher(p::PatVar)
   end
 end
 
-checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
-checkop(x, op) = isequal(x, op)
+Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
+Base.@pure @inline checkop(x, op) = isequal(x, op)
 
 function canbind(p::PatTerm)
   eh = exprhead(p)
@@ -90,8 +90,7 @@ function ematcher(p::PatTerm)
         # term is empty
         if !islist(children_eclass_ids)
           # we have correctly matched the term
-          success(bindings′, 1)
-          return 
+          return success(bindings′, 1)
         end
         return nothing
       end
@@ -102,7 +101,6 @@ function ematcher(p::PatTerm)
         # by removing the first n matched elements 
         # from the term, with the bindings, 
         loop(drop_n(children_eclass_ids, n_of_matched), b, cdr(ematchers′))
-        return
       end
     end
 
@@ -136,12 +134,8 @@ function ematcher_yield(p, npvars::Int, direction::Int)
         match_buf, match_buf_lock = BUFFERS[Threads.threadid()]
         em(g, (id,), EMPTY_ECLASS_DICT) do b,n
             lock(match_buf_lock) do
-                push!(match_buf, (rule_idx * direction, id))
-                for i in 1:npvars
-                  push!(match_buf, b[i])
-                end
-                push!(match_buf, (0, 0))
-                n_matches+=1
+              push!(match_buf, assoc(b, 0, (rule_idx * direction, id)))
+              n_matches+=1
             end          
         end
         n_matches

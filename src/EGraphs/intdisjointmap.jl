@@ -1,28 +1,28 @@
-struct IntDisjointSet{T<:Integer}
-  parents::Vector{T}
+struct IntDisjointSet
+  parents::Vector{Int}
   normalized::Ref{Bool}
 end
 
-IntDisjointSet{T}() where {T<:Integer} = IntDisjointSet{T}(Vector{T}[], Ref(true))
+IntDisjointSet() = IntDisjointSet(Int[], Ref(true))
 Base.length(x::IntDisjointSet) = length(x.parents)
 
-function Base.push!(x::IntDisjointSet{T}) where {T}
-  push!(x.parents, convert(T, -1))
-  convert(T, length(x))
+function Base.push!(x::IntDisjointSet)::Int
+  push!(x.parents, -1)
+  length(x)
 end
 
-function find_root(x::IntDisjointSet{T}, i::T) where {T}
+function find_root(x::IntDisjointSet, i::Int)::Int
   while x.parents[i] >= 0
     i = x.parents[i]
   end
-  return convert(T, i)
+  return i
 end
 
-function in_same_set(x::IntDisjointSet{T}, a::T, b::T) where {T}
+function in_same_set(x::IntDisjointSet, a::Int, b::Int)
   find_root(x, a) == find_root(x, b)
 end
 
-function Base.union!(x::IntDisjointSet{T}, i::T, j::T) where {T}
+function Base.union!(x::IntDisjointSet, i::Int, j::Int)
   pi = find_root(x, i)
   pj = find_root(x, j)
   if pi != pj
@@ -36,26 +36,26 @@ function Base.union!(x::IntDisjointSet{T}, i::T, j::T) where {T}
     x.parents[pj] -= isize # increase new size of pj
     x.parents[pi] = pj # set parent of pi to pj
   end
-  return convert(T, pj)
+  return pj
 end
 
-function normalize!(x::IntDisjointSet{T}) where {T}
-  for i in convert(T, length(x))
-    pi = find_root(x, i)
-    if pi != i
-      x.parents[i] = convert(T, pi)
+function normalize!(x::IntDisjointSet)
+  for i in 1:length(x)
+    p_i = find_root(x, i)
+    if p_i != i
+      x.parents[i] = p_i
     end
   end
   x.normalized[] = true
 end
 
 # If normalized we don't even need a loop here.
-function _find_root_normal(x::IntDisjointSet{T}, i::T) where {T}
-  pi = x.parents[i]
-  if pi < 0 # Is `i` a root?
+function _find_root_normal(x::IntDisjointSet, i::Int)
+  p_i = x.parents[i]
+  if p_i < 0 # Is `i` a root?
     return i
   else
-    return pi
+    return p_i
   end
   # return pi
 end

@@ -10,7 +10,6 @@ DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 StaticTools = "86c06d3c-3f03-46de-9781-57580aa96d0a"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
-ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
@@ -19,7 +18,6 @@ DataStructures = "0.18.9"
 DocStringExtensions = "0.8, 0.9"
 Reexport = "0.2, 1"
 TermInterface = "0.3.3"
-ThreadsX = "0.1.7"
 TimerOutputs = "0.5"
 julia = "1.8"
 

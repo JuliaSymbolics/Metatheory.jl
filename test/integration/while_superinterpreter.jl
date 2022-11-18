@@ -3,7 +3,7 @@
 ### A Very Tiny Turing Complete Programming Language defined with denotational semantics
 
 # semantica dalle dispense degano
-using Metatheory
+using Metatheory, Test
 
 import Base.ImmutableDict
 Mem = Dict{Symbol,Union{Bool,Int}}
@@ -186,7 +186,7 @@ while_language = if_language ∪ write_mem ∪ while_rules;
   end;
   x), $(Mem(:x => 3)))
   g = EGraph(exx)
-  params = SaturationParams(timeout = 100, scheduler = Schedulers.SimpleScheduler)
+  params = SaturationParams(timeout = 100)
   saturate!(g, while_language, params)
   @test 10 == extract!(g, astsize)
 end
