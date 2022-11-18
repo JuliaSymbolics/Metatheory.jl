@@ -2,30 +2,72 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 
-abstract type AbstractENode{T} end
+abstract type AbstractENode end
 
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
 const EClassId = Int64
 const HashCons = Dict{AbstractENode,EClassId}
 const Analyses = Dict{Union{Symbol,Function},Union{Symbol,Function}}
-const SymbolCache = Dict{Any,Set{EClassId}}
-const TermTypes = Dict{Tuple{Any,EClassId},Type}
+const SymCache = Dict{Any,Vector{EClassId}}
+const TermTypes = Dict{Tuple{Any,Int},Type}
 
-mutable struct ENodeLiteral{T} <: AbstractENode{T}
-  value::T
+mutable struct ENodeLiteral <: AbstractENode
+  value
   hash::Ref{UInt}
+  ENodeLiteral(a) = new(a, Ref{UInt}(0))
 end
 
-mutable struct ENodeTerm{T} <: AbstractENode{T}
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(hash(a), hash(b))
+
+TermInterface.istree(n::ENodeLiteral) = false
+TermInterface.exprhead(n::ENodeLiteral) = nothing
+TermInterface.operation(n::ENodeLiteral) = n.value
+TermInterface.arity(n::ENodeLiteral) = 0
+
+function Base.hash(t::ENodeLiteral, salt::UInt)
+  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+  h = t.hash[]
+  !iszero(h) && return h
+  h′ = hash(t.value, salt)
+  t.hash[] = h′
+  return h′
+end
+
+
+mutable struct ENodeTerm <: AbstractENode
   exprhead::Union{Symbol,Nothing}
   operation::Any
+  symtype::Type
   args::Vector{EClassId}
   hash::Ref{UInt} # hash cache
+  ENodeTerm(exprhead, operation, symtype, c_ids) = new(exprhead, operation, symtype, c_ids, Ref{UInt}(0))
 end
 
-function ENodeTerm{T}(exprhead, operation, c_ids) where {T}
-  ENodeTerm{T}(exprhead, operation, c_ids, Ref{UInt}(0))
+
+function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
+  hash(a) == hash(b) && a.operation == b.operation
 end
+
+
+TermInterface.istree(n::ENodeTerm) = true
+TermInterface.symtype(n::ENodeTerm) = n.symtype
+TermInterface.exprhead(n::ENodeTerm) = n.exprhead
+TermInterface.operation(n::ENodeTerm) = n.operation
+TermInterface.arguments(n::ENodeTerm) = n.args
+TermInterface.arity(n::ENodeTerm) = length(n.args)
+
+# This optimization comes from SymbolicUtils
+# The hash of an enode is cached to avoid recomputing it.
+# Shaves off a lot of time in accessing dictionaries with ENodes as keys.
+function Base.hash(t::ENodeTerm, salt::UInt)
+  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+  h = t.hash[]
+  !iszero(h) && return h
+  h′ = hash(t.args, hash(t.exprhead, hash(t.operation, salt)))
+  t.hash[] = h′
+  return h′
+end
+
 
 # parametrize metadata by M
 mutable struct EClass
@@ -38,63 +80,13 @@ end
 
 const ClassMem = Dict{EClassId,EClass}
 
-function Base.isequal(a::ENodeTerm, b::ENodeTerm)
-  isequal(a.args, b.args) && isequal(a.exprhead, b.exprhead) && isequal(a.operation, b.operation)
-end
-
-
-TermInterface.istree(n::ENodeTerm) = true
-TermInterface.symtype(::ENodeTerm{T}) where {T} = T
-TermInterface.exprhead(n::ENodeTerm) = n.exprhead
-TermInterface.operation(n::ENodeTerm) = n.operation
-TermInterface.arguments(n::ENodeTerm) = n.args
-TermInterface.arity(n::ENodeTerm) = length(n.args)
-
-# This optimization comes from SymbolicUtils
-# The hash of an enode is cached to avoid recomputing it.
-# Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(t::ENodeTerm{T}, salt::UInt) where {T}
-  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-  h = t.hash[]
-  !iszero(h) && return h
-  h′ = hash(t.args, hash(t.exprhead, hash(t.operation, hash(T, salt))))
-  t.hash[] = h′
-  return h′
-end
-
 function toexpr(n::ENodeTerm)
-  similarterm(Expr(:call, :_), operation(n), map(i -> Symbol(i, "ₑ"), collect(arguments(n))); exprhead = exprhead(n))
+  Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
 end
 
-function Base.show(io::IO, x::ENodeTerm{T}) where {T}
-  print(io, "ENode{$T}(", toexpr(x), ")")
+function Base.show(io::IO, x::ENodeTerm)
+  print(io, toexpr(x))
 end
-
-
-# ==================================================
-# ENode Literal
-# ==================================================
-
-TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.exprhead(n::ENodeLiteral) = nothing
-TermInterface.operation(n::ENodeLiteral) = n.value
-TermInterface.arity(n::ENodeLiteral) = 0
-
-ENodeLiteral(a::T) where {T} = ENodeLiteral{T}(a, Ref{UInt}(0))
-
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(a.value, b.value)
-
-
-function Base.hash(t::ENodeLiteral{T}, salt::UInt) where {T}
-  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-  h = t.hash[]
-  !iszero(h) && return h
-  h′ = hash(t.value, hash(T, salt))
-  t.hash[] = h′
-  return h′
-end
-
-termtype(x::AbstractENode{T}) where {T} = T
 
 toexpr(n::ENodeLiteral) = operation(n)
 
@@ -201,7 +193,7 @@ mutable struct EGraph
   # a cache mapping function symbols to e-classes that
   # contain e-nodes with that function symbol.
   # """
-  # symcache::SymbolCache
+  symcache::SymCache
   default_termtype::Type
   termtypes::TermTypes
   numclasses::Int
@@ -217,7 +209,7 @@ Construct an EGraph from a starting symbolic expression `expr`.
 """
 function EGraph()
   EGraph(
-    IntDisjointSet{EClassId}(),
+    IntDisjointSet(),
     # IntDisjointSets{EClassId}(0),
     ClassMem(),
     HashCons(),
@@ -225,7 +217,7 @@ function EGraph()
     EClassId[],
     -1,
     Analyses(),
-    # SymbolCache(),
+    SymCache(),
     Expr,
     TermTypes(),
     0,
@@ -282,10 +274,10 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
 canonicalize(g::EGraph, n::ENodeLiteral) = n
 
-function canonicalize(g::EGraph, n::ENodeTerm{T}) where {T}
+function canonicalize(g::EGraph, n::ENodeTerm)
   if arity(n) > 0
-    new_args = map(Base.Fix1(find, g), n.args)
-    return ENodeTerm{T}(exprhead(n), operation(n), new_args)
+    new_args = map(x -> find(g, x), n.args)
+    return ENodeTerm(exprhead(n), operation(n), symtype(n), new_args)
   end
   return n
 end
@@ -329,6 +321,12 @@ function add!(g::EGraph, n::AbstractENode)::EClassId
 
   g.memo[n] = id
 
+  if haskey(g.symcache, operation(n))
+    push!(g.symcache[operation(n)], id)
+  else
+    g.symcache[operation(n)] = [id]
+  end
+
   classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode,EClassId}[])
   g.classes[id] = classdata
   g.numclasses += 1
@@ -363,8 +361,8 @@ function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
   e = preprocess(se)
 
   id = add!(g, if istree(se)
-    class_ids = map(arg -> addexpr!(g, arg; keepmeta = keepmeta), arguments(e))
-    ENodeTerm{typeof(e)}(exprhead(e), operation(e), class_ids)
+    class_ids::Vector{EClassId} = [addexpr!(g, arg; keepmeta = keepmeta) for arg in arguments(e)]
+    ENodeTerm(exprhead(e), operation(e), symtype(e), class_ids)
   else
     # constant enode
     ENodeLiteral(e)
@@ -377,7 +375,10 @@ function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
   return id
 end
 
-
+function addexpr!(g::EGraph, ec::EClass; keepmeta = false)
+  @assert g == ec.g
+  find(g, ec.id)
+end
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
@@ -557,11 +558,13 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
   ids = map(Base.Fix1(lookup_pat, g), args)
   !all((>)(0), ids) && return -1
 
-  id = lookup(g, ENodeTerm{T}(eh, op, ids))
-  if id < 0 && op isa Union{Function,DataType}
-    return lookup(g, ENodeTerm{T}(eh, nameof(op), ids))
+  if T isa Expr && op isa Union{Function,DataType}
+    id = lookup(g, ENodeTerm(eh, op, T, ids))
+    id < 0 && return lookup(g, ENodeTerm(eh, nameof(op), T, ids))
+    return id 
+  else
+    return lookup(g, ENodeTerm(eh, op, T, ids))
   end
-  id
 end
 
 lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))

@@ -30,7 +30,7 @@ const INTEGRATION_TEST_FILES = map(
 
 @timev begin
   @timev map(test, TEST_FILES)
-  # @timev map(test, INTEGRATION_TEST_FILES)
+  @timev map(test, INTEGRATION_TEST_FILES)
 end
 
 # exported consistency test

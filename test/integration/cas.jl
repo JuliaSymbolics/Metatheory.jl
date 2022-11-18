@@ -219,10 +219,6 @@ end
 
 # FIXME this is a hack to get the test to work.
 if VERSION < v"1.9.0-DEV"
-  function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeTerm)
-    Any
-  end
-
   function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeLiteral)
     v = n.value
     if v == :im
@@ -232,7 +228,8 @@ if VERSION < v"1.9.0-DEV"
     end
   end
 
-  function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeTerm{Expr})
+  function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeTerm)
+    symtype(n) !== Expr && return Any
     if exprhead(n) != :call
       # println("$n is not a call")
       t = Any

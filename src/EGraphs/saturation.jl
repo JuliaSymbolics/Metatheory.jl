@@ -74,57 +74,40 @@ Base.@kwdef mutable struct SaturationParams
   printiter::Bool                      = false
 end
 
-function cached_ids(g::EGraph, p::AbstractPat)# ::Vector{Int64}
-  if isground(p)
-    id = lookup_pat(g, p)
-    !isnothing(id) && return [id]
-  else
-    return collect(keys(g.classes))
-  end
-  return []
+# function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
+#   if isground(p)
+#     id = lookup_pat(g, p)
+#     !isnothing(id) && return [id]
+#   else
+#     return keys(g.classes)
+#   end
+#   return []
+# end
+
+function cached_ids(g::EGraph, p::AbstractPattern) # p is a literal
+  @warn "Pattern matching against the whole e-graph"
+  return keys(g.classes)
 end
 
 function cached_ids(g::EGraph, p) # p is a literal
   id = lookup(g, ENodeLiteral(p))
-  !isnothing(id) && return [id]
+  id > 0 && return [id]
   return []
 end
 
-# FIXME 
-function cached_ids(g::EGraph, p::PatTerm)
-  # cached = get(g.symcache, p.head, Set{Int64}())
-  # appears = Set{Int64}() 
-  # for (id, class) ∈ g.classes 
-  #     for n ∈ class 
-  #         if n.head == p.head
-  #             push!(appears, id) 
-  #         end
-  #     end
-  # end
-  # if !(cached == appears)
-  #     @show cached 
-  #     @show appears
-  # end
 
-  collect(keys(g.classes))
-  # cached
-  # get(g.symcache, p.head, [])
-end
-
-# function cached_ids(g::EGraph, p::PatLiteral)
-#     get(g.symcache, p.val, [])
+# function cached_ids(g::EGraph, p::PatTerm)
+#   arr = get(g.symcache, operation(p), EClassId[])
+#   if operation(p) isa Union{Function,DataType}
+#     append!(arr, get(g.symcache, nameof(operation(p)), EClassId[]))
+#   end
+#   arr
 # end
 
-function resetbuffers!(bufsize)
-  for i in 1:Threads.nthreads()
-    BUFFERS[i] = (BUFFER_T(bufsize), ReentrantLock())
-  end
-  MERGES_BUF[] = BUFFER_T(bufsize)
+function cached_ids(g::EGraph, p::PatTerm)
+  keys(g.classes)
 end
 
-function __init__()
-  resetbuffers!(DEFAULT_BUFFER_SIZE)
-end
 
 """
 Returns an iterator of `Match`es.
@@ -148,13 +131,15 @@ function eqsat_search!(
       if !cansearch(scheduler, rule)
         continue
       end
-      # ids = cached_ids(egraph, rule.left)
-      for i in keys(g.classes)
+      ids = cached_ids(g, rule.left)
+      rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
+      for i in ids
         n_matches += rule.ematcher!(g, rule_idx, i)
       end
       inform!(scheduler, rule, n_matches)
     end
   end
+
 
   return n_matches
 end
@@ -166,16 +151,17 @@ function drop_n!(D::CircularDeque, nn)
   D.first = tmp > D.capacity ? 1 : tmp
 end
 
-instantiate_enode!(buf, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
-instantiate_enode!(buf, g::EGraph, p::PatVar)::EClassId = buf[p.idx][1]
-function instantiate_enode!(buf, g::EGraph, p::PatTerm)::EClassId
+instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
+instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
+function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   eh = exprhead(p)
   op = operation(p)
   ar = arity(p)
   args = arguments(p)
   T = gettermtype(g, op, ar)
+  # TODO add predicate check `quotes_operation`
   new_op = T == Expr && op isa Union{Function,DataType} ? nameof(op) : op
-  add!(g, ENodeTerm{T}(eh, new_op, map(arg -> instantiate_enode!(buf, g, arg), args)))
+  add!(g, ENodeTerm(eh, new_op, T, map(arg -> instantiate_enode!(bindings, g, arg), args)))
 end
 
 function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
@@ -183,16 +169,16 @@ function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
   nothing
 end
 
-function apply_rule!(buf::BUFFER_T, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  push!(MERGES_BUF[], (id, instantiate_enode!(buf, g, pat_to_inst)))
+  push!(MERGES_BUF[], (id, instantiate_enode!(bindings, g, pat_to_inst)))
   nothing
 end
 
 
-function apply_rule!(buf::BUFFER_T, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  other_id = instantiate_enode!(buf, g, pat_to_inst)
+  other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
   if find(g, id) == find(g, other_id)
     @log "Contradiction!" rule
@@ -204,8 +190,8 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(buf, g::EGraph, i)
-  ecid, literal_position = buf[i]
+function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
+  ecid, literal_position = bindings[i]
   ecid <= 0 && error("unbound pattern variable $pat in rule $rule")
   if literal_position > 0
     eclass = g[ecid]
@@ -215,9 +201,9 @@ function instantiate_actual_param!(buf, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(buf::BUFFER_T, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
   f = rule.rhs_fun
-  r = f(id, g, (instantiate_actual_param!(buf, g, i) for i in 1:length(rule.patvars))...)
+  r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
   push!(MERGES_BUF[], (id, rcid))
@@ -240,17 +226,17 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
           return
         end
 
-        rule_idx, id = popfirst!(match_buf)
+        bindings = popfirst!(match_buf)
+        rule_idx, id = bindings[0]
         direction = sign(rule_idx)
         rule_idx = abs(rule_idx)
         rule = theory[rule_idx]
 
-        halt_reason = lock(MERGES_BUF_LOCK) do
-          apply_rule!(match_buf, g, rule, id, direction)
-        end
-        drop_n!(match_buf, length(rule.patvars))
-        @assert popfirst!(match_buf) == (0, 0)
 
+        halt_reason = lock(MERGES_BUF_LOCK) do
+          apply_rule!(bindings, g, rule, id, direction)
+        end
+        
         if (halt_reason !== nothing)
           rep.reason = halt_reason
           return
