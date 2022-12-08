@@ -36,7 +36,7 @@ Mem = Dict{Symbol,Union{Bool,Int}}
 # This simple rule tells us that, if at a given memory state `σ` we want to know the value of a variable `v`, we 
 # can simply read it from the memory and return the value. 
 read_mem = @theory v σ begin
-  (v::Symbol, σ) => σ[v]
+  (v::Symbol, σ::Mem) => σ[v]
 end
 
 # Let's test this behavior. We first create a `Mem`, holding the variable `x` with value 2. 
@@ -71,13 +71,13 @@ program = :(x, $σ₁)
 # ## Arithmetics
 # How can our programming language be turing complete if we do not include basic arithmetics?
 arithm_rules = @theory a b n σ begin
-  (a + b, σ) --> (a, σ) + (b, σ)
-  (a * b, σ) --> (a, σ) * (b, σ)
-  (a - b, σ) --> (a, σ) - (b, σ)
+  (n::Int, σ::Mem) => n
+  (a + b, σ::Mem) --> (a, σ) + (b, σ)
+  (a * b, σ::Mem) --> (a, σ) * (b, σ)
+  (a - b, σ::Mem) --> (a, σ) - (b, σ)
   (a::Int + b::Int) => a + b
   (a::Int * b::Int) => a * b
   (a::Int - b::Int) => a - b
-  (n::Int, σ)       => n
 end
 
 strategy = (Fixpoint ∘ Postwalk ∘ Chain)
@@ -96,11 +96,11 @@ bool_rules = @theory a b σ begin
   (a::Bool && b::Bool) => (a && b)
   (a::Int < b::Int) => (a < b)
   !a::Bool => !a
-  (a::Bool, σ) => a
-  (a < b, σ) => (eval_arithm(a, σ) < eval_arithm(b, σ))
-  (!b, σ) => !eval_bool(b, σ)
-  (a || b, σ) --> (a, σ) || (b, σ)
-  (a && b, σ) --> (a, σ) && (b, σ)
+  (a::Bool, σ::Mem) => a
+  (a < b, σ::Mem) => (eval_arithm(a, σ) < eval_arithm(b, σ))
+  (!b, σ::Mem) => !eval_bool(b, σ)
+  (a || b, σ::Mem) --> (a, σ) || (b, σ)
+  (a && b, σ::Mem) --> (a, σ) && (b, σ)
 end
 
 eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
@@ -116,8 +116,8 @@ end
 function cond end
 
 if_rules = @theory guard t f σ begin
-  (cond(guard, t), σ) --> (cond(guard, t, :skip), σ)
-  (cond(guard, t, f), σ) => (eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
+  (cond(guard, t), σ::Mem) --> (cond(guard, t, :skip), σ)
+  (cond(guard, t, f), σ::Mem) => (eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
 end
 
 eval_if(ex::Expr, mem::Mem) = strategy(read_mem ∪ arithm_rules ∪ if_rules)(:($ex, $mem))
@@ -133,13 +133,12 @@ function seq end
 function loop end
 
 while_rules = @theory guard a b σ begin
-  (:skip, σ) --> σ
-  ((:skip; b), σ) --> (b, σ)
-  (seq(a, b), σ) => begin
-    r = eval_while(a, σ)
-    (r isa Mem) ? :($b, $r) : :($b, $σ)
-  end
-  (loop(guard, a), σ) --> (cond(guard, seq(a, loop(guard, a)), :skip), σ)
+  (:skip, σ::Mem) --> σ
+  ((:skip; b), σ::Mem) --> (b, σ)
+  (seq(a, b), σ::Mem) --> (b, merge((a, σ), σ))
+  merge(a::Mem, σ::Mem) => merge(σ, a)
+  merge(a::Union{Bool,Int}, σ::Mem) --> σ
+  (loop(guard, a), σ::Mem) --> (cond(guard, seq(a, loop(guard, a)), :skip), σ)
 end
 
 function assign end
@@ -159,8 +158,5 @@ eval_while(ex, mem) = strategy(while_language)(:($(rmlines(ex)), $mem))
   @test Mem(:x => 5) == eval_while(:(seq(assign(x, 4), assign(x, x + 1))), Mem(:x => 3))
   @test Mem(:x => 4) == eval_while(:(cond(x < 10, assign(x, x + 1))), Mem(:x => 3))
   @test 10 == eval_while(:(seq(loop(x < 10, assign(x, x + 1)), x)), Mem(:x => 3))
-  @test 50 == eval_while(:(while x < y
-    (x = x + 1; y = y - 1)
-  end;
-  x), Mem(:x => 0, :y => 100))
+  @test 50 == eval_while(:(seq(loop(x < y, seq(assign(x, x + 1), assign(y, y - 1))), x)), Mem(:x => 0, :y => 100))
 end
