@@ -115,11 +115,13 @@ instrument(x::Fixpoint, f) = Fixpoint(instrument(x.rw, f))
 
 function (rw::Fixpoint)(x)
   f = rw.rw
+  @show "fixpoint" x
   y = @timer cached_repr(f) f(x)
   while x !== y && !isequal(x, y)
     y === nothing && return x
     x = y
     y = @timer cached_repr(f) f(x)
+    @show y
   end
   return x
 end
