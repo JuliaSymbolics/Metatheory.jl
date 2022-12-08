@@ -1,24 +1,35 @@
 
 #=
-# Writing a tiny, readable Turing Complete programming language in Julia. 
+# Write a very tiny Turing Complete language in Julia. 
 
-WHILE is a very tiny Turing Complete Programming Language defined with denotational semantics. 
+WHILE is a very tiny Turing Complete Programming Language defined by denotational semantics. 
 Semantics come from the excellent
 [course notes](http://pages.di.unipi.it/degano/ECC-uno.pdf) in *"Elements of computability and
 complexity"*  by prof. [Pierpaolo Degano](http://pages.di.unipi.it/degano/). 
 
-We are going to implement this tiny imperative language with classical rewriting rules in [Metatheory.jl](https://github.com/JuliaSymbolics/Metatheory.jl/).
+It is a toy C-like language used to explain the core concepts of computability and Turing-completeness.
+The name WHILE, comes from the fact that the most complicated construct in the language is a WHILE loop.
+The language supports:
+* A variable-value memory that can be pre-defined for program input.
+* Integer arithmetics.
+* Boolean logic.
+* Conditional if-then-else statement called `cond`.
+* Running a command after another with `seq(c1,c2)`.
+* Repeatedly applying a command `c` while a condition `g` holds with `loop(g,c)`.
 
-The goal of this tutorial is to show an implementation of a programming language interpreter that is:
-* Imperative, using simple control flow and loops. (`if-then-else` and `while`). 
-* Is very, very very close to the theory. Each denotational semantics rule in the notes is a Metatheory.jl rewrite rule. 
-* Concise, but still yielding educational content. WHILE is implemented in around 70 readable lines of code, and reaches 120 lines with tests.  
+This is enough to be Turing-complete!
+
+We are going to implement this tiny imperative language with classical rewriting rules in [Metatheory.jl](https://github.com/JuliaSymbolics/Metatheory.jl/).
+WHILE is implemented in around 55 readable lines of code, and reaches around 80 lines with tests. 
+
+The goal of this tutorial is to show an implementation of a programming language interpreter that is very, very very close to the
+simple theory used to describe it in a textbook. Each denotational semantics rule in the course notes is a Metatheory.jl rewrite rule, with a few extras and minor naming changes. 
+The idea, is that Julia is a really valid didactical programming language! 
+
 =#
 
-using Test
-using Metatheory
-using Metatheory.Rewriters
-
+# Let's load the Metatheory and Test packages.
+using Test, Metatheory
 
 # ## Memory
 # The first thing that our programming language needs, is a model of the *computer memory*,
@@ -70,51 +81,93 @@ program = :(x, $σ₁)
 
 # ## Arithmetics
 # How can our programming language be turing complete if we do not include basic arithmetics?
+
 arithm_rules = @theory a b n σ begin
-  (n::Int, σ::Mem) => n
+  # If we have an integer and a memory state, we can just keep the integer
+  (n::Int, σ::Mem) --> n
+  # The following rules are the first cases of recursion. 
+  # Given two expressions `a,b`, to know what's `a + b` in state `σ`, 
+  # we need to know first what `a` and `b` are in state σ 
   (a + b, σ::Mem) --> (a, σ) + (b, σ)
   (a * b, σ::Mem) --> (a, σ) * (b, σ)
   (a - b, σ::Mem) --> (a, σ) - (b, σ)
+  # These dynamic rules let us directly evaluate arithmetic operations.
   (a::Int + b::Int) => a + b
   (a::Int * b::Int) => a * b
   (a::Int - b::Int) => a - b
 end
 
+
+# ## Evaluation strategy
+# We now have some nice denotational semantic rules for arithmetics, but in what order should we apply them?
+# Metatheory.jl provides a flexible rewriter combinator library. You can read more in the [Rewriters](@ref) module docs. 
+#
+# Given a set of rules, we can define  a rewriter strategy by functionally composing rewriters.
+# First, we want to use `Chain` to combine together the many rules in the theory, and to try to apply them one-by-one on our expressions.
+#
+# But should we first evaluate the outermost operations in the expression, or the innermost?
+# Intuitively, if we have the program `(1 + 2) - 3`, it can hint us that we do want to first evaluate the innermost expressions.
+# To do so, we then pass the result to the [Postwalk](@ref) rewriter, which recursively walks the input expression tree, and applies the rewriter first on 
+# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what [Prewalk](@ref) does?).
+#
+# The last component of our strategy is the [Fixpoint](@ref) combinator. This combinator repeatedly applies the rewriter on the input expression,
+# and it does stop looping only when the output expression is the unchanged input expression.
+
+using Metatheory.Rewriters
 strategy = (Fixpoint ∘ Postwalk ∘ Chain)
 
-eval_arithm(ex, mem) = strategy(read_mem ∪ arithm_rules)(:($ex, $mem))
+# In Metatheory.jl, rewrite theories are just vectors of [Rules](@ref). It means we can compose them by concatenating the vectors, or elegantly using the 
+# built-in set operations provided by the Julia language.
+arithm_lang = read_mem ∪ arithm_rules
+
+# We can define a convenience function that takes an expression, a memory state and calls our strategy.
+eval_arithm(ex, mem) = strategy(arithm_lang)(:($ex, $mem))
 
 
-@testset "Arithmetic" begin
-  @test 5 == eval_arithm(:(2 + 3), Mem())
-  @test 4 == eval_arithm(:(2 + x), Mem(:x => 2))
-end
+# Does it work?
+@test eval_arithm(:(2 + 3), Mem()) == 5
 
-# don't need to access memory
+# Yay! Let's say that before the program started, the computer memory already held a variable `x` with value 2.
+@test eval_arithm(:(2 + x), Mem(:x => 2)) == 4
+
+
+# ## Boolean Logic
+# To be Turing-complete, our tiny WHILE language requires boolean logic support.
+# There's nothing special or different from other programming languages. These rules 
+# define boolean operations to work just as you would expect, and in the same way we defined arithmetic rules for integers.
+# 
+# We need to bridge together the world of integer arithmetics and boolean logic to achieve something useful.
+# The last two rules in the theory.
+
 bool_rules = @theory a b σ begin
   (a::Bool || b::Bool) => (a || b)
   (a::Bool && b::Bool) => (a && b)
-  (a::Int < b::Int) => (a < b)
   !a::Bool => !a
   (a::Bool, σ::Mem) => a
-  (a < b, σ::Mem) => (eval_arithm(a, σ) < eval_arithm(b, σ))
   (!b, σ::Mem) => !eval_bool(b, σ)
   (a || b, σ::Mem) --> (a, σ) || (b, σ)
   (a && b, σ::Mem) --> (a, σ) && (b, σ)
+  # Bridging together integers and booleans.
+  (a < b, σ::Mem) => (eval_arithm(a, σ) < eval_arithm(b, σ))
+  (a::Int < b::Int) => (a < b)
 end
 
 eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
 
-@testset "Booleans" begin
-  @test false == eval_bool(:(false || false), Mem())
-  @test true == eval_bool(:((false || false) || !(false || false)), Mem(:x => 2))
-  @test true == eval_bool(:((2 < 3) && (3 < 4)), Mem(:x => 2))
-  @test false == eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 2))
-  @test true == eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 4))
-end
+# Let's run a few tests.
+@test all(
+  [
+    eval_bool(:(false || false), Mem()) == false
+    eval_bool(:((false || false) || !(false || false)), Mem(:x => 2)) == true
+    eval_bool(:((2 < 3) && (3 < 4)), Mem(:x => 2)) == true
+    eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 2)) == false
+    eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 4)) == true
+  ],
+)
+
+# ## Conditionals: If-then-else
 
 function cond end
-
 if_rules = @theory guard t f σ begin
   (cond(guard, t), σ::Mem) --> (cond(guard, t, :skip), σ)
   (cond(guard, t, f), σ::Mem) => (eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
@@ -129,9 +182,19 @@ eval_if(ex::Expr, mem::Mem) = strategy(read_mem ∪ arithm_rules ∪ if_rules)(:
   @test 0 == eval_if(:(cond(!(2 < x), x, 0)), Mem(:x => 3))
 end
 
+
+# ## Writing memory
+
+function store end
+write_mem = @theory sym val σ begin
+  (store(sym::Symbol, val), σ) => (σ[sym] = eval_arithm(val, σ);
+  σ)
+end
+
+# ## While loops and sequential computation.
+
 function seq end
 function loop end
-
 while_rules = @theory guard a b σ begin
   (:skip, σ::Mem) --> σ
   ((:skip; b), σ::Mem) --> (b, σ)
@@ -141,12 +204,8 @@ while_rules = @theory guard a b σ begin
   (loop(guard, a), σ::Mem) --> (cond(guard, seq(a, loop(guard, a)), :skip), σ)
 end
 
-function assign end
 
-write_mem = @theory sym val σ begin
-  (assign(sym::Symbol, val), σ) => (σ[sym] = eval_arithm(val, σ);
-  σ)
-end
+# ## Completing the language.
 
 while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_rules;
 
@@ -154,9 +213,9 @@ using Metatheory.Syntax: rmlines
 eval_while(ex, mem) = strategy(while_language)(:($(rmlines(ex)), $mem))
 
 @testset "While Semantics" begin
-  @test Mem(:x => 3) == eval_while(:((assign(x, 3))), Mem(:x => 2))
-  @test Mem(:x => 5) == eval_while(:(seq(assign(x, 4), assign(x, x + 1))), Mem(:x => 3))
-  @test Mem(:x => 4) == eval_while(:(cond(x < 10, assign(x, x + 1))), Mem(:x => 3))
-  @test 10 == eval_while(:(seq(loop(x < 10, assign(x, x + 1)), x)), Mem(:x => 3))
-  @test 50 == eval_while(:(seq(loop(x < y, seq(assign(x, x + 1), assign(y, y - 1))), x)), Mem(:x => 0, :y => 100))
+  @test Mem(:x => 3) == eval_while(:((store(x, 3))), Mem(:x => 2))
+  @test Mem(:x => 5) == eval_while(:(seq(store(x, 4), store(x, x + 1))), Mem(:x => 3))
+  @test Mem(:x => 4) == eval_while(:(cond(x < 10, store(x, x + 1))), Mem(:x => 3))
+  @test 10 == eval_while(:(seq(loop(x < 10, store(x, x + 1)), x)), Mem(:x => 3))
+  @test 50 == eval_while(:(seq(loop(x < y, seq(store(x, x + 1), store(y, y - 1))), x)), Mem(:x => 0, :y => 100))
 end
