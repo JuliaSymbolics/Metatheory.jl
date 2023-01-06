@@ -42,8 +42,6 @@ export astsize
 export astsize_inv
 export getcost!
 
-# include("ematch.jl")
-
 export Sub
 
 include("Schedulers.jl")

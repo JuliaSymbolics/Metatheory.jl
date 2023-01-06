@@ -148,7 +148,7 @@ function TermInterface.similarterm(
 )
   similarterm(x, nameof(head), args, symtype; metadata, exprhead)
 end
-# TODO REVIEWME
+
 function instantiate(left, pat::PatTerm, mem)
   args = []
   for parg in arguments(pat)

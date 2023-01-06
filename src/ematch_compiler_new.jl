@@ -52,7 +52,6 @@ end
 function ematcher(p::PatVar)
   pred_matcher = predicate_ematcher(p, p.predicate)
 
-  # TODO check if variable is already bound
   function var_ematcher(next, g, data, bindings)
     id = car(data)
     ecid = get(bindings, p.idx, 0)[1]

@@ -66,8 +66,6 @@ settermtype!(g, MyExpr)
 
 saturate!(g, t)
 
-# TODO test metadata
-
 expected = MyExpr(f, [MyExpr(h, [4], "HELLO", Complex[2 + 3im, 4 + 2im], Set([5, 4, 6]))], "", Complex[], Set{Int64}())
 
 extracted = extract!(g, astsize)

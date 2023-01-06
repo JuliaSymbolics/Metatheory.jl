@@ -142,7 +142,7 @@ g = EGraph(ex)
 
 settermtype!(g, LambdaExpr)
 saturate!(g, λT)
-extract!(g, astsize) # expected: :(λ(x, 4 + 4))
+@test λ(:x, Add(4, 4)) == extract!(g, astsize) # expected: :(λ(x, 4 + 4))
 
 #%%
 @test @areequal λT 2 Apply(λ(x, Variable(x)), 2)
