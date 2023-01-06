@@ -6,9 +6,6 @@ abstract type AbstractENode end
 
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
 const EClassId = Int64
-const HashCons = Dict{AbstractENode,EClassId}
-const Analyses = Dict{Union{Symbol,Function},Union{Symbol,Function}}
-const SymCache = Dict{Any,Vector{EClassId}}
 const TermTypes = Dict{Tuple{Any,Int},Type}
 
 mutable struct ENodeLiteral <: AbstractENode
@@ -77,8 +74,6 @@ mutable struct EClass
   parents::Vector{Pair{AbstractENode,EClassId}}
   data::AnalysisData
 end
-
-const ClassMem = Dict{EClassId,EClass}
 
 function toexpr(n::ENodeTerm)
   Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
@@ -178,28 +173,23 @@ See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
 """
 mutable struct EGraph
-  """stores the equality relations over e-class ids"""
-  # uf::IntDisjointSets{EClassId}
+  "stores the equality relations over e-class ids"
   uf::IntDisjointSet
-  """map from eclass id to eclasses"""
-  classes::ClassMem
-  memo::HashCons             # memo
-  """worklist for ammortized upwards merging"""
+  "map from eclass id to eclasses"
+  classes::Dict{EClassId,EClass}
+  "hashcons"
+  memo::Dict{AbstractENode,EClassId}             # memo
+  "worklist for ammortized upwards merging"
   dirty::Vector{EClassId}
   root::EClassId
-  """A vector of analyses associated to the EGraph"""
-  analyses::Analyses
-  # """
-  # a cache mapping function symbols to e-classes that
-  # contain e-nodes with that function symbol.
-  # """
-  symcache::SymCache
+  "A vector of analyses associated to the EGraph"
+  analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
+  "a cache mapping function symbols to e-classes that contain e-nodes with that function symbol."
+  symcache::Dict{Any,Vector{EClassId}}
   default_termtype::Type
   termtypes::TermTypes
   numclasses::Int
   numnodes::Int
-  # number of rules that have been applied
-  # age::Int
 end
 
 
@@ -210,14 +200,12 @@ Construct an EGraph from a starting symbolic expression `expr`.
 function EGraph()
   EGraph(
     IntDisjointSet(),
-    # IntDisjointSets{EClassId}(0),
-    ClassMem(),
-    HashCons(),
-    # ParentMem(),
+    Dict{EClassId,EClass}(),
+    Dict{AbstractENode,EClassId}(),
     EClassId[],
     -1,
-    Analyses(),
-    SymCache(),
+    Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
+    Dict{Any,Vector{EClassId}}(),
     Expr,
     TermTypes(),
     0,
@@ -368,7 +356,6 @@ function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
     ENodeLiteral(e)
   end)
   if keepmeta
-    # TODO check if eclass already has metadata?
     meta = TermInterface.metadata(e)
     !isnothing(meta) && setdata!(g.classes[id], :metadata_analysis, meta)
   end
@@ -446,10 +433,6 @@ function repair!(g::EGraph, id::EClassId)
   ecdata = g[id]
   ecdata.id = id
   @debug "repairing " id
-
-  # for (p_enode, p_eclass) ∈ ecdata.parents
-  #     clean_enode!(g, p_enode, find(g, p_eclass))
-  # end
 
   new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
 

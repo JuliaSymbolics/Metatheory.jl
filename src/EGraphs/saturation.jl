@@ -196,7 +196,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   if literal_position > 0
     eclass = g[ecid]
     @assert eclass[literal_position] isa ENodeLiteral
-    return eclass[literal_position].value # TODO getliteral from e-class
+    return eclass[literal_position].value
   end
   return eclass
 end
@@ -237,7 +237,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
           apply_rule!(bindings, g, rule, id, direction)
         end
         
-        if (halt_reason !== nothing)
+        if !isnothing(halt_reason)
           rep.reason = halt_reason
           return
         end
