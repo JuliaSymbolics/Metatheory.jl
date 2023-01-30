@@ -5,7 +5,7 @@
 # itself. 
 # https://en.wikipedia.org/wiki/MU_puzzle#Solution
 
-using Metatheory
+using Metatheory, Test
 
 # Here are the axioms of MU:
 # * Composition of the string monoid is associative
@@ -25,10 +25,9 @@ end
 
 # No matter the timeout we set here,
 # MU is not a theorem of the MIU system 
-@testset "MU puzzle" begin
-  params = SaturationParams(timeout = 12, eclasslimit = 8000)
-  start = :(M ⋅ I ⋅ END)
-  g = EGraph(start)
-  saturate!(g, miu)
-  @test false == areequal(g, miu, start, :(M ⋅ U ⋅ END); params = params)
-end
+params = SaturationParams(timeout = 12, eclasslimit = 8000)
+start = :(M ⋅ I ⋅ END)
+g = EGraph(start)
+saturate!(g, miu)
+@test false == areequal(g, miu, start, :(M ⋅ U ⋅ END); params = params)
+
