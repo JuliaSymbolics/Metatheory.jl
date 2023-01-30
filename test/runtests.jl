@@ -20,7 +20,6 @@ const INTEGRATION_TEST_FILES = map(
     "fibonacci.jl",
     "kb_benchmark.jl",
     "logic.jl",
-    "mu.jl",
     "stream_fusion.jl",
     "taylor.jl",
     "while_superinterpreter.jl",
