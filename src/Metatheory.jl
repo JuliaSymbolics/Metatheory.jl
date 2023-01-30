@@ -6,19 +6,18 @@ import Base.ImmutableDict
 
 const Bindings = ImmutableDict{Int,Tuple{Int,Int}}
 const DEFAULT_BUFFER_SIZE = 1048576
-const BUFFER_T = CircularDeque{Bindings}
-const BUFFERS = Vector{Tuple{BUFFER_T,ReentrantLock}}(undef, Threads.nthreads())
+const BUFFER = Ref(CircularDeque{Bindings}(DEFAULT_BUFFER_SIZE))
+const BUFFER_LOCK = ReentrantLock()
 const MERGES_BUF = Ref(CircularDeque{Tuple{Int,Int}}(DEFAULT_BUFFER_SIZE))
 const MERGES_BUF_LOCK = ReentrantLock()
 
 function resetbuffers!(bufsize)
-  for i in 1:Threads.nthreads()
-    BUFFERS[i] = (BUFFER_T(bufsize), ReentrantLock())
-  end
+  BUFFER[] = CircularDeque{Bindings}(bufsize)
   MERGES_BUF[] = CircularDeque{Tuple{Int,Int}}(bufsize)
 end
 
 function __init__()
+  println(Threads.nthreads())
   resetbuffers!(DEFAULT_BUFFER_SIZE)
 end
 

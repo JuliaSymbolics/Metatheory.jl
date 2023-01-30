@@ -119,10 +119,9 @@ function eqsat_search!(
   report::SaturationReport,
 )::Int
   n_matches = 0
-  match_buf, match_buf_lock = BUFFERS[Threads.threadid()]
 
-  lock(match_buf_lock) do
-    empty!(match_buf)
+  lock(BUFFER_LOCK) do
+    empty!(BUFFER[])
   end
 
   for (rule_idx, rule) in enumerate(theory)
@@ -216,31 +215,28 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   i = 0
   @assert isempty(MERGES_BUF[])
 
-  for threadid in 1:Threads.nthreads()
-    match_buf, match_buf_lock = BUFFERS[Threads.threadid()]
-    lock(match_buf_lock) do
-      while !isempty(match_buf)
-        if reached(g, params.goal)
-          @log "Goal reached"
-          rep.reason = :goalreached
-          return
-        end
+  lock(BUFFER_LOCK) do
+    while !isempty(BUFFER[])
+      if reached(g, params.goal)
+        @log "Goal reached"
+        rep.reason = :goalreached
+        return
+      end
 
-        bindings = popfirst!(match_buf)
-        rule_idx, id = bindings[0]
-        direction = sign(rule_idx)
-        rule_idx = abs(rule_idx)
-        rule = theory[rule_idx]
+      bindings = popfirst!(BUFFER[])
+      rule_idx, id = bindings[0]
+      direction = sign(rule_idx)
+      rule_idx = abs(rule_idx)
+      rule = theory[rule_idx]
 
 
-        halt_reason = lock(MERGES_BUF_LOCK) do
-          apply_rule!(bindings, g, rule, id, direction)
-        end
-        
-        if !isnothing(halt_reason)
-          rep.reason = halt_reason
-          return
-        end
+      halt_reason = lock(MERGES_BUF_LOCK) do
+        apply_rule!(bindings, g, rule, id, direction)
+      end
+
+      if !isnothing(halt_reason)
+        rep.reason = halt_reason
+        return
       end
     end
   end
