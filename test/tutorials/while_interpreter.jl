@@ -147,8 +147,7 @@ bool_rules = @theory a b σ begin
   (!b, σ::Mem) => !eval_bool(b, σ)
   (a || b, σ::Mem) --> (a, σ) || (b, σ)
   (a && b, σ::Mem) --> (a, σ) && (b, σ)
-  # Bridging together integers and booleans.
-  (a < b, σ::Mem) => (eval_arithm(a, σ) < eval_arithm(b, σ))
+  (a < b, σ::Mem) => (eval_arithm(a, σ) < eval_arithm(b, σ)) # This rule bridges together ints and bools
   (a::Int < b::Int) => (a < b)
 end
 
