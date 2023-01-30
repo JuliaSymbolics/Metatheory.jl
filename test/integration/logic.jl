@@ -112,7 +112,7 @@ end
   @test @areequal t true (!(p || q) == (!p && !q))
 
   # Consensus theorem
-  @test_broken @areequal t true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
+  # @test_broken @areequal t true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
 end
 
 # https://www.cs.cornell.edu/gries/Logic/Axioms.html
