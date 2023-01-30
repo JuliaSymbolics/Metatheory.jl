@@ -81,17 +81,17 @@ program = :(x, $σ₁)
 
 # ## Arithmetics
 # How can our programming language be turing complete if we do not include basic arithmetics?
+# If we have an integer and a memory state, we can just keep the integer
+# The following rules are the first cases of recursion. 
+# Given two expressions `a,b`, to know what's `a + b` in state `σ`, 
+# we need to know first what `a` and `b` are in state σ 
+# The last dynamic rules let us directly evaluate arithmetic operations.
 
 arithm_rules = @theory a b n σ begin
-  # If we have an integer and a memory state, we can just keep the integer
   (n::Int, σ::Mem) --> n
-  # The following rules are the first cases of recursion. 
-  # Given two expressions `a,b`, to know what's `a + b` in state `σ`, 
-  # we need to know first what `a` and `b` are in state σ 
   (a + b, σ::Mem) --> (a, σ) + (b, σ)
   (a * b, σ::Mem) --> (a, σ) * (b, σ)
   (a - b, σ::Mem) --> (a, σ) - (b, σ)
-  # These dynamic rules let us directly evaluate arithmetic operations.
   (a::Int + b::Int) => a + b
   (a::Int * b::Int) => a * b
   (a::Int - b::Int) => a - b
@@ -167,13 +167,27 @@ eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
 
 # ## Conditionals: If-then-else
 
+# Conditional expressions in our language take the form of 
+# `cond(guard, thenbranch)` or `cond(guard, branch, elsebranch)`
+# It means that our program at this point will: 
+# 1. Evaluate the `guard` expressions
+# 2. If `guard` evaluates to `true`, then evaluate `thenbranch`
+# 3. If `guard` evaluates to `false`, then evaluate `elsebranch`
+
+# The first rule here is simple. If there's no `elsebranch` in the 
+# `cond` statement, we add an empty one with the `skip` command. 
+# Otherwise, we piggyback on the existing Julia if-then-else ternary operator.
+# To do so, we need to evaluate the boolean expression in the guard by 
+# using the `eval_bool` function we defined above.
 function cond end
 if_rules = @theory guard t f σ begin
   (cond(guard, t), σ::Mem) --> (cond(guard, t, :skip), σ)
   (cond(guard, t, f), σ::Mem) => (eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
 end
 
-eval_if(ex::Expr, mem::Mem) = strategy(read_mem ∪ arithm_rules ∪ if_rules)(:($ex, $mem))
+eval_if(ex, mem::Mem) = strategy(read_mem ∪ arithm_rules ∪ if_rules)(:($ex, $mem))
+
+# And here is our working conditional
 
 @testset "If Semantics" begin
   @test 2 == eval_if(:(cond(true, x, 0)), Mem(:x => 2))
@@ -185,9 +199,14 @@ end
 
 # ## Writing memory
 
+# Our language then needs a mechanism to write in memory. 
+# We define the behavior of the `store` construct, which 
+# behaves like the `=` assignment operator in other programming languages. 
+# `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
+
 function store end
 write_mem = @theory sym val σ begin
-  (store(sym::Symbol, val), σ) => (σ[sym] = eval_arithm(val, σ);
+  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
   σ)
 end
 
@@ -211,6 +230,8 @@ while_language = write_mem ∪ read_mem ∪ arithm_rules ∪ if_rules ∪ while_
 
 using Metatheory.Syntax: rmlines
 eval_while(ex, mem) = strategy(while_language)(:($(rmlines(ex)), $mem))
+
+# Final steps
 
 @testset "While Semantics" begin
   @test Mem(:x => 3) == eval_while(:((store(x, 3))), Mem(:x => 2))
