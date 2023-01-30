@@ -349,14 +349,20 @@ function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENodeTerm)
 
         if ldata isa Symbol && rdata isa Symbol
             if op == :*
-                return (ldata == :even || rdata == :even) ? :even : :odd
+                if ldata == rdata
+                    ldata
+                elseif (ldata == :even || rdata == :even) 
+                    :even
+                else
+                    nothing 
+                end
             elseif op == :+
-                return (ldata == rdata) ? :even : :odd
+                (ldata == rdata) ? :even : :odd
             end
         elseif isnothing(ldata) && rdata isa Symbol && op == :*
-            return rdata
+            rdata
         elseif ldata isa Symbol && isnothing(rdata) && op == :*
-            return ldata
+            ldata
         end
     end
 
@@ -403,7 +409,8 @@ function custom_analysis(expr)
     return getdata(g[g.root], OddEvenAnalysis)
 end
 
-custom_analysis(:(3*a)) # :odd
+custom_analysis(:(2*a)) # :even
+custom_analysis(:(3*3)) # :odd
 custom_analysis(:(3*(2+a)*2)) # :even
 custom_analysis(:(3y * (2x*y))) # :even
 ```

@@ -45,7 +45,7 @@ export @matchable
 include("Patterns.jl")
 @reexport using .Patterns
 
-include("ematch_compiler_new.jl")
+include("ematch_compiler.jl")
 @reexport using .EMatchCompiler
 
 include("matchers.jl")

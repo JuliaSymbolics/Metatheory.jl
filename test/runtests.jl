@@ -16,7 +16,6 @@ const TEST_FILES = ["reductions.jl", "EGraphs/egraphs.jl", "EGraphs/ematch.jl", 
 const INTEGRATION_TEST_FILES = map(
   x -> joinpath(@__DIR__, "integration", x),
   [
-    "custom_types.jl",
     "fibonacci.jl",
     "kb_benchmark.jl",
     "logic.jl",

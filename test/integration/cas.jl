@@ -17,7 +17,7 @@ end
 
 
 mulplus_t = @theory a b c begin
-  # TODO FIXME this rules improves performance and avoids commutative
+  # TODO FIXME these rules improves performance and avoids commutative
   # explosion of the egraph
   a + a --> 2 * a
   0 * a --> 0
@@ -146,7 +146,7 @@ function simplify(ex; steps = 4)
   push!(hist, hash(ex))
   for i in 1:steps
     g = EGraph(ex)
-    @profview saturate!(g, cas, params)
+    @profview_allocs saturate!(g, cas, params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)
     if !TermInterface.istree(ex)

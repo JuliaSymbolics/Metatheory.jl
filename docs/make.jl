@@ -28,7 +28,6 @@ makedocs(
     "index.md"
     "rewrite.md"
     "egraphs.md"
-    "interface.md"
     "api.md"
     "Tutorials" => tutorials
   ],
