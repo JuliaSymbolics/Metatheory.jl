@@ -1,4 +1,4 @@
-# Metatheory.jl 1.0
+# Metatheory.jl 2.0
 
 ```@raw html
 <p align="center">
@@ -29,9 +29,21 @@ Intuitively, Metatheory.jl transforms Julia expressions
 in other Julia expressions and can achieve such at both compile and run time. This allows Metatheory.jl users to perform customized and composable compiler optimizations specifically tailored to single, arbitrary Julia packages.
 Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about semantics and all kinds of formal systems, by defining concise rewriting rules in pure, syntactically valid Julia on a high level of abstraction. Our implementation of equality saturation on e-graphs is based on the excellent, state-of-the-art technique implemented in the [egg](https://egraphs-good.github.io/) library, reimplemented in pure Julia.
 
-## 1.0 is out!
+## 2.0 is out!
 
-The first stable version of Metatheory.jl is out! The goal of this release is to unify the symbolic manipulation ecosystem of Julia packages. Many features have been ported from SymbolicUtils.jl. Now, Metatheory.jl can be used in place of SymbolicUtils.jl when you have no need of manipulating mathematical expressions. SymbolicUtils.jl can now completely leverage on the generic stack of rewriting features provided by Metatheory.jl, highly decoupled from the symbolic term representation thanks to [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl). Read more in [NEWS.md](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/NEWS.md).
+Second stable version is out:
+
+- New e-graph pattern matching system, relies on functional programming and closures, and is much more extensible than 1.0's virtual machine.
+- No longer dispatch against types, but instead dispatch against objects.
+- Faster E-Graph Analysis
+- Better library macros 
+- Updated TermInterface to 0.3.3
+- New interface for e-graph extraction using `EGraphs.egraph_reconstruct_expression`
+- Simplify E-Graph Analysis Interface. Use Symbols or functions for identifying Analyses. 
+- Remove duplicates in E-Graph analyses data.
+
+
+Many features have been ported from SymbolicUtils.jl. Metatheory.jl can be used in place of SymbolicUtils.jl when you have no need of manipulating mathematical expressions. The introduction of  [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl) has allowed for large potential in generalization of term rewriting and symbolic analysis and manipulation features. Integration between Metatheory.jl with Symbolics.jl, as it has been shown in the ["High-performance symbolic-numerics via multiple dispatch"](https://arxiv.org/abs/2105.03949) paper.
 
 ## Recommended Readings - Selected Publications
 

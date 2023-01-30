@@ -2,26 +2,26 @@ using Metatheory
 using Metatheory.EGraphs
 using TermInterface
 
-abstract type SignAnalysis <: AbstractAnalysis end
+# TODO update
 
-function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeLiteral{<:Real})
-  if n.value == Inf 
-      return Inf
-  elseif n.value == -Inf 
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral{<:Real})
+  if n.value == Inf
+    return Inf
+  elseif n.value == -Inf
     return -Inf
   elseif n.value isa Real # in Julia NaN is a Real
     return sign(n.value)
-  else 
+  else
     return nothing
   end
 end
 
-function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeTerm)
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeTerm)
   # Let's consider only binary function call terms.
   if exprhead(n) == :call && arity(n) == 2
     # get the symbol name of the operation
-      op = operation(n)
-      op = op isa Function ? nameof(op) : op 
+    op = operation(n)
+    op = op isa Function ? nameof(op) : op
 
     # Get the left and right child eclasses
     child_eclasses = arguments(n)
@@ -33,7 +33,7 @@ function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeTerm)
     lsign = getdata(l, an, nothing)
     rsign = getdata(r, an, nothing)
 
-    (lsign == nothing || rsign == nothing ) && return nothing
+    (lsign == nothing || rsign == nothing) && return nothing
 
     if op == :*
       return lsign * rsign
@@ -54,21 +54,21 @@ function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeTerm)
   return nothing
 end
 
-function EGraphs.join(an::Type{SignAnalysis}, a, b)
+function EGraphs.join(::Val{:sign_analysis}, a, b)
   return a == b ? a : nothing
 end
 
-function EGraphs.make(an::Type{SignAnalysis}, g::EGraph, n::ENodeLiteral{Symbol})
-  s = n.value 
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral{Symbol})
+  s = n.value
   s == :x && return 1
-  s == :y && return -1 
+  s == :y && return -1
   s == :z && return 0
-  s == :k && return Inf 
+  s == :k && return Inf
   return nothing
 end
 
 # we are cautious, so we return false by default 
-isnotzero(g::EGraph, x::EClass) = getdata(x, SignAnalysis, false)
+isnotzero(g::EGraph, x::EClass) = getdata(x, :sign_analysis, false)
 
 # t = @theory a b c begin 
 #   a * (b * c) == (a * b) * c
@@ -83,20 +83,20 @@ isnotzero(g::EGraph, x::EClass) = getdata(x, SignAnalysis, false)
 function custom_analysis(expr)
   g = EGraph(expr)
   # saturate!(g, t)
-  analyze!(g, SignAnalysis)
-  return getdata(g[g.root], SignAnalysis)
+  analyze!(g, :sign_analysis)
+  return getdata(g[g.root], :sign_analysis)
 end
 
-custom_analysis(:(3*x)) # :odd
-custom_analysis(:(3*(2+a)*2)) # :even
-custom_analysis(:(-3y * (2x*y))) # :even
-custom_analysis(:(k/k)) # :even
+custom_analysis(:(3 * x)) # :odd
+custom_analysis(:(3 * (2 + a) * 2)) # :even
+custom_analysis(:(-3y * (2x * y))) # :even
+custom_analysis(:(k / k)) # :even
 
 
 #===========================================================================================#
 
 # pattern variables can be specified before the block of rules
-comm_monoid = @theory a b c begin  
+comm_monoid = @theory a b c begin
   a * b == b * a # commutativity
   a * 1 --> a    # identity
   a * (b * c) == (a * b) * c   # associativity
@@ -120,12 +120,12 @@ end;
 
 div_sim = @theory a b c begin
   (a * b) / c == a * (b / c)
-  a::isnotzero / a::isnotzero  --> 1  
+  a::isnotzero / a::isnotzero --> 1
 end;
 
-t = vcat(comm_monoid, comm_group, folder, div_sim) ;
+t = vcat(comm_monoid, comm_group, folder, div_sim);
 
-g = EGraph(:(a * (2 * 3) / 6)) ;
-saturate!(g, t) 
+g = EGraph(:(a * (2 * 3) / 6));
+saturate!(g, t)
 ex = extract!(g, astsize)
 # :a
