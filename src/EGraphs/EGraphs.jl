@@ -5,14 +5,11 @@ include("../docstrings.jl")
 using DataStructures
 using TermInterface
 using TimerOutputs
-using Parameters
-using Metatheory: alwaystrue, cleanast, binarize, @log
+using Metatheory:
+  alwaystrue, cleanast, binarize, @log, DEFAULT_BUFFER_SIZE, BUFFER, BUFFER_LOCK, MERGES_BUF, MERGES_BUF_LOCK, Bindings
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
-using Dates 
-
-import ThreadsX
 
 include("intdisjointmap.jl")
 export IntDisjointSet
@@ -43,11 +40,8 @@ export analyze!
 export extract!
 export astsize
 export astsize_inv
-export AbstractAnalysis
-export MetadataAnalysis
 export getcost!
 
-include("ematch.jl")
 export Sub
 
 include("Schedulers.jl")

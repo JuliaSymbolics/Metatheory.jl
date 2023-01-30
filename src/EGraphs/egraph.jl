@@ -2,129 +2,100 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 
-"""
-Abstract type representing an [`EGraph`](@ref) analysis,
-attaching values from a join semi-lattice domain to
-an EGraph
-"""
-abstract type AbstractAnalysis end
-abstract type AbstractENode{T} end
+abstract type AbstractENode end
 
-const AnalysisData = Base.ImmutableDict{Type{<:AbstractAnalysis}, Any}
+const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
 const EClassId = Int64
-const HashCons = Dict{AbstractENode,EClassId}
-const Analyses = Set{Type{<:AbstractAnalysis}}
-const SymbolCache = Dict{Any, Set{EClassId}}
-const TermTypes = Dict{Tuple{Any, EClassId}, Type}
+const TermTypes = Dict{Tuple{Any,Int},Type}
 
-mutable struct ENodeLiteral{T} <: AbstractENode{T}
-    value::T
-    hash::Ref{UInt}
+mutable struct ENodeLiteral <: AbstractENode
+  value
+  hash::Ref{UInt}
+  ENodeLiteral(a) = new(a, Ref{UInt}(0))
 end
 
-mutable struct ENodeTerm{T} <: AbstractENode{T}
-    exprhead::Union{Symbol, Nothing}
-    operation::Any
-    args::Vector{EClassId}
-    hash::Ref{UInt} # hash cache
-end
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(hash(a), hash(b))
 
-# parametrize metadata by M
-mutable struct EClass
-    g # EGraph
-    id::EClassId
-    nodes::Vector{AbstractENode}
-    parents::Vector{Pair{AbstractENode, EClassId}}
-    data::Union{Nothing, AnalysisData}
-    # data::M
-end
+TermInterface.istree(n::ENodeLiteral) = false
+TermInterface.exprhead(n::ENodeLiteral) = nothing
+TermInterface.operation(n::ENodeLiteral) = n.value
+TermInterface.arity(n::ENodeLiteral) = 0
 
-const ClassMem = Dict{EClassId,EClass}
-
-
-function ENodeTerm{T}(exprhead, operation, c_ids) where {T}
-    ENodeTerm{T}(exprhead, operation, c_ids, Ref{UInt}(0))
+function Base.hash(t::ENodeLiteral, salt::UInt)
+  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+  h = t.hash[]
+  !iszero(h) && return h
+  h′ = hash(t.value, salt)
+  t.hash[] = h′
+  return h′
 end
 
 
-function Base.isequal(a::ENodeTerm, b::ENodeTerm)
-    isequal(a.args, b.args) && 
-    isequal(a.exprhead, b.exprhead) && isequal(a.operation, b.operation)
+mutable struct ENodeTerm <: AbstractENode
+  exprhead::Union{Symbol,Nothing}
+  operation::Any
+  symtype::Type
+  args::Vector{EClassId}
+  hash::Ref{UInt} # hash cache
+  ENodeTerm(exprhead, operation, symtype, c_ids) = new(exprhead, operation, symtype, c_ids, Ref{UInt}(0))
+end
+
+
+function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
+  hash(a) == hash(b) && a.operation == b.operation
 end
 
 
 TermInterface.istree(n::ENodeTerm) = true
-TermInterface.istree(t::Type{<:ENodeTerm}) = true
+TermInterface.symtype(n::ENodeTerm) = n.symtype
 TermInterface.exprhead(n::ENodeTerm) = n.exprhead
-TermInterface.operation(n::ENodeTerm) = n.operation 
-TermInterface.arguments(n::ENodeTerm) = n.args 
+TermInterface.operation(n::ENodeTerm) = n.operation
+TermInterface.arguments(n::ENodeTerm) = n.args
 TermInterface.arity(n::ENodeTerm) = length(n.args)
 
 # This optimization comes from SymbolicUtils
 # The hash of an enode is cached to avoid recomputing it.
 # Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(t::ENodeTerm{T}, salt::UInt) where {T}
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.args,  hash(t.exprhead, hash(t.operation, hash(T, salt))))
-    t.hash[] = h′
-    return h′
+function Base.hash(t::ENodeTerm, salt::UInt)
+  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+  h = t.hash[]
+  !iszero(h) && return h
+  h′ = hash(t.args, hash(t.exprhead, hash(t.operation, salt)))
+  t.hash[] = h′
+  return h′
 end
 
+
+# parametrize metadata by M
+mutable struct EClass
+  g # EGraph
+  id::EClassId
+  nodes::Vector{AbstractENode}
+  parents::Vector{Pair{AbstractENode,EClassId}}
+  data::AnalysisData
+end
 
 function toexpr(n::ENodeTerm)
-    eh = exprhead(n)
-    if isnothing(eh)
-        return operation(n) # n is a constant enode
-    end
-    similarterm(Expr, operation(n), map(i -> Symbol(i, "ₑ"), arguments(n)); exprhead=exprhead(n))
+  Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
 end
 
-
-# ==================================================
-# ENode Literal
-# ==================================================
-
-TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.istree(t::Type{<:ENodeLiteral}) = false
-TermInterface.exprhead(n::ENodeLiteral) = nothing
-TermInterface.operation(n::ENodeLiteral) = n.value 
-TermInterface.arity(n::ENodeLiteral) = 0
-
-ENodeLiteral(a::T) where{T} = ENodeLiteral{T}(a, Ref{UInt}(0))
-
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(a.value, b.value) 
-
-
-function Base.hash(t::ENodeLiteral{T}, salt::UInt) where {T}
-    !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-    h = t.hash[]
-    !iszero(h) && return h
-    h′ = hash(t.value, hash(T, salt))
-    t.hash[] = h′
-    return h′
+function Base.show(io::IO, x::ENodeTerm)
+  print(io, toexpr(x))
 end
-
-
-termtype(x::AbstractENode{T}) where T = T
 
 toexpr(n::ENodeLiteral) = operation(n)
 
-function Base.show(io::IO, x::ENodeTerm{T}) where {T}
-    print(io, "ENode{$T}(", toexpr(x), ")")
-end
-
 Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
 
-EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode, EClassId}[], nothing)
-EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, nothing)
+EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode,EClassId}[], nothing)
+EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
 Base.getindex(a::EClass, i) = a.nodes[i]
 Base.setindex!(a::EClass, v, i) = setindex!(a.nodes, v, i)
 Base.firstindex(a::EClass) = firstindex(a.nodes)
 Base.lastindex(a::EClass) = lastindex(a.nodes)
+Base.length(a::EClass) = length(a.nodes)
 
 # Interface for iterating EClass
 Base.iterate(a::EClass) = iterate(a.nodes)
@@ -132,80 +103,68 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
 function Base.show(io::IO, a::EClass)
-    print(io, "EClass $(a.id) (")
-    
-    print(io, "[", Base.join(a.nodes, ", "), "]")
-    if a.data === nothing
-        print(io, ")")
-        return
-    end
-    print(io, ", analysis = {")
-    for (k, v) ∈ a.data
-        print(io, "$k => $v, ")
-    end
-    print(io, "})")
+  print(io, "EClass $(a.id) (")
+
+  print(io, "[", Base.join(a.nodes, ", "), "], ")
+  print(io, a.data)
+  print(io, ")")
 end
 
 function addparent!(a::EClass, n::AbstractENode, id::EClassId)
-    push!(a.parents, (n => id))
+  push!(a.parents, (n => id))
 end
 
 function Base.union!(to::EClass, from::EClass)
-    append!(to.nodes, from.nodes)
-    append!(to.parents, from.parents)
-    if to.data !== nothing && from.data !== nothing
-        # merge!(to.data, from.data)
-        # to.data = join_analysis_data(to.data, from.data)
-        to.data = join_analysis_data(to.data, from.data)
-    elseif to.data === nothing
-        to.data = from.data
-    end
-    return to
+  # TODO revisit
+  append!(to.nodes, from.nodes)
+  append!(to.parents, from.parents)
+  if !isnothing(to.data) && !isnothing(from.data)
+    to.data = join_analysis_data!(to.g, something(to.data), something(from.data))
+  elseif to.data === nothing
+    to.data = from.data
+  end
+  return to
 end
 
-function join_analysis_data(d::AnalysisData, dsrc::AnalysisData)
-    for (an, val_b) in dsrc
-        if haskey(d, an)
-            val_a = d[an]
-            nv = join(an, val_a, val_b)
-            # d[an] = nv
-            # WARNING immutable version
-            d = Base.ImmutableDict(d,an=>nv)
-        end
+function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
+  new_dst = merge(dst, src)
+  for analysis_name in keys(src)
+    analysis_ref = g.analyses[analysis_name]
+    if hasproperty(dst, analysis_name)
+      ref = getproperty(new_dst, analysis_name)
+      ref[] = join(analysis_ref, ref[], getproperty(src, analysis_name)[])
     end
-    return d
+  end
+  new_dst
 end
 
 # Thanks to Shashi Gowda
-function hasdata(a::EClass, x::Type{<:AbstractAnalysis})
-    a.data === nothing && (return false)
-    return haskey(a.data, x)
-end
+hasdata(a::EClass, analysis_name::Symbol) = hasproperty(a.data, analysis_name)
+hasdata(a::EClass, f::Function) = hasproperty(a.data, nameof(f))
+getdata(a::EClass, analysis_name::Symbol) = getproperty(a.data, analysis_name)[]
+getdata(a::EClass, f::Function) = getproperty(a.data, nameof(f))[]
+getdata(a::EClass, analysis_ref::Union{Symbol,Function}, default) =
+  hasdata(a, analysis_ref) ? getdata(a, analysis_ref) : default
 
-function getdata(a::EClass, x::Type{<:AbstractAnalysis})
-    !hasdata(a, x) && error("EClass $a does not contain analysis data for $x")
-    return a.data[x]
-end
 
-function getdata(a::EClass, x::Type{<:AbstractAnalysis}, default)
-    hasdata(a, x) ? a.data[x] : default
-end
-
-function setdata!(a::EClass, x::Type{<:AbstractAnalysis}, value) 
-    # lazy allocation
-    a.data === nothing && (a.data = AnalysisData())
-    # a.data[x] = value
-    a.data = AnalysisData(a.data, x, value)
+setdata!(a::EClass, f::Function, value) = setdata!(a, nameof(f), value)
+function setdata!(a::EClass, analysis_name::Symbol, value)
+  if hasdata(a, analysis_name)
+    ref = getproperty(a.data, analysis_name)
+    ref[] = value
+  else
+    a.data = merge(a.data, NamedTuple{(analysis_name,)}((Ref{Any}(value),)))
+  end
 end
 
 function funs(a::EClass)
-    map(operation, a.nodes)
+  map(operation, a.nodes)
 end
 
 function funs_arity(a::EClass)
-    map(a.nodes) do x 
-        (operation(x), arity(x))
-    end
+  map(a.nodes) do x
+    (operation(x), arity(x))
+  end
 end
 
 """
@@ -214,100 +173,87 @@ See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
 """
 mutable struct EGraph
-    """stores the equality relations over e-class ids"""
-    # uf::IntDisjointSets{EClassId}
-    uf::IntDisjointSet
-    """map from eclass id to eclasses"""
-    classes::ClassMem
-    memo::HashCons             # memo
-    """worklist for ammortized upwards merging"""
-    dirty::Vector{EClassId}
-    root::EClassId
-    """A vector of analyses associated to the EGraph"""
-    analyses::Analyses
-    # """
-    # a cache mapping function symbols to e-classes that
-    # contain e-nodes with that function symbol.
-    # """
-    # symcache::SymbolCache
-    default_termtype::Type
-    termtypes::TermTypes
-    numclasses::Int
-    numnodes::Int
-    # number of rules that have been applied
-    # age::Int
+  "stores the equality relations over e-class ids"
+  uf::IntDisjointSet
+  "map from eclass id to eclasses"
+  classes::Dict{EClassId,EClass}
+  "hashcons"
+  memo::Dict{AbstractENode,EClassId}             # memo
+  "worklist for ammortized upwards merging"
+  dirty::Vector{EClassId}
+  root::EClassId
+  "A vector of analyses associated to the EGraph"
+  analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
+  "a cache mapping function symbols to e-classes that contain e-nodes with that function symbol."
+  symcache::Dict{Any,Vector{EClassId}}
+  default_termtype::Type
+  termtypes::TermTypes
+  numclasses::Int
+  numnodes::Int
 end
+
 
 """
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
 function EGraph()
-    EGraph(
-        IntDisjointSet{EClassId}(),
-        # IntDisjointSets{EClassId}(0),
-        ClassMem(),
-        HashCons(),
-        # ParentMem(),
-        EClassId[],
-        -1,
-        Analyses(),
-        # SymbolCache(),
-        Expr,
-        TermTypes(),
-        0,
-        0,
-        # 0
-    )
+  EGraph(
+    IntDisjointSet(),
+    Dict{EClassId,EClass}(),
+    Dict{AbstractENode,EClassId}(),
+    EClassId[],
+    -1,
+    Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
+    Dict{Any,Vector{EClassId}}(),
+    Expr,
+    TermTypes(),
+    0,
+    0,
+    # 0
+  )
 end
 
-function EGraph(e; keepmeta=false)
-    g = EGraph()
-    if keepmeta
-        push!(g.analyses, MetadataAnalysis)
-    end
-    
-    rootclass, rootnode = addexpr!(g, e; keepmeta=keepmeta)
-    g.root = rootclass.id
-    g
+function EGraph(e; keepmeta = false)
+  g = EGraph()
+  keepmeta && addanalysis!(g, :metadata_analysis)
+  g.root = addexpr!(g, e; keepmeta = keepmeta)
+  g
+end
+
+function addanalysis!(g::EGraph, costfun::Function)
+  g.analyses[nameof(costfun)] = costfun
+  g.analyses[costfun] = costfun
+end
+
+function addanalysis!(g::EGraph, analysis_name::Symbol)
+  g.analyses[analysis_name] = analysis_name
 end
 
 function settermtype!(g::EGraph, f, ar, T)
-    g.termtypes[(f,ar)] = T
+  g.termtypes[(f, ar)] = T
 end
 
 function settermtype!(g::EGraph, T)
-    g.default_termtype = T
+  g.default_termtype = T
 end
 
 function gettermtype(g::EGraph, f, ar)
-    if haskey(g.termtypes, (f,ar))
-        g.termtypes[(f,ar)]
-    else 
-        g.default_termtype
-    end
+  if haskey(g.termtypes, (f, ar))
+    g.termtypes[(f, ar)]
+  else
+    g.default_termtype
+  end
 end
 
 
 """
 Returns the canonical e-class id for a given e-class.
 """
-# function find(g::EGraph, a::EClassId)::EClassId
-#     find_root_if_normal(g.uf, a)
-# end
-function find(g::EGraph, a::EClassId)::EClassId
-    find_root(g.uf, a)
-end
+find(g::EGraph, a::EClassId)::EClassId = find_root(g.uf, a)
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
-function Base.getindex(g::EGraph, i::EClassId)
-    id = find(g, i)
-    ec = g.classes[id]
-    # @show ec.id id a
-    # @assert ec.id == id
-    # ec.id = id
-    ec
-end
+Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
 ### Definition 2.3: canonicalization
 iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)
@@ -316,72 +262,70 @@ iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
 canonicalize(g::EGraph, n::ENodeLiteral) = n
 
-function canonicalize(g::EGraph, n::ENodeTerm{T}) where {T}
-    if arity(n) > 0
-        new_args = map(x -> find(g, x), arguments(n))
-        return ENodeTerm{T}(exprhead(n), operation(n), new_args)
-    end 
-    return n
+function canonicalize(g::EGraph, n::ENodeTerm)
+  if arity(n) > 0
+    new_args = map(x -> find(g, x), n.args)
+    return ENodeTerm(exprhead(n), operation(n), symtype(n), new_args)
+  end
+  return n
 end
 
 function canonicalize!(g::EGraph, n::ENodeTerm)
-    args = arguments(n)
-    for i ∈ 1:arity(n)
-        args[i] = find(g, args[i])
-    end
-    n.hash[] = UInt(0)
-    return n
+  for (i, arg) in enumerate(n.args)
+    n.args[i] = find(g, arg)
+  end
+  n.hash[] = UInt(0)
+  return n
 end
 
 canonicalize!(g::EGraph, n::ENodeLiteral) = n
 
 
 function canonicalize!(g::EGraph, e::EClass)
-    e.id = find(g, e.id)
+  e.id = find(g, e.id)
 end
 
-function lookup(g::EGraph, n::AbstractENode)
-    cc = canonicalize(g, n)
-    if !haskey(g.memo, cc)
-        return nothing
-    end
-    return find(g, g.memo[cc])
+function lookup(g::EGraph, n::AbstractENode)::EClassId
+  cc = canonicalize(g, n)
+  haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
 end
 
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::AbstractENode)::EClass
-    @debug("adding ", n)
+function add!(g::EGraph, n::AbstractENode)::EClassId
+  @debug("adding ", n)
 
-    n = canonicalize(g, n)
-    if haskey(g.memo, n)
-        eclass = g[g.memo[n]]
-        return eclass
+  n = canonicalize(g, n)
+  haskey(g.memo, n) && return g.memo[n]
+
+  id = push!(g.uf) # create new singleton eclass
+
+  if n isa ENodeTerm
+    for c_id in arguments(n)
+      addparent!(g.classes[c_id], n, id)
     end
-    @debug(n, " not found in memo")
+  end
 
-    id = push!(g.uf) # create new singleton eclass
+  g.memo[n] = id
 
-    if n isa ENodeTerm 
-        for c_id ∈ arguments(n)
-            addparent!(g.classes[c_id], n, id)
-        end
+  if haskey(g.symcache, operation(n))
+    push!(g.symcache[operation(n)], id)
+  else
+    g.symcache[operation(n)] = [id]
+  end
+
+  classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode,EClassId}[])
+  g.classes[id] = classdata
+  g.numclasses += 1
+
+  for an in values(g.analyses)
+    if !islazy(an) && an !== :metadata_analysis
+      setdata!(classdata, an, make(an, g, n))
+      modify!(an, g, id)
     end
-
-    g.memo[n] = id
-
-    classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode, EClassId}[])
-    g.classes[id] = classdata
-    g.numclasses += 1
-
-    for an ∈ g.analyses
-        if !islazy(an) && an !== MetadataAnalysis
-            setdata!(classdata, an, make(an, g, n))
-            modify!(an, g, id)
-        end
-    end
-    return classdata
+  end
+  return id
 end
 
 
@@ -391,8 +335,8 @@ preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """
-function preprocess(e::Expr) 
-    cleanast(e)
+function preprocess(e::Expr)
+  cleanast(e)
 end
 preprocess(x) = x
 
@@ -401,74 +345,60 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-addexpr!(g::EGraph, se::EClass; keepmeta=false) = (se, se[1])
+function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
+  e = preprocess(se)
 
-function addexpr!(g::EGraph, se; keepmeta=false)::Tuple{EClass, AbstractENode}
-    # println("========== $e ===========")
-    e = preprocess(se)
-    T = typeof(e)
-    node = nothing
-
-    if istree(T)
-        exhead = exprhead(e)
-        op = operation(e)
-        args = arguments(e)
-
-        n = length(args)
-
-        class_ids = EClassId[
-            first(addexpr!(g, child; keepmeta=keepmeta)).id
-        for child in args]
-        
-        node = ENodeTerm{typeof(e)}(exhead, op, class_ids)
-    else 
-        # constant enode
-        node = ENodeLiteral(e)
-    end
-
-    ec = add!(g, node)
-    if keepmeta
-        # TODO check if eclass already has metadata?
-        meta = TermInterface.metadata(e)
-        setdata!(ec, MetadataAnalysis, meta)
-    end
-    return (ec, node)
+  id = add!(g, if istree(se)
+    class_ids::Vector{EClassId} = [addexpr!(g, arg; keepmeta = keepmeta) for arg in arguments(e)]
+    ENodeTerm(exprhead(e), operation(e), symtype(e), class_ids)
+  else
+    # constant enode
+    ENodeLiteral(e)
+  end)
+  if keepmeta
+    meta = TermInterface.metadata(e)
+    !isnothing(meta) && setdata!(g.classes[id], :metadata_analysis, meta)
+  end
+  return id
 end
 
-
+function addexpr!(g::EGraph, ec::EClass; keepmeta = false)
+  @assert g == ec.g
+  find(g, ec.id)
+end
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
 """
 function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
-    id_a = find(g, a)
-    id_b = find(g, b)
+  id_a = find(g, a)
+  id_b = find(g, b)
 
-     
-    id_a == id_b && return id_a
-    to = union!(g.uf, id_a, id_b)
 
-    @debug "merging" id_a id_b
+  id_a == id_b && return id_a
+  to = union!(g.uf, id_a, id_b)
 
-    from = (to == id_a) ? id_b : id_a
+  @debug "merging" id_a id_b
 
-    push!(g.dirty, to)
+  from = (to == id_a) ? id_b : id_a
 
-    from_class = g.classes[from]
-    to_class = g.classes[to]
-    to_class.id = to
+  push!(g.dirty, to)
 
-    # I (was) the troublesome line!
-    g.classes[to] = union!(to_class, from_class)
-    delete!(g.classes, from)
-    g.numclasses -= 1
+  from_class = g.classes[from]
+  to_class = g.classes[to]
+  to_class.id = to
 
-    return to
+  # I (was) the troublesome line!
+  g.classes[to] = union!(to_class, from_class)
+  delete!(g.classes, from)
+  g.numclasses -= 1
+
+  return to
 end
 
 function in_same_class(g::EGraph, a, b)
-    find(g, a) == find(g, b)
+  find(g, a) == find(g, b)
 end
 
 
@@ -480,105 +410,75 @@ the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
 function rebuild!(g::EGraph)
-    # normalize!(g.uf)
+  # normalize!(g.uf)
 
-    while !isempty(g.dirty)
-        # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
-        todo = unique(g.dirty)
-        empty!(g.dirty)
-        for x ∈ todo
-            repair!(g, x)
-        end
+  while !isempty(g.dirty)
+    # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
+    todo = unique(g.dirty)
+    empty!(g.dirty)
+    for x in todo
+      repair!(g, x)
     end
-    
-    if g.root != -1
-        g.root = find(g, g.root)
-    end
-    
-    normalize!(g.uf)
+  end
 
-    # for i ∈ 1:length(egraph.uf)
-    #     find_root!(egraph.uf, i)
-    # end
-    # INVARIANTS ASSERTIONS
-    # for (id, c) ∈  egraph.classes
-    #     # ecdata.nodes = map(n -> canonicalize(egraph.uf, n), ecdata.nodes)
-    #     println(id, "=>", c.id)
-    #     @assert(id == c.id)
-    #     # for an ∈ egraph.analyses
-    #     #     if haskey(an, id)
-    #     #         @assert an[id] == mapreduce(x -> make(an, x), (x, y) -> join(an, x, y), c.nodes)
-    #     #     end
-    #     # end
-    
-    #     for n ∈ c
-    #         println(n)
-    #         println("canon = ", canonicalize(egraph, n))
-    #         hr = egraph.memo[canonicalize(egraph, n)]
-    #         println(hr)
-    #         @assert hr == find(egraph, id)
-    #     end
-    # end
-    # display(egraph.classes); println()
-    # @show egraph.dirty
+  if g.root != -1
+    g.root = find(g, g.root)
+  end
 
+  normalize!(g.uf)
 end
 
 function repair!(g::EGraph, id::EClassId)
-    id = find(g, id)
-    ecdata = g[id]
-    ecdata.id = id
-    @debug "repairing " id
+  id = find(g, id)
+  ecdata = g[id]
+  ecdata.id = id
+  @debug "repairing " id
 
-    # for (p_enode, p_eclass) ∈ ecdata.parents
-    #     clean_enode!(g, p_enode, find(g, p_eclass))
-    # end
+  new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
 
-    new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
-
-    for (p_enode, p_eclass) ∈ ecdata.parents
-        p_enode = canonicalize!(g, p_enode)
-        # deduplicate parents
-        if haskey(new_parents, p_enode)
-            @debug "merging classes" p_eclass (new_parents[p_enode])
-            merge!(g, p_eclass, new_parents[p_enode])
-        end
-        n_id = find(g, p_eclass)
-        g.memo[p_enode] = n_id
-        new_parents[p_enode] = n_id 
+  for (p_enode, p_eclass) in ecdata.parents
+    p_enode = canonicalize!(g, p_enode)
+    # deduplicate parents
+    if haskey(new_parents, p_enode)
+      @debug "merging classes" p_eclass (new_parents[p_enode])
+      merge!(g, p_eclass, new_parents[p_enode])
     end
+    n_id = find(g, p_eclass)
+    g.memo[p_enode] = n_id
+    new_parents[p_enode] = n_id
+  end
 
-    ecdata.parents = collect(new_parents)
-    @debug "updated parents " id g.parents[id]
+  ecdata.parents = collect(new_parents)
+  @debug "updated parents " id g.parents[id]
 
-    # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
+  # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
-    # Analysis invariant maintenance
-    for an ∈ g.analyses
-        hasdata(ecdata, an) && modify!(an, g, id)
-        # modify!(an, id)
-        # id = find(g, id)
-        for (p_enode, p_id) ∈ ecdata.parents
-            # p_eclass = find(g, p_eclass)
-            p_eclass = g[p_id]
-            if !islazy(an) && !hasdata(p_eclass, an)
-                setdata!(p_eclass, an, make(an, g, p_enode))
-            end
-            if hasdata(p_eclass, an)
-                p_data = getdata(p_eclass, an)
+  # Analysis invariant maintenance
+  for an in values(g.analyses)
+    hasdata(ecdata, an) && modify!(an, g, id)
+    for (p_enode, p_id) in ecdata.parents
+      # p_eclass = find(g, p_eclass)
+      p_eclass = g[p_id]
+      if !islazy(an) && !hasdata(p_eclass, an)
+        setdata!(p_eclass, an, make(an, g, p_enode))
+      end
+      if hasdata(p_eclass, an)
+        p_data = getdata(p_eclass, an)
 
-                new_data = join(an, p_data, make(an, g, p_enode))
-                if new_data != p_data
-                    setdata!(p_eclass, an, new_data)
-                    push!(g.dirty, p_id)
-                end
-            end
+        if an !== :metadata_analysis
+          new_data = join(an, p_data, make(an, g, p_enode))
+          if new_data != p_data
+            setdata!(p_eclass, an, new_data)
+            push!(g.dirty, p_id)
+          end
         end
+      end
     end
+  end
 
-    unique!(ecdata.nodes)
+  unique!(ecdata.nodes)
 
-    # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
+  # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 
 end
 
@@ -588,29 +488,67 @@ Recursive function that traverses an [`EGraph`](@ref) and
 returns a vector of all reachable e-classes from a given e-class id.
 """
 function reachable(g::EGraph, id::EClassId)
-    id = find(g, id)
-    hist = EClassId[id]
-    todo = EClassId[id]
+  id = find(g, id)
+  hist = EClassId[id]
+  todo = EClassId[id]
 
 
-    function reachable_node(xn::ENodeTerm)
-        x = canonicalize(g, xn)
-        for c_id in arguments(x)
-            if c_id ∉ hist 
-                push!(hist, c_id)
-                push!(todo, c_id)
-            end
-        end
+  function reachable_node(xn::ENodeTerm)
+    x = canonicalize(g, xn)
+    for c_id in arguments(x)
+      if c_id ∉ hist
+        push!(hist, c_id)
+        push!(todo, c_id)
+      end
     end
-    function reachable_node(x::ENodeLiteral)
-    end
+  end
+  function reachable_node(x::ENodeLiteral) end
 
-    while !isempty(todo)
-        curr = find(g, pop!(todo))
-        for n ∈ g.classes[curr]
-            reachable_node(n)
-        end
+  while !isempty(todo)
+    curr = find(g, pop!(todo))
+    for n in g.classes[curr]
+      reachable_node(n)
     end
+  end
 
-    return hist
+  return hist
 end
+
+
+"""
+When extracting symbolic expressions from an e-graph, we need 
+to instruct the e-graph how to rebuild expressions of a certain type. 
+This function must be extended by the user to add new types of expressions that can be manipulated by e-graphs.
+"""
+function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothing, exprhead = :call)
+  similarterm(Expr(:call, :_), op, args; metadata = metadata, exprhead = exprhead)
+end
+
+# Thanks to Max Willsey and Yihong Zhang
+
+import Metatheory: lookup_pat
+
+function lookup_pat(g::EGraph, p::PatTerm)::EClassId
+  @assert isground(p)
+
+  eh = exprhead(p)
+  op = operation(p)
+  args = arguments(p)
+  ar = arity(p)
+
+  T = gettermtype(g, op, ar)
+
+  ids = map(x -> lookup_pat(g, x), args)
+  !all((>)(0), ids) && return -1
+
+  if T == Expr && op isa Union{Function,DataType}
+    id = lookup(g, ENodeTerm(eh, op, T, ids))
+    id < 0 && return lookup(g, ENodeTerm(eh, nameof(op), T, ids))
+    return id
+  else
+    return lookup(g, ENodeTerm(eh, op, T, ids))
+  end
+end
+
+lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
+lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))
