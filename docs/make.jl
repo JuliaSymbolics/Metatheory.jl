@@ -33,4 +33,4 @@ makedocs(
   ],
 )
 
-#deploydocs(repo = "github.com/JuliaSymbolics/Metatheory.jl.git")
+deploydocs(repo = "github.com/JuliaSymbolics/Metatheory.jl.git")
