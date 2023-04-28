@@ -192,8 +192,8 @@ Instantiate argument for dynamic rule application in e-graph
 function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid, literal_position = bindings[i]
   ecid <= 0 && error("unbound pattern variable $pat in rule $rule")
+  eclass = g[ecid]
   if literal_position > 0
-    eclass = g[ecid]
     @assert eclass[literal_position] isa ENodeLiteral
     return eclass[literal_position].value
   end
