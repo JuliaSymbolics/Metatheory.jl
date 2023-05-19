@@ -17,7 +17,6 @@ function resetbuffers!(bufsize)
 end
 
 function __init__()
-  println(Threads.nthreads())
   resetbuffers!(DEFAULT_BUFFER_SIZE)
 end
 
