@@ -71,7 +71,6 @@ Base.@kwdef mutable struct SaturationParams
   schedulerparams::Tuple               = ()
   threaded::Bool                       = false
   timer::Bool                          = true
-  printiter::Bool                      = false
 end
 
 # function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
@@ -124,10 +123,12 @@ function eqsat_search!(
     empty!(BUFFER[])
   end
 
+  @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
     @timeit report.to string(rule_idx) begin
       # don't apply banned rules
       if !cansearch(scheduler, rule)
+        @debug "$rule is banned"
         continue
       end
       ids = cached_ids(g, rule.left)
@@ -135,6 +136,7 @@ function eqsat_search!(
       for i in ids
         n_matches += rule.ematcher!(g, rule_idx, i)
       end
+      n_matches > 0 && @debug "$rule produced $n_matches matches"
       inform!(scheduler, rule, n_matches)
     end
   end
@@ -180,7 +182,7 @@ function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::EClas
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
   if find(g, id) == find(g, other_id)
-    @log "Contradiction!" rule
+    @debug "$rule produced a contradiction!"
     return :contradiction
   end
   nothing
@@ -215,10 +217,12 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   i = 0
   @assert isempty(MERGES_BUF[])
 
+  @debug "APPLYING $(length(BUFFER[])) matches"
+
   lock(BUFFER_LOCK) do
     while !isempty(BUFFER[])
       if reached(g, params.goal)
-        @log "Goal reached"
+        @debug "Goal reached"
         rep.reason = :goalreached
         return
       end
@@ -249,10 +253,6 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
 end
 
 
-
-import ..@log
-
-
 """
 Core algorithm of the library: the equality saturation step.
 """
@@ -276,6 +276,8 @@ function eqsat_step!(
   end
   @timeit report.to "Rebuild" rebuild!(g)
 
+  @debug smallest_expr = extract!(g, astsize)
+
   return report
 end
 
@@ -297,7 +299,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   while true
     curr_iter += 1
 
-    params.printiter && @info("iteration ", curr_iter)
+    @debug "================ EQSAT ITERATION $curr_iter  ================"
 
     report = eqsat_step!(g, theory, curr_iter, sched, params, report)
 
@@ -328,7 +330,6 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
     end
   end
   report.iterations = curr_iter
-  @log report
 
   return report
 end
@@ -339,13 +340,9 @@ function areequal(theory::Vector, exprs...; params = SaturationParams())
 end
 
 function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = SaturationParams())
-  @log "Checking equality for " exprs
   if length(exprs) == 1
     return true
   end
-  # rebuild!(G)
-
-  @log "starting saturation"
 
   n = length(exprs)
   ids = map(Base.Fix1(addexpr!, g), collect(exprs))
