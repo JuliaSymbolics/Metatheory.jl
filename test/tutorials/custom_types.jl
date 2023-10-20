@@ -32,7 +32,7 @@ MyExpr(head) = MyExpr(head, [])
 # We also need to define equality for our expression.
 function Base.:(==)(a::MyExpr, b::MyExpr)
   a.head == b.head && a.args == b.args && a.foo == b.foo
-end 
+end
 
 # ## Overriding `TermInterface`` methods
 
@@ -55,7 +55,8 @@ TermInterface.exprhead(::MyExpr) = :call
 # there are some cases where you would like to match your expression types 
 # against more complex patterns, for example, to match an expression `x` against an `a[b]` kind of pattern, 
 # you would need to inform the system that `exprhead(x)` is `:ref`, because 
-dump(:(a[b]))
+ex = :(a[b])
+(ex.head, ex.args)
 
 
 # `metadata` should return the extra metadata. If you have many fields, i suggest using a `NamedTuple`.

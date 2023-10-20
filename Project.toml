@@ -12,8 +12,8 @@ TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
-AutoHashEquals = "0.2.0"
-DataStructures = "0.18.9"
+AutoHashEquals = "2.0.0"
+DataStructures = "0.18"
 DocStringExtensions = "0.8, 0.9"
 Reexport = "0.2, 1"
 TermInterface = "0.3.3"

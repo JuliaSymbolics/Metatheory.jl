@@ -19,8 +19,6 @@ function EGraphs.make(::Val{:numberfold}, g::EGraph, n::ENodeTerm)
     ldata = getdata(l, :numberfold, nothing)
     rdata = getdata(r, :numberfold, nothing)
 
-    # @show ldata rdata
-
     if ldata isa Number && rdata isa Number
       if op == :*
         return ldata * rdata
@@ -247,18 +245,15 @@ end
     saturate!(G, t, params)
     @test extract!(G, astsize) == 3
 
-    @time begin
-      G = EGraph(:(a^3 * a^2))
-      saturate!(G, t)
-      ex = extract!(G, astsize)
-    end
+
+    G = EGraph(:(a^3 * a^2))
+    saturate!(G, t)
+    ex = extract!(G, astsize)
     @test ex == :(a^5)
 
-    @time begin
-      G = EGraph(:(a^3 * a^2))
-      saturate!(G, t)
-      ex = extract!(G, astsize)
-    end
+    G = EGraph(:(a^3 * a^2))
+    saturate!(G, t)
+    ex = extract!(G, astsize)
     @test ex == :(a^5)
 
     function cust_astsize(n::ENodeTerm, g::EGraph)
@@ -279,13 +274,9 @@ end
 
     cust_astsize(n::ENodeLiteral, g::EGraph) = 1
 
-    @time begin
-      G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
-      saturate!(G, t)
-      @show getcost!(G, cust_astsize)
-      ex = extract!(G, cust_astsize)
-    end
-    @show ex
+    G = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
+    saturate!(G, t)
+    ex = extract!(G, cust_astsize)
     @test ex == :(5 * log(a)) || ex == :(log(a) * 5)
   end
 
@@ -344,7 +335,6 @@ end
 
     gg = EGraph(ex)
     saturate!(gg, t)
-    @show getcost!(gg, astsize)
     res = extract!(gg, astsize)
 
     @test res == :(tan())
