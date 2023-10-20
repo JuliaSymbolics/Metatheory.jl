@@ -1,7 +1,7 @@
 using GraphViz
 using Term
 
-function dot(g::EGraph, dst, diff = Set(), report = nothing)
+function dot(g::EGraph, diff = Set(), report = nothing)
   tmpl = """digraph {
     compound=true
     clusterrank=local
