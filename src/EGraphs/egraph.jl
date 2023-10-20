@@ -4,11 +4,11 @@
 
 abstract type AbstractENode end
 
-const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
+const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
 
-mutable struct ENodeLiteral <: AbstractENode
+struct ENodeLiteral <: AbstractENode
   value
   hash::Ref{UInt}
   ENodeLiteral(a) = new(a, Ref{UInt}(0))

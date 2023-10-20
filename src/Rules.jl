@@ -49,15 +49,13 @@ variables.
 @rule ~a * ~b --> ~b * ~a
 ```
 """
-@auto_hash_equals struct RewriteRule <: SymbolicRule
+@auto_hash_equals fields = (left, right) struct RewriteRule <: SymbolicRule
   left
   right
   matcher
   patvars::Vector{Symbol}
   ematcher!
 end
-
-Base.:(==)(a::RewriteRule, b::RewriteRule) = (a.left == b.left) && (a.right == b.right)
 
 function RewriteRule(l, r)
   pvars = patvars(l) ∪ patvars(r)
