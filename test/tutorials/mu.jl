@@ -2,8 +2,7 @@
 # The puzzle cannot be solved: it is impossible to change the string MI into MU
 # by repeatedly applying the given rules. In other words, MU is not a theorem of
 # the MIU formal system. To prove this, one must step "outside" the formal system
-# itself. 
-# https://en.wikipedia.org/wiki/MU_puzzle#Solution
+# itself. [Wikipedia](https://en.wikipedia.org/wiki/MU_puzzle#Solution)
 
 using Metatheory, Test
 

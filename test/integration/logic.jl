@@ -21,8 +21,7 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
 
     goal = EqualityGoal(exprs, ids)
     params.goal = goal
-    rep = saturate!(g, t, params)
-    @show rep
+    saturate!(g, t, params)
     ex = extract!(g, astsize)
     if !TermInterface.istree(ex)
       return ex

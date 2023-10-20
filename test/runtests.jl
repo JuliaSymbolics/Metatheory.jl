@@ -12,27 +12,16 @@ function test(file::String)
   end
 end
 
-const TEST_FILES = ["reductions.jl", "EGraphs/egraphs.jl", "EGraphs/ematch.jl", "EGraphs/analysis.jl"]
-const INTEGRATION_TEST_FILES = map(
-  x -> joinpath(@__DIR__, "integration", x),
-  [
-    "fibonacci.jl",
-    "kb_benchmark.jl",
-    "logic.jl",
-    "stream_fusion.jl",
-    "taylor.jl",
-    "while_superinterpreter.jl",
-    "lambda_theory.jl"
-  ],
-)
+allscripts(dir) = [joinpath(@__DIR__, dir, x) for x in readdir(dir) if endswith(x, ".jl")]
 
-const TUTORIALS = [joinpath(@__DIR__, "tutorials", x) for x in readdir("tutorials/") if endswith(x, ".jl")]
+const TEST_FILES = [
+  allscripts("classic")
+  allscripts("egraphs")
+  allscripts("integration")
+  allscripts("tutorials")
+]
 
-@timev begin
-  @timev map(test, TEST_FILES)
-  @timev map(test, INTEGRATION_TEST_FILES)
-  @timev map(test, TUTORIALS)
-end
+@timev map(test, TEST_FILES)
 
 # exported consistency test
 for m in [Metatheory, Metatheory.EGraphs, Metatheory.EGraphs.Schedulers]
