@@ -65,6 +65,7 @@ ex = extract!(g, astsize; root = some_eclass)
 expr = :(a * b * a * a * a * b * b * b * a * B * B * B * B * a)
 g = EGraph(expr)
 params = SaturationParams(timeout = 9, scheduler = BackoffScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
+# params = SaturationParams(timeout = 9, scheduler = SimpleScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
 report = saturate!(g, G, params)
 ex = extract!(g, astsize)
 @test_broken ex == :ε
