@@ -9,17 +9,14 @@ function dot(g::EGraph, diff = Set(), report = nothing)
   report !== nothing && canonicalize!(g, report.cause)
   for (id, eclass) in g.classes
     sg = """    subgraph cluster_$id {
-                style=dotted;
-                label="EClass $id. Smallest: $(extract!(g, astsize; root=id))"
+                style="dotted,rounded,filled";
+                colorscheme="set132";
+                label="#$id. Smallest: $(extract!(g, astsize; root=id))"
                 fontcolor = gray
                 fontsize  = 8
           """
     for (os, node) in enumerate(eclass.nodes)
-      label = if node isa ENodeTerm
-        node.operation
-      else
-        node.value
-      end
+      label = operation(node)
       (mr, style) = if node in diff && get(report.cause, node, missing) !== missing
         pair = get(report.cause, node, missing)
         split(split("$(pair[1].rule) ", "=>")[1], "-->")[1], " color=\"red\""
@@ -34,8 +31,8 @@ function dot(g::EGraph, diff = Set(), report = nothing)
       node isa ENodeLiteral && continue
       len = length(arguments(node))
       for (ite, child) in enumerate(arguments(node))
-        cid = find(g, child)
-        nid = if cid == id # graphviz的限制，无法指向eclass外框，所以当指向自己这个框时，退而求其次 ，指向自己这个node。
+        cluster_id = find(g, child)
+        nid = if cluster_id == id # graphviz的限制，无法指向eclass外框，所以当指向自己这个框时，退而求其次 ，指向自己这个node。
           "$os:n"
         else
           "1"
@@ -64,7 +61,7 @@ function dot(g::EGraph, diff = Set(), report = nothing)
         else
           " "
         end
-        line = "    $id.$os$dir -> $cid.$nid [lhead=cluster_$cid $linelabel]\n"
+        line = "    $id.$os$dir -> $cluster_id.$nid [arrowsize=0.5 lhead=cluster_$cluster_id $linelabel]\n"
         sg *= line
       end
     end
@@ -72,6 +69,7 @@ function dot(g::EGraph, diff = Set(), report = nothing)
     tmpl *= sg
   end
   tmpl *= "\n}\n"
+  println(tmpl)
   graph = GraphViz.Graph(tmpl)
   GraphViz.layout!(graph, engine = "dot")
   graph
