@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - master
-    tags: '*'
+    tags: "*"
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -15,9 +15,9 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.6' # Replace this with the minimum Julia version that your package supports. E.g. if your package requires Julia 1.5 or higher, change this to '1.5'.
-          - '1' # Leave this line unchanged. '1' will automatically expand to the latest stable 1.x release of Julia.
-          - 'nightly'
+          - "1.8" # Replace this with the minimum Julia version that your package supports. E.g. if your package requires Julia 1.5 or higher, change this to '1.5'.
+          - "1" # Leave this line unchanged. '1' will automatically expand to the latest stable 1.x release of Julia.
+          - "nightly"
         os:
           - ubuntu-latest
         arch:
