@@ -136,7 +136,7 @@ function eqsat_search!(
       for i in ids
         n_matches += rule.ematcher!(g, rule_idx, i)
       end
-      n_matches > 0 && @debug "$rule produced $n_matches matches"
+      n_matches > 0 && @debug "Rule $rule_idx: $rule produced $n_matches matches"
       inform!(scheduler, rule, n_matches)
     end
   end
