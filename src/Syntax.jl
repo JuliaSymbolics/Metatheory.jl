@@ -89,7 +89,6 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   # Optionally quote function objects
   args = arguments(ex)
 
-  @show ex op args
   istree(op) && (op = makepattern(op, pvars, slots, mod, false))
 
 
