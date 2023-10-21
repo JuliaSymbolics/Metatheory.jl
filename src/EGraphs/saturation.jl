@@ -72,8 +72,10 @@ Base.@kwdef mutable struct SaturationParams
   threaded::Bool                       = false
   timer::Bool                          = true
   printiter::Bool                      = false
+  "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
   buffer::CircularDeque{Bindings}      = BUFFER[]
   buffer_lock::ReentrantLock           = BUFFER_LOCK
+  "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
   merges_buffer::CircularDeque{Tuple{Int,Int}} = MERGES_BUF[]
   merges_buffer_lock::ReentrantLock    = MERGES_BUF_LOCK
 end
