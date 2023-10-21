@@ -7,7 +7,7 @@ using TermInterface
 using TimerOutputs
 using Metatheory:
   alwaystrue, cleanast, binarize, @log, Bindings,
-  lockmergesbuffer!, lockbuffer!
+  lockmergesbuffer!, lockbuffer!, BUFFER, BUFFER_LOCK, MERGES_BUF, MERGES_BUF_LOCK
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
