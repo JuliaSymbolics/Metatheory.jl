@@ -4,17 +4,17 @@
 
 abstract type AbstractENode end
 
-const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple{Vararg{<:Ref}}}
+const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
 
-mutable struct ENodeLiteral <: AbstractENode
+struct ENodeLiteral <: AbstractENode
   value
   hash::Ref{UInt}
   ENodeLiteral(a) = new(a, Ref{UInt}(0))
 end
 
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(hash(a), hash(b))
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
 
 TermInterface.istree(n::ENodeLiteral) = false
 TermInterface.exprhead(n::ENodeLiteral) = nothing

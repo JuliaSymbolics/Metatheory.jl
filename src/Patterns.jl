@@ -18,7 +18,7 @@ end
 Base.showerror(io::IO, e::UnsupportedPatternException) = print(io, "Pattern ", e.p, " is unsupported in this context")
 
 
-Base.isequal(a::AbstractPat, b::AbstractPat) = false
+Base.:(==)(a::AbstractPat, b::AbstractPat) = false
 TermInterface.arity(p::AbstractPat) = 0
 """
 A ground pattern contains no pattern variables and 
@@ -48,10 +48,7 @@ mutable struct PatVar{P} <: AbstractPat
   predicate::P
   predicate_code
 end
-function Base.isequal(a::PatVar, b::PatVar)
-  # (a.name == b.name)
-  a.idx == b.idx
-end
+Base.:(==)(a::PatVar, b::PatVar) = a.idx == b.idx
 PatVar(var) = PatVar(var, -1, alwaystrue, nothing)
 PatVar(var, i) = PatVar(var, i, alwaystrue, nothing)
 

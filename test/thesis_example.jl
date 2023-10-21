@@ -1,17 +1,27 @@
 using Metatheory
 using Metatheory.EGraphs
 using TermInterface
+using Test
 
 # TODO update
 
-function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral{<:Real})
-  if n.value == Inf
-    return Inf
-  elseif n.value == -Inf
-    return -Inf
-  elseif n.value isa Real # in Julia NaN is a Real
-    return sign(n.value)
-  else
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral)
+  if n.value isa Real
+    if n.value == Inf
+      Inf
+    elseif n.value == -Inf
+      -Inf
+    elseif n.value isa Real # in Julia NaN is a Real
+      sign(n.value)
+    else
+      nothing
+    end
+  elseif n.value isa Symbol
+    s = n.value
+    s == :x && return 1
+    s == :y && return -1
+    s == :z && return 0
+    s == :k && return Inf
     return nothing
   end
 end
@@ -30,8 +40,8 @@ function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeTerm)
 
     # Get the corresponding SignAnalysis value of the children
     # defaulting to nothing 
-    lsign = getdata(l, an, nothing)
-    rsign = getdata(r, an, nothing)
+    lsign = getdata(l, :sign_analysis, nothing)
+    rsign = getdata(r, :sign_analysis, nothing)
 
     (lsign == nothing || rsign == nothing) && return nothing
 
@@ -58,17 +68,9 @@ function EGraphs.join(::Val{:sign_analysis}, a, b)
   return a == b ? a : nothing
 end
 
-function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral{Symbol})
-  s = n.value
-  s == :x && return 1
-  s == :y && return -1
-  s == :z && return 0
-  s == :k && return Inf
-  return nothing
-end
 
 # we are cautious, so we return false by default 
-isnotzero(g::EGraph, x::EClass) = getdata(x, :sign_analysis, false)
+isnotzero(x::EClass) = getdata(x, :sign_analysis, false)
 
 # t = @theory a b c begin 
 #   a * (b * c) == (a * b) * c
@@ -127,5 +129,6 @@ t = vcat(comm_monoid, comm_group, folder, div_sim);
 
 g = EGraph(:(a * (2 * 3) / 6));
 saturate!(g, t)
-ex = extract!(g, astsize)
+
+@test :a == extract!(g, astsize)
 # :a
