@@ -1,4 +1,5 @@
 using GraphViz
+using Metatheory
 using TermInterface
 
 function render_egraph!(io::IO, g::EGraph)
