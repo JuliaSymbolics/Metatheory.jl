@@ -1,6 +1,6 @@
 using Base: ImmutableDict
 
-function lockbuffer(f, params)
+function lockbuffer!(f, params)
   if params.threaded
     lock(params.buffer_lock) do
       return f()
@@ -9,7 +9,7 @@ function lockbuffer(f, params)
     return f()
   end
 end
-function lockmergesbuffer(f, params)
+function lockmergesbuffer!(f, params)
   if params.threaded
     lock(params.merges_buffer_lock) do
       return f()

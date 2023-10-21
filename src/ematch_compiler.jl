@@ -3,7 +3,7 @@ module EMatchCompiler
 using TermInterface
 using ..Patterns
 using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, 
-  DEFAULT_BUFFER_SIZE, BUFFER, BUFFER_LOCK, MERGES_BUF, MERGES_BUF_LOCK, LL, lockbuffer, lockmergesbuffer
+  LL, lockbuffer!, lockmergesbuffer!
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
@@ -142,7 +142,7 @@ function ematcher_yield(p, npvars::Int, direction::Int)
     function ematcher_yield(g, rule_idx, id, params)::Int
         n_matches = 0
         em(g, (id,), EMPTY_ECLASS_DICT) do b,n
-            lockbuffer(params) do
+            lockbuffer!(params) do
               push!(params.buffer, assoc(b, 0, (rule_idx * direction, id)))
               n_matches+=1
             end          
