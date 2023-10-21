@@ -8,6 +8,7 @@ using Metatheory.Library
 TUTORIALSDIR = joinpath(dirname(pathof(Metatheory)), "../test/tutorials/")
 OUTDIR = abspath(joinpath(@__DIR__, "src", "tutorials"))
 
+# Generate markdown document using Literate.jl for each file in the tutorials directory. 
 for f in readdir(TUTORIALSDIR)
   if endswith(f, ".jl")
     input = abspath(joinpath(TUTORIALSDIR, f))
@@ -15,11 +16,11 @@ for f in readdir(TUTORIALSDIR)
     Literate.markdown(input, OUTDIR)
   elseif f != "README.md"
     @info "Copying $f"
-    cp(joinpath(TUTORIALSDIR, input), joinpath(OUTDIR, f); force=true)
+    cp(joinpath(TUTORIALSDIR, input), joinpath(OUTDIR, f); force = true)
   end
 end
 
-tutorials = [joinpath("tutorials", f[1:end-3]) * ".md" for f in readdir(TUTORIALSDIR) if endswith(f, ".jl")]
+tutorials = [joinpath("tutorials", f[1:(end - 3)]) * ".md" for f in readdir(TUTORIALSDIR) if endswith(f, ".jl")]
 
 makedocs(
   modules = [Metatheory, Metatheory.EGraphs],

@@ -11,7 +11,7 @@ const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 
 abstract type AbstractRule end
 # Must override
-Base.isequal(a::AbstractRule, b::AbstractRule) = false
+Base.:(==)(a::AbstractRule, b::AbstractRule) = false
 
 abstract type SymbolicRule <: AbstractRule end
 
@@ -49,15 +49,13 @@ variables.
 @rule ~a * ~b --> ~b * ~a
 ```
 """
-@auto_hash_equals struct RewriteRule <: SymbolicRule
+@auto_hash_equals fields = (left, right) struct RewriteRule <: SymbolicRule
   left
   right
   matcher
   patvars::Vector{Symbol}
   ematcher!
 end
-
-Base.isequal(a::RewriteRule, b::RewriteRule) = (a.left == b.left) && (a.right == b.right)
 
 function RewriteRule(l, r)
   pvars = patvars(l) ∪ patvars(r)
@@ -110,7 +108,7 @@ function EqualityRule(l, r)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
 
-  EqualityRule(l, r, pvars, ematcher_yield_bidir(l,r, length(pvars)))
+  EqualityRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
 end
 
 
@@ -151,7 +149,7 @@ function UnequalRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  UnequalRule(l, r, pvars, ematcher_yield_bidir(l,r, length(pvars)))
+  UnequalRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
 end
 
 Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))

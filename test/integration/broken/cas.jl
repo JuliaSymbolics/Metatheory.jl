@@ -78,10 +78,7 @@ function ∂ end
 diff_t = @theory x y begin
   ∂(y, x::Symbol) => begin
     z = extract!(_egraph, simplcost; root = y.id)
-    @show z
-    zd = differentiate(z, x)
-    @show zd
-    zd
+    differentiate(z, x)
   end
 end
 
@@ -153,10 +150,8 @@ function simplify(ex; steps = 4)
       return ex
     end
     if hash(ex) ∈ hist
-      println("loop detected $ex")
       return ex
     end
-    println(ex)
     push!(hist, hash(ex))
   end
 
@@ -186,7 +181,7 @@ end
 
 # simplify(:( ∂(x^2, x)))
 
-@time simplify(:(∂(x^(cos(x)), x)))
+simplify(:(∂(x^(cos(x)), x)))
 
 @test :(2x^3) == simplify(:(x * ∂(x^2, x) * x))
 

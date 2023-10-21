@@ -63,7 +63,6 @@ end
 
 # You get the obvious result out, but if you wrap it in `quote` or `:(...)`, you can see that the program will not be executed, but instead stored as an `Expr`.
 some_expr = :(2 + 2)
-dump(some_expr)
 
 # We can use the `$` unary operator to interpolate and insert values inside of quoted code.
 :(2 + $(1 + 1))

@@ -6,9 +6,9 @@ using Test
 
 abstract type LambdaExpr end
 
-@matchable struct IfThenElse <: LambdaExpr 
+@matchable struct IfThenElse <: LambdaExpr
   guard
-  then 
+  then
   otherwise
 end
 
@@ -17,13 +17,13 @@ end
 end
 
 @matchable struct Fix <: LambdaExpr
-  variable 
+  variable
   expression
 end
 
 @matchable struct Let <: LambdaExpr
   variable
-  value 
+  value
   body
 end
 @matchable struct λ <: LambdaExpr
@@ -31,19 +31,19 @@ end
   body
 end
 
-@matchable struct Apply <: LambdaExpr 
+@matchable struct Apply <: LambdaExpr
   lambda
   value
 end
 
-@matchable struct Add <: LambdaExpr 
+@matchable struct Add <: LambdaExpr
   x
   y
 end
 
 TermInterface.exprhead(::LambdaExpr) = :call
 
-function EGraphs.egraph_reconstruct_expression(::Type{<:LambdaExpr}, op, args; metadata=nothing, exprhead=:call)
+function EGraphs.egraph_reconstruct_expression(::Type{<:LambdaExpr}, op, args; metadata = nothing, exprhead = :call)
   op(args...)
 end
 
@@ -92,7 +92,7 @@ open_term = @theory x e then alt a b c begin
       _lhs_expr
     end
   Add(a, b) == Add(b, a)
-  Add(a, Add(b,c)) == Add(Add(a,b),c)
+  Add(a, Add(b, c)) == Add(Add(a, b), c)
   # (a == b) == (b == a)
 end
 
