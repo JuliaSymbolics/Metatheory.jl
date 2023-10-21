@@ -82,15 +82,15 @@ function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
   x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : x
 end
 
-function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false, is_op = false)
+function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   head = exprhead(ex)
   op = operation(ex)
   # Retrieve the function object if available
   # Optionally quote function objects
   args = arguments(ex)
 
-  # @show ex op args is_op
-  istree(op) && (op = makepattern(op, pvars, slots, mod, false, true))
+  @show ex op args
+  istree(op) && (op = makepattern(op, pvars, slots, mod, false))
 
 
   if head === :call
@@ -110,6 +110,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false, i
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
       :($PatTerm(:call, $(function_object_or_quote(op, mod)), [$(patargs...)]))
     end
+
   elseif head === :...
     makepattern(args[1], pvars, slots, mod, true)
   elseif head == :(::) && args[1] in slots
