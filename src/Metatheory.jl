@@ -4,16 +4,18 @@ using DataStructures
 
 import Base.ImmutableDict
 
+createbuffer(::Type{T}, size) where T = CircularDeque{T}(size)
+
 const Bindings = ImmutableDict{Int,Tuple{Int,Int}}
 const DEFAULT_BUFFER_SIZE = 1048576
-const BUFFER = Ref(CircularDeque{Bindings}(DEFAULT_BUFFER_SIZE))
+const BUFFER = Ref(createbuffer(Bindings, DEFAULT_BUFFER_SIZE))
 const BUFFER_LOCK = ReentrantLock()
-const MERGES_BUF = Ref(CircularDeque{Tuple{Int,Int}}(DEFAULT_BUFFER_SIZE))
+const MERGES_BUF = Ref(createbuffer(Tuple{Int,Int}, DEFAULT_BUFFER_SIZE))
 const MERGES_BUF_LOCK = ReentrantLock()
 
 function resetbuffers!(bufsize)
-  BUFFER[] = CircularDeque{Bindings}(bufsize)
-  MERGES_BUF[] = CircularDeque{Tuple{Int,Int}}(bufsize)
+  BUFFER[] = createbuffer(Bindings, bufsize)
+  MERGES_BUF[] = createbuffer(Tuple{Int,Int}, bufsize)
 end
 
 function __init__()

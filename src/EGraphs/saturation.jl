@@ -72,6 +72,10 @@ Base.@kwdef mutable struct SaturationParams
   threaded::Bool                       = false
   timer::Bool                          = true
   printiter::Bool                      = false
+  buffer::CircularDeque{Bindings}      = BUFFER[]
+  buffer_lock::ReentrantLock           = BUFFER_LOCK
+  merges_buffer::CircularDeque{Tuple{Int,Int}} = MERGES_BUF[]
+  merges_buffer_lock::ReentrantLock    = MERGES_BUF_LOCK
 end
 
 # function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
@@ -117,11 +121,12 @@ function eqsat_search!(
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
   report::SaturationReport,
+  params::SaturationParams
 )::Int
   n_matches = 0
 
-  lock(BUFFER_LOCK) do
-    empty!(BUFFER[])
+  lockbuffer(params) do 
+    empty!(params.buffer)
   end
 
   for (rule_idx, rule) in enumerate(theory)
@@ -133,7 +138,7 @@ function eqsat_search!(
       ids = cached_ids(g, rule.left)
       rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
       for i in ids
-        n_matches += rule.ematcher!(g, rule_idx, i)
+        n_matches += rule.ematcher!(g, rule_idx, i, params)
       end
       inform!(scheduler, rule, n_matches)
     end
@@ -163,19 +168,25 @@ function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   add!(g, ENodeTerm(eh, new_op, T, map(arg -> instantiate_enode!(bindings, g, arg), args)))
 end
 
-function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
-  push!(MERGES_BUF[], (id, instantiate_enode!(buf, g, rule.right)))
+function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction, params::SaturationParams)
+  push!(params.merges_buffer, (id, instantiate_enode!(buf, g, rule.right)))
   nothing
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
+function apply_rule!(
+  bindings::Bindings, g::EGraph, rule::EqualityRule, 
+  id::EClassId, direction::Int, params::SaturationParams
+)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  push!(MERGES_BUF[], (id, instantiate_enode!(bindings, g, pat_to_inst)))
+  push!(params.merges_buffer, (id, instantiate_enode!(bindings, g, pat_to_inst)))
   nothing
 end
 
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
+function apply_rule!(
+  bindings::Bindings, g::EGraph, 
+  rule::UnequalRule, id::EClassId, direction::Int, params::SaturationParams
+)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
@@ -200,12 +211,15 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
+function apply_rule!(
+  bindings::Bindings, g::EGraph, rule::DynamicRule, 
+  id::EClassId, direction::Int, params::SaturationParams
+)
   f = rule.rhs_fun
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
-  push!(MERGES_BUF[], (id, rcid))
+  push!(params.merges_buffer, (id, rcid))
   return nothing
 end
 
@@ -213,25 +227,25 @@ end
 
 function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
   i = 0
-  @assert isempty(MERGES_BUF[])
+  @assert isempty(params.merges_buffer)
 
-  lock(BUFFER_LOCK) do
-    while !isempty(BUFFER[])
+  lockbuffer(params) do
+    while !isempty(params.buffer)
       if reached(g, params.goal)
         @log "Goal reached"
         rep.reason = :goalreached
         return
       end
 
-      bindings = popfirst!(BUFFER[])
+      bindings = popfirst!(params.buffer)
       rule_idx, id = bindings[0]
       direction = sign(rule_idx)
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
 
 
-      halt_reason = lock(MERGES_BUF_LOCK) do
-        apply_rule!(bindings, g, rule, id, direction)
+      halt_reason = lockmergesbuffer(params) do
+        apply_rule!(bindings, g, rule, id, direction, params)
       end
 
       if !isnothing(halt_reason)
@@ -240,9 +254,9 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       end
     end
   end
-  lock(MERGES_BUF_LOCK) do
-    while !isempty(MERGES_BUF[])
-      (l, r) = popfirst!(MERGES_BUF[])
+  lockmergesbuffer(params) do
+    while !isempty(params.merges_buffer)
+      (l, r) = popfirst!(params.merges_buffer)
       merge!(g, l, r)
     end
   end
@@ -267,7 +281,7 @@ function eqsat_step!(
 
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
+  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, params)
 
   @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
 

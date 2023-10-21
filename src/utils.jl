@@ -1,5 +1,24 @@
 using Base: ImmutableDict
 
+function lockbuffer(f, params)
+  if params.threaded
+    lock(params.buffer_lock) do
+      return f()
+    end
+  else
+    return f()
+  end
+end
+function lockmergesbuffer(f, params)
+  if params.threaded
+    lock(params.merges_buffer_lock) do
+      return f()
+    end
+  else
+    return f()
+  end
+end
+
 function binarize(e::T) where {T}
   !istree(e) && return e
   head = exprhead(e)
