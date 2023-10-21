@@ -127,7 +127,7 @@ function eqsat_search!(
 )::Int
   n_matches = 0
 
-  lockbuffer(params) do 
+  lockbuffer!(params) do 
     empty!(params.buffer)
   end
 
@@ -231,7 +231,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   i = 0
   @assert isempty(params.merges_buffer)
 
-  lockbuffer(params) do
+  lockbuffer!(params) do
     while !isempty(params.buffer)
       if reached(g, params.goal)
         @log "Goal reached"
@@ -246,7 +246,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       rule = theory[rule_idx]
 
 
-      halt_reason = lockmergesbuffer(params) do
+      halt_reason = lockmergesbuffer!(params) do
         apply_rule!(bindings, g, rule, id, direction, params)
       end
 
@@ -256,7 +256,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       end
     end
   end
-  lockmergesbuffer(params) do
+  lockmergesbuffer!(params) do
     while !isempty(params.merges_buffer)
       (l, r) = popfirst!(params.merges_buffer)
       merge!(g, l, r)
