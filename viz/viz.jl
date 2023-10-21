@@ -1,5 +1,5 @@
 using GraphViz
-using Term
+using TermInterface
 
 function dot(g::EGraph, diff = Set(), report = nothing)
   tmpl = """digraph {
@@ -11,6 +11,7 @@ function dot(g::EGraph, diff = Set(), report = nothing)
     sg = """    subgraph cluster_$id {
                 style="dotted,rounded,filled";
                 colorscheme="set132";
+                rank=same;
                 label="#$id. Smallest: $(extract!(g, astsize; root=id))"
                 fontcolor = gray
                 fontsize  = 8
@@ -33,7 +34,7 @@ function dot(g::EGraph, diff = Set(), report = nothing)
       for (ite, child) in enumerate(arguments(node))
         cluster_id = find(g, child)
         nid = if cluster_id == id # graphviz的限制，无法指向eclass外框，所以当指向自己这个框时，退而求其次 ，指向自己这个node。
-          "$os:n"
+          "$os"
         else
           "1"
         end

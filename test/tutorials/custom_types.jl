@@ -89,9 +89,6 @@ end
 
 # Note that terms in the RHS will inherit the type of terms in the LHS.
 
-function f end
-function h end
-function z end
 t = @theory a begin
   f(z(2), a) --> f(a)
 end
