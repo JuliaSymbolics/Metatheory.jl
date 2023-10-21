@@ -104,7 +104,7 @@ settermtype!(g, MyExpr)
 
 # Now let's test that it works.
 saturate!(g, t)
-expected = MyExpr(:f, [MyExpr(h, [4], "HELLO")], "")
+expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
 extracted = extract!(g, astsize)
 @test expected == extracted
 
