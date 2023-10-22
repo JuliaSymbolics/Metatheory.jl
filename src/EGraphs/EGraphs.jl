@@ -16,9 +16,7 @@ export IntDisjointSet
 export in_same_set
 
 include("egraph.jl")
-export AbstractENode
-export ENodeLiteral
-export ENodeTerm
+export ENode
 export EClassId
 export EClass
 export hasdata

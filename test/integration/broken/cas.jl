@@ -116,7 +116,8 @@ canonical_t = @theory x y n xs ys begin
 end
 
 
-function simplcost(n::ENodeTerm, g::EGraph)
+function simplcost(n::ENode, g::EGraph)
+  n.istree || return 0
   cost = 0 + arity(n)
   if operation(n) == :∂
     cost += 20
@@ -128,8 +129,6 @@ function simplcost(n::ENodeTerm, g::EGraph)
   end
   return cost
 end
-
-simplcost(n::ENodeLiteral, g::EGraph) = 0
 
 function simplify(ex; steps = 4)
   params = SaturationParams(

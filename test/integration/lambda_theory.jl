@@ -47,11 +47,9 @@ function EGraphs.egraph_reconstruct_expression(::Type{<:LambdaExpr}, op, args; m
   op(args...)
 end
 
-#%%
-EGraphs.make(::Val{:freevar}, ::EGraph, n::ENodeLiteral) = Set{Int64}()
-
-function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENodeTerm)
+function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENode)
   free = Set{Int64}()
+  n.istree || return free
   if exprhead(n) == :call
     op = operation(n)
     args = arguments(n)

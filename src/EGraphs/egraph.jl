@@ -2,92 +2,67 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 
-abstract type AbstractENode end
+# abstract type AbstractENode end
 
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
+const UNDEF_ARGS = Vector{EClassId}(undef, 0)
 
-struct ENodeLiteral <: AbstractENode
-  value
-  hash::Ref{UInt}
-  ENodeLiteral(a) = new(a, Ref{UInt}(0))
-end
-
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
-
-TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.exprhead(n::ENodeLiteral) = nothing
-TermInterface.operation(n::ENodeLiteral) = n.value
-TermInterface.arity(n::ENodeLiteral) = 0
-
-function Base.hash(t::ENodeLiteral, salt::UInt)
-  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-  h = t.hash[]
-  !iszero(h) && return h
-  h′ = hash(t.value, salt)
-  t.hash[] = h′
-  return h′
-end
-
-
-mutable struct ENodeTerm <: AbstractENode
-  exprhead::Union{Symbol,Nothing}
+struct ENode
+  # TODO use UInt flags
+  istree::Bool
+  # E-graph contains mappings from the UInt id of head, operation and symtype to their original value
+  exprhead::Any
   operation::Any
-  symtype::Type
+  symtype::Any
   args::Vector{EClassId}
-  hash::Ref{UInt} # hash cache
-  ENodeTerm(exprhead, operation, symtype, c_ids) = new(exprhead, operation, symtype, c_ids, Ref{UInt}(0))
+  hash::Ref{UInt}
+  ENode(exprhead, operation, symtype, args) = new(true, exprhead, operation, symtype, args, Ref{UInt}(0))
+  ENode(literal) = new(false, nothing, literal, nothing, UNDEF_ARGS, Ref{UInt}(0))
 end
 
+TermInterface.istree(n::ENode) = n.istree
+TermInterface.symtype(n::ENode) = n.symtype
+TermInterface.exprhead(n::ENode) = n.exprhead
+TermInterface.operation(n::ENode) = n.operation
+TermInterface.arguments(n::ENode) = n.args
+TermInterface.arity(n::ENode) = length(n.args)
 
-function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
-  hash(a) == hash(b) && a.operation == b.operation
-end
-
-
-TermInterface.istree(n::ENodeTerm) = true
-TermInterface.symtype(n::ENodeTerm) = n.symtype
-TermInterface.exprhead(n::ENodeTerm) = n.exprhead
-TermInterface.operation(n::ENodeTerm) = n.operation
-TermInterface.arguments(n::ENodeTerm) = n.args
-TermInterface.arity(n::ENodeTerm) = length(n.args)
 
 # This optimization comes from SymbolicUtils
 # The hash of an enode is cached to avoid recomputing it.
 # Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(t::ENodeTerm, salt::UInt)
-  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-  h = t.hash[]
+function Base.hash(n::ENode, salt::UInt)
+  !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
+  h = n.hash[]
   !iszero(h) && return h
-  h′ = hash(t.args, hash(t.exprhead, hash(t.operation, salt)))
-  t.hash[] = h′
+  h′ = hash(n.args, hash(n.exprhead, hash(n.operation, hash(n.istree, salt))))
+  n.hash[] = h′
   return h′
 end
 
+function Base.:(==)(a::ENode, b::ENode)
+  hash(a) == hash(b) && a.operation == b.operation
+end
+
+function toexpr(n::ENode)
+  n.istree || return n.operation
+  Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
+end
+
+Base.show(io::IO, x::ENode) = print(io, toexpr(x))
 
 # parametrize metadata by M
 mutable struct EClass
   g # EGraph
   id::EClassId
-  nodes::Vector{AbstractENode}
-  parents::Vector{Pair{AbstractENode,EClassId}}
+  nodes::Vector{ENode}
+  parents::Vector{Pair{ENode,EClassId}}
   data::AnalysisData
 end
 
-function toexpr(n::ENodeTerm)
-  Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
-end
-
-function Base.show(io::IO, x::ENodeTerm)
-  print(io, toexpr(x))
-end
-
-toexpr(n::ENodeLiteral) = operation(n)
-
-Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
-
-EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode,EClassId}[], nothing)
+EClass(g, id) = EClass(g, id, ENode[], Pair{ENode,EClassId}[], nothing)
 EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
@@ -110,7 +85,7 @@ function Base.show(io::IO, a::EClass)
   print(io, ")")
 end
 
-function addparent!(a::EClass, n::AbstractENode, id::EClassId)
+function addparent!(a::EClass, n::ENode, id::EClassId)
   push!(a.parents, (n => id))
 end
 
@@ -178,7 +153,7 @@ mutable struct EGraph
   "map from eclass id to eclasses"
   classes::Dict{EClassId,EClass}
   "hashcons"
-  memo::Dict{AbstractENode,EClassId}             # memo
+  memo::Dict{ENode,EClassId}             # memo
   "worklist for ammortized upwards merging"
   dirty::Vector{EClassId}
   root::EClassId
@@ -201,7 +176,7 @@ function EGraph()
   EGraph(
     IntDisjointSet(),
     Dict{EClassId,EClass}(),
-    Dict{AbstractENode,EClassId}(),
+    Dict{ENode,EClassId}(),
     EClassId[],
     -1,
     Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
@@ -217,7 +192,7 @@ end
 function EGraph(e; keepmeta = false)
   g = EGraph()
   keepmeta && addanalysis!(g, :metadata_analysis)
-  g.root = addexpr!(g, e; keepmeta = keepmeta)
+  g.root = addexpr!(g, e, keepmeta)
   g
 end
 
@@ -256,36 +231,35 @@ find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
 ### Definition 2.3: canonicalization
-iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)
-iscanonical(g::EGraph, n::ENodeLiteral) = true
+iscanonical(g::EGraph, n::ENode) = !n.istree || n == canonicalize(g, n)
 iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
 
-canonicalize(g::EGraph, n::ENodeLiteral) = n
-
-function canonicalize(g::EGraph, n::ENodeTerm)
-  if arity(n) > 0
-    new_args = map(x -> find(g, x), n.args)
-    return ENodeTerm(exprhead(n), operation(n), symtype(n), new_args)
+function canonicalize(g::EGraph, n::ENode)::ENode
+  n.istree || return n
+  ar = length(n.args)
+  ar == 0 && return n
+  canonicalized_args = Vector{EClassId}(undef, ar)
+  for i in 1:ar
+    @inbounds canonicalized_args[i] = find(g, n.args[i])
   end
-  return n
+  ENode(exprhead(n), operation(n), symtype(n), canonicalized_args)
 end
 
-function canonicalize!(g::EGraph, n::ENodeTerm)
+function canonicalize!(g::EGraph, n::ENode)
+  n.istree || return n
   for (i, arg) in enumerate(n.args)
-    n.args[i] = find(g, arg)
+    @inbounds n.args[i] = find(g, arg)
   end
   n.hash[] = UInt(0)
   return n
 end
-
-canonicalize!(g::EGraph, n::ENodeLiteral) = n
 
 
 function canonicalize!(g::EGraph, e::EClass)
   e.id = find(g, e.id)
 end
 
-function lookup(g::EGraph, n::AbstractENode)::EClassId
+function lookup(g::EGraph, n::ENode)::EClassId
   cc = canonicalize(g, n)
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
 end
@@ -293,14 +267,14 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::AbstractENode)::EClassId
+function add!(g::EGraph, n::ENode)::EClassId
   n = canonicalize(g, n)
   haskey(g.memo, n) && return g.memo[n]
 
   id = push!(g.uf) # create new singleton eclass
 
-  if n isa ENodeTerm
-    for c_id in arguments(n)
+  if n.istree
+    for c_id in n.args
       addparent!(g.classes[c_id], n, id)
     end
   end
@@ -313,7 +287,7 @@ function add!(g::EGraph, n::AbstractENode)::EClassId
     g.symcache[operation(n)] = [id]
   end
 
-  classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode,EClassId}[])
+  classdata = EClass(g, id, ENode[n], Pair{ENode,EClassId}[])
   g.classes[id] = classdata
   g.numclasses += 1
 
@@ -343,26 +317,26 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
+function addexpr!(g::EGraph, se, keepmeta = false)::EClassId
   e = preprocess(se)
 
-  id = add!(g, if istree(se)
-    class_ids::Vector{EClassId} = [addexpr!(g, arg; keepmeta = keepmeta) for arg in arguments(e)]
-    ENodeTerm(exprhead(e), operation(e), symtype(e), class_ids)
-  else
-    # constant enode
-    ENodeLiteral(e)
-  end)
+  n = if istree(se)
+    args = arguments(e)
+    ar = length(args)
+    class_ids = Vector{EClassId}(undef, ar)
+    for i in 1:ar
+      @inbounds class_ids[i] = addexpr!(g, args[i], keepmeta)
+    end
+    ENode(exprhead(e), operation(e), symtype(e), class_ids)
+  else # constant enode
+    ENode(e)
+  end
+  id = add!(g, n)
   if keepmeta
     meta = TermInterface.metadata(e)
     !isnothing(meta) && setdata!(g.classes[id], :metadata_analysis, meta)
   end
   return id
-end
-
-function addexpr!(g::EGraph, ec::EClass; keepmeta = false)
-  @assert g == ec.g
-  find(g, ec.id)
 end
 
 """
@@ -428,7 +402,8 @@ function repair!(g::EGraph, id::EClassId)
   ecdata = g[id]
   ecdata.id = id
 
-  new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
+  # new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
+  new_parents = LittleDict{ENode,EClassId}()
 
   for (p_enode, p_eclass) in ecdata.parents
     p_enode = canonicalize!(g, p_enode)
@@ -485,7 +460,8 @@ function reachable(g::EGraph, id::EClassId)
   todo = EClassId[id]
 
 
-  function reachable_node(xn::ENodeTerm)
+  function reachable_node(xn::ENode)
+    xn.istree || return
     x = canonicalize(g, xn)
     for c_id in arguments(x)
       if c_id ∉ hist
@@ -494,7 +470,6 @@ function reachable(g::EGraph, id::EClassId)
       end
     end
   end
-  function reachable_node(x::ENodeLiteral) end
 
   while !isempty(todo)
     curr = find(g, pop!(todo))
@@ -534,13 +509,12 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
   !all((>)(0), ids) && return -1
 
   if T == Expr && op isa Union{Function,DataType}
-    id = lookup(g, ENodeTerm(eh, op, T, ids))
-    id < 0 && return lookup(g, ENodeTerm(eh, nameof(op), T, ids))
-    return id
+    id = lookup(g, ENode(eh, op, T, ids))
+    id < 0 ? lookup(g, ENode(eh, nameof(op), T, ids)) : id
   else
-    return lookup(g, ENodeTerm(eh, op, T, ids))
+    lookup(g, ENode(eh, op, T, ids))
   end
 end
 
-lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
+lookup_pat(g::EGraph, p::Any) = lookup(g, ENode(p))
 lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))

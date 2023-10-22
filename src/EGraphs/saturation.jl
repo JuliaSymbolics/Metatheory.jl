@@ -83,13 +83,13 @@ end
 #   return []
 # end
 
-function cached_ids(g::EGraph, p::AbstractPattern) # p is a literal
+function cached_ids(g::EGraph, p::AbstractPattern) # p is a term
   @warn "Pattern matching against the whole e-graph"
   return keys(g.classes)
 end
 
 function cached_ids(g::EGraph, p) # p is a literal
-  id = lookup(g, ENodeLiteral(p))
+  id = lookup(g, ENode(p))
   id > 0 && return [id]
   return []
 end
@@ -152,7 +152,7 @@ function drop_n!(D::CircularDeque, nn)
   D.first = tmp > D.capacity ? 1 : tmp
 end
 
-instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
+instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENode(p))
 instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
 function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   eh = exprhead(p)
@@ -162,7 +162,7 @@ function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   T = gettermtype(g, op, ar)
   # TODO add predicate check `quotes_operation`
   new_op = T == Expr && op isa Union{Function,DataType} ? nameof(op) : op
-  add!(g, ENodeTerm(eh, new_op, T, map(arg -> instantiate_enode!(bindings, g, arg), args)))
+  add!(g, ENode(eh, new_op, T, map(arg -> instantiate_enode!(bindings, g, arg), args)))
 end
 
 function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
@@ -196,8 +196,8 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
-    @assert eclass[literal_position] isa ENodeLiteral
-    return eclass[literal_position].value
+    @assert !eclass[literal_position].istree
+    return eclass[literal_position].operation
   end
   return eclass
 end

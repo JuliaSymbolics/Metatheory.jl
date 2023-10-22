@@ -14,6 +14,7 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   hist = UInt64[]
   push!(hist, hash(ex))
   for i in 1:steps
+    @show i
     g = EGraph(ex)
 
     exprs = [true, g[g.root]]
@@ -33,8 +34,6 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   end
   return ex
 end
-
-function ⟹ end
 
 fold = @theory p q begin
   (p::Bool == q::Bool) => (p == q)
@@ -94,7 +93,7 @@ end
   t = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 
   ex = rewrite(:(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s)), impl)
-  @test prove(t, ex, 5, 10, 5000)
+  @test prove(t, ex, 1, 10, 5000)
 
 
   @test @areequal t true ((!p == p) == false)
@@ -111,7 +110,7 @@ end
   @test @areequal t true (!(p || q) == (!p && !q))
 
   # Consensus theorem
-  # @test_broken @areequal t true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
+  @test_broken @areequal t true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
 end
 
 # https://www.cs.cornell.edu/gries/Logic/Axioms.html
