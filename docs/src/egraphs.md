@@ -241,7 +241,10 @@ Here's an example:
 # This is a cost function that behaves like `astsize` but increments the cost 
 # of nodes containing the `^` operation. This results in a tendency to avoid 
 # extraction of expressions containing '^'.
-function cost_function(n::ENodeTerm, g::EGraph)
+function cost_function(n::ENode, g::EGraph)
+    # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
+    istree(n) || return 1
+
     cost = 1 + arity(n)
 
     operation(n) == :^ && (cost += 2)
@@ -254,9 +257,6 @@ function cost_function(n::ENodeTerm, g::EGraph)
     end
     return cost
 end
-
-# All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
-cost_function(n::ENodeLiteral, g::EGraph) = 1
 ```
 
 ## EGraph Analyses

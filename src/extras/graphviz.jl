@@ -46,7 +46,7 @@ function render_eclass!(io::IO, g::EGraph, eclass::EClass)
 end
 
 
-function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::AbstractENode)
+function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::ENode)
   label = operation(node)
   # (mr, style) = if node in diff && get(report.cause, node, missing) !== missing
   #   pair = get(report.cause, node, missing)
@@ -58,9 +58,8 @@ function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::Abstract
   println(io, "      $eclass_id.$i [label=<$label> shape=box style=rounded]")
 end
 
-render_enode_edges!(::IO, ::EGraph, eclass_id, i, ::ENodeLiteral) = nothing
-
-function render_enode_edges!(io::IO, g::EGraph, eclass_id, i, node::ENodeTerm)
+function render_enode_edges!(io::IO, g::EGraph, eclass_id, i, node::ENode)
+  node.istree || return nothing
   len = length(arguments(node))
   for (ite, child) in enumerate(arguments(node))
     cluster_id = find(g, child)

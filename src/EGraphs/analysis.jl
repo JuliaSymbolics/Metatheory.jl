@@ -95,7 +95,8 @@ end
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-function astsize(n::ENodeTerm, g::EGraph)
+function astsize(n::ENode, g::EGraph)
+  n.istree || return 1
   cost = 1 + arity(n)
   for id in arguments(n)
     eclass = g[id]
@@ -105,14 +106,13 @@ function astsize(n::ENodeTerm, g::EGraph)
   return cost
 end
 
-astsize(n::ENodeLiteral, g::EGraph) = 1
-
 """
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-function astsize_inv(n::ENodeTerm, g::EGraph)
+function astsize_inv(n::ENode, g::EGraph)
+  n.istree || return -1
   cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
   for id in arguments(n)
     eclass = g[id]
@@ -122,13 +122,10 @@ function astsize_inv(n::ENodeTerm, g::EGraph)
   return cost
 end
 
-astsize_inv(n::ENodeLiteral, g::EGraph) = -1
-
-
 """
 When passing a function to analysis functions it is considered as a cost function
 """
-make(f::Function, g::EGraph, n::AbstractENode) = (n, f(n, g))
+make(f::Function, g::EGraph, n::ENode) = (n, f(n, g))
 
 join(f::Function, from, to) = last(from) <= last(to) ? from : to
 
@@ -144,16 +141,11 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
   (n, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Infinite cost when extracting enode")
 
-  if n isa ENodeLiteral
-    return n.value
-  elseif n isa ENodeTerm
-    children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
-    meta = getdata(eclass, :metadata_analysis, nothing)
-    T = symtype(n)
-    egraph_reconstruct_expression(T, operation(n), collect(children); metadata = meta, exprhead = exprhead(n))
-  else
-    error("Unknown ENode Type $(typeof(n))")
-  end
+  n.istree || return n.operation
+  children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
+  meta = getdata(eclass, :metadata_analysis, nothing)
+  T = symtype(n)
+  egraph_reconstruct_expression(T, operation(n), children; metadata = meta, exprhead = exprhead(n))
 end
 
 """
@@ -186,16 +178,16 @@ function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
   eclass = g[id]
   (cn, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Error when computing CSE")
-  if cn isa ENodeTerm
-    if id in seen
-      cse_env[id] = (gensym(), rec_extract(g, costfun, id))#, cse_env=cse_env)) # todo generalize symbol?
-      return
-    end
-    for child_id in arguments(cn)
-      collect_cse!(g, costfun, child_id, cse_env, seen)
-    end
-    push!(seen, id)
+
+  n.istree || return
+  if id in seen
+    cse_env[id] = (gensym(), rec_extract(g, costfun, id))#, cse_env=cse_env)) # todo generalize symbol?
+    return
   end
+  for child_id in arguments(cn)
+    collect_cse!(g, costfun, child_id, cse_env, seen)
+  end
+  push!(seen, id)
 end
 
 
