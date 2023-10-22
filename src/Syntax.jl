@@ -18,6 +18,8 @@ Remove LineNumberNode from quoted blocks of code
 rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
 rmlines(a) = a
 
+function_object_or_quote(op::Symbol, mod)::Expr = :(isdefined($mod, $(QuoteNode(op))) ? $op : $(QuoteNode(op)))
+function_object_or_quote(op, mod) = op
 
 function makesegment(s::Expr, pvars)
   if !(exprhead(s) == :(::))
@@ -84,38 +86,41 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   head = exprhead(ex)
   op = operation(ex)
   # Retrieve the function object if available
+  # Optionally quote function objects
   args = arguments(ex)
   istree(op) && (op = makepattern(op, pvars, slots, mod))
 
   if head === :call
     if operation(ex) === :(~) # is a variable or segment
-      if args[1] isa Expr && operation(args[1]) == :(~)
-        # matches ~~x::predicate or ~~x::predicate...
-        return makesegment(arguments(args[1])[1], pvars)
-      elseif splat
-        # matches ~x::predicate...
-        return makesegment(args[1], pvars)
-      else
-        return makevar(args[1], pvars)
+      let v = args[1]
+        if v isa Expr && operation(v) == :(~)
+          # matches ~~x::predicate or ~~x::predicate...
+          makesegment(arguments(v)[1], pvars)
+        elseif splat
+          # matches ~x::predicate...
+          makesegment(v, pvars)
+        else
+          makevar(v, pvars)
+        end
       end
-    else # is a term
+    else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      return :($PatTerm(:call, $op, [$(patargs...)]))
+      :($PatTerm(:call, $(function_object_or_quote(op, mod)), [$(patargs...)]))
     end
+
   elseif head === :...
     makepattern(args[1], pvars, slots, mod, true)
   elseif head == :(::) && args[1] in slots
-    return splat ? makesegment(ex, pvars) : makevar(ex, pvars)
+    splat ? makesegment(ex, pvars) : makevar(ex, pvars)
   elseif head === :ref
     # getindex 
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    return :($PatTerm(:ref, getindex, [$(patargs...)]))
+    :($PatTerm(:ref, getindex, [$(patargs...)]))
   elseif head === :$
-    return args[1]
+    args[1]
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    return :($PatTerm($(QuoteNode(head)), $(op isa Symbol ? QuoteNode(op) : op), [$(patargs...)]))
-    # throw(Meta.ParseError("Unsupported pattern syntax $ex"))
+    :($PatTerm($(QuoteNode(head)), $(function_object_or_quote(op, mod)), [$(patargs...)]))
   end
 end
 
@@ -328,7 +333,6 @@ macro rule(args...)
 
   e = macroexpand(__module__, expr)
   e = rmlines(e)
-  op = operation(e)
   RuleType = rule_sym_map(e)
 
   l, r = arguments(e)
