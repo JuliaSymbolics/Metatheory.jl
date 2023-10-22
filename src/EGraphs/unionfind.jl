@@ -11,7 +11,7 @@ function Base.push!(x::IntDisjointSet)::Int
   length(x)
 end
 
-function find_root(x::IntDisjointSet, i::Int)::Int
+function find(x::IntDisjointSet, i::Int)::Int
   while x.parents[i] >= 0
     i = x.parents[i]
   end
@@ -39,15 +39,7 @@ function Base.union!(x::IntDisjointSet, i::Int, j::Int)
   return pj
 end
 
-function normalize!(x::IntDisjointSet)
-  for i in 1:length(x)
-    p_i = find_root(x, i)
-    if p_i != i
-      x.parents[i] = p_i
-    end
-  end
-  x.normalized[] = true
-end
+
 
 # If normalized we don't even need a loop here.
 function _find_root_normal(x::IntDisjointSet, i::Int)
@@ -76,23 +68,38 @@ struct UnionFind
   parents::Vector{Int}
 end
 
+UnionFind() = UnionFind(Int[])
+
 function Base.push!(uf::UnionFind)
-  l = length(uf.parents)
+  l = length(uf.parents) + 1
   push!(uf.parents, l)
   l
 end
 
 Base.length(uf::UnionFind) = length(uf.parents)
 
-function Base.union!(uf::IntDisjointSet, i::Int, j::Int)
+function Base.union!(uf::UnionFind, i::Int, j::Int)
   uf.parents[j] = i
   i
 end
 
 function find(uf::UnionFind, i::Int)
-  current = i
-  while current != uf.parents[current]
-    current = uf.parents[current]
+  while i != uf.parents[i]
+    i = uf.parents[i]
   end
-  current
+  i
+end
+
+function in_same_set(x::UnionFind, a::Int, b::Int)
+  find(x, a) == find(x, b)
+end
+
+function normalize!(uf::UnionFind)
+  for i in 1:length(uf)
+    p_i = find(uf, i)
+    if p_i != i
+      uf.parents[i] = p_i
+    end
+  end
+  # x.normalized[] = true
 end
