@@ -53,6 +53,8 @@ end
 
 Base.show(io::IO, x::ENode) = print(io, toexpr(x))
 
+op_key(n::ENode) = (operation(n) => istree(n) ? -1 : arity(n))
+
 # parametrize metadata by M
 mutable struct EClass
   g # EGraph
@@ -264,6 +266,16 @@ function lookup(g::EGraph, n::ENode)::EClassId
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
 end
 
+
+function add_class_by_op(g::EGraph, n, eclass_id)
+  key = op_key(n)
+  if haskey(g.classes_by_op, key)
+    push!(g.classes_by_op[key], eclass_id)
+  else
+    g.classes_by_op[key] = [eclass_id]
+  end
+end
+
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
@@ -281,12 +293,7 @@ function add!(g::EGraph, n::ENode)::EClassId
 
   g.memo[n] = id
 
-  if haskey(g.symcache, operation(n))
-    push!(g.symcache[operation(n)], id)
-  else
-    g.symcache[operation(n)] = [id]
-  end
-
+  add_class_by_op(g, n, id)
   classdata = EClass(g, id, ENode[n], Pair{ENode,EClassId}[])
   g.classes[id] = classdata
   g.numclasses += 1
@@ -378,7 +385,7 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function OLD_rebuild!(g::EGraph)
+function rebuild!(g::EGraph)
   # normalize!(g.uf)
 
   while !isempty(g.dirty)
@@ -411,12 +418,7 @@ function rebuild_classes!(g::EGraph)
 
     # Sort and dedup to go in order?
     for n in eclass.nodes
-      key = (operation(n) => istree(n) ? -1 : arity(n))
-      if haskey(g.classes_by_op, key)
-        push!(g.classes_by_op[key], eclass_id)
-      else
-        (g.classes_by_op[key] = EClassId[eclass_id])
-      end
+      add_class_by_op(g, n, id)
     end
   end
 
@@ -434,7 +436,6 @@ function repair!(g::EGraph, id::EClassId)
   ecdata = g[id]
   ecdata.id = id
 
-  # new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
   new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
 
   for (p_enode, p_eclass) in ecdata.parents

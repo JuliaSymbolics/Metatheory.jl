@@ -71,3 +71,28 @@ function find_root_if_normal(x::IntDisjointSet, i::Int64)
     find_root(x, i)
   end
 end
+
+struct UnionFind
+  parents::Vector{Int}
+end
+
+function Base.push!(uf::UnionFind)
+  l = length(uf.parents)
+  push!(uf.parents, l)
+  l
+end
+
+Base.length(uf::UnionFind) = length(uf.parents)
+
+function Base.union!(uf::IntDisjointSet, i::Int, j::Int)
+  uf.parents[j] = i
+  i
+end
+
+function find(uf::UnionFind, i::Int)
+  current = i
+  while current != uf.parents[current]
+    current = uf.parents[current]
+  end
+  current
+end
