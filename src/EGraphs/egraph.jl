@@ -159,8 +159,8 @@ mutable struct EGraph
   root::EClassId
   "A vector of analyses associated to the EGraph"
   analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
-  "a cache mapping function symbols to e-classes that contain e-nodes with that function symbol."
-  symcache::Dict{Any,Vector{EClassId}}
+  "a cache mapping function symbols and their arity to e-classes that contain e-nodes with that function symbol."
+  classes_by_op::Dict{Pair{Any,Int},Vector{EClassId}}
   default_termtype::Type
   termtypes::TermTypes
   numclasses::Int
@@ -378,7 +378,7 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph)
+function OLD_rebuild!(g::EGraph)
   # normalize!(g.uf)
 
   while !isempty(g.dirty)
@@ -397,13 +397,45 @@ function rebuild!(g::EGraph)
   normalize!(g.uf)
 end
 
+function rebuild_classes!(g::EGraph)
+  @show g.classes_by_op
+  for v in values(g.classes_by_op)
+    empty!(v)
+  end
+
+  for (eclass_id, eclass::EClass) in g.classes
+    # old_len = length(eclass.nodes)
+    for n in eclass.nodes
+      canonicalize!(g, n)
+    end
+
+    # Sort and dedup to go in order?
+    for n in eclass.nodes
+      key = (operation(n) => istree(n) ? -1 : arity(n))
+      if haskey(g.classes_by_op, key)
+        push!(g.classes_by_op[key], eclass_id)
+      else
+        (g.classes_by_op[key] = EClassId[eclass_id])
+      end
+    end
+  end
+
+  for v in values(g.classes_by_op)
+    unique!(v)
+  end
+end
+
+function process_unions!(g::EGraph)
+
+end
+
 function repair!(g::EGraph, id::EClassId)
   id = find(g, id)
   ecdata = g[id]
   ecdata.id = id
 
   # new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
-  new_parents = LittleDict{ENode,EClassId}()
+  new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
 
   for (p_enode, p_eclass) in ecdata.parents
     p_enode = canonicalize!(g, p_enode)
