@@ -96,7 +96,7 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
 function astsize(n::ENode, g::EGraph)
-  n.istree || return 1
+  n.istree || return 0
   cost = 1 + arity(n)
   for id in arguments(n)
     eclass = g[id]

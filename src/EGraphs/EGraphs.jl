@@ -11,8 +11,9 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
 
-include("intdisjointmap.jl")
+include("unionfind.jl")
 export IntDisjointSet
+export UnionFind
 export in_same_set
 
 include("egraph.jl")

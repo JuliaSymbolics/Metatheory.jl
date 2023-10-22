@@ -151,7 +151,7 @@ for implementation details.
 """
 mutable struct EGraph
   "stores the equality relations over e-class ids"
-  uf::IntDisjointSet
+  uf::UnionFind
   "map from eclass id to eclasses"
   classes::Dict{EClassId,EClass}
   "hashcons"
@@ -176,7 +176,7 @@ Construct an EGraph from a starting symbolic expression `expr`.
 """
 function EGraph()
   EGraph(
-    IntDisjointSet(),
+    UnionFind(),
     Dict{EClassId,EClass}(),
     Dict{ENode,EClassId}(),
     EClassId[],
@@ -227,7 +227,7 @@ end
 """
 Returns the canonical e-class id for a given e-class.
 """
-find(g::EGraph, a::EClassId)::EClassId = find_root(g.uf, a)
+find(g::EGraph, a::EClassId)::EClassId = find(g.uf, a)
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
 Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
@@ -386,7 +386,7 @@ the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
 function rebuild!(g::EGraph)
-  # normalize!(g.uf)
+  normalize!(g.uf)
 
   while !isempty(g.dirty)
     # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
