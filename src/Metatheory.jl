@@ -24,12 +24,6 @@ using Base.Meta
 using Reexport
 using TermInterface
 
-macro log(args...)
-  quote
-    haskey(ENV, "MT_DEBUG") && @info($(args...))
-  end |> esc
-end
-
 @inline alwaystrue(x) = true
 
 function lookup_pat end
