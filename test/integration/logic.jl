@@ -14,7 +14,6 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   hist = UInt64[]
   push!(hist, hash(ex))
   for i in 1:steps
-    @show i
     g = EGraph(ex)
 
     exprs = [true, g[g.root]]
