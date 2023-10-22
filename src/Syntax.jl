@@ -88,9 +88,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   # Retrieve the function object if available
   # Optionally quote function objects
   args = arguments(ex)
-
-  istree(op) && (op = makepattern(op, pvars, slots, mod, false))
-
+  istree(op) && (op = makepattern(op, pvars, slots, mod))
 
   if head === :call
     if operation(ex) === :(~) # is a variable or segment
