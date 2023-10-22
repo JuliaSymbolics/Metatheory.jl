@@ -402,8 +402,7 @@ function repair!(g::EGraph, id::EClassId)
   ecdata = g[id]
   ecdata.id = id
 
-  # new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
-  new_parents = LittleDict{ENode,EClassId}()
+  new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
 
   for (p_enode, p_eclass) in ecdata.parents
     p_enode = canonicalize!(g, p_enode)
