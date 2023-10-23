@@ -72,19 +72,18 @@ function tryinlineanonymous(ex::Expr)
 end
 
 normalize_theory = @theory x y z f g begin
-  fand(f, g)  => Expr(:->, :x, :(($f)(x) && ($g)(x)))
+  fand(f, g)  => :(x -> ($f)(x) && ($g)(x))
   apply(f, x) => Expr(:call, f, x)
 end
 
-params = SaturationParams()
 
 function stream_fusion_cost(n::ENode, g::EGraph)
   n.istree || return 1
   cost = 1 + arity(n)
   for id in arguments(n)
     eclass = g[id]
-    !hasdata(eclass, astsize) && (cost += Inf; break)
-    cost += last(getdata(eclass, astsize))
+    !hasdata(eclass, stream_fusion_cost) && (cost += Inf; break)
+    cost += last(getdata(eclass, stream_fusion_cost))
   end
 
   operation(n) ∈ (:map, :filter) && (cost += 10)
@@ -92,14 +91,13 @@ function stream_fusion_cost(n::ENode, g::EGraph)
   return cost
 end
 
-function stream_optimize(ex, costfun = stream_fusion_cost)
+function stream_optimize(ex, params = SaturationParams())
   g = EGraph(ex)
   saturate!(g, array_theory, params)
-  ex = extract!(g, costfun) # TODO cost fun with asymptotic complexity
+  ex = extract!(g, stream_fusion_cost) # TODO cost fun with asymptotic complexity
   ex = Fixpoint(Postwalk(Chain([tryinlineanonymous, normalize_theory..., fold_theory...])))(ex)
-  return ex
+  return Base.remove_linenums!(ex)
 end
-
 
 @testset "Stream Fusion" begin
   ex = :(map(x -> 7 * x, fill(3, 4)))
@@ -113,7 +111,8 @@ end
 
 # ['a','1','2','3','4']
 ex = :(filter(ispow2, filter(iseven, reverse(reverse(fill(4, 100))))))
-@test stream_optimize(ex, astsize) == :(filter(ispow2, filter(iseven, fill(4, 100))))
+@test Base.remove_linenums!(stream_optimize(ex)) ==
+      Base.remove_linenums!(:(filter(x -> ispow2(x) && iseven(x), fill(4, 100))))
 
 
 ex = :(map(x -> 7 * x, reverse(reverse(fill(13, 40)))))
