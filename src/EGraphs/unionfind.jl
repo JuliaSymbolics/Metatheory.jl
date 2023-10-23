@@ -18,6 +18,7 @@ function find(x::IntDisjointSet, i::Int)::Int
   return i
 end
 
+
 function in_same_set(x::IntDisjointSet, a::Int, b::Int)
   find_root(x, a) == find_root(x, b)
 end
@@ -90,9 +91,6 @@ function find(uf::UnionFind, i::Int)
   i
 end
 
-function in_same_set(x::UnionFind, a::Int, b::Int)
-  find(x, a) == find(x, b)
-end
 
 function normalize!(uf::UnionFind)
   for i in 1:length(uf)

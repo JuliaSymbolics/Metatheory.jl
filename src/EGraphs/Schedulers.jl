@@ -190,7 +190,6 @@ function exprsize(e::Expr)
 end
 
 function ScoredScheduler(g::EGraph, theory::Vector{<:AbstractRule})
-  # BackoffScheduler(g, theory, 128, 4)
   ScoredScheduler(g, theory, 1000, 5, exprsize)
 end
 

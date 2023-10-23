@@ -224,6 +224,8 @@ function gettermtype(g::EGraph, f, ar)
 end
 
 
+total_size(g::EGraph) = length(g.memo)
+
 """
 Returns the canonical e-class id for a given e-class.
 """
@@ -325,6 +327,7 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 insert the literal into the [`EGraph`](@ref).
 """
 function addexpr!(g::EGraph, se, keepmeta = false)::EClassId
+  se isa EClass && return se.id
   e = preprocess(se)
 
   n = if istree(se)
@@ -373,8 +376,16 @@ function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
   return to
 end
 
-function in_same_class(g::EGraph, a, b)
-  find(g, a) == find(g, b)
+function in_same_class(g::EGraph, ids::EClassId...)::Bool
+  nids = length(ids)
+  nids == 1 && return true
+
+  # @show map(x -> find(g, x), ids)
+  first_id = find(g, ids[1])
+  for i in 2:nids
+    first_id == find(g, ids[i]) || return false
+  end
+  true
 end
 
 
