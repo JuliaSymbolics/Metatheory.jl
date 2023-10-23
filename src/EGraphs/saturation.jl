@@ -1,37 +1,3 @@
-abstract type SaturationGoal end
-
-reached(g::EGraph, goal::Nothing) = false
-reached(g::EGraph, goal::SaturationGoal) = false
-
-"""
-This goal is reached when the `exprs` list of expressions are in the 
-same equivalence class.
-"""
-struct EqualityGoal <: SaturationGoal
-  exprs::Vector{Any}
-  ids::Vector{EClassId}
-  function EqualityGoal(exprs, eclasses)
-    @assert length(exprs) == length(eclasses) && length(exprs) != 0
-    new(exprs, eclasses)
-  end
-end
-
-function reached(g::EGraph, goal::EqualityGoal)
-  all(x -> in_same_class(g, goal.ids[1], x), @view goal.ids[2:end])
-end
-
-"""
-Boolean valued function as an arbitrary saturation goal.
-User supplied function must take an [`EGraph`](@ref) as the only parameter.
-"""
-struct FunctionGoal <: SaturationGoal
-  fun::Function
-end
-
-function reached(g::EGraph, goal::FunctionGoal)::Bool
-  goal.fun(g)
-end
-
 mutable struct SaturationReport
   reason::Union{Symbol,Nothing}
   egraph::EGraph
@@ -65,8 +31,7 @@ Base.@kwdef mutable struct SaturationParams
   "Maximum number of eclasses allowed"
   eclasslimit::Int                     = 5000
   enodelimit::Int                      = 15000
-  goal::Union{Nothing,SaturationGoal}  = nothing
-  stopwhen::Function                   = () -> false
+  goal::Function                       = (g::EGraph) -> false
   scheduler::Type{<:AbstractScheduler} = BackoffScheduler
   schedulerparams::Tuple               = ()
   threaded::Bool                       = false
@@ -221,7 +186,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
 
   lock(BUFFER_LOCK) do
     while !isempty(BUFFER[])
-      if reached(g, params.goal)
+      if params.goal(g)
         @debug "Goal reached"
         rep.reason = :goalreached
         return
@@ -241,6 +206,12 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       if !isnothing(halt_reason)
         rep.reason = halt_reason
         return
+      end
+
+      if params.enodelimit > 0 && total_size(g) > params.enodelimit
+        @debug "Too many enodes"
+        rep.reason = :enodelimit
+        break
       end
     end
   end
@@ -276,7 +247,7 @@ function eqsat_step!(
   end
   @timeit report.to "Rebuild" rebuild!(g)
 
-  @debug smallest_expr = extract!(g, astsize)
+  @debug "Smallest expression is" extract!(g, astsize)
 
   return report
 end
@@ -294,7 +265,6 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   start_time = time_ns()
 
   !params.timer && disable_timer!(report.to)
-  timelimit = params.timelimit > 0
 
   while true
     curr_iter += 1
@@ -305,27 +275,32 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
 
     elapsed = time_ns() - start_time
 
-    if timelimit && params.timelimit <= elapsed
+    if params.goal(g)
+      @debug "Goal reached"
+      report.reason = :goalreached
+      break
+    end
+
+    if report.reason !== nothing
+      @debug "Reason" report.reason
+      break
+    end
+
+    if params.timelimit > 0 && params.timelimit <= elapsed
+      @debug "Time limit reached"
       report.reason = :timelimit
       break
     end
 
-    if !(report.reason isa Nothing)
-      break
-    end
-
     if curr_iter >= params.timeout
+      @debug "Too many iterations"
       report.reason = :timeout
       break
     end
 
     if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
+      @debug "Too many eclasses"
       report.reason = :eclasslimit
-      break
-    end
-
-    if reached(g, params.goal)
-      report.reason = :goalreached
       break
     end
   end
@@ -336,26 +311,24 @@ end
 
 function areequal(theory::Vector, exprs...; params = SaturationParams())
   g = EGraph(exprs[1])
-  areequal(g, theory, exprs...; params = params)
+  areequal(g, theory, exprs...; params)
 end
 
 function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = SaturationParams())
-  if length(exprs) == 1
-    return true
-  end
-
   n = length(exprs)
-  ids = map(Base.Fix1(addexpr!, g), collect(exprs))
-  goal = EqualityGoal(collect(exprs), ids)
+  n == 1 && return true
 
-  params.goal = goal
+  ids = [addexpr!(g, ex) for ex in exprs]
+  params.goal = (g::EGraph) -> in_same_class(g, ids...)
 
   report = saturate!(g, t, params)
 
-  if !(report.reason === :saturated) && !reached(g, goal)
+  goal_reached = params.goal(g)
+
+  if !(report.reason === :saturated) && !goal_reached
     return missing # failed to prove
   end
-  return reached(g, goal)
+  return goal_reached
 end
 
 macro areequal(theory, exprs...)

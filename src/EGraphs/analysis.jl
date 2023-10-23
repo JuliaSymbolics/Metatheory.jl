@@ -96,8 +96,8 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
 function astsize(n::ENode, g::EGraph)
-  n.istree || return 0
-  cost = 1 + arity(n)
+  n.istree || return 1
+  cost = 2 + arity(n)
   for id in arguments(n)
     eclass = g[id]
     !hasdata(eclass, astsize) && (cost += Inf; break)
@@ -152,10 +152,7 @@ end
 Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
-function extract!(g::EGraph, costfun::Function; root = -1, cse = false)
-  if root == -1
-    root = g.root
-  end
+function extract!(g::EGraph, costfun::Function; root = g.root, cse = false)
   analyze!(g, costfun, root)
   if cse
     # TODO make sure there is no assignments/stateful code!!

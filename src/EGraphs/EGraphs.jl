@@ -14,7 +14,6 @@ using Metatheory.EMatchCompiler
 include("unionfind.jl")
 export IntDisjointSet
 export UnionFind
-export in_same_set
 
 include("egraph.jl")
 export ENode
@@ -48,9 +47,6 @@ export Schedulers
 using .Schedulers
 
 include("saturation.jl")
-export SaturationGoal
-export EqualityGoal
-export reached
 export SaturationParams
 export saturate!
 export areequal

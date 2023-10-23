@@ -42,7 +42,7 @@ end
 asymptot_t = @theory x y z n m f g begin
   (length(filter(f, x)) <= length(x)) => true
   length(cat(x, y)) --> length(x) + length(y)
-  length(map(f, x)) => length(map)
+  length(map(f, x)) --> length(x)
   length(x::UnitRange) => length(x)
 end
 
@@ -78,15 +78,27 @@ end
 
 params = SaturationParams()
 
-function stream_optimize(ex)
+function stream_fusion_cost(n::ENode, g::EGraph)
+  n.istree || return 1
+  cost = 1 + arity(n)
+  for id in arguments(n)
+    eclass = g[id]
+    !hasdata(eclass, astsize) && (cost += Inf; break)
+    cost += last(getdata(eclass, astsize))
+  end
+
+  operation(n) ∈ (:map, :filter) && (cost += 10)
+
+  return cost
+end
+
+function stream_optimize(ex, costfun = stream_fusion_cost)
   g = EGraph(ex)
   saturate!(g, array_theory, params)
-  ex = extract!(g, astsize) # TODO cost fun with asymptotic complexity
+  ex = extract!(g, costfun) # TODO cost fun with asymptotic complexity
   ex = Fixpoint(Postwalk(Chain([tryinlineanonymous, normalize_theory..., fold_theory...])))(ex)
   return ex
 end
-
-build_fun(ex) = eval(:(() -> $ex))
 
 
 @testset "Stream Fusion" begin
@@ -101,13 +113,9 @@ end
 
 # ['a','1','2','3','4']
 ex = :(filter(ispow2, filter(iseven, reverse(reverse(fill(4, 100))))))
-opt = stream_optimize(ex)
+@test stream_optimize(ex, astsize) == :(filter(ispow2, filter(iseven, fill(4, 100))))
 
 
 ex = :(map(x -> 7 * x, reverse(reverse(fill(13, 40)))))
-opt = stream_optimize(ex)
-opt = stream_optimize(opt)
+@test stream_optimize(ex) == :(fill(91, 40))
 
-macro stream_optimize(ex)
-  stream_optimize(ex)
-end
