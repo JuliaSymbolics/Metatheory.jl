@@ -111,8 +111,6 @@ end
 end
 
 @testset "Segment Variables" begin
-  function f end
-  function ok end
   t = @theory begin
     f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
   end
@@ -135,7 +133,6 @@ end
 
 module NonCall
 using Metatheory
-function ok end
 t = [@rule a b (a, b) --> ok(a, b)]
 
 test() = rewrite(:(x, y), t)
