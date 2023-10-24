@@ -1,17 +1,17 @@
 using Base: ImmutableDict
 
-function lockbuffer!(f, params)
-  if params.threaded
-    lock(params.buffer_lock) do
+function lockbuffer!(f, graph)
+  if graph.needslock
+    lock(graph.buffer_lock) do
       return f()
     end
   else
     return f()
   end
 end
-function lockmergesbuffer!(f, params)
-  if params.threaded
-    lock(params.merges_buffer_lock) do
+function lockmergesbuffer!(f, graph)
+  if graph.needslock
+    lock(graph.merges_buffer_lock) do
       return f()
     end
   else

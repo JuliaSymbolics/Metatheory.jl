@@ -190,6 +190,14 @@ mutable struct EGraph
   termtypes::TermTypes
   numclasses::Int
   numnodes::Int
+  "If we use global buffers we may need to lock. Defaults to true."
+  needslock::Bool
+  "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
+  buffer::CircularDeque{Bindings}
+  buffer_lock::ReentrantLock
+  "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
+  merges_buffer::CircularDeque{Tuple{Int,Int}}
+  merges_buffer_lock::ReentrantLock
 end
 
 
@@ -197,7 +205,13 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph()
+function EGraph(;
+  needslock::Bool = true,
+  buffer::CircularDeque{Bindings} = BUFFER[],
+  buffer_lock::ReentrantLock      = BUFFER_LOCK,
+  merges_buffer::CircularDeque{Tuple{Int,Int}} = MERGES_BUF[],
+  merges_buffer_lock::ReentrantLock    = MERGES_BUF_LOCK
+  )
   EGraph(
     IntDisjointSet(),
     Dict{EClassId,EClass}(),
@@ -211,11 +225,12 @@ function EGraph()
     0,
     0,
     # 0
+    needslock, buffer, buffer_lock, merges_buffer, merges_buffer_lock
   )
 end
 
-function EGraph(e; keepmeta = false)
-  g = EGraph()
+function EGraph(e; keepmeta = false, kwargs...)
+  g = EGraph(kwargs...)
   keepmeta && addanalysis!(g, :metadata_analysis)
   g.root = addexpr!(g, e; keepmeta = keepmeta)
   g
