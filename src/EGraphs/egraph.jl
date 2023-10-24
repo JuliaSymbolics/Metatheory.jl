@@ -309,8 +309,6 @@ end
 Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(g::EGraph, n::AbstractENode)::EClassId
-  @debug("adding ", n)
-
   n = canonicalize(g, n)
   haskey(g.memo, n) && return g.memo[n]
 
@@ -393,9 +391,6 @@ function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
 
   id_a == id_b && return id_a
   to = union!(g.uf, id_a, id_b)
-
-  @debug "merging" id_a id_b
-
   from = (to == id_a) ? id_b : id_a
 
   push!(g.dirty, to)
@@ -447,7 +442,6 @@ function repair!(g::EGraph, id::EClassId)
   id = find(g, id)
   ecdata = g[id]
   ecdata.id = id
-  @debug "repairing " id
 
   new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
 
@@ -455,7 +449,6 @@ function repair!(g::EGraph, id::EClassId)
     p_enode = canonicalize!(g, p_enode)
     # deduplicate parents
     if haskey(new_parents, p_enode)
-      @debug "merging classes" p_eclass (new_parents[p_enode])
       merge!(g, p_eclass, new_parents[p_enode])
     end
     n_id = find(g, p_eclass)
@@ -464,7 +457,6 @@ function repair!(g::EGraph, id::EClassId)
   end
 
   ecdata.parents = collect(new_parents)
-  @debug "updated parents " id g.parents[id]
 
   # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
 

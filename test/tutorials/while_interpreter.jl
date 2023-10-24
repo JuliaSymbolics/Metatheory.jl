@@ -177,7 +177,6 @@ eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
 # Otherwise, we piggyback on the existing Julia if-then-else ternary operator.
 # To do so, we need to evaluate the boolean expression in the guard by 
 # using the `eval_bool` function we defined above.
-function cond end
 if_rules = @theory guard t f σ begin
   (cond(guard, t), σ::Mem) --> (cond(guard, t, :skip), σ)
   (cond(guard, t, f), σ::Mem) => (eval_bool(guard, σ) ? :($t, $σ) : :($f, $σ))
@@ -202,7 +201,6 @@ end
 # behaves like the `=` assignment operator in other programming languages. 
 # `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
 
-function store end
 write_mem = @theory sym val σ begin
   (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
   σ)
@@ -210,8 +208,6 @@ end
 
 # ## While loops and sequential computation.
 
-function seq end
-function loop end
 while_rules = @theory guard a b σ begin
   (:skip, σ::Mem) --> σ
   ((:skip; b), σ::Mem) --> (b, σ)

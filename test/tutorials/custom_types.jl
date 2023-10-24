@@ -89,16 +89,13 @@ end
 
 # Note that terms in the RHS will inherit the type of terms in the LHS.
 
-function f end
-function h end
-function z end
 t = @theory a begin
   f(z(2), a) --> f(a)
 end
 
 # Let's create an example expression and e-graph  
-hcall = MyExpr(h, [4], "hello")
-ex = MyExpr(f, [MyExpr(z, [2]), hcall])
+hcall = MyExpr(:h, [4], "hello")
+ex = MyExpr(:f, [MyExpr(:z, [2]), hcall])
 g = EGraph(ex; keepmeta = true)
 
 # We use `settermtype!` on an existing e-graph to inform the system about 
@@ -107,7 +104,7 @@ settermtype!(g, MyExpr)
 
 # Now let's test that it works.
 saturate!(g, t)
-expected = MyExpr(f, [MyExpr(h, [4], "HELLO")], "")
+expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
 extracted = extract!(g, astsize)
 @test expected == extracted
 
