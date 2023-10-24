@@ -91,28 +91,24 @@ function addparent!(a::EClass, n::ENode, id::EClassId)
   push!(a.parents, (n => id))
 end
 
-function Base.union!(to::EClass, from::EClass)
-  # TODO revisit
-  append!(to.nodes, from.nodes)
-  append!(to.parents, from.parents)
-  if !isnothing(to.data) && !isnothing(from.data)
-    to.data = join_analysis_data!(to.g, something(to.data), something(from.data))
-  elseif to.data === nothing
-    to.data = from.data
-  end
-  return to
-end
-
-function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
-  new_dst = merge(dst, src)
-  for analysis_name in keys(src)
-    analysis_ref = g.analyses[analysis_name]
-    if hasproperty(dst, analysis_name)
-      ref = getproperty(new_dst, analysis_name)
-      ref[] = join(analysis_ref, ref[], getproperty(src, analysis_name)[])
+function merge_analysis_data!(g, a::EClass, b::EClass)::Tuple{Bool,Bool}
+  if !isnothing(a.data) && !isnothing(b.data)
+    new_a_data = merge(a.data, b.data)
+    for analysis_name in keys(b.data)
+      analysis_ref = g.analyses[analysis_name]
+      if hasproperty(a.data, analysis_name)
+        ref = getproperty(new_a_data, analysis_name)
+        ref[] = join(analysis_ref, ref[], getproperty(b.data, analysis_name)[])
+      end
     end
+    merged_a = (a.data == new_a_data)
+    a.data = new_a_data
+    (merged_a, b.data == new_a_data)
+  elseif to.data === nothing
+    a.data = b.data
+    # a merged, b not merged
+    (true, false)
   end
-  new_dst
 end
 
 # Thanks to Shashi Gowda
@@ -153,11 +149,12 @@ mutable struct EGraph
   "stores the equality relations over e-class ids"
   uf::UnionFind
   "map from eclass id to eclasses"
-  classes::Dict{EClassId,EClass}
+  classes::IdDict{EClassId,EClass}
   "hashcons"
   memo::Dict{ENode,EClassId}             # memo
-  "worklist for ammortized upwards merging"
-  dirty::Vector{EClassId}
+  "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
+  pending::Vector{Pair{ENode,EClassId}}
+  analysis_pending::Vector{Pair{ENode,EClassId}}
   root::EClassId
   "A vector of analyses associated to the EGraph"
   analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
@@ -165,8 +162,7 @@ mutable struct EGraph
   classes_by_op::Dict{Pair{Any,Int},Vector{EClassId}}
   default_termtype::Type
   termtypes::TermTypes
-  numclasses::Int
-  numnodes::Int
+  clean::Bool
 end
 
 
@@ -179,15 +175,14 @@ function EGraph()
     UnionFind(),
     Dict{EClassId,EClass}(),
     Dict{ENode,EClassId}(),
-    EClassId[],
+    Pair{ENode,EClassId}[],
+    Pair{ENode,EClassId}[],
     -1,
     Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
     Dict{Any,Vector{EClassId}}(),
     Expr,
     TermTypes(),
-    0,
-    0,
-    # 0
+    false,
   )
 end
 
@@ -298,7 +293,6 @@ function add!(g::EGraph, n::ENode)::EClassId
   add_class_by_op(g, n, id)
   classdata = EClass(g, id, ENode[n], Pair{ENode,EClassId}[])
   g.classes[id] = classdata
-  g.numclasses += 1
 
   for an in values(g.analyses)
     if !islazy(an) && an !== :metadata_analysis
@@ -353,27 +347,38 @@ end
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
 """
-function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
-  id_a = find(g, a)
-  id_b = find(g, b)
+function Base.union!(g::EGraph, enode_id1::EClassId, enode_id2::EClassId)::Bool
+  g.clean = false
+
+  id_1 = find(g, enode_id1)
+  id_2 = find(g, enode_id2)
+
+  id_1 == id_2 && return false
+
+  # Make sure class 2 has fewer parents
+  if length(g.classes[id_1].parents) < length(g.classes[id_2].parents)
+    id_1, id_2 = id_2, id_1
+  end
+
+  union!(g.uf, id_1, id_2)
+
+  eclass_2 = g.classes[id_2]::EClass
+  delete!(g.classes, id_2)
+  eclass_1 = g.classes[id_1]::EClass
+
+  append!(g.pending, eclass_2.parents)
+
+  (merged_1, merged_2) = merge_analysis_data!(g, eclass_1, eclass_2)
+  merged_1 && append!(g.analysis_pending, eclass_1.parents)
+  merged_2 && append!(g.analysis_pending, eclass_2.parents)
 
 
-  id_a == id_b && return id_a
-  to = union!(g.uf, id_a, id_b)
-  from = (to == id_a) ? id_b : id_a
-
-  push!(g.dirty, to)
-
-  from_class = g.classes[from]
-  to_class = g.classes[to]
-  to_class.id = to
-
+  append!(eclass_1.nodes, eclass_2.nodes)
+  append!(eclass_1.parents, eclass_2.parents)
   # I (was) the troublesome line!
-  g.classes[to] = union!(to_class, from_class)
-  delete!(g.classes, from)
-  g.numclasses -= 1
-
-  return to
+  # g.classes[to] = union!(to_class, from_class)
+  # delete!(g.classes, from)
+  return true
 end
 
 function in_same_class(g::EGraph, ids::EClassId...)::Bool
@@ -389,32 +394,6 @@ function in_same_class(g::EGraph, ids::EClassId...)::Bool
 end
 
 
-# TODO new rebuilding from egg
-"""
-This function restores invariants and executes
-upwards merging in an [`EGraph`](@ref). See
-the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
-for more details.
-"""
-function rebuild!(g::EGraph)
-  normalize!(g.uf)
-
-  while !isempty(g.dirty)
-    # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
-    todo = unique(g.dirty)
-    empty!(g.dirty)
-    for x in todo
-      repair!(g, x)
-    end
-  end
-
-  if g.root != -1
-    g.root = find(g, g.root)
-  end
-
-  normalize!(g.uf)
-end
-
 function rebuild_classes!(g::EGraph)
   @show g.classes_by_op
   for v in values(g.classes_by_op)
@@ -429,17 +408,51 @@ function rebuild_classes!(g::EGraph)
 
     # Sort and dedup to go in order?
     for n in eclass.nodes
-      add_class_by_op(g, n, id)
+      add_class_by_op(g, n, eclass_id)
     end
   end
 
+  # TODO is this needed?
   for v in values(g.classes_by_op)
     unique!(v)
   end
 end
 
-function process_unions!(g::EGraph)
+function process_unions!(g::EGraph)::Int
+  n_unions = 0
 
+  while !isempty(g.pending) || !isempty(g.analysis_pending)
+    while !isempty(g.pending)
+      (node::ENode, eclass_id::EClassId) = pop!(g.pending)
+      canonicalize!(g, node)
+      if haskey(g.memo, node)
+        old_class_id = g.memo[node]
+        g.memo[node] = eclass_id
+        did_something = union!(g, old_class_id, eclass_id)
+        n_unions += did_something
+      end
+    end
+
+    while !isempty(g.analysis_pending)
+      (node::ENode, eclass_id::EClassId) = pop!(g.analysis_pending)
+      eclass_id = find(g, eclass_id)
+    end
+  end
+  n_unions
+end
+
+"""
+This function restores invariants and executes
+upwards merging in an [`EGraph`](@ref). See
+the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
+for more details.
+"""
+function rebuild!(g::EGraph)
+  n_unions = process_unions!(g)
+  trimmed_nodes = rebuild_classes!(g)
+  g.clean = true
+
+  @debug "REBUILT" n_unions trimmed_nodes
 end
 
 function repair!(g::EGraph, id::EClassId)
