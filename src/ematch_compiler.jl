@@ -139,11 +139,11 @@ The format is as follows
 """
 function ematcher_yield(p, npvars::Int, direction::Int)
     em = ematcher(p)
-    function ematcher_yield(g, rule_idx, id, params)::Int
+    function ematcher_yield(g, rule_idx, id)::Int
         n_matches = 0
         em(g, (id,), EMPTY_ECLASS_DICT) do b,n
-            lockbuffer!(params) do
-              push!(params.buffer, assoc(b, 0, (rule_idx * direction, id)))
+            lockbuffer!(g) do
+              push!(g.buffer, assoc(b, 0, (rule_idx * direction, id)))
               n_matches+=1
             end          
         end
@@ -155,8 +155,8 @@ ematcher_yield(p,npvars) = ematcher_yield(p,npvars,1)
 
 function ematcher_yield_bidir(l, r, npvars::Int)
     eml, emr = ematcher_yield(l, npvars, 1), ematcher_yield(r, npvars, -1)
-    function ematcher_yield_bidir(g, rule_idx, id, params)::Int
-        eml(g,rule_idx,id, params) + emr(g,rule_idx,id, params) 
+    function ematcher_yield_bidir(g, rule_idx, id)::Int
+        eml(g,rule_idx,id) + emr(g,rule_idx,id) 
     end
 end
 
