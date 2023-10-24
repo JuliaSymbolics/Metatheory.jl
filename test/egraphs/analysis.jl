@@ -44,7 +44,7 @@ function EGraphs.modify!(::Val{:numberfold}, g::EGraph, id::Int64)
   eclass = g.classes[id]
   d = getdata(eclass, :numberfold, nothing)
   if d isa Number
-    merge!(g, addexpr!(g, d), id)
+    union!(g, addexpr!(g, d), id)
   end
 end
 

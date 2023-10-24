@@ -395,7 +395,6 @@ end
 
 
 function rebuild_classes!(g::EGraph)
-  @show g.classes_by_op
   for v in values(g.classes_by_op)
     empty!(v)
   end
@@ -466,7 +465,7 @@ function repair!(g::EGraph, id::EClassId)
     p_enode = canonicalize!(g, p_enode)
     # deduplicate parents
     if haskey(new_parents, p_enode)
-      merge!(g, p_eclass, new_parents[p_enode])
+      union!(g, p_eclass, new_parents[p_enode])
     end
     n_id = find(g, p_eclass)
     g.memo[p_enode] = n_id
