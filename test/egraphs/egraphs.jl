@@ -1,14 +1,13 @@
 
 using Test
 using Metatheory
-using Metatheory.EGraphs
 
 @testset "Merging" begin
   testexpr = :((a * 2) / 2)
   testmatch = :(a << 1)
   g = EGraph(testexpr)
   t2 = addexpr!(g, testmatch)
-  merge!(g, t2, EClassId(3))
+  union!(g, t2, 3)
   @test find(g, t2) == find(g, 3)
   # DOES NOT UPWARD MERGE
 end
@@ -27,8 +26,8 @@ end
   t1 = addexpr!(g, :b)
   t2 = addexpr!(g, :c)
 
-  c_id = merge!(g, t2, t1)
-  @test find(g, c_id) == find(g, t1)
+  union!(g, t2, t1)
+  @test find(g, t2) == find(g, t1)
   @test find(g, t2) == find(g, t1)
   rebuild!(g)
   @test find(g, ec1) == find(g, ec2)
@@ -44,12 +43,10 @@ end
   t1 = addexpr!(g, apply(6, f, :a))
   t2 = addexpr!(g, apply(9, f, :a))
 
-  c_id = merge!(g, t1, EClassId(1)) # a == apply(6,f,a)
-  c2_id = merge!(g, t2, EClassId(1)) # a == apply(9,f,a)
-
+  c_id = union!(g, t1, 1) # a == apply(6,f,a)
+  c2_id = union!(g, t2, 1) # a == apply(9,f,a)
 
   rebuild!(g)
-
 
   t3 = addexpr!(g, apply(3, f, :a))
   t4 = addexpr!(g, apply(7, f, :a))
@@ -63,7 +60,7 @@ end
   # if m or n is prime, f(a) = a
   t5 = addexpr!(g, apply(11, f, :a))
   t6 = addexpr!(g, apply(1, f, :a))
-  c5_id = merge!(g, t5, EClassId(1)) # a == apply(11,f,a)
+  c5_id = union!(g, t5, EClassId(1)) # a == apply(11,f,a)
 
   rebuild!(g)
 

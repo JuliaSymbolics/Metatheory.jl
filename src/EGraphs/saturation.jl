@@ -17,7 +17,7 @@ function Base.show(io::IO, x::SaturationReport)
   println(io, "=================")
   println(io, "\tStop Reason: $(x.reason)")
   println(io, "\tIterations: $(x.iterations)")
-  println(io, "\tEGraph Size: $(g.numclasses) eclasses, $(length(g.memo)) nodes")
+  println(io, "\tEGraph Size: $(length(g.classes)) eclasses, $(length(g.memo)) nodes")
   print_timer(io, x.to)
 end
 
@@ -218,7 +218,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   lock(MERGES_BUF_LOCK) do
     while !isempty(MERGES_BUF[])
       (l, r) = popfirst!(MERGES_BUF[])
-      merge!(g, l, r)
+      union!(g, l, r)
     end
   end
 end
@@ -242,7 +242,7 @@ function eqsat_step!(
 
   @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
 
-  if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
+  if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
   @timeit report.to "Rebuild" rebuild!(g)
@@ -298,7 +298,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
       break
     end
 
-    if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
+    if params.eclasslimit > 0 && length(g.classes) > params.eclasslimit
       @debug "Too many eclasses"
       report.reason = :eclasslimit
       break

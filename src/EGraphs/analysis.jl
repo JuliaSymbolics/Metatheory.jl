@@ -75,7 +75,7 @@ function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
       if !isequal(pass, getdata(eclass, analysis_ref, missing))
         setdata!(eclass, analysis_ref, pass)
         did_something = true
-        push!(g.dirty, id)
+        push!(g.pending, (eclass[1] => id))
       end
     end
   end
@@ -176,7 +176,7 @@ function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
   (cn, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Error when computing CSE")
 
-  n.istree || return
+  cn.istree || return
   if id in seen
     cse_env[id] = (gensym(), rec_extract(g, costfun, id))#, cse_env=cse_env)) # todo generalize symbol?
     return
