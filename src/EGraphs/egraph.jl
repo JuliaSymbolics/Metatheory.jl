@@ -4,9 +4,13 @@
 
 # abstract type AbstractENode end
 
+import Metatheory: maybelock!
+
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
+# TODO document bindings
+const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
 const UNDEF_ARGS = Vector{EClassId}(undef, 0)
 
 struct ENode
@@ -151,7 +155,7 @@ mutable struct EGraph
   "map from eclass id to eclasses"
   classes::IdDict{EClassId,EClass}
   "hashcons"
-  memo::Dict{ENode,EClassId}             # memo
+  memo::Dict{ENode,EClassId}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
   pending::Vector{Pair{ENode,EClassId}}
   analysis_pending::Vector{Pair{ENode,EClassId}}
@@ -163,6 +167,13 @@ mutable struct EGraph
   default_termtype::Type
   termtypes::TermTypes
   clean::Bool
+  "If we use global buffers we may need to lock. Defaults to true."
+  needslock::Bool
+  "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
+  buffer::Vector{Bindings}
+  "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
+  merges_buffer::Vector{Tuple{Int,Int}}
+  lock::ReentrantLock
 end
 
 
@@ -170,7 +181,7 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph()
+function EGraph(; needslock::Bool = false)
   EGraph(
     UnionFind(),
     Dict{EClassId,EClass}(),
@@ -183,11 +194,19 @@ function EGraph()
     Expr,
     TermTypes(),
     false,
+    needslock,
+    Bindings[],
+    Tuple{Int,Int}[],
+    ReentrantLock(),
   )
 end
 
-function EGraph(e; keepmeta = false)
-  g = EGraph()
+function maybelock!(f::Function, g::EGraph)
+  g.needslock ? lock(f, g.buffer_lock) : f()
+end
+
+function EGraph(e; keepmeta = false, kwargs...)
+  g = EGraph(kwargs...)
   keepmeta && addanalysis!(g, :metadata_analysis)
   g.root = addexpr!(g, e, keepmeta)
   g
@@ -293,6 +312,7 @@ function add!(g::EGraph, n::ENode)::EClassId
   add_class_by_op(g, n, id)
   classdata = EClass(g, id, ENode[n], Pair{ENode,EClassId}[])
   g.classes[id] = classdata
+  push!(g.pending, n => id)
 
   for an in values(g.analyses)
     if !islazy(an) && an !== :metadata_analysis
