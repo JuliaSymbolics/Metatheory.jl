@@ -2,7 +2,7 @@ module EMatchCompiler
 
 using TermInterface
 using ..Patterns
-using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, DEFAULT_BUFFER_SIZE, BUFFER, BUFFER_LOCK, MERGES_BUF, MERGES_BUF_LOCK, LL
+using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, LL, maybelock!
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
@@ -48,7 +48,7 @@ function predicate_ematcher(p::PatVar, pred)
     end
   end
 end
-  
+
 function ematcher(p::PatVar)
   pred_matcher = predicate_ematcher(p, p.predicate)
 
@@ -115,14 +115,14 @@ function ematcher(p::PatTerm)
 
     for n in g[car(data)]
       if canbindtop(n)
-        loop(LL(arguments(n),1), bindings, ematchers)
+        loop(LL(arguments(n), 1), bindings, ematchers)
       end
     end
   end
-end 
+end
 
 
-const EMPTY_ECLASS_DICT = Base.ImmutableDict{Int,Tuple{Int, Int}}()
+const EMPTY_ECLASS_DICT = Base.ImmutableDict{Int,Tuple{Int,Int}}()
 
 """
 Substitutions are efficiently represented in memory as vector of tuples of two integers.
@@ -137,26 +137,26 @@ The format is as follows
 * The end of a substitution is delimited by (0,0)
 """
 function ematcher_yield(p, npvars::Int, direction::Int)
-    em = ematcher(p)
-    function ematcher_yield(g, rule_idx, id)::Int
-        n_matches = 0
-        em(g, (id,), EMPTY_ECLASS_DICT) do b,n
-            lock(BUFFER_LOCK) do
-              push!(BUFFER[], assoc(b, 0, (rule_idx * direction, id)))
-              n_matches+=1
-            end          
-        end
-        n_matches
+  em = ematcher(p)
+  function ematcher_yield(g, rule_idx, id)::Int
+    n_matches = 0
+    em(g, (id,), EMPTY_ECLASS_DICT) do b, n
+      maybelock!(g) do
+        push!(g.buffer, assoc(b, 0, (rule_idx * direction, id)))
+        n_matches += 1
+      end
     end
+    n_matches
+  end
 end
 
-ematcher_yield(p,npvars) = ematcher_yield(p,npvars,1)
+ematcher_yield(p, npvars) = ematcher_yield(p, npvars, 1)
 
 function ematcher_yield_bidir(l, r, npvars::Int)
-    eml, emr = ematcher_yield(l, npvars, 1), ematcher_yield(r, npvars, -1)
-    function ematcher_yield_bidir(g, rule_idx, id)::Int
-        eml(g,rule_idx,id) + emr(g,rule_idx,id) 
-    end
+  eml, emr = ematcher_yield(l, npvars, 1), ematcher_yield(r, npvars, -1)
+  function ematcher_yield_bidir(g, rule_idx, id)::Int
+    eml(g, rule_idx, id) + emr(g, rule_idx, id)
+  end
 end
 
 ematcher(p::AbstractPattern) = error("Unsupported pattern in e-matching $p")

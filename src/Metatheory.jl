@@ -2,24 +2,6 @@ module Metatheory
 
 using DataStructures
 
-import Base.ImmutableDict
-
-const Bindings = ImmutableDict{Int,Tuple{Int,Int}}
-const DEFAULT_BUFFER_SIZE = 1048576
-const BUFFER = Ref(CircularDeque{Bindings}(DEFAULT_BUFFER_SIZE))
-const BUFFER_LOCK = ReentrantLock()
-const MERGES_BUF = Ref(CircularDeque{Tuple{Int,Int}}(DEFAULT_BUFFER_SIZE))
-const MERGES_BUF_LOCK = ReentrantLock()
-
-function resetbuffers!(bufsize)
-  BUFFER[] = CircularDeque{Bindings}(bufsize)
-  MERGES_BUF[] = CircularDeque{Tuple{Int,Int}}(bufsize)
-end
-
-function __init__()
-  resetbuffers!(DEFAULT_BUFFER_SIZE)
-end
-
 using Base.Meta
 using Reexport
 using TermInterface
@@ -27,6 +9,7 @@ using TermInterface
 @inline alwaystrue(x) = true
 
 function lookup_pat end
+function maybelock! end
 
 include("docstrings.jl")
 include("utils.jl")

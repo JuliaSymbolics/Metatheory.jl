@@ -151,8 +151,8 @@ end
 macro matchable(expr)
   @assert expr.head == :struct
   name = expr.args[2]
-  if name isa Expr 
-    name.head === :(<:) && (name = name.args[1]) 
+  if name isa Expr
+    name.head === :(<:) && (name = name.args[1])
     name isa Expr && name.head === :curly && (name = name.args[1])
   end
   fields = filter(x -> !(x isa LineNumberNode), expr.args[3].args)
