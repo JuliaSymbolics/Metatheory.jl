@@ -104,7 +104,7 @@ function merge_analysis_data!(g, a::EClass, b::EClass)::Tuple{Bool,Bool}
     merged_a = (a.data == new_a_data)
     a.data = new_a_data
     (merged_a, b.data == new_a_data)
-  elseif to.data === nothing
+  elseif a.data === nothing
     a.data = b.data
     # a merged, b not merged
     (true, false)

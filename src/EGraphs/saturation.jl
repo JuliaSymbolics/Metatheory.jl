@@ -198,7 +198,6 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
 
-
       halt_reason = lock(MERGES_BUF_LOCK) do
         apply_rule!(bindings, g, rule, id, direction)
       end
