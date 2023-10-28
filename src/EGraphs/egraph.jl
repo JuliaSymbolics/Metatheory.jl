@@ -4,9 +4,14 @@
 
 abstract type AbstractENode end
 
+import Metatheory: maybelock!
+
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
+# TODO document bindings
+const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
+const DEFAULT_BUFFER_SIZE = 1048576
 
 struct ENodeLiteral <: AbstractENode
   value
@@ -193,11 +198,10 @@ mutable struct EGraph
   "If we use global buffers we may need to lock. Defaults to true."
   needslock::Bool
   "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
-  buffer::CircularDeque{Bindings}
-  buffer_lock::ReentrantLock
+  buffer::Vector{Bindings}
   "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
-  merges_buffer::CircularDeque{Tuple{Int,Int}}
-  merges_buffer_lock::ReentrantLock
+  merges_buffer::Vector{Tuple{Int,Int}}
+  lock::ReentrantLock
 end
 
 
@@ -205,13 +209,7 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph(;
-  needslock::Bool = true,
-  buffer::CircularDeque{Bindings} = BUFFER[],
-  buffer_lock::ReentrantLock      = BUFFER_LOCK,
-  merges_buffer::CircularDeque{Tuple{Int,Int}} = MERGES_BUF[],
-  merges_buffer_lock::ReentrantLock    = MERGES_BUF_LOCK
-  )
+function EGraph(; needslock::Bool = false, buffer_size = DEFAULT_BUFFER_SIZE)
   EGraph(
     IntDisjointSet(),
     Dict{EClassId,EClass}(),
@@ -224,9 +222,15 @@ function EGraph(;
     TermTypes(),
     0,
     0,
-    # 0
-    needslock, buffer, buffer_lock, merges_buffer, merges_buffer_lock
+    needslock,
+    Bindings[],
+    Tuple{Int,Int}[],
+    ReentrantLock(),
   )
+end
+
+function maybelock!(f::Function, g::EGraph)
+  g.needslock ? lock(f, g.buffer_lock) : f()
 end
 
 function EGraph(e; keepmeta = false, kwargs...)
