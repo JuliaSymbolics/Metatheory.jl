@@ -75,7 +75,8 @@ function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
       if !isequal(pass, getdata(eclass, analysis_ref, missing))
         setdata!(eclass, analysis_ref, pass)
         did_something = true
-        push!(g.pending, (eclass[1] => id))
+        modify!(analysis_ref, g, id)
+        push!(g.analysis_pending, (eclass[1] => id))
       end
     end
   end
@@ -88,6 +89,7 @@ function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
     end
   end
 
+  rebuild!(g)
   return true
 end
 
