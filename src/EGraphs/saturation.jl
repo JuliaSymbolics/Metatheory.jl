@@ -115,11 +115,11 @@ function eqsat_search!(
   g::EGraph,
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
-  report::SaturationReport
+  report::SaturationReport,
 )::Int
   n_matches = 0
 
-  lockbuffer!(g) do 
+  maybelock!(g) do
     empty!(g.buffer)
   end
 
@@ -170,20 +170,14 @@ function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
   nothing
 end
 
-function apply_rule!(
-  bindings::Bindings, g::EGraph, rule::EqualityRule, 
-  id::EClassId, direction::Int
-)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   push!(g.merges_buffer, (id, instantiate_enode!(bindings, g, pat_to_inst)))
   nothing
 end
 
 
-function apply_rule!(
-  bindings::Bindings, g::EGraph, 
-  rule::UnequalRule, id::EClassId, direction::Int
-)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
@@ -208,10 +202,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(
-  bindings::Bindings, g::EGraph, rule::DynamicRule, 
-  id::EClassId, direction::Int
-)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
   f = rule.rhs_fun
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
@@ -227,7 +218,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   @assert isempty(g.merges_buffer)
 
   @debug "APPLYING $(length(g.buffer)) matches"
-  lockbuffer!(g) do
+  maybelock!(g) do
     while !isempty(g.buffer)
 
       if reached(g, params.goal)
@@ -236,16 +227,14 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
         return
       end
 
-      bindings = popfirst!(g.buffer)
+      bindings = pop!(g.buffer)
       rule_idx, id = bindings[0]
       direction = sign(rule_idx)
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
 
 
-      halt_reason = lockmergesbuffer!(g) do
-        apply_rule!(bindings, g, rule, id, direction)
-      end
+      halt_reason = apply_rule!(bindings, g, rule, id, direction)
 
       if !isnothing(halt_reason)
         rep.reason = halt_reason
@@ -253,9 +242,9 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       end
     end
   end
-  lockmergesbuffer!(g) do
+  maybelock!(g) do
     while !isempty(g.merges_buffer)
-      (l, r) = popfirst!(g.merges_buffer)
+      (l, r) = pop!(g.merges_buffer)
       merge!(g, l, r)
     end
   end

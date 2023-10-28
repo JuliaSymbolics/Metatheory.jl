@@ -1,24 +1,5 @@
 using Base: ImmutableDict
 
-function lockbuffer!(f, graph)
-  if graph.needslock
-    lock(graph.buffer_lock) do
-      return f()
-    end
-  else
-    return f()
-  end
-end
-function lockmergesbuffer!(f, graph)
-  if graph.needslock
-    lock(graph.merges_buffer_lock) do
-      return f()
-    end
-  else
-    return f()
-  end
-end
-
 function binarize(e::T) where {T}
   !istree(e) && return e
   head = exprhead(e)
@@ -170,8 +151,8 @@ end
 macro matchable(expr)
   @assert expr.head == :struct
   name = expr.args[2]
-  if name isa Expr 
-    name.head === :(<:) && (name = name.args[1]) 
+  if name isa Expr
+    name.head === :(<:) && (name = name.args[1])
     name isa Expr && name.head === :curly && (name = name.args[1])
   end
   fields = filter(x -> !(x isa LineNumberNode), expr.args[3].args)
