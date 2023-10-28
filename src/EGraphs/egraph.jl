@@ -454,7 +454,29 @@ function process_unions!(g::EGraph)::Int
 
     while !isempty(g.analysis_pending)
       (node::ENode, eclass_id::EClassId) = pop!(g.analysis_pending)
-      eclass_id = find(g, eclass_id)
+
+      for an in values(g.analyses)
+        eclass_id = find(g, eclass_id)
+        eclass = g[eclass_id]
+
+        an === :metadata_analysis && continue
+
+        node_data = make(an, g, node)
+        if hasdata(eclass, an)
+          class_data = getdata(eclass, an)
+
+          joined_data = join(an, class_data, node_data)
+
+          if joined_data != class_data
+            @show "babaubaubauabuab"
+            setdata!(eclass, an, joined_data)
+            append!(g.analysis_pending, eclass.parent)
+            modify!(an, g, eclass_id)
+          end
+        elseif !islazy(an)
+          setdata!(eclass, an, node_data)
+        end
+      end
     end
   end
   n_unions
