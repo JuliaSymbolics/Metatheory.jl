@@ -24,8 +24,8 @@ Mid = @theory a begin
 end
 
 Massoc = @theory a b c begin
-  a * (b * c) --> (a * b) * c
-  (a * b) * c --> a * (b * c)
+  a * (b * c) == (a * b) * c
+  # (a * b) * c --> a * (b * c)
 end
 
 

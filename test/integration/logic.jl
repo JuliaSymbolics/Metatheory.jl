@@ -181,5 +181,5 @@ end
   @test @areequal t true (!(p || q) == (!p && !q))
 
   # Consensus theorem
-  areequal(t, :((x && y) || (!x && z) || (y && z)), :((x && y) || (!x && z)); params = params)
+  @test areequal(t, :((x && y) || (!x && z) || (y && z)), :((x && y) || (!x && z)); params = params)
 end

@@ -468,18 +468,52 @@ function process_unions!(g::EGraph)::Int
           joined_data = join(an, class_data, node_data)
 
           if joined_data != class_data
-            @show "babaubaubauabuab"
             setdata!(eclass, an, joined_data)
-            append!(g.analysis_pending, eclass.parent)
             modify!(an, g, eclass_id)
+            append!(g.analysis_pending, eclass.parents)
           end
         elseif !islazy(an)
           setdata!(eclass, an, node_data)
+          modify!(an, g, eclass_id)
         end
       end
     end
   end
   n_unions
+end
+
+function check_memo(g::EGraph)::Bool
+  test_memo = Dict{ENode,EClassId}()
+  for (id, class) in g.classes
+    @assert id == class.id
+    for node in class.nodes
+      if haskey(test_memo, node)
+        old_id = test_memo[node]
+        test_memo[node] = id
+        @assert find(g, old_id) == find(g, id) "Unexpected equivalence $node $(g[find(g, id)].nodes) $(g[find(g, old_id)].nodes)"
+      end
+    end
+  end
+
+  for (node, id) in test_memo
+    @assert id == find(g, id)
+    @assert id == find(g, g.memo[node])
+  end
+
+  true
+end
+
+function check_analysis(g)
+  for (id, eclass) in g.classes
+    for an in values(g.analyses)
+      an == :metadata_analysis && continue
+      islazy(an) || (@assert hasdata(eclass, an))
+      hasdata(eclass, an) || continue
+      pass = mapreduce(x -> make(an, g, x), (x, y) -> join(an, x, y), eclass)
+      @assert getdata(eclass, an) == pass
+    end
+  end
+  true
 end
 
 """
@@ -491,6 +525,8 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
+  @assert check_memo(g)
+  @assert check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
@@ -516,8 +552,6 @@ function repair!(g::EGraph, id::EClassId)
 
   ecdata.parents = collect(new_parents)
 
-  # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
-
   # Analysis invariant maintenance
   for an in values(g.analyses)
     hasdata(ecdata, an) && modify!(an, g, id)
@@ -542,9 +576,6 @@ function repair!(g::EGraph, id::EClassId)
   end
 
   unique!(ecdata.nodes)
-
-  # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
-
 end
 
 
