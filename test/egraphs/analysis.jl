@@ -57,15 +57,14 @@ comm_monoid = @theory begin
   ~a * (~b * ~c) --> (~a * ~b) * ~c
 end
 
-G = EGraph(:(3 * 4))
-analyze!(G, :numberfold)
+g = EGraph(:(3 * 4))
+analyze!(g, :numberfold)
 
-# exit(0)
 
 @testset "Basic Constant Folding Example - Commutative Monoid" begin
-  @test (true == @areequalg G comm_monoid 3 * 4 12)
+  @test (true == @areequalg g comm_monoid 3 * 4 12)
 
-  @test (true == @areequalg G comm_monoid 3 * 4 12 4 * 3 6 * 2)
+  @test (true == @areequalg g comm_monoid 3 * 4 12 4 * 3 6 * 2)
 end
 
 @testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
@@ -177,15 +176,14 @@ end
   @testset "Extraction - Adding analysis after saturation" begin
     G = EGraph(:(3 * 4))
     addexpr!(G, 12)
-    saturate!(G, t)
     addexpr!(G, :(a * 2))
-    saturate!(G, t)
+    # saturate!(G, t)
+    # saturate!(G, t)
 
     saturate!(G, t)
 
     @test (12 == extract!(G, astsize))
 
-    # for i ∈ 1:100
     ex = :(a * 3 * b * 4)
     G = EGraph(ex)
     analyze!(G, :numberfold)
@@ -194,16 +192,18 @@ end
 
     extr = extract!(G, astsize)
 
-    @test extr == :((12 * a) * b) ||
-          extr == :(12 * (a * b)) ||
-          extr == :(a * (b * 12)) ||
-          extr == :((a * b) * 12) ||
-          extr == :((12a) * b) ||
-          extr == :(a * (12b)) ||
-          extr == :((b * (12a))) ||
-          extr == :((b * 12) * a) ||
-          extr == :((b * a) * 12) ||
-          extr == :(b * (a * 12))
+    @test extr ∈ (
+      :((12 * a) * b),
+      :(12 * (a * b)),
+      :(a * (b * 12)),
+      :((a * b) * 12),
+      :((12a) * b),
+      :(a * (12b)),
+      :((b * (12a))),
+      :((b * 12) * a),
+      :((b * a) * 12),
+      :(b * (a * 12)),
+    )
   end
 
 
