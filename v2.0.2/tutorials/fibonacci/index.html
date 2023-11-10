@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Benchmarking Fibonacci. E-Graphs memoize computation. · Metatheory.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">Metatheory.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Metatheory.jl 2.0</a></li><li><a class="tocitem" href="../../rewrite/">Classical Term Rewriting</a></li><li><a class="tocitem" href="../../egraphs/">EGraphs and Equality Saturation</a></li><li><a class="tocitem" href="../../visualizing/">Visualizing E-Graphs</a></li><li><a class="tocitem" href="../../api/">API Documentation</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../custom_types/">Interfacing with Metatheory.jl</a></li><li class="is-active"><a class="tocitem" href>Benchmarking Fibonacci. E-Graphs memoize computation.</a></li><li><a class="tocitem" href="../mu/">The MU Puzzle</a></li><li><a class="tocitem" href="../while_interpreter/">Write a very tiny Turing Complete language in Julia.</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Benchmarking Fibonacci. E-Graphs memoize computation.</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Benchmarking Fibonacci. E-Graphs memoize computation.</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/test/tutorials/fibonacci.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Benchmarking-Fibonacci.-E-Graphs-memoize-computation."><a class="docs-heading-anchor" href="#Benchmarking-Fibonacci.-E-Graphs-memoize-computation.">Benchmarking Fibonacci. E-Graphs memoize computation.</a><a id="Benchmarking-Fibonacci.-E-Graphs-memoize-computation.-1"></a><a class="docs-heading-anchor-permalink" href="#Benchmarking-Fibonacci.-E-Graphs-memoize-computation." title="Permalink"></a></h1><pre><code class="language-julia">using Metatheory
+using Test
+
+function fib end
+
+fibo = @theory x y n begin
+  x::Int + y::Int =&gt; x + y
+  fib(n::Int) =&gt; (n &lt; 2 ? n : :(fib($(n - 1)) + fib($(n - 2))))
+end
+
+params = SaturationParams(timeout = 60)</code></pre><pre class="documenter-example-output">SaturationParams(60, 0x0000000000000000, 5000, 15000, nothing, Metatheory.EGraphs.var&quot;#30#32&quot;(), Metatheory.EGraphs.Schedulers.BackoffScheduler, (), false, true)</pre><p>We run the saturation twice to see a result that does not include compilation time.</p><pre><code class="language-julia">g = EGraph(:(fib(10)))
+saturate!(g, fibo, params)</code></pre><pre class="documenter-example-output">SaturationReport
+=================
+	Stop Reason: saturated
+	Iterations: 16
+	EGraph Size: 15 eclasses, 54 nodes
+ ────────────────────────────────────────────────────────────────────
+                            Time                    Allocations      
+                   ───────────────────────   ────────────────────────
+ Tot / % measured:      398ms /  12.4%           24.5MiB /   7.9%    
+
+ Section   ncalls     time    %tot     avg     alloc    %tot      avg
+ ────────────────────────────────────────────────────────────────────
+ Search        16   31.7ms   64.5%  1.98ms   1.32MiB   68.4%  84.3KiB
+   2           16   31.5ms   64.2%  1.97ms   1.27MiB   66.0%  81.4KiB
+   1           16    129μs    0.3%  8.08μs   43.2KiB    2.2%  2.70KiB
+ Apply         16   17.2ms   35.1%  1.08ms    553KiB   28.1%  34.6KiB
+ Rebuild       16    234μs    0.5%  14.6μs   69.4KiB    3.5%  4.34KiB
+ ────────────────────────────────────────────────────────────────────
+</pre><p>That&#39;s fast!</p><pre><code class="language-julia">z = EGraph(:(fib(10)))
+saturate!(z, fibo, params)</code></pre><pre class="documenter-example-output">SaturationReport
+=================
+	Stop Reason: saturated
+	Iterations: 16
+	EGraph Size: 15 eclasses, 54 nodes
+ ────────────────────────────────────────────────────────────────────
+                            Time                    Allocations      
+                   ───────────────────────   ────────────────────────
+ Tot / % measured:     1.46ms /  84.6%            575KiB /  87.3%    
+
+ Section   ncalls     time    %tot     avg     alloc    %tot      avg
+ ────────────────────────────────────────────────────────────────────
+ Apply         16    819μs   66.3%  51.2μs    332KiB   66.2%  20.7KiB
+ Rebuild       16    209μs   16.9%  13.1μs   69.4KiB   13.8%  4.34KiB
+ Search        16    208μs   16.8%  13.0μs    100KiB   20.0%  6.27KiB
+   2           16   97.3μs    7.9%  6.08μs   53.0KiB   10.6%  3.31KiB
+   1           16   96.7μs    7.8%  6.04μs   43.2KiB    8.6%  2.70KiB
+ ────────────────────────────────────────────────────────────────────
+</pre><p>We can test that the result is correct.</p><pre><code class="language-julia">@testset &quot;Fibonacci&quot; begin
+  @test 55 == extract!(g, astsize)
+end</code></pre><pre class="documenter-example-output">Test.DefaultTestSet(&quot;Fibonacci&quot;, Any[], 1, false, false, true, 1.699627293090282e9, 1.699627293124442e9, false)</pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../custom_types/">« Interfacing with Metatheory.jl</a><a class="docs-footer-nextpage" href="../mu/">The MU Puzzle »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 10 November 2023 14:41">Friday 10 November 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
