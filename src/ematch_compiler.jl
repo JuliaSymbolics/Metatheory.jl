@@ -68,11 +68,11 @@ Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || 
 Base.@pure @inline checkop(x, op) = isequal(x, op)
 
 function canbind(p::PatTerm)
-  eh = exprhead(p)
+  eh = head(p)
   op = operation(p)
   ar = arity(p)
   function canbind(n)
-    istree(n) && exprhead(n) == eh && checkop(op, operation(n)) && arity(n) == ar
+    istree(n) && head(n) == eh && checkop(op, operation(n)) && arity(n) == ar
   end
 end
 

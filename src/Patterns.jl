@@ -10,6 +10,12 @@ Abstract type representing a pattern used in all the various pattern matching ba
 """
 abstract type AbstractPat end
 
+struct PatHead
+  head
+end
+
+TermInterface.makehead(::Type{ExprHead}, ph::PatHead) = ExprHead(ph.head)
+TermInterface.makehead(::Type{PatHead}, eh::ExprHead) = PatHead(eh.head)
 
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
@@ -76,23 +82,21 @@ on terms of the same `arity` and with the same
 function symbol `operation` and expression head `exprhead`.
 """
 struct PatTerm <: AbstractPat
-  exprhead::Any
-  operation::Any
-  args::Vector
-  PatTerm(eh, op, args) = new(eh, op, args) #Ref{UInt}(0))
+  head::PatHead
+  tail::Vector
 end
+PatTerm(eh, tail...) = PatTerm(eh, collect(tail))
 TermInterface.istree(::PatTerm) = true
-TermInterface.exprhead(e::PatTerm) = e.exprhead
-TermInterface.operation(p::PatTerm) = p.operation
-TermInterface.arguments(p::PatTerm) = p.args
-TermInterface.arity(p::PatTerm) = length(arguments(p))
+TermInterface.head(p::PatTerm)::PatHead = p.head
+TermInterface.tail(p::PatTerm) = p.tail
+TermInterface.operation(p::PatTerm) = first(p.tail)
+TermInterface.arguments(p::PatTerm) = p.tail[2:end]
+TermInterface.arity(p::PatTerm) = length(p.tail) - 1
 TermInterface.metadata(p::PatTerm) = nothing
 
-function TermInterface.similarterm(x::PatTerm, head, args, symtype = nothing; metadata = nothing, exprhead = :call)
-  PatTerm(exprhead, head, args)
-end
+TermInterface.maketerm(head::PatHead, tail; type = Any, metadata = nothing) = PatTerm(head, tail...)
 
-isground(p::PatTerm) = all(isground, p.args)
+isground(p::PatTerm) = all(isground, p.tail)
 
 
 # ==============================================
@@ -122,7 +126,7 @@ setdebrujin!(p, pvars) = nothing
 
 function setdebrujin!(p::PatTerm, pvars)
   setdebrujin!(operation(p), pvars)
-  foreach(x -> setdebrujin!(x, pvars), p.args)
+  foreach(x -> setdebrujin!(x, pvars), p.tail)
 end
 
 
@@ -131,13 +135,14 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = similarterm(Expr(:call, :x), operation(x), map(to_expr, arguments(x)); exprhead = exprhead(x))
+to_expr(x::PatTerm) = maketerm(makehead(ExprHead, head(x)), map(to_expr, tail(x)))
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 
 
 # include("rules/patterns.jl")
 export AbstractPat
+export PatHead
 export PatVar
 export PatTerm
 export PatSegment

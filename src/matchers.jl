@@ -138,35 +138,30 @@ function matcher(term::PatTerm)
   end
 end
 
-function TermInterface.similarterm(
-  x::Expr,
-  head::Union{Function,DataType},
-  args,
-  symtype = nothing;
-  metadata = nothing,
-  exprhead = exprhead(x),
-)
-  similarterm(x, nameof(head), args, symtype; metadata, exprhead)
-end
+# function TermInterface.similarterm(
+#   x::Expr,
+#   head::Union{Function,DataType},
+#   args,
+#   symtype = nothing;
+#   metadata = nothing,
+#   exprhead = exprhead(x),
+# )
+#   similarterm(x, nameof(head), args, symtype; metadata, exprhead)
+# end
 
 function instantiate(left, pat::PatTerm, mem)
   args = []
-  for parg in arguments(pat)
+  for parg in tail(pat)
     enqueue = parg isa PatSegment ? append! : push!
     enqueue(args, instantiate(left, parg, mem))
   end
-  reference = istree(left) ? left : Expr(:call, :_)
-  similarterm(reference, operation(pat), args; exprhead = exprhead(pat))
+  reference_head = istree(left) ? head(left) : ExprHead
+  maketerm(makehead(typeof(reference_head), head(pat)), tail(pat))
 end
 
-instantiate(left, pat::Any, mem) = pat
+instantiate(_, pat::Any, mem) = pat
 
-instantiate(left, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
+instantiate(_, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
 
-function instantiate(left, pat::PatVar, mem)
-  mem[pat.idx]
-end
+instantiate(_, pat::Union{PatVar,PatSegment}, mem) = mem[pat.idx]
 
-function instantiate(left, pat::PatSegment, mem)
-  mem[pat.idx]
-end
