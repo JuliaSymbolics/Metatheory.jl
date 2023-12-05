@@ -60,9 +60,9 @@ import Base.Cartesian: inlineanonymous
 
 tryinlineanonymous(x) = nothing
 function tryinlineanonymous(ex::Expr)
-  exprhead(ex) != :call && return nothing
+  ex.head != :call && return nothing
   f = operation(ex)
-  (!(f isa Expr) || exprhead(f) !== :->) && return nothing
+  (!(f isa Expr) || f.head !== :->) && return nothing
   arg = arguments(ex)[1]
   try
     return inlineanonymous(f, arg)

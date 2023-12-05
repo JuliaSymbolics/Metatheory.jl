@@ -15,6 +15,7 @@ struct PatHead
 end
 TermInterface.head_symbol(p::PatHead) = p.head
 
+PatHead(p::PatHead) = error("recursive!")
 
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
@@ -76,21 +77,28 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
-Term patterns will match
-on terms of the same `arity` and with the same 
-function symbol `operation` and expression head `exprhead`.
+Term patterns will match on terms of the same `arity` and with the same function
+symbol `operation` and expression head `head.head`.
 """
 struct PatTerm <: AbstractPat
   head::PatHead
   tail::Vector
+  PatTerm(h, t::Vector) = new(h, t)
 end
+PatTerm(eh, op) = PatTerm(eh, [op])
 PatTerm(eh, tail...) = PatTerm(eh, collect(tail))
 TermInterface.istree(::PatTerm) = true
 TermInterface.head(p::PatTerm)::PatHead = p.head
 TermInterface.tail(p::PatTerm) = p.tail
-TermInterface.operation(p::PatTerm) = first(p.tail)
-TermInterface.arguments(p::PatTerm) = p.tail[2:end]
-TermInterface.arity(p::PatTerm) = length(p.tail) - 1
+function TermInterface.operation(p::PatTerm)
+  hs = head_symbol(head(p))
+  hs == :call ? first(p.tail) : hs
+end
+function TermInterface.arguments(p::PatTerm)
+  hs = head_symbol(head(p))
+  hs == :call ? p.tail[2:end] : p.tail
+end
+TermInterface.arity(p::PatTerm) = length(arguments(p))
 TermInterface.metadata(p::PatTerm) = nothing
 
 TermInterface.maketerm(head::PatHead, tail; type = Any, metadata = nothing) = PatTerm(head, tail...)
