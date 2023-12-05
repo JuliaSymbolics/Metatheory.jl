@@ -84,6 +84,7 @@ end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   h = ex.head
+  ph = PatHead(h)
 
   op = operation(ex)
   # Retrieve the function object if available
@@ -106,7 +107,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm(PatHead(:call), $(function_object_or_quote(op, mod)), $(patargs...)))
+      :($PatTerm($ph, $(function_object_or_quote(op, mod)), $(patargs...)))
     end
 
   elseif h === :...
@@ -116,12 +117,12 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   elseif h === :ref
     # getindex 
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm(PatHead(:ref), getindex, $(patargs...)))
+    :($PatTerm($ph, getindex, $(patargs...)))
   elseif h === :$
     args[1]
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm($(PatHead(QuoteNode(head))), $(function_object_or_quote(op, mod)), $(patargs...)))
+    :($PatTerm($ph, $(patargs...)))
   end
 end
 

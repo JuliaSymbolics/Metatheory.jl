@@ -13,9 +13,8 @@ abstract type AbstractPat end
 struct PatHead
   head
 end
+TermInterface.head_symbol(p::PatHead) = p.head
 
-TermInterface.makehead(::Type{ExprHead}, ph::PatHead) = ExprHead(ph.head)
-TermInterface.makehead(::Type{PatHead}, eh::ExprHead) = PatHead(eh.head)
 
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
@@ -135,7 +134,7 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = maketerm(makehead(ExprHead, head(x)), map(to_expr, tail(x)))
+to_expr(x::PatTerm) = maketerm(ExprHead(head_symbol(head(x))), to_expr.(tail(x)))
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 

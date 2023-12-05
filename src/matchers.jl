@@ -93,11 +93,11 @@ end
 # Slows compile time down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object.
 # Execution time should not be affected.
 # and SymbolicUtils-like objects that store function references as operations.
-function head_matcher(f::Union{Function,DataType,UnionAll})
-  checkhead(x) = isequal(x, f) || isequal(x, nameof(f))
-  function head_matcher(next, data, bindings)
+function operation_matcher(f::Union{Function,DataType,UnionAll})
+  checkop(x) = isequal(x, f) || isequal(x, nameof(f))
+  function operation_matcher(next, data, bindings)
     h = car(data)
-    if islist(data) && checkhead(h)
+    if islist(data) && checkop(h)
       next(bindings, 1)
     else
       nothing
@@ -105,11 +105,27 @@ function head_matcher(f::Union{Function,DataType,UnionAll})
   end
 end
 
-head_matcher(x) = matcher(x)
+operation_matcher(x) = matcher(x)
+
+function head_matcher(x)
+  term_head_symbol = head_symbol(x)
+  function head_matcher(next, data, bindings)
+    islist(data) && isequal(head_symbol(car(data)), term_head_symbol) ? next(bindings, 1) : nothing
+  end
+end
 
 function matcher(term::PatTerm)
   op = operation(term)
-  matchers = (head_matcher(op), map(matcher, arguments(term))...)
+  hm = head_matcher(head(term))
+  # Hacky solution for function objects matching against their `nameof`
+  matchers = if head(term) == PatHead(:call)
+    [hm; operation_matcher(op); map(matcher, arguments(term))]
+  else
+    [hm; map(matcher, tail(term))]
+  end
+
+  @show matchers
+
   function term_matcher(success, data, bindings)
     !islist(data) && return nothing
     !istree(car(data)) && return nothing
@@ -150,18 +166,18 @@ end
 # end
 
 function instantiate(left, pat::PatTerm, mem)
-  args = []
+  ntail = []
   for parg in tail(pat)
-    enqueue = parg isa PatSegment ? append! : push!
-    enqueue(args, instantiate(left, parg, mem))
+    instantiate_arg!(ntail, left, parg, mem)
   end
   reference_head = istree(left) ? head(left) : ExprHead
-  maketerm(makehead(typeof(reference_head), head(pat)), tail(pat))
+  maketerm(typeof(reference_head)(head_symbol(head(pat))), ntail)
 end
 
+instantiate_arg!(acc, left, parg::PatSegment, mem) = append!(acc, instantiate(left, parg, mem))
+instantiate_arg!(acc, left, parg, mem) = push!(acc, instantiate(left, parg, mem))
+
 instantiate(_, pat::Any, mem) = pat
-
-instantiate(_, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
-
 instantiate(_, pat::Union{PatVar,PatSegment}, mem) = mem[pat.idx]
+instantiate(_, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
 
