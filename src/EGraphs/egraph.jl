@@ -77,9 +77,7 @@ mutable struct EClass
   data::AnalysisData
 end
 
-function toexpr(n::ENodeTerm)
-  Expr(:call, :ENode, head(n), operation(n), arguments(n))
-end
+toexpr(n::ENodeTerm) = Expr(:call, :ENode, head(n), operation(n), arguments(n))
 
 function Base.show(io::IO, x::ENodeTerm)
   print(io, toexpr(x))

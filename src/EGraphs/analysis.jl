@@ -150,9 +150,9 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
     children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
     meta = getdata(eclass, :metadata_analysis, nothing)
 
-    operation(n) == :(->) && error("diocane")
-
-    maketerm(head(n), [operation(n); collect(children)]; metadata = meta)
+    h = head(n)
+    args = head_symbol(h) == :call ? [operation(n); children...] : children
+    maketerm(h, args; metadata = meta)
   else
     error("Unknown ENode Type $(typeof(n))")
   end
