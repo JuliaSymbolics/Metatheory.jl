@@ -194,7 +194,6 @@ function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
     end
     if istree(x)
       x = p.maketerm(head(x), map(PassThrough(p), tail(x)))
-      @show x
     end
     return ord === :post ? p.rw(x) : x
   else
@@ -218,7 +217,6 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
       end
       ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, tail(x))
       t = p.maketerm(head(x), ntail)
-      @show t
     end
     return ord === :post ? p.rw(t) : t
   else

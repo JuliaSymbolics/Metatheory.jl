@@ -124,8 +124,6 @@ function matcher(term::PatTerm)
     [hm; map(matcher, tail(term))]
   end
 
-  @show matchers
-
   function term_matcher(success, data, bindings)
     !islist(data) && return nothing
     !istree(car(data)) && return nothing

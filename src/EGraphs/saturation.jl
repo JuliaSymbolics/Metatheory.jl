@@ -155,14 +155,13 @@ end
 instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
 instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
 function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
-  eh = exprhead(p)
   op = operation(p)
   ar = arity(p)
   args = arguments(p)
-  T = gettermtype(g, op, ar)
   # TODO add predicate check `quotes_operation`
-  new_op = T == Expr && op isa Union{Function,DataType} ? nameof(op) : op
-  add!(g, ENodeTerm(eh, new_op, T, map(arg -> instantiate_enode!(bindings, g, arg), args)))
+  new_op = g.head_type == ExprHead && op isa Union{Function,DataType} ? nameof(op) : op
+  eh = g.head_type(head_symbol(head(p)))
+  add!(g, ENodeTerm(eh, new_op, map(arg -> instantiate_enode!(bindings, g, arg), args)))
 end
 
 function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)

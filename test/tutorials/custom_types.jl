@@ -96,11 +96,9 @@ end
 # Let's create an example expression and e-graph  
 hcall = MyExpr(:h, [4], "hello")
 ex = MyExpr(:f, [MyExpr(:z, [2]), hcall])
-g = EGraph(ex; keepmeta = true)
-
-# We use `settermtype!` on an existing e-graph to inform the system about 
+# We use `head_type` kwarg on an existing e-graph to inform the system about 
 # the *default* type of expressions that we want newly added expressions to have.  
-settermtype!(g, MyExpr)
+g = EGraph(ex; keepmeta = true, head_type = MyExpr)
 
 # Now let's test that it works.
 saturate!(g, t)

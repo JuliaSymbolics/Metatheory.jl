@@ -149,8 +149,10 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
   elseif n isa ENodeTerm
     children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
     meta = getdata(eclass, :metadata_analysis, nothing)
-    T = symtype(n)
-    egraph_reconstruct_expression(T, operation(n), collect(children); metadata = meta, exprhead = exprhead(n))
+
+    operation(n) == :(->) && error("diocane")
+
+    maketerm(head(n), [operation(n); collect(children)]; metadata = meta)
   else
     error("Unknown ENode Type $(typeof(n))")
   end
