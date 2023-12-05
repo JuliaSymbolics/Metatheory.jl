@@ -114,10 +114,10 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     makepattern(args[1], pvars, slots, mod, true)
   elseif h == :(::) && args[1] in slots
     splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-  elseif h === :ref
-    # getindex 
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm($ph, getindex, $(patargs...)))
+    # elseif h === :ref
+    #   # getindex 
+    #   patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+    #   :($PatTerm($ph, getindex, $(patargs...)))
   elseif h === :$
     args[1]
   else
@@ -394,7 +394,7 @@ macro theory(args...)
   e = rmlines(e)
   # e = interp_dollar(e, __module__)
 
-  if head(e) == ExprHead(:block)
+  if e.head == :block
     ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
     esc(ee)
   else

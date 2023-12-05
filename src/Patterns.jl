@@ -92,7 +92,9 @@ TermInterface.head(p::PatTerm)::PatHead = p.head
 TermInterface.tail(p::PatTerm) = p.tail
 function TermInterface.operation(p::PatTerm)
   hs = head_symbol(head(p))
-  hs == :call ? first(p.tail) : hs
+  hs == :call && return first(p.tail)
+  # hs == :ref && return getindex
+  hs
 end
 function TermInterface.arguments(p::PatTerm)
   hs = head_symbol(head(p))

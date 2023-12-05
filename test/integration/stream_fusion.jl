@@ -82,7 +82,7 @@ function stream_optimize(ex)
   g = EGraph(ex)
   saturate!(g, array_theory, params)
   ex = extract!(g, astsize) # TODO cost fun with asymptotic complexity
-  ex = Fixpoint(Postwalk(Chain([tryinlineanonymous, normalize_theory..., fold_theory...])))(ex)
+  ex = Fixpoint(Postwalk(Chain([tryinlineanonymous; normalize_theory; fold_theory])))(ex)
   return ex
 end
 
