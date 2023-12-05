@@ -5,6 +5,7 @@ using DataStructures
 using Base.Meta
 using Reexport
 using TermInterface
+using TermInterface: head, tail
 
 @inline alwaystrue(x) = true
 

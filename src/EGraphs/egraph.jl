@@ -22,7 +22,7 @@ end
 Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
 
 TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.exprhead(n::ENodeLiteral) = nothing
+TermInterface.head(n::ENodeLiteral) = nothing
 TermInterface.operation(n::ENodeLiteral) = n.value
 TermInterface.arity(n::ENodeLiteral) = 0
 
@@ -37,12 +37,12 @@ end
 
 
 mutable struct ENodeTerm <: AbstractENode
-  exprhead::Union{Symbol,Nothing}
+  head::Any
   operation::Any
   symtype::Type
   args::Vector{EClassId}
   hash::Ref{UInt} # hash cache
-  ENodeTerm(exprhead, operation, symtype, c_ids) = new(exprhead, operation, symtype, c_ids, Ref{UInt}(0))
+  ENodeTerm(head, operation, symtype, c_ids) = new(head, operation, symtype, c_ids, Ref{UInt}(0))
 end
 
 
@@ -53,7 +53,7 @@ end
 
 TermInterface.istree(n::ENodeTerm) = true
 TermInterface.symtype(n::ENodeTerm) = n.symtype
-TermInterface.exprhead(n::ENodeTerm) = n.exprhead
+TermInterface.head(n::ENodeTerm) = n.head
 TermInterface.operation(n::ENodeTerm) = n.operation
 TermInterface.arguments(n::ENodeTerm) = n.args
 TermInterface.arity(n::ENodeTerm) = length(n.args)
