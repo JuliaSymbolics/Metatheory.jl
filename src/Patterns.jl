@@ -82,30 +82,30 @@ symbol `operation` and expression head `head.head`.
 """
 struct PatTerm <: AbstractPat
   head::PatHead
-  tail::Vector
+  children::Vector
   PatTerm(h, t::Vector) = new(h, t)
 end
 PatTerm(eh, op) = PatTerm(eh, [op])
-PatTerm(eh, tail...) = PatTerm(eh, collect(tail))
+PatTerm(eh, children...) = PatTerm(eh, collect(children))
 TermInterface.istree(::PatTerm) = true
 TermInterface.head(p::PatTerm)::PatHead = p.head
-TermInterface.tail(p::PatTerm) = p.tail
+TermInterface.children(p::PatTerm) = p.children
 function TermInterface.operation(p::PatTerm)
   hs = head_symbol(head(p))
-  hs == :call && return first(p.tail)
+  hs == :call && return first(p.children)
   # hs == :ref && return getindex
   hs
 end
 function TermInterface.arguments(p::PatTerm)
   hs = head_symbol(head(p))
-  hs == :call ? p.tail[2:end] : p.tail
+  hs == :call ? p.children[2:end] : p.children
 end
 TermInterface.arity(p::PatTerm) = length(arguments(p))
 TermInterface.metadata(p::PatTerm) = nothing
 
-TermInterface.maketerm(head::PatHead, tail; type = Any, metadata = nothing) = PatTerm(head, tail...)
+TermInterface.maketerm(head::PatHead, children; type = Any, metadata = nothing) = PatTerm(head, children...)
 
-isground(p::PatTerm) = all(isground, p.tail)
+isground(p::PatTerm) = all(isground, p.children)
 
 
 # ==============================================
@@ -135,7 +135,7 @@ setdebrujin!(p, pvars) = nothing
 
 function setdebrujin!(p::PatTerm, pvars)
   setdebrujin!(operation(p), pvars)
-  foreach(x -> setdebrujin!(x, pvars), p.tail)
+  foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
 
@@ -144,7 +144,7 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = maketerm(ExprHead(head_symbol(head(x))), to_expr.(tail(x)))
+to_expr(x::PatTerm) = maketerm(ExprHead(head_symbol(head(x))), to_expr.(children(x)))
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 

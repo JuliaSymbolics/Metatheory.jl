@@ -60,8 +60,8 @@ TermInterface.head(e::MyExpr) = MyExprHead(:call)
 TermInterface.operation(e::MyExpr) = e.op
 # `arguments` tells the system how to extract the children nodes.
 TermInterface.arguments(e::MyExpr) = e.args
-# The tail function gives us everything that is "after" the head:
-TermInterface.tail(e::MyExpr) = [operation(e); arguments(e)]
+# The children function gives us everything that is "after" the head:
+TermInterface.children(e::MyExpr) = [operation(e); arguments(e)]
 
 # While for common usage you will always define `head_symbol` to be `:call`, 
 # there are some cases where you would like to match your expression types 
@@ -83,10 +83,10 @@ EGraphs.preprocess(e::MyExpr) = MyExpr(e.op, e.args, uppercase(e.foo))
 # `TermInterface` provides a very important function called `maketerm`. 
 # It is used to create a term that is in the same closure of types of `x`. 
 # Given an existing head `h`, it is used to  instruct Metatheory how to recompose 
-# a similar expression, given some children in `tail` 
+# a similar expression, given some children in `children` 
 # and additionally, `metadata` and `type`, in case you are recomposing an `Expr`.
-TermInterface.maketerm(h::MyExprHead, tail; type = Any, metadata = nothing) =
-  MyExpr(first(tail), tail[2:end], isnothing(metadata) ? "" : metadata)
+TermInterface.maketerm(h::MyExprHead, children; type = Any, metadata = nothing) =
+  MyExpr(first(children), children[2:end], isnothing(metadata) ? "" : metadata)
 
 # ## Theory Example
 

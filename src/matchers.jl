@@ -121,7 +121,7 @@ function matcher(term::PatTerm)
   matchers = if head(term) == PatHead(:call)
     [hm; operation_matcher(op); map(matcher, arguments(term))]
   else
-    [hm; map(matcher, tail(term))]
+    [hm; map(matcher, children(term))]
   end
 
   function term_matcher(success, data, bindings)
@@ -165,7 +165,7 @@ end
 
 function instantiate(left, pat::PatTerm, mem)
   ntail = []
-  for parg in tail(pat)
+  for parg in children(pat)
     instantiate_arg!(ntail, left, parg, mem)
   end
   reference_head = istree(left) ? head(left) : ExprHead

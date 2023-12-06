@@ -193,7 +193,7 @@ function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
       x = p.rw(x)
     end
     if istree(x)
-      x = p.maketerm(head(x), map(PassThrough(p), tail(x)))
+      x = p.maketerm(head(x), map(PassThrough(p), children(x)))
     end
     return ord === :post ? p.rw(x) : x
   else
@@ -208,14 +208,14 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
       x = p.rw(x)
     end
     if istree(x)
-      _args = map(tail(x)) do arg
+      _args = map(children(x)) do arg
         if node_count(arg) > p.thread_cutoff
           Threads.@spawn p(arg)
         else
           p(arg)
         end
       end
-      ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, tail(x))
+      ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, children(x))
       t = p.maketerm(head(x), ntail)
     end
     return ord === :post ? p.rw(t) : t
