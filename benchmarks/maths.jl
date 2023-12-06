@@ -1,4 +1,5 @@
 # include("eggify.jl")
+using Metatheory
 using Metatheory.Library
 using Metatheory.EGraphs.Schedulers
 
@@ -72,11 +73,13 @@ end
 
 params = SaturationParams(timeout = 20, schedulerparams = (1000, 5))
 
+# params = SaturationParams(; timer = false)
+
 params = SaturationParams()
 
 simplify(:(a + b + (0 * c) + d), params)
 
-@profview simplify(:(a + b + (0 * c) + d), params)
+# @profview simplify(:(a + b + (0 * c) + d), params)
 
 @profview_allocs simplify(:(a + b + (0 * c) + d), params)
 
@@ -87,3 +90,5 @@ simplify(:(a + b + (0 * c) + d), params)
 open("src/main.rs", "w") do f
   write(f, rust_code(theory, query))
 end
+
+@benchmark simplify(:(a + b + (0 * c) + d), params)

@@ -6,7 +6,7 @@
 
 import Metatheory: maybelock!
 
-const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
+const AnalysisData = NamedTuple{N,<:Tuple{Vararg{Ref}}} where {N}
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
 # TODO document bindings
@@ -97,7 +97,7 @@ end
 
 function merge_analysis_data!(g, a::EClass, b::EClass)::Tuple{Bool,Bool}
   if !isempty(a.data) && !isempty(b.data)
-    new_a_data = merge(a.data, b.data)
+    new_a_data = Base.merge(a.data, b.data)
     for analysis_name in keys(b.data)
       analysis_ref = g.analyses[analysis_name]
       if hasproperty(a.data, analysis_name)
