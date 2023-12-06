@@ -152,17 +152,6 @@ function matcher(term::PatTerm)
   end
 end
 
-# function TermInterface.similarterm(
-#   x::Expr,
-#   head::Union{Function,DataType},
-#   args,
-#   symtype = nothing;
-#   metadata = nothing,
-#   exprhead = exprhead(x),
-# )
-#   similarterm(x, nameof(head), args, symtype; metadata, exprhead)
-# end
-
 function instantiate(left, pat::PatTerm, mem)
   ntail = []
   for parg in children(pat)

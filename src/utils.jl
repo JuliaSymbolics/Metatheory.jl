@@ -8,7 +8,7 @@ function binarize(e::T) where {T}
     args = arguments(e)
     meta = metadata(e)
     if op ∈ binarize_ops && arity(e) > 2
-      return foldl((x, y) -> similarterm(e, op, [x, y], symtype(e); metadata = meta, exprhead = head), args)
+      return foldl((x, y) -> maketerm(head, [op, x, y]; metadata = meta, type = symtype(e)), args)
     end
   end
   return e
@@ -19,16 +19,16 @@ Recursive version of binarize
 """
 function binarize_rec(e::T) where {T}
   !istree(e) && return e
-  head = exprhead(e)
+  head = head(e)
   op = operation(e)
   args = map(binarize_rec, arguments(e))
   meta = metadata(e)
   if head == :call
     if op ∈ binarize_ops && arity(e) > 2
-      return foldl((x, y) -> similarterm(e, op, [x, y], symtype(e); metadata = meta, exprhead = head), args)
+      return foldl((x, y) -> maketerm(head, [op, x, y]; metadata = meta, type = symtype(e)), args)
     end
   end
-  return similarterm(e, op, args, symtype(e); metadata = meta, exprhead = head)
+  return maketerm(head, [op; args]; metadata = meta, type = symtype(e))
 end
 
 
