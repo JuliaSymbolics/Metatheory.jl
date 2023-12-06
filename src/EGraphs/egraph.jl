@@ -58,7 +58,7 @@ end
 
 Base.show(io::IO, x::ENode) = print(io, toexpr(x))
 
-op_key(n::ENode) = (operation(n) => istree(n) ? -1 : arity(n))
+op_key(n::ENode) = (operation(n) => istree(n) ? arity(n) : -1)
 
 # parametrize metadata by M
 mutable struct EClass
