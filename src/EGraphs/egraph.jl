@@ -17,20 +17,20 @@ struct ENode
   # TODO use UInt flags
   istree::Bool
   # E-graph contains mappings from the UInt id of head, operation and symtype to their original value
-  exprhead::Any
+  head::Any
   operation::Any
-  symtype::Any
   args::Vector{EClassId}
   hash::Ref{UInt}
-  ENode(exprhead, operation, symtype, args) = new(true, exprhead, operation, symtype, args, Ref{UInt}(0))
-  ENode(literal) = new(false, nothing, literal, nothing, UNDEF_ARGS, Ref{UInt}(0))
+  ENode(head, operation, args) = new(true, head, operation, args, Ref{UInt}(0))
+  ENode(literal) = new(false, nothing, literal, UNDEF_ARGS, Ref{UInt}(0))
 end
 
 TermInterface.istree(n::ENode) = n.istree
 TermInterface.symtype(n::ENode) = n.symtype
-TermInterface.exprhead(n::ENode) = n.exprhead
+TermInterface.head(n::ENode) = n.head
 TermInterface.operation(n::ENode) = n.operation
 TermInterface.arguments(n::ENode) = n.args
+TermInterface.children(n::ENode) = [n.operation; n.args...]
 TermInterface.arity(n::ENode) = length(n.args)
 
 
@@ -41,7 +41,7 @@ function Base.hash(n::ENode, salt::UInt)
   !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
   h = n.hash[]
   !iszero(h) && return h
-  h′ = hash(n.args, hash(n.exprhead, hash(n.operation, hash(n.istree, salt))))
+  h′ = hash(n.args, hash(n.head, hash(n.operation, hash(n.istree, salt))))
   n.hash[] = h′
   return h′
 end
@@ -52,7 +52,7 @@ end
 
 function toexpr(n::ENode)
   n.istree || return n.operation
-  Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
+  Expr(:call, :ENode, head(n), operation(n), symtype(n), arguments(n))
 end
 
 Base.show(io::IO, x::ENode) = print(io, toexpr(x))
@@ -164,8 +164,7 @@ mutable struct EGraph
   analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
   "a cache mapping function symbols and their arity to e-classes that contain e-nodes with that function symbol."
   classes_by_op::Dict{Pair{Any,Int},Vector{EClassId}}
-  default_termtype::Type
-  termtypes::TermTypes
+  head_type::Type
   clean::Bool
   "If we use global buffers we may need to lock. Defaults to true."
   needslock::Bool
@@ -181,7 +180,7 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph(; needslock::Bool = false)
+function EGraph(; needslock::Bool = false, head_type = ExprHead)
   EGraph(
     UnionFind(),
     Dict{EClassId,EClass}(),
@@ -191,8 +190,7 @@ function EGraph(; needslock::Bool = false)
     -1,
     Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
     Dict{Any,Vector{EClassId}}(),
-    Expr,
-    TermTypes(),
+    head_type,
     false,
     needslock,
     Bindings[],
@@ -206,7 +204,7 @@ function maybelock!(f::Function, g::EGraph)
 end
 
 function EGraph(e; keepmeta = false, kwargs...)
-  g = EGraph(kwargs...)
+  g = EGraph(; kwargs...)
   keepmeta && addanalysis!(g, :metadata_analysis)
   g.root = addexpr!(g, e, keepmeta)
   g
@@ -219,22 +217,6 @@ end
 
 function addanalysis!(g::EGraph, analysis_name::Symbol)
   g.analyses[analysis_name] = analysis_name
-end
-
-function settermtype!(g::EGraph, f, ar, T)
-  g.termtypes[(f, ar)] = T
-end
-
-function settermtype!(g::EGraph, T)
-  g.default_termtype = T
-end
-
-function gettermtype(g::EGraph, f, ar)
-  if haskey(g.termtypes, (f, ar))
-    g.termtypes[(f, ar)]
-  else
-    g.default_termtype
-  end
 end
 
 
@@ -260,7 +242,7 @@ function canonicalize(g::EGraph, n::ENode)::ENode
   for i in 1:ar
     @inbounds canonicalized_args[i] = find(g, n.args[i])
   end
-  ENode(exprhead(n), operation(n), symtype(n), canonicalized_args)
+  ENode(head(n), operation(n), canonicalized_args)
 end
 
 function canonicalize!(g::EGraph, n::ENode)
@@ -351,7 +333,7 @@ function addexpr!(g::EGraph, se, keepmeta = false)::EClassId
     for i in 1:ar
       @inbounds class_ids[i] = addexpr!(g, args[i], keepmeta)
     end
-    ENode(exprhead(e), operation(e), symtype(e), class_ids)
+    ENode(head(e), operation(e), class_ids)
   else # constant enode
     ENode(e)
   end
@@ -610,16 +592,6 @@ function reachable(g::EGraph, id::EClassId)
   return hist
 end
 
-
-"""
-When extracting symbolic expressions from an e-graph, we need 
-to instruct the e-graph how to rebuild expressions of a certain type. 
-This function must be extended by the user to add new types of expressions that can be manipulated by e-graphs.
-"""
-function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothing, exprhead = :call)
-  similarterm(Expr(:call, :_), op, args; metadata = metadata, exprhead = exprhead)
-end
-
 # Thanks to Max Willsey and Yihong Zhang
 
 import Metatheory: lookup_pat
@@ -627,21 +599,20 @@ import Metatheory: lookup_pat
 function lookup_pat(g::EGraph, p::PatTerm)::EClassId
   @assert isground(p)
 
-  eh = exprhead(p)
   op = operation(p)
   args = arguments(p)
   ar = arity(p)
 
-  T = gettermtype(g, op, ar)
+  eh = g.head_type(head_symbol(head(p)))
 
   ids = map(x -> lookup_pat(g, x), args)
   !all((>)(0), ids) && return -1
 
-  if T == Expr && op isa Union{Function,DataType}
-    id = lookup(g, ENode(eh, op, T, ids))
-    id < 0 ? lookup(g, ENode(eh, nameof(op), T, ids)) : id
+  if g.head_type == ExprHead && op isa Union{Function,DataType}
+    id = lookup(g, ENode(eh, op, ids))
+    id < 0 ? lookup(g, ENode(eh, nameof(op), ids)) : id
   else
-    lookup(g, ENode(eh, op, T, ids))
+    lookup(g, ENode(eh, op, ids))
   end
 end
 

@@ -4,6 +4,7 @@ include("../docstrings.jl")
 
 using DataStructures
 using TermInterface
+using TermInterface: head
 using TimerOutputs
 using Metatheory: alwaystrue, cleanast, binarize
 using Metatheory.Patterns
@@ -29,8 +30,6 @@ export merge!
 export in_same_class
 export addexpr!
 export rebuild!
-export settermtype!
-export gettermtype
 
 include("analysis.jl")
 export analyze!

@@ -146,8 +146,9 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
   n.istree || return n.operation
   children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
   meta = getdata(eclass, :metadata_analysis, nothing)
-  T = symtype(n)
-  egraph_reconstruct_expression(T, operation(n), children; metadata = meta, exprhead = exprhead(n))
+  h = head(n)
+  children = head_symbol(h) == :call ? [operation(n); children...] : children
+  maketerm(h, children; metadata = meta)
 end
 
 """

@@ -201,20 +201,39 @@ end
 
 using TermInterface
 @testset "Matchable struct" begin
-  struct qux
+  struct Qux
     args
-    qux(args...) = new(args)
+    Qux(args...) = new(args)
   end
-  TermInterface.operation(::qux) = qux
-  TermInterface.istree(::qux) = true
-  TermInterface.arguments(x::qux) = [x.args...]
+  struct QuxHead
+    head
+  end
+  TermInterface.head(::Qux) = QuxHead(:call)
+  TermInterface.head_symbol(q::QuxHead) = q.head
+  TermInterface.operation(::Qux) = Qux
+  TermInterface.istree(::Qux) = true
+  TermInterface.arguments(x::Qux) = [x.args...]
+  TermInterface.children(x::Qux) = [operation(x); x.args...]
 
-  @capture qux(1, 2) qux(1, 2)
 
-  @test (@rule qux(1, 2) => "hello")(qux(1, 2)) == "hello"
-  @test (@rule qux(1, 2) => "hello")(1) === nothing
+  @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(1) === nothing
   @test (@rule 1 => "hello")(1) == "hello"
-  @test (@rule 1 => "hello")(qux(1, 2)) === nothing
-  @test (@capture qux(1, 2) qux(1, 2))
-  @test false == (@capture qux(1, 2) qux(3, 4))
+  @test (@rule 1 => "hello")(Qux(1, 2)) === nothing
+  @test (@capture Qux(1, 2) Qux(1, 2))
+  @test false == (@capture Qux(1, 2) Qux(3, 4))
+
+
+  @matchable struct Lux
+    a
+    b
+  end
+
+
+  @test (@rule Lux(1, 2) => "hello")(Lux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(1) === nothing
+  @test (@rule 1 => "hello")(1) == "hello"
+  @test (@rule 1 => "hello")(Lux(1, 2)) === nothing
+  @test (@capture Lux(1, 2) Lux(1, 2))
+  @test false == (@capture Lux(1, 2) Lux(3, 4))
 end

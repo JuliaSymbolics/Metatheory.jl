@@ -2,7 +2,7 @@ using Base: ImmutableDict
 
 function binarize(e::T) where {T}
   !istree(e) && return e
-  head = exprhead(e)
+  head = head(e)
   if head == :call
     op = operation(e)
     args = arguments(e)
@@ -73,10 +73,10 @@ Base.length(l::LL) = length(l.v) - l.i + 1
 # @inline car(t::Term) = operation(t)
 # @inline cdr(t::Term) = arguments(t)
 
-@inline car(v) = istree(v) ? operation(v) : first(v)
+@inline car(v) = istree(v) ? head(v) : first(v)
 @inline function cdr(v)
   if istree(v)
-    arguments(v)
+    children(v)
   else
     islist(v) ? LL(v, 2) : error("asked cdr of empty")
   end
@@ -89,7 +89,7 @@ end
   if n === 0
     return ll
   else
-    istree(ll) ? drop_n(arguments(ll), n - 1) : drop_n(cdr(ll), n - 1)
+    istree(ll) ? drop_n(children(ll), n - 1) : drop_n(cdr(ll), n - 1)
   end
 end
 @inline drop_n(ll::Union{Tuple,AbstractArray}, n) = drop_n(LL(ll, 1), n)
@@ -146,29 +146,6 @@ function merge_repeats(merge, xs)
   end
   return merged
 end
-
-# Take a struct definition and make it be able to match in `@rule`
-macro matchable(expr)
-  @assert expr.head == :struct
-  name = expr.args[2]
-  if name isa Expr
-    name.head === :(<:) && (name = name.args[1])
-    name isa Expr && name.head === :curly && (name = name.args[1])
-  end
-  fields = filter(x -> !(x isa LineNumberNode), expr.args[3].args)
-  get_name(s::Symbol) = s
-  get_name(e::Expr) = (@assert(e.head == :(::)); e.args[1])
-  fields = map(get_name, fields)
-  quote
-    $expr
-    TermInterface.istree(::$name) = true
-    TermInterface.operation(::$name) = $name
-    TermInterface.arguments(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
-    TermInterface.arity(x::$name) = $(length(fields))
-    Base.length(x::$name) = $(length(fields) + 1)
-  end |> esc
-end
-
 
 using TimerOutputs
 
