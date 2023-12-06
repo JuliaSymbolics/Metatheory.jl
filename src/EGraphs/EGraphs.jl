@@ -2,7 +2,6 @@ module EGraphs
 
 include("../docstrings.jl")
 
-using DataStructures
 using TermInterface
 using TermInterface: head
 using TimerOutputs

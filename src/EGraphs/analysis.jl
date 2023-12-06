@@ -159,7 +159,7 @@ function extract!(g::EGraph, costfun::Function; root = g.root, cse = false)
   analyze!(g, costfun, root)
   if cse
     # TODO make sure there is no assignments/stateful code!!
-    cse_env = OrderedDict{EClassId,Tuple{Symbol,Any}}() # 
+    cse_env = Dict{EClassId,Tuple{Symbol,Any}}() # 
     collect_cse!(g, costfun, root, cse_env, Set{EClassId}())
 
     body = rec_extract(g, costfun, root; cse_env = cse_env)
