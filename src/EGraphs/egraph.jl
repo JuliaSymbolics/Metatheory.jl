@@ -96,7 +96,7 @@ function addparent!(a::EClass, n::ENode, id::EClassId)
 end
 
 function merge_analysis_data!(g, a::EClass, b::EClass)::Tuple{Bool,Bool}
-  if !isnothing(a.data) && !isnothing(b.data)
+  if !isempty(a.data) && !isempty(b.data)
     new_a_data = merge(a.data, b.data)
     for analysis_name in keys(b.data)
       analysis_ref = g.analyses[analysis_name]
@@ -108,10 +108,15 @@ function merge_analysis_data!(g, a::EClass, b::EClass)::Tuple{Bool,Bool}
     merged_a = (a.data == new_a_data)
     a.data = new_a_data
     (merged_a, b.data == new_a_data)
-  elseif a.data === nothing
+  elseif isempty(a.data) && !isempty(b.data)
     a.data = b.data
     # a merged, b not merged
     (true, false)
+  elseif !isempty(a.data) && isempty(b.data)
+    b.data = a.data
+    (false, true)
+  else
+    (false, false)
   end
 end
 
@@ -158,7 +163,7 @@ mutable struct EGraph
   memo::Dict{ENode,EClassId}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
   pending::Vector{Pair{ENode,EClassId}}
-  analysis_pending::Vector{Pair{ENode,EClassId}}
+  analysis_pending::UniqueQueue{Pair{ENode,EClassId}}
   root::EClassId
   "A vector of analyses associated to the EGraph"
   analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
@@ -186,7 +191,7 @@ function EGraph(; needslock::Bool = false, head_type = ExprHead)
     Dict{EClassId,EClass}(),
     Dict{ENode,EClassId}(),
     Pair{ENode,EClassId}[],
-    Pair{ENode,EClassId}[],
+    UniqueQueue{Pair{ENode,EClassId}}(),
     -1,
     Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
     Dict{Any,Vector{EClassId}}(),
@@ -436,10 +441,10 @@ function process_unions!(g::EGraph)::Int
 
     while !isempty(g.analysis_pending)
       (node::ENode, eclass_id::EClassId) = pop!(g.analysis_pending)
+      eclass_id = find(g, eclass_id)
+      eclass = g[eclass_id]
 
       for an in values(g.analyses)
-        eclass_id = find(g, eclass_id)
-        eclass = g[eclass_id]
 
         an === :metadata_analysis && continue
 
