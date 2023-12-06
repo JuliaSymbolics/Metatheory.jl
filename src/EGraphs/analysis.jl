@@ -97,8 +97,9 @@ end
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-function astsize(n::ENode, g::EGraph)
-  n.istree || return 1
+astsize(n::ENodeLiteral, g::EGraph) = 1
+
+function astsize(n::ENodeTerm, g::EGraph)
   cost = 2 + arity(n)
   for id in arguments(n)
     eclass = g[id]
@@ -113,8 +114,9 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-function astsize_inv(n::ENode, g::EGraph)
-  n.istree || return -1
+astsize_inv(n::ENodeLiteral, g::EGraph) = -1
+
+function astsize_inv(n::ENodeTerm, g::EGraph)
   cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
   for id in arguments(n)
     eclass = g[id]

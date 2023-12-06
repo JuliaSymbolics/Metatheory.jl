@@ -13,32 +13,50 @@ const TermTypes = Dict{Tuple{Any,Int},Type}
 const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
 const UNDEF_ARGS = Vector{EClassId}(undef, 0)
 
-# @compactify begin 
-struct ENode
-  # TODO use UInt flags
-  istree::Bool
+abstract type AbstractENode end
+
+struct ENodeTerm <: AbstractENode
   # E-graph contains mappings from the UInt id of head, operation and symtype to their original value
   head::Any
   operation::Any
   args::Vector{EClassId}
   hash::Ref{UInt}
-  ENode(head, operation, args) = new(true, head, operation, args, Ref{UInt}(0))
-  ENode(literal) = new(false, nothing, literal, UNDEF_ARGS, Ref{UInt}(0))
+  ENodeTerm(head, operation, args) = new(head, operation, args, Ref{UInt}(0))
 end
 
-TermInterface.istree(n::ENode) = n.istree
-TermInterface.symtype(n::ENode) = n.symtype
-TermInterface.head(n::ENode) = n.head
-TermInterface.operation(n::ENode) = n.operation
-TermInterface.arguments(n::ENode) = n.args
-TermInterface.children(n::ENode) = [n.operation; n.args...]
-TermInterface.arity(n::ENode) = length(n.args)
+TermInterface.head(n::ENodeTerm) = n.head
+TermInterface.operation(n::ENodeTerm) = n.operation
+TermInterface.arguments(n::ENodeTerm) = n.args
+TermInterface.children(n::ENodeTerm) = [n.operation; n.args...]
+TermInterface.arity(n::ENodeTerm) = length(n.args)
+
+
+struct ENodeLiteral <: AbstractENode
+  value
+  hash::Ref{UInt}
+  ENodeLiteral(a) = new(a, Ref{UInt}(0))
+end
+
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
+
+TermInterface.istree(n::ENodeLiteral) = false
+TermInterface.operation(n::ENodeLiteral) = n.value
+TermInterface.arity(n::ENodeLiteral) = 0
+
+function Base.hash(t::ENodeLiteral, salt::UInt)
+  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
+  h = t.hash[]
+  !iszero(h) && return h
+  h′ = hash(t.value, salt)
+  t.hash[] = h′
+  return h′
+end
 
 
 # This optimization comes from SymbolicUtils
 # The hash of an enode is cached to avoid recomputing it.
 # Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(n::ENode, salt::UInt)
+function Base.hash(n::ENodeTerm, salt::UInt)
   !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
   h = n.hash[]
   !iszero(h) && return h
@@ -47,29 +65,28 @@ function Base.hash(n::ENode, salt::UInt)
   return h′
 end
 
-function Base.:(==)(a::ENode, b::ENode)
+function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
   hash(a) == hash(b) && a.operation == b.operation
 end
 
-function toexpr(n::ENode)
-  n.istree || return n.operation
-  Expr(:call, :ENode, head(n), operation(n), symtype(n), arguments(n))
-end
+toexpr(n::ENodeLiteral) = n.operation
+toexpr(n::ENodeTerm) = Expr(:call, :ENode, head(n), operation(n), arguments(n))
 
-Base.show(io::IO, x::ENode) = print(io, toexpr(x))
+Base.show(io::IO, x::AbstractENode) = print(io, toexpr(x))
 
-op_key(n::ENode) = (operation(n) => istree(n) ? -1 : arity(n))
+op_key(n::ENodeLiteral) = (n.value => -1)
+op_key(n::ENodeTerm) = (n.operation => arity(n))
 
 # parametrize metadata by M
 mutable struct EClass
   g # EGraph
   id::EClassId
-  nodes::Vector{ENode}
-  parents::Vector{Pair{ENode,EClassId}}
+  nodes::Vector{AbstractENode}
+  parents::Vector{Pair{AbstractENode,EClassId}}
   data::AnalysisData
 end
 
-EClass(g, id) = EClass(g, id, ENode[], Pair{ENode,EClassId}[], nothing)
+EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode,EClassId}[], nothing)
 EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
