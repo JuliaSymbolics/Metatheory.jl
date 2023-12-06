@@ -110,13 +110,6 @@ function eqsat_search!(
   return n_matches
 end
 
-
-function drop_n!(D::CircularDeque, nn)
-  D.n -= nn
-  tmp = D.first + nn
-  D.first = tmp > D.capacity ? 1 : tmp
-end
-
 instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENode(p))
 instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
 function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
@@ -125,7 +118,12 @@ function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   # TODO add predicate check `quotes_operation`
   new_op = g.head_type == ExprHead && op isa Union{Function,DataType} ? nameof(op) : op
   eh = g.head_type(head_symbol(head(p)))
-  add!(g, ENode(eh, new_op, map(arg -> instantiate_enode!(bindings, g, arg), args)))
+  nargs = Vector{EClassId}(undef, length(args))
+  for i in 1:length(args)
+    @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i])
+  end
+  n = ENode(eh, new_op, nargs)
+  add!(g, n)
 end
 
 function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)

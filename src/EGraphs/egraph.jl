@@ -13,6 +13,7 @@ const TermTypes = Dict{Tuple{Any,Int},Type}
 const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
 const UNDEF_ARGS = Vector{EClassId}(undef, 0)
 
+# @compactify begin 
 struct ENode
   # TODO use UInt flags
   istree::Bool
@@ -518,53 +519,6 @@ function rebuild!(g::EGraph)
 
   @debug "REBUILT" n_unions trimmed_nodes
 end
-
-function repair!(g::EGraph, id::EClassId)
-  id = find(g, id)
-  ecdata = g[id]
-  ecdata.id = id
-
-  new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){ENode,EClassId}()
-
-  for (p_enode, p_eclass) in ecdata.parents
-    p_enode = canonicalize!(g, p_enode)
-    # deduplicate parents
-    if haskey(new_parents, p_enode)
-      union!(g, p_eclass, new_parents[p_enode])
-    end
-    n_id = find(g, p_eclass)
-    g.memo[p_enode] = n_id
-    new_parents[p_enode] = n_id
-  end
-
-  ecdata.parents = collect(new_parents)
-
-  # Analysis invariant maintenance
-  for an in values(g.analyses)
-    hasdata(ecdata, an) && modify!(an, g, id)
-    for (p_enode, p_id) in ecdata.parents
-      # p_eclass = find(g, p_eclass)
-      p_eclass = g[p_id]
-      if !islazy(an) && !hasdata(p_eclass, an)
-        setdata!(p_eclass, an, make(an, g, p_enode))
-      end
-      if hasdata(p_eclass, an)
-        p_data = getdata(p_eclass, an)
-
-        if an !== :metadata_analysis
-          new_data = join(an, p_data, make(an, g, p_enode))
-          if new_data != p_data
-            setdata!(p_eclass, an, new_data)
-            push!(g.dirty, p_id)
-          end
-        end
-      end
-    end
-  end
-
-  unique!(ecdata.nodes)
-end
-
 
 """
 Recursive function that traverses an [`EGraph`](@ref) and
