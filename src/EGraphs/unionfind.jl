@@ -1,20 +1,3 @@
-# function Base.union!(x::IntDisjointSet, i::Int, j::Int)
-#   pi = find_root(x, i)
-#   pj = find_root(x, j)
-#   if pi != pj
-#     x.normalized[] = false
-#     isize = -x.parents[pi]
-#     jsize = -x.parents[pj]
-#     if isize > jsize # swap to make size of i less than j
-#       pi, pj = pj, pi
-#       isize, jsize = jsize, isize
-#     end
-#     x.parents[pj] -= isize # increase new size of pj
-#     x.parents[pi] = pj # set parent of pi to pj
-#   end
-#   return pj
-# end
-
 struct UnionFind
   parents::Vector{Int}
 end

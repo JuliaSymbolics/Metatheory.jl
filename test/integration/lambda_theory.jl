@@ -49,8 +49,6 @@ end LambdaHead
 function TermInterface.maketerm(head::LambdaHead, children; type = Any, metadata = nothing)
   (first(children))(@view(children[2:end])...)
 end
-#%%
-EGraphs.make(::Val{:freevar}, ::EGraph, n::ENodeLiteral) = Set{Int64}()
 
 function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENode)
   free = Set{Int64}()

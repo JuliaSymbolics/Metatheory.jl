@@ -15,6 +15,8 @@ include("unionfind.jl")
 export IntDisjointSet
 export UnionFind
 
+include("uniquequeue.jl")
+
 include("egraph.jl")
 export ENode
 export EClassId
