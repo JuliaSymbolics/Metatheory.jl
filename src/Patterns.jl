@@ -98,7 +98,7 @@ function TermInterface.operation(p::PatTerm)
 end
 function TermInterface.arguments(p::PatTerm)
   hs = head_symbol(head(p))
-  hs == :call ? p.children[2:end] : p.children
+  hs == :call ? @view(p.children[2:end]) : p.children
 end
 TermInterface.arity(p::PatTerm) = length(arguments(p))
 TermInterface.metadata(p::PatTerm) = nothing
