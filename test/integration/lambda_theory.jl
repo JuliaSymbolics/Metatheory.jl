@@ -50,9 +50,9 @@ function TermInterface.maketerm(head::LambdaHead, children; type = Any, metadata
   (first(children))(@view(children[2:end])...)
 end
 
-function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENode)
+EGraphs.make(::Val{:freevar}, g::EGraph, n::ENodeLiteral) = Set{Int64}()
+function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENodeTerm)
   free = Set{Int64}()
-  n.istree || return free
   if head_symbol(head(n)) == :call
     op = operation(n)
     args = arguments(n)

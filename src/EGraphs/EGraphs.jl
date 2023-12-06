@@ -17,7 +17,8 @@ export UnionFind
 include("uniquequeue.jl")
 
 include("egraph.jl")
-export ENode
+export ENodeLiteral
+export ENodeTerm
 export EClassId
 export EClass
 export hasdata

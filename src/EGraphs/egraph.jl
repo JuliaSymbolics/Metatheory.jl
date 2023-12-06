@@ -24,12 +24,12 @@ struct ENodeTerm <: AbstractENode
   ENodeTerm(head, operation, args) = new(head, operation, args, Ref{UInt}(0))
 end
 
+TermInterface.istree(n::ENodeTerm) = true
 TermInterface.head(n::ENodeTerm) = n.head
 TermInterface.operation(n::ENodeTerm) = n.operation
 TermInterface.arguments(n::ENodeTerm) = n.args
 TermInterface.children(n::ENodeTerm) = [n.operation; n.args...]
 TermInterface.arity(n::ENodeTerm) = length(n.args)
-
 
 struct ENodeLiteral <: AbstractENode
   value
@@ -60,7 +60,7 @@ function Base.hash(n::ENodeTerm, salt::UInt)
   !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
   h = n.hash[]
   !iszero(h) && return h
-  h′ = hash(n.args, hash(n.head, hash(n.operation, hash(n.istree, salt))))
+  h′ = hash(n.args, hash(n.head, hash(n.operation, salt)))
   n.hash[] = h′
   return h′
 end
@@ -70,7 +70,7 @@ function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
 end
 
 toexpr(n::ENodeLiteral) = n.operation
-toexpr(n::ENodeTerm) = Expr(:call, :ENode, head(n), operation(n), arguments(n))
+toexpr(n::ENodeTerm) = Expr(:call, :ENodeTerm, head(n), operation(n), arguments(n))
 
 Base.show(io::IO, x::AbstractENode) = print(io, toexpr(x))
 
@@ -82,7 +82,7 @@ mutable struct EClass
   g # EGraph
   id::EClassId
   nodes::Vector{AbstractENode}
-  parents::Vector{Pair{AbstractENode,EClassId}}
+  parents::Vector{Pair{<:AbstractENode,EClassId}}
   data::AnalysisData
 end
 
@@ -109,7 +109,7 @@ function Base.show(io::IO, a::EClass)
   print(io, ")")
 end
 
-function addparent!(a::EClass, n::ENode, id::EClassId)
+function addparent!(a::EClass, n::AbstractENode, id::EClassId)
   push!(a.parents, (n => id))
 end
 
@@ -178,10 +178,10 @@ mutable struct EGraph
   "map from eclass id to eclasses"
   classes::IdDict{EClassId,EClass}
   "hashcons"
-  memo::Dict{ENode,EClassId}
+  memo::Dict{AbstractENode,EClassId}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
-  pending::Vector{Pair{ENode,EClassId}}
-  analysis_pending::UniqueQueue{Pair{ENode,EClassId}}
+  pending::Vector{Pair{AbstractENode,EClassId}}
+  analysis_pending::UniqueQueue{Pair{<:AbstractENode,EClassId}}
   root::EClassId
   "A vector of analyses associated to the EGraph"
   analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
@@ -207,9 +207,9 @@ function EGraph(; needslock::Bool = false, head_type = ExprHead)
   EGraph(
     UnionFind(),
     Dict{EClassId,EClass}(),
-    Dict{ENode,EClassId}(),
-    Pair{ENode,EClassId}[],
-    UniqueQueue{Pair{ENode,EClassId}}(),
+    Dict{AbstractENode,EClassId}(),
+    Pair{AbstractENode,EClassId}[],
+    UniqueQueue{Pair{<:AbstractENode,EClassId}}(),
     -1,
     Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
     Dict{Any,Vector{EClassId}}(),
@@ -253,23 +253,20 @@ find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
 Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
-### Definition 2.3: canonicalization
-iscanonical(g::EGraph, n::ENode) = !n.istree || n == canonicalize(g, n)
-iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
+canonicalize(g::EGraph, n::ENodeLiteral)::ENodeLiteral = n
 
-function canonicalize(g::EGraph, n::ENode)::ENode
-  n.istree || return n
+function canonicalize(g::EGraph, n::ENodeTerm)::ENodeTerm
   ar = length(n.args)
   ar == 0 && return n
   canonicalized_args = Vector{EClassId}(undef, ar)
   for i in 1:ar
     @inbounds canonicalized_args[i] = find(g, n.args[i])
   end
-  ENode(head(n), operation(n), canonicalized_args)
+  ENodeTerm(head(n), operation(n), canonicalized_args)
 end
 
-function canonicalize!(g::EGraph, n::ENode)
-  n.istree || return n
+canonicalize!(g::EGraph, n::ENodeLiteral) = n
+function canonicalize!(g::EGraph, n::ENodeTerm)
   for (i, arg) in enumerate(n.args)
     @inbounds n.args[i] = find(g, arg)
   end
@@ -282,7 +279,7 @@ function canonicalize!(g::EGraph, e::EClass)
   e.id = find(g, e.id)
 end
 
-function lookup(g::EGraph, n::ENode)::EClassId
+function lookup(g::EGraph, n::AbstractENode)::EClassId
   cc = canonicalize(g, n)
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
 end
@@ -300,13 +297,13 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::ENode)::EClassId
+function add!(g::EGraph, n::AbstractENode)::EClassId
   n = canonicalize(g, n)
   haskey(g.memo, n) && return g.memo[n]
 
   id = push!(g.uf) # create new singleton eclass
 
-  if n.istree
+  if n isa ENodeTerm
     for c_id in n.args
       addparent!(g.classes[c_id], n, id)
     end
@@ -315,7 +312,7 @@ function add!(g::EGraph, n::ENode)::EClassId
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  classdata = EClass(g, id, ENode[n], Pair{ENode,EClassId}[])
+  classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode,EClassId}[])
   g.classes[id] = classdata
   push!(g.pending, n => id)
 
@@ -356,9 +353,9 @@ function addexpr!(g::EGraph, se, keepmeta = false)::EClassId
     for i in 1:ar
       @inbounds class_ids[i] = addexpr!(g, args[i], keepmeta)
     end
-    ENode(head(e), operation(e), class_ids)
+    ENodeTerm(head(e), operation(e), class_ids)
   else # constant enode
-    ENode(e)
+    ENodeLiteral(e)
   end
   id = add!(g, n)
   if keepmeta
@@ -447,7 +444,7 @@ function process_unions!(g::EGraph)::Int
 
   while !isempty(g.pending) || !isempty(g.analysis_pending)
     while !isempty(g.pending)
-      (node::ENode, eclass_id::EClassId) = pop!(g.pending)
+      (node::AbstractENode, eclass_id::EClassId) = pop!(g.pending)
       canonicalize!(g, node)
       if haskey(g.memo, node)
         old_class_id = g.memo[node]
@@ -458,7 +455,7 @@ function process_unions!(g::EGraph)::Int
     end
 
     while !isempty(g.analysis_pending)
-      (node::ENode, eclass_id::EClassId) = pop!(g.analysis_pending)
+      (node::AbstractENode, eclass_id::EClassId) = pop!(g.analysis_pending)
       eclass_id = find(g, eclass_id)
       eclass = g[eclass_id]
 
@@ -488,7 +485,7 @@ function process_unions!(g::EGraph)::Int
 end
 
 function check_memo(g::EGraph)::Bool
-  test_memo = Dict{ENode,EClassId}()
+  test_memo = Dict{AbstractENode,EClassId}()
   for (id, class) in g.classes
     @assert id == class.id
     for node in class.nodes
@@ -546,9 +543,8 @@ function reachable(g::EGraph, id::EClassId)
   hist = EClassId[id]
   todo = EClassId[id]
 
-
-  function reachable_node(xn::ENode)
-    xn.istree || return
+  reachable_node(xn::ENodeLiteral) = nothing
+  function reachable_node(xn::ENodeTerm)
     x = canonicalize(g, xn)
     for c_id in arguments(x)
       if c_id ∉ hist
@@ -585,12 +581,12 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
   !all((>)(0), ids) && return -1
 
   if g.head_type == ExprHead && op isa Union{Function,DataType}
-    id = lookup(g, ENode(eh, op, ids))
-    id < 0 ? lookup(g, ENode(eh, nameof(op), ids)) : id
+    id = lookup(g, ENodeTerm(eh, op, ids))
+    id < 0 ? lookup(g, ENodeTerm(eh, nameof(op), ids)) : id
   else
-    lookup(g, ENode(eh, op, ids))
+    lookup(g, ENodeTerm(eh, op, ids))
   end
 end
 
-lookup_pat(g::EGraph, p::Any) = lookup(g, ENode(p))
+lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
 lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))

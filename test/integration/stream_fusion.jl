@@ -77,8 +77,8 @@ normalize_theory = @theory x y z f g begin
 end
 
 
+stream_fusion_cost(n::ENodeLiteral, g::EGraph) = 1
 function stream_fusion_cost(n::ENode, g::EGraph)
-  n.istree || return 1
   cost = 1 + arity(n)
   for id in arguments(n)
     eclass = g[id]

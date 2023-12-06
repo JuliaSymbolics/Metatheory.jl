@@ -129,7 +129,7 @@ end
 """
 When passing a function to analysis functions it is considered as a cost function
 """
-make(f::Function, g::EGraph, n::ENode) = (n, f(n, g))
+make(f::Function, g::EGraph, n::AbstractENode) = (n, f(n, g))
 
 join(f::Function, from, to) = last(from) <= last(to) ? from : to
 
@@ -145,7 +145,7 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
   (n, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Infinite cost when extracting enode")
 
-  n.istree || return n.operation
+  n isa ENodeLiteral && return n.value
   children = map(arg -> rec_extract(g, costfun, arg; cse_env = cse_env), n.args)
   meta = getdata(eclass, :metadata_analysis, nothing)
   h = head(n)
@@ -181,7 +181,7 @@ function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
   (cn, ck) = getdata(eclass, costfun, (nothing, Inf))
   ck == Inf && error("Error when computing CSE")
 
-  cn.istree || return
+  cn isa ENodeLiteral && return
   if id in seen
     cse_env[id] = (gensym(), rec_extract(g, costfun, id))#, cse_env=cse_env)) # todo generalize symbol?
     return

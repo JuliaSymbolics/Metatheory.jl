@@ -54,7 +54,7 @@ function cached_ids(g::EGraph, p::AbstractPattern) # p is a term
 end
 
 function cached_ids(g::EGraph, p) # p is a literal
-  id = lookup(g, ENode(p))
+  id = lookup(g, ENodeLiteral(p))
   id > 0 && return [id]
   return []
 end
@@ -110,7 +110,7 @@ function eqsat_search!(
   return n_matches
 end
 
-instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENode(p))
+instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
 instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
 function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   op = operation(p)
@@ -122,7 +122,7 @@ function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
   for i in 1:length(args)
     @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i])
   end
-  n = ENode(eh, new_op, nargs)
+  n = ENodeTerm(eh, new_op, nargs)
   add!(g, n)
 end
 
@@ -157,7 +157,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
-    @assert !eclass[literal_position].istree
+    @assert eclass[literal_position] isa ENodeLiteral
     return eclass[literal_position].operation
   end
   return eclass
