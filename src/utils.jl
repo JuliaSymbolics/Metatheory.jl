@@ -76,7 +76,7 @@ Base.length(l::LL) = length(l.v) - l.i + 1
 @inline car(v) = istree(v) ? head(v) : first(v)
 @inline function cdr(v)
   if istree(v)
-    tail(v)
+    children(v)
   else
     islist(v) ? LL(v, 2) : error("asked cdr of empty")
   end
@@ -89,7 +89,7 @@ end
   if n === 0
     return ll
   else
-    istree(ll) ? drop_n(tail(ll), n - 1) : drop_n(cdr(ll), n - 1)
+    istree(ll) ? drop_n(children(ll), n - 1) : drop_n(cdr(ll), n - 1)
   end
 end
 @inline drop_n(ll::Union{Tuple,AbstractArray}, n) = drop_n(LL(ll, 1), n)

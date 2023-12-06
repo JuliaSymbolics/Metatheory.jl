@@ -4,7 +4,7 @@ include("../docstrings.jl")
 
 using DataStructures
 using TermInterface
-using TermInterface: head, tail
+using TermInterface: head
 using TimerOutputs
 using Metatheory: alwaystrue, cleanast, binarize
 using Metatheory.Patterns

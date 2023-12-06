@@ -52,7 +52,7 @@ TermInterface.istree(n::ENodeTerm) = true
 TermInterface.head(n::ENodeTerm) = n.head
 TermInterface.operation(n::ENodeTerm) = n.operation
 TermInterface.arguments(n::ENodeTerm) = n.args
-TermInterface.tail(n::ENodeTerm) = [n.head; n.args...]
+TermInterface.children(n::ENodeTerm) = [n.head; n.args...]
 TermInterface.arity(n::ENodeTerm) = length(n.args)
 
 # This optimization comes from SymbolicUtils

@@ -213,7 +213,7 @@ using TermInterface
   TermInterface.operation(::Qux) = Qux
   TermInterface.istree(::Qux) = true
   TermInterface.arguments(x::Qux) = [x.args...]
-  TermInterface.tail(x::Qux) = [operation(x); x.args...]
+  TermInterface.children(x::Qux) = [operation(x); x.args...]
 
 
   @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
