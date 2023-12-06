@@ -22,7 +22,7 @@ function_object_or_quote(op::Symbol, mod)::Expr = :(isdefined($mod, $(QuoteNode(
 function_object_or_quote(op, mod) = op
 
 function makesegment(s::Expr, pvars)
-  if !(exprhead(s) == :(::))
+  if s.head != :(::)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
@@ -37,7 +37,7 @@ function makesegment(name::Symbol, pvars)
 end
 
 function makevar(s::Expr, pvars)
-  if !(exprhead(s) == :(::))
+  if s.head != :(::)
     error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
   end
 
@@ -54,7 +54,7 @@ end
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
-  head = exprhead(expr)
+  head = expr.head
   args = arguments(expr)
   op = operation(expr)
   if head === :call
@@ -83,14 +83,16 @@ function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
-  head = exprhead(ex)
+  h = ex.head
+  ph = PatHead(h)
+
   op = operation(ex)
   # Retrieve the function object if available
   # Optionally quote function objects
   args = arguments(ex)
   istree(op) && (op = makepattern(op, pvars, slots, mod))
 
-  if head === :call
+  if h === :call
     if operation(ex) === :(~) # is a variable or segment
       let v = args[1]
         if v isa Expr && operation(v) == :(~)
@@ -105,22 +107,22 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm(:call, $(function_object_or_quote(op, mod)), [$(patargs...)]))
+      :($PatTerm($ph, $(function_object_or_quote(op, mod)), $(patargs...)))
     end
 
-  elseif head === :...
+  elseif h === :...
     makepattern(args[1], pvars, slots, mod, true)
-  elseif head == :(::) && args[1] in slots
+  elseif h == :(::) && args[1] in slots
     splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-  elseif head === :ref
-    # getindex 
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm(:ref, getindex, [$(patargs...)]))
-  elseif head === :$
+    # elseif h === :ref
+    #   # getindex 
+    #   patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+    #   :($PatTerm($ph, getindex, $(patargs...)))
+  elseif h === :$
     args[1]
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm($(QuoteNode(head)), $(function_object_or_quote(op, mod)), [$(patargs...)]))
+    :($PatTerm($ph, $(patargs...)))
   end
 end
 
@@ -147,7 +149,7 @@ Rewrite the `expr` by dealing with `:where` if necessary.
 The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : nothing`.
 """
 function rewrite_rhs(ex::Expr)
-  if exprhead(ex) == :where
+  if ex.head == :where
     rhs, predicate = arguments(ex)
     return :($predicate ? $rhs : nothing)
   end
@@ -392,7 +394,7 @@ macro theory(args...)
   e = rmlines(e)
   # e = interp_dollar(e, __module__)
 
-  if exprhead(e) == :block
+  if e.head == :block
     ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
     esc(ee)
   else

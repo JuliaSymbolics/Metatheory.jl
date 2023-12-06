@@ -60,9 +60,9 @@ import Base.Cartesian: inlineanonymous
 
 tryinlineanonymous(x) = nothing
 function tryinlineanonymous(ex::Expr)
-  exprhead(ex) != :call && return nothing
+  ex.head != :call && return nothing
   f = operation(ex)
-  (!(f isa Expr) || exprhead(f) !== :->) && return nothing
+  (!(f isa Expr) || f.head !== :->) && return nothing
   arg = arguments(ex)[1]
   try
     return inlineanonymous(f, arg)
@@ -91,13 +91,14 @@ function stream_fusion_cost(n::ENode, g::EGraph)
   return cost
 end
 
-function stream_optimize(ex, params = SaturationParams())
+function stream_optimize(ex)
   g = EGraph(ex)
   saturate!(g, array_theory, params)
-  ex = extract!(g, stream_fusion_cost) # TODO cost fun with asymptotic complexity
-  ex = Fixpoint(Postwalk(Chain([tryinlineanonymous, normalize_theory..., fold_theory...])))(ex)
-  return Base.remove_linenums!(ex)
+  ex = extract!(g, astsize) # TODO cost fun with asymptotic complexity
+  ex = Fixpoint(Postwalk(Chain([tryinlineanonymous; normalize_theory; fold_theory])))(ex)
+  return ex
 end
+
 
 @testset "Stream Fusion" begin
   ex = :(map(x -> 7 * x, fill(3, 4)))

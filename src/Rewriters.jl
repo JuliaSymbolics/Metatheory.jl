@@ -160,22 +160,22 @@ end
 struct Walk{ord,C,F,threaded}
   rw::C
   thread_cutoff::Int
-  similarterm::F
+  maketerm::F
 end
 
 function instrument(x::Walk{ord,C,F,threaded}, f) where {ord,C,F,threaded}
   irw = instrument(x.rw, f)
-  Walk{ord,typeof(irw),typeof(x.similarterm),threaded}(irw, x.thread_cutoff, x.similarterm)
+  Walk{ord,typeof(irw),typeof(x.maketerm),threaded}(irw, x.thread_cutoff, x.maketerm)
 end
 
 using .Threads
 
-function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
-  Walk{:post,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
+function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, maketerm = maketerm)
+  Walk{:post,typeof(rw),typeof(maketerm),threaded}(rw, thread_cutoff, maketerm)
 end
 
-function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
-  Walk{:pre,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
+function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, maketerm = maketerm)
+  Walk{:pre,typeof(rw),typeof(maketerm),threaded}(rw, thread_cutoff, maketerm)
 end
 
 struct PassThrough{C}
@@ -193,7 +193,7 @@ function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
       x = p.rw(x)
     end
     if istree(x)
-      x = p.similarterm(x, operation(x), map(PassThrough(p), unsorted_arguments(x)); exprhead = exprhead(x))
+      x = p.maketerm(head(x), map(PassThrough(p), children(x)))
     end
     return ord === :post ? p.rw(x) : x
   else
@@ -208,15 +208,15 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
       x = p.rw(x)
     end
     if istree(x)
-      _args = map(arguments(x)) do arg
+      _args = map(children(x)) do arg
         if node_count(arg) > p.thread_cutoff
           Threads.@spawn p(arg)
         else
           p(arg)
         end
       end
-      args = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, arguments(x))
-      t = p.similarterm(x, operation(x), args; exprhead = exprhead(x))
+      ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, children(x))
+      t = p.maketerm(head(x), ntail)
     end
     return ord === :post ? p.rw(t) : t
   else

@@ -1,56 +1,61 @@
 using Metatheory
 using Metatheory.EGraphs
-using Metatheory.Library
 using TermInterface
 using Test
 
 abstract type LambdaExpr end
 
+struct LambdaHead
+  head
+end
+TermInterface.head_symbol(lh::LambdaHead) = lh.head
+
 @matchable struct IfThenElse <: LambdaExpr
   guard
   then
   otherwise
-end
+end LambdaHead
 
 @matchable struct Variable <: LambdaExpr
   x::Symbol
-end
+end LambdaHead
 
 @matchable struct Fix <: LambdaExpr
   variable
   expression
-end
+end LambdaHead
 
 @matchable struct Let <: LambdaExpr
   variable
   value
   body
-end
+end LambdaHead
 @matchable struct λ <: LambdaExpr
   x::Symbol
   body
-end
+end LambdaHead
 
 @matchable struct Apply <: LambdaExpr
   lambda
   value
-end
+end LambdaHead
 
 @matchable struct Add <: LambdaExpr
   x
   y
-end
+end LambdaHead
 
-TermInterface.exprhead(::LambdaExpr) = :call
 
-function EGraphs.egraph_reconstruct_expression(::Type{<:LambdaExpr}, op, args; metadata = nothing, exprhead = :call)
-  op(args...)
+function TermInterface.maketerm(head::LambdaHead, children; type = Any, metadata = nothing)
+  (first(children))(@view(children[2:end])...)
 end
+#%%
+EGraphs.make(::Val{:freevar}, ::EGraph, n::ENodeLiteral) = Set{Int64}()
 
 function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENode)
   free = Set{Int64}()
   n.istree || return free
-  if exprhead(n) == :call
+  if head_symbol(head(n)) == :call
     op = operation(n)
     args = arguments(n)
 
@@ -136,11 +141,11 @@ end
 λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
 
 ex = λ(:x, Add(4, Apply(λ(:y, Variable(:y)), 4)))
-g = EGraph(ex)
+g = EGraph(ex; head_type = LambdaHead)
 
-settermtype!(g, LambdaExpr)
 saturate!(g, λT)
 @test λ(:x, Add(4, 4)) == extract!(g, astsize) # expected: :(λ(x, 4 + 4))
 
 #%%
-@test @areequal λT 2 Apply(λ(x, Variable(x)), 2)
+g = EGraph(; head_type = LambdaHead)
+@test areequal(g, λT, 2, Apply(λ(:x, Variable(:x)), 2))

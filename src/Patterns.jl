@@ -10,6 +10,12 @@ Abstract type representing a pattern used in all the various pattern matching ba
 """
 abstract type AbstractPat end
 
+struct PatHead
+  head
+end
+TermInterface.head_symbol(p::PatHead) = p.head
+
+PatHead(p::PatHead) = error("recursive!")
 
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
@@ -71,28 +77,35 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
-Term patterns will match
-on terms of the same `arity` and with the same 
-function symbol `operation` and expression head `exprhead`.
+Term patterns will match on terms of the same `arity` and with the same function
+symbol `operation` and expression head `head.head`.
 """
 struct PatTerm <: AbstractPat
-  exprhead::Any
-  operation::Any
-  args::Vector
-  PatTerm(eh, op, args) = new(eh, op, args) #Ref{UInt}(0))
+  head::PatHead
+  children::Vector
+  PatTerm(h, t::Vector) = new(h, t)
 end
+PatTerm(eh, op) = PatTerm(eh, [op])
+PatTerm(eh, children...) = PatTerm(eh, collect(children))
 TermInterface.istree(::PatTerm) = true
-TermInterface.exprhead(e::PatTerm) = e.exprhead
-TermInterface.operation(p::PatTerm) = p.operation
-TermInterface.arguments(p::PatTerm) = p.args
+TermInterface.head(p::PatTerm)::PatHead = p.head
+TermInterface.children(p::PatTerm) = p.children
+function TermInterface.operation(p::PatTerm)
+  hs = head_symbol(head(p))
+  hs == :call && return first(p.children)
+  # hs == :ref && return getindex
+  hs
+end
+function TermInterface.arguments(p::PatTerm)
+  hs = head_symbol(head(p))
+  hs == :call ? p.children[2:end] : p.children
+end
 TermInterface.arity(p::PatTerm) = length(arguments(p))
 TermInterface.metadata(p::PatTerm) = nothing
 
-function TermInterface.similarterm(x::PatTerm, head, args, symtype = nothing; metadata = nothing, exprhead = :call)
-  PatTerm(exprhead, head, args)
-end
+TermInterface.maketerm(head::PatHead, children; type = Any, metadata = nothing) = PatTerm(head, children...)
 
-isground(p::PatTerm) = all(isground, p.args)
+isground(p::PatTerm) = all(isground, p.children)
 
 
 # ==============================================
@@ -122,7 +135,7 @@ setdebrujin!(p, pvars) = nothing
 
 function setdebrujin!(p::PatTerm, pvars)
   setdebrujin!(operation(p), pvars)
-  foreach(x -> setdebrujin!(x, pvars), p.args)
+  foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
 
@@ -131,13 +144,14 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = similarterm(Expr(:call, :x), operation(x), map(to_expr, arguments(x)); exprhead = exprhead(x))
+to_expr(x::PatTerm) = maketerm(ExprHead(head_symbol(head(x))), to_expr.(children(x)))
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 
 
 # include("rules/patterns.jl")
 export AbstractPat
+export PatHead
 export PatVar
 export PatTerm
 export PatSegment
