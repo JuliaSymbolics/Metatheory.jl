@@ -7,7 +7,6 @@ on:
 
 jobs:
   test:
-    if: ${{ false }} // <- This make sure the workflow is skipped without any alert
     name: ${{ matrix.package.repo }}/${{ matrix.package.group }}
     runs-on: ${{ matrix.os }}
     env:
