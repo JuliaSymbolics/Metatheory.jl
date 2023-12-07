@@ -329,6 +329,8 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   end
   report.iterations = curr_iter
 
+  sleep(1)
+
   return report
 end
 
