@@ -9,6 +9,7 @@ function simplify(ex, theory, params = SaturationParams(), postprocess = identit
   report = saturate!(g, theory, params)
   println(report)
   res = extract!(g, astsize)
+  sleep(2)
   postprocess(res)
 end
 
