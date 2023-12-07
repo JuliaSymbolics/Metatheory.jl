@@ -158,7 +158,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   eclass = g[ecid]
   if literal_position > 0
     @assert eclass[literal_position] isa ENodeLiteral
-    return eclass[literal_position].operation
+    return eclass[literal_position].value
   end
   return eclass
 end
