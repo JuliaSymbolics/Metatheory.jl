@@ -62,14 +62,13 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
 
   hist = UInt64[]
   push!(hist, hash(ex))
+  g = EGraph(ex)
   for i in 1:steps
     g = EGraph(ex)
 
-    exprs = [true, g[g.root]]
-    ids = [addexpr!(g, e) for e in exprs]
+    ids = [addexpr!(g, true), g.root]
 
-    goal = EqualityGoal(exprs, ids)
-    params.goal = goal
+    params.goal = (g::EGraph) -> in_same_class(g, ids...)
     saturate!(g, t, params)
     ex = extract!(g, astsize)
     if !Metatheory.istree(ex)
