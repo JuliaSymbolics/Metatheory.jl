@@ -1,8 +1,6 @@
 using Metatheory
 using Metatheory.Rewriters
 using Test
-using TermInterface
-# using SymbolicUtils
 
 apply(f, x) = f(x)
 fand(f, g) = x -> f(x) && g(x)

@@ -1,6 +1,6 @@
 using GraphViz
 using Metatheory
-using TermInterface
+using ..TermInterface
 
 function render_egraph!(io::IO, g::EGraph)
   print(

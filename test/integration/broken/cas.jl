@@ -2,7 +2,6 @@ using Test
 using Metatheory
 using Metatheory.Library
 using Metatheory.Schedulers
-using TermInterface
 
 mult_t = @commutative_monoid (*) 1
 plus_t = @commutative_monoid (+) 0
@@ -225,7 +224,7 @@ if VERSION < v"1.9.0-DEV"
   end
 
   function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeTerm)
-    symtype(n) !== Expr && return Any
+    head(n) isa ExprHead || return Any
     if exprhead(n) != :call
       # println("$n is not a call")
       t = Any

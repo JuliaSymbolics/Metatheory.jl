@@ -312,6 +312,7 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = Satur
   n == 1 && return true
 
   ids = [addexpr!(g, ex) for ex in exprs]
+  params = deepcopy(params)
   params.goal = (g::EGraph) -> in_same_class(g, ids...)
 
   report = saturate!(g, t, params)

@@ -1,6 +1,6 @@
 module Rules
 
-using TermInterface
+using ..TermInterface
 using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
@@ -114,11 +114,6 @@ end
 
 
 Base.show(io::IO, r::EqualityRule) = print(io, :($(r.left) == $(r.right)))
-
-function (r::EqualityRule)(x)
-  throw(RuleRewriteError(r, x))
-end
-
 
 # ============================================================
 # UnequalRule

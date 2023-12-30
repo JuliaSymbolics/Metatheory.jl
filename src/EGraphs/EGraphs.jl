@@ -2,8 +2,7 @@ module EGraphs
 
 include("../docstrings.jl")
 
-using TermInterface
-using TermInterface: head
+using ..TermInterface
 using TimerOutputs
 using Metatheory: alwaystrue, cleanast, binarize
 using Metatheory.Patterns
