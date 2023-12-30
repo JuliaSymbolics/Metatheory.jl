@@ -16,7 +16,7 @@
 
 # ## Concrete example
 
-using Metatheory, TermInterface, Test
+using Metatheory, Test
 using Metatheory.EGraphs
 
 # Custom expressions types in TermInterface are identified by their `head` type.
