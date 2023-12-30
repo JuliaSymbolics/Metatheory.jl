@@ -30,7 +30,7 @@ rewriters.
 
 """
 module Rewriters
-using TermInterface
+using ..TermInterface
 using Metatheory: @timer
 
 export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, PassThrough

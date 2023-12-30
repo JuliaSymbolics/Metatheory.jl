@@ -1,6 +1,5 @@
 using Metatheory
 using Metatheory.EGraphs
-using TermInterface
 using Test
 
 function make_value(v::Real)

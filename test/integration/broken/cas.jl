@@ -2,7 +2,6 @@ using Test
 using Metatheory
 using Metatheory.Library
 using Metatheory.Schedulers
-using TermInterface
 
 mult_t = @commutative_monoid (*) 1
 plus_t = @commutative_monoid (+) 0

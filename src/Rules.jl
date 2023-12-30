@@ -1,6 +1,6 @@
 module Rules
 
-using TermInterface
+using ..TermInterface
 using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns

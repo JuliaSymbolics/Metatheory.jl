@@ -1,7 +1,7 @@
 module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules
-using TermInterface
+using ..TermInterface
 
 using Metatheory: alwaystrue, cleanast, binarize
 
