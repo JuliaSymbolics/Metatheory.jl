@@ -2,6 +2,7 @@ abstract type SaturationGoal end
 
 reached(g::EGraph, goal::Nothing) = false
 reached(g::EGraph, goal::SaturationGoal) = false
+reached(g::EGraph, goal::Function) = goal(g)
 
 """
 This goal is reached when the `exprs` list of expressions are in the 
@@ -18,18 +19,6 @@ end
 
 function reached(g::EGraph, goal::EqualityGoal)
   all(x -> in_same_class(g, goal.ids[1], x), @view goal.ids[2:end])
-end
-
-"""
-Boolean valued function as an arbitrary saturation goal.
-User supplied function must take an [`EGraph`](@ref) as the only parameter.
-"""
-struct FunctionGoal <: SaturationGoal
-  fun::Function
-end
-
-function reached(g::EGraph, goal::FunctionGoal)::Bool
-  goal.fun(g)
 end
 
 mutable struct SaturationReport
@@ -63,14 +52,14 @@ Base.@kwdef mutable struct SaturationParams
   "Timeout in nanoseconds"
   timelimit::UInt64 = 0
   "Maximum number of eclasses allowed"
-  eclasslimit::Int                     = 5000
-  enodelimit::Int                      = 15000
-  goal::Union{Nothing,SaturationGoal}  = nothing
-  stopwhen::Function                   = () -> false
+  eclasslimit::Int = 5000
+  enodelimit::Int = 15000
+  goal::Union{Nothing,SaturationGoal,Function} = nothing
+  stopwhen::Function = () -> false
   scheduler::Type{<:AbstractScheduler} = BackoffScheduler
-  schedulerparams::Tuple               = ()
-  threaded::Bool                       = false
-  timer::Bool                          = true
+  schedulerparams::Tuple = ()
+  threaded::Bool = false
+  timer::Bool = true
 end
 
 # function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
