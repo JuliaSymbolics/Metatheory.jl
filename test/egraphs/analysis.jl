@@ -280,7 +280,7 @@ end
     arity(n) != 2 && (return 1)
     left = arguments(n)[1]
     left_class = g[left]
-    ENode(:a) ∈ left_class.nodes ? 1 : 100
+    ENodeLiteral(:a) ∈ left_class.nodes ? 1 : 100
   end
 
 

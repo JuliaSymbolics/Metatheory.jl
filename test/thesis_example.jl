@@ -24,9 +24,8 @@ function make_value(v::Symbol)
 end
 
 
-function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENode)
-  istree(n) || return make_value(operation(n))
-
+EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral) = make_value(operation(n))
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeTerm)
   # Let's consider only binary function call terms.
   if exprhead(n) == :call && arity(n) == 2
     # get the symbol name of the operation

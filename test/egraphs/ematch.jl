@@ -149,7 +149,7 @@ end
   @test true == areequal(g, some_theory, :(sin(2, 3)), :(cos(3, 2)))
 end
 
-Base.iszero(ec::EClass) = ENode(0) ∈ ec
+Base.iszero(ec::EClass) = ENodeLiteral(0) ∈ ec
 
 @testset "Predicates in Ematcher" begin
   some_theory = @theory begin

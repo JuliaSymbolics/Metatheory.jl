@@ -76,7 +76,7 @@ end
 
 
 stream_fusion_cost(n::ENodeLiteral, g::EGraph) = 1
-function stream_fusion_cost(n::ENode, g::EGraph)
+function stream_fusion_cost(n::ENodeTerm, g::EGraph)
   cost = 1 + arity(n)
   for id in arguments(n)
     eclass = g[id]
