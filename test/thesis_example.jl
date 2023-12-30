@@ -23,7 +23,6 @@ function make_value(v::Symbol)
   return nothing
 end
 
-
 EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral) = make_value(operation(n))
 function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeTerm)
   # Let's consider only binary function call terms.
