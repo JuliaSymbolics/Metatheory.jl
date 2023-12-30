@@ -17,7 +17,6 @@ const UNDEF_ARGS = Vector{EClassId}(undef, 0)
 struct ENode
   # TODO use UInt flags
   istree::Bool
-  # E-graph contains mappings from the UInt id of head, operation and symtype to their original value
   head::Any
   operation::Any
   args::Vector{EClassId}
@@ -27,7 +26,6 @@ struct ENode
 end
 
 TermInterface.istree(n::ENode) = n.istree
-TermInterface.symtype(n::ENode) = n.symtype
 TermInterface.head(n::ENode) = n.head
 TermInterface.operation(n::ENode) = n.operation
 TermInterface.arguments(n::ENode) = n.args
@@ -53,7 +51,7 @@ end
 
 function toexpr(n::ENode)
   n.istree || return n.operation
-  Expr(:call, :ENode, head(n), operation(n), symtype(n), arguments(n))
+  Expr(:call, :ENode, head(n), operation(n), arguments(n))
 end
 
 Base.show(io::IO, x::ENode) = print(io, toexpr(x))

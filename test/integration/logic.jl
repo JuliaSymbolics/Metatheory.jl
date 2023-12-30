@@ -174,7 +174,8 @@ end
 
   # Frege's theorem
   ex = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))
-  @test_broken areequal(t, true, ex; params = params)
+  res = areequal(t, true, ex; params = params)
+  @test_broken !ismissing(res) && res
 
   # Demorgan's
   @test @areequal t true (!(p || q) == (!p && !q))
