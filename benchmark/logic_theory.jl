@@ -68,7 +68,7 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
     exprs = [true, g[g.root]]
     ids = [addexpr!(g, e) for e in exprs]
 
-    goal = EqualityGoal(exprs, ids)
+    goal = (g::EGraph) -> in_same_class(g, ids...)
     params.goal = goal
     saturate!(g, t, params)
     ex = extract!(g, astsize)
