@@ -38,17 +38,22 @@ Base.@kwdef mutable struct SaturationParams
   timer::Bool                          = true
 end
 
-# function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
-#   if isground(p)
-#     id = lookup_pat(g, p)
-#     !isnothing(id) && return [id]
-#   else
-#     return keys(g.classes)
-#   end
-#   return []
+function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
+  if isground(p)
+    id = lookup_pat(g, p)
+    !isnothing(id) && return [id]
+  else
+    get(g.classes_by_op, op_key(p), ())
+    # return keys(g.classes)
+  end
+end
+
+# function cached_ids(g::EGraph, p::PatTerm)
+#   keys(g.classes)
 # end
 
-function cached_ids(g::EGraph, p::AbstractPattern) # p is a term
+
+function cached_ids(g::EGraph, p::AbstractPattern)
   @warn "Pattern matching against the whole e-graph"
   return keys(g.classes)
 end
@@ -68,9 +73,6 @@ end
 #   arr
 # end
 
-function cached_ids(g::EGraph, p::PatTerm)
-  keys(g.classes)
-end
 
 
 """
@@ -96,8 +98,14 @@ function eqsat_search!(
         @debug "$rule is banned"
         continue
       end
-      ids = cached_ids(g, rule.left)
-      rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
+      ids = let left = cached_ids(g, rule.left)
+        if rule isa BidirRule
+          Iterators.flatten((left, cached_ids(g, rule.right)))
+        else
+          left
+        end
+      end
+
       for i in ids
         n_matches += rule.ematcher!(g, rule_idx, i)
       end
