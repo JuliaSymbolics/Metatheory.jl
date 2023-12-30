@@ -1,6 +1,6 @@
 module EMatchCompiler
 
-using TermInterface
+using ..TermInterface
 using ..Patterns
 using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, LL, maybelock!
 

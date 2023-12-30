@@ -1,6 +1,5 @@
 using Test
 using Metatheory
-using TermInterface
 
 function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   params = SaturationParams(

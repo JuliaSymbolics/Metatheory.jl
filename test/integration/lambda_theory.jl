@@ -1,6 +1,5 @@
 using Metatheory
 using Metatheory.EGraphs
-using TermInterface
 using Test
 
 abstract type LambdaExpr end

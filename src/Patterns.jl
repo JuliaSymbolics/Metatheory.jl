@@ -2,7 +2,7 @@ module Patterns
 
 using Metatheory: binarize, cleanast, alwaystrue
 using AutoHashEquals
-using TermInterface
+using ..TermInterface
 
 
 """

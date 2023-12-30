@@ -160,7 +160,6 @@ end
   @test r(ex) == 4
 end
 
-using TermInterface
 
 using Metatheory.Syntax: @capture
 @testset "Capture form" begin
@@ -199,7 +198,6 @@ using Metatheory.Syntax: @capture
   @test r == true
 end
 
-using TermInterface
 @testset "Matchable struct" begin
   struct Qux
     args

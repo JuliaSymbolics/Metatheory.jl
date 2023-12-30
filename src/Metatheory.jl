@@ -2,8 +2,6 @@ module Metatheory
 
 using Base.Meta
 using Reexport
-using TermInterface
-using TermInterface: head
 
 @inline alwaystrue(x) = true
 
@@ -15,7 +13,9 @@ include("utils.jl")
 export @timer
 export @iftimer
 export @timerewrite
-export @matchable
+
+include("TermInterface.jl")
+@reexport using .TermInterface
 
 include("Patterns.jl")
 @reexport using .Patterns
