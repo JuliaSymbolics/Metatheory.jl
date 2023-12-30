@@ -30,5 +30,5 @@ ex_orig = :(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s))
 ex = rewrite(ex_orig, impl)
 
 SUITE["logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
-SUITE["logic"]["prove1"] = @benchmarkable prove($maths_theory, $ex, 5, 10, 5000)
+SUITE["logic"]["prove1"] = @benchmarkable prove($logic_theory, $ex, 3, 5, 5000)
 
