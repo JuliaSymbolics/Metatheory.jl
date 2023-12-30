@@ -29,13 +29,20 @@ Base.@kwdef mutable struct SaturationParams
   "Timeout in nanoseconds"
   timelimit::UInt64 = 0
   "Maximum number of eclasses allowed"
+<<<<<<< HEAD
   eclasslimit::Int                     = 5000
   enodelimit::Int                      = 15000
   goal::Function                       = (g::EGraph) -> false
+=======
+  eclasslimit::Int = 5000
+  enodelimit::Int = 15000
+  goal::Union{Nothing,SaturationGoal,Function} = nothing
+  stopwhen::Function = () -> false
+>>>>>>> origin/master
   scheduler::Type{<:AbstractScheduler} = BackoffScheduler
-  schedulerparams::Tuple               = ()
-  threaded::Bool                       = false
-  timer::Bool                          = true
+  schedulerparams::Tuple = ()
+  threaded::Bool = false
+  timer::Bool = true
 end
 
 # function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}

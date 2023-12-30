@@ -19,16 +19,16 @@ include("logic_theory.jl")
 
 SUITE["maths"] = BenchmarkGroup(["egraphs"])
 
-ex = :(a + b + (0 * c) + d)
-SUITE["maths"]["simpl1"] = @benchmarkable simplify($ex, $maths_theory, $(SaturationParams()), postprocess_maths)
+ex_math = :(a + b + (0 * c) + d)
+SUITE["maths"]["simpl1"] = @benchmarkable simplify($ex_math, $maths_theory, $(SaturationParams()), postprocess_maths)
 
 # ==================================================================
 
 SUITE["logic"] = BenchmarkGroup(["egraph", "logic"])
 
 ex_orig = :(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s))
-ex = rewrite(ex_orig, impl)
+ex_logic = rewrite(ex_orig, impl)
 
 SUITE["logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
-SUITE["logic"]["prove1"] = @benchmarkable prove($logic_theory, $ex, 3, 5, 1000)
+SUITE["logic"]["prove1"] = @benchmarkable prove($logic_theory, $ex_logic, 3, 5, 5000)
 

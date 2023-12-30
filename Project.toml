@@ -8,7 +8,6 @@ AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
-Unityper = "a7c27f48-0311-42f6-a7f8-2c11e75eb415"
 
 [compat]
 AutoHashEquals = "2.1.0"

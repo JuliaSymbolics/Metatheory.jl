@@ -62,7 +62,6 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
 
   hist = UInt64[]
   push!(hist, hash(ex))
-  g = EGraph(ex)
   for i in 1:steps
     g = EGraph(ex)
 
