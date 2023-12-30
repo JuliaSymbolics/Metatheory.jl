@@ -71,7 +71,7 @@ end
 ###########################################
 
 
-params = SaturationParams(timeout = 20, schedulerparams = (1000, 5))
+params = SaturationParams(timeout = 20, schedulerparams = (1000, 5), enodelimit = 500)
 
 # params = SaturationParams(; timer = false)
 

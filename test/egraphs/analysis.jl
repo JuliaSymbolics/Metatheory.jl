@@ -130,15 +130,15 @@ end
 
 
   @testset "Extraction 1 - Commutative Monoid" begin
-    G = EGraph(:(3 * 4))
-    saturate!(G, t)
-    @test (12 == extract!(G, astsize))
+    g = EGraph(:(3 * 4))
+    saturate!(g, t)
+    @test (12 == extract!(g, astsize))
 
     ex = :(a * 3 * b * 4)
-    G = EGraph(ex)
+    g = EGraph(ex)
     params = SaturationParams(timeout = 15)
-    saturate!(G, t, params)
-    extr = extract!(G, astsize)
+    saturate!(g, t, params)
+    extr = extract!(g, astsize)
     @test extr == :((12 * a) * b) ||
           extr == :(12 * (a * b)) ||
           extr == :(a * (b * 12)) ||

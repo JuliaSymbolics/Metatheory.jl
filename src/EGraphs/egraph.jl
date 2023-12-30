@@ -56,7 +56,10 @@ end
 
 Base.show(io::IO, x::ENode) = print(io, toexpr(x))
 
-op_key(n::ENode) = (operation(n) => istree(n) ? arity(n) : -1)
+function op_key(n)
+  op = operation(n)
+  (op isa Union{Function,DataType} ? nameof(op) : op) => (istree(n) ? arity(n) : -1)
+end
 
 # parametrize metadata by M
 mutable struct EClass
@@ -530,8 +533,7 @@ function reachable(g::EGraph, id::EClassId)
 
   function reachable_node(xn::ENode)
     xn.istree || return
-    x = canonicalize(g, xn)
-    for c_id in arguments(x)
+    for c_id in arguments(xn)
       if c_id ∉ hist
         push!(hist, c_id)
         push!(todo, c_id)
