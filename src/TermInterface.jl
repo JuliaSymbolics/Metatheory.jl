@@ -195,14 +195,21 @@ macro matchable(expr, head_name = nothing)
   get_name(s::Symbol) = s
   get_name(e::Expr) = (@assert(e.head == :(::)); e.args[1])
   fields = map(get_name, fields)
-  head_name = isnothing(head_name) ? Symbol(name, :Head) : head_name
+  has_head = !isnothing(head_name)
+  head_name = has_head ? head_name : Symbol(name, :Head)
 
   quote
     $expr
-    struct $head_name
-      head
-    end
-    TermInterface.head_symbol(x::$head_name) = x.head
+    $(
+      if !has_head
+        quote
+          struct $head_name
+            head
+          end
+          TermInterface.head_symbol(x::$head_name) = x.head
+        end
+      end
+    )
     # TODO default to call?
     TermInterface.head(::$name) = $head_name(:call)
     TermInterface.istree(::$name) = true
