@@ -69,7 +69,7 @@ function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
   hash(a) == hash(b) && a.operation == b.operation
 end
 
-toexpr(n::ENodeLiteral) = n.operation
+toexpr(n::ENodeLiteral) = n.value
 toexpr(n::ENodeTerm) = Expr(:call, :ENodeTerm, head(n), operation(n), arguments(n))
 
 Base.show(io::IO, x::AbstractENode) = print(io, toexpr(x))
