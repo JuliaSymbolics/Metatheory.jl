@@ -82,8 +82,8 @@ function bench_while_superinterpreter(expr, expected)
   g.root = id1
   id2 = addexpr!(g, expected)
   goal = (g::EGraph) -> in_same_class(g, id1, id2)
-  params = SaturationParams(timeout = 250, goal = goal, scheduler = Schedulers.SimpleScheduler)
-  saturate!(g, while_language, params)
+  params = SaturationParams(timeout = 100, goal = goal, scheduler = Schedulers.SimpleScheduler)
+  rep = saturate!(g, while_language, params)
   @assert expected == extract!(g, astsize)
 end
 
