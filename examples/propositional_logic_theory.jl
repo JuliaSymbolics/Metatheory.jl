@@ -1,3 +1,5 @@
+# # Rewriting 
+
 fold = @theory p q begin
   (p::Bool == q::Bool) => (p == q)
   (p::Bool || q::Bool) => (p || q)
@@ -50,7 +52,10 @@ impl = @theory p q begin
   (p ⟹ q) --> (!p || q)
 end
 
+propositional_logic_theory = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
 
+
+# Sketch function for basic iterative saturation and extraction 
 function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   params = SaturationParams(
     timeout = timeout,
@@ -83,4 +88,3 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   return ex
 end
 
-logic_theory = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ fold
