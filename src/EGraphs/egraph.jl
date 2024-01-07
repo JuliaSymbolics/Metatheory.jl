@@ -7,54 +7,34 @@
 import Metatheory: maybelock!
 
 const AnalysisData = NamedTuple{N,<:Tuple{Vararg{Ref}}} where {N}
-const EClassId = Int64
+const Id = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
 # TODO document bindings
 const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
 const UNDEF_ARGS = Vector{EClassId}(undef, 0)
 
-# @compactify begin 
-struct ENode
-  # TODO use UInt flags
-  istree::Bool
-  head::Any
-  operation::Any
-  args::Vector{EClassId}
-  hash::Ref{UInt}
-  ENode(head, operation, args) = new(true, head, operation, args, Ref{UInt}(0))
-  ENode(literal) = new(false, nothing, literal, UNDEF_ARGS, Ref{UInt}(0))
-end
+const ENode = Vector{Id}
 
-TermInterface.istree(n::ENode) = n.istree
-TermInterface.head(n::ENode) = n.head
-TermInterface.operation(n::ENode) = n.operation
-TermInterface.arguments(n::ENode) = n.args
-TermInterface.children(n::ENode) = [n.operation; n.args...]
-TermInterface.arity(n::ENode) = length(n.args)
+"""
+An ENode literal is an Int64 representing the index of the constant in egraph.constants.
+- hash is computed as `reinterpret(Int64, hash(@view[rest_of_enode]))`
 
+1. hash - defaults to zero
+2. head - index of the head in g.constants - if the enode is a tree, then it is positive, otherwise it's 0
+3. operation/value 
+4. from [4:end]: e-class ids of the childrens
+"""
+@inline enode_literal(g::EGraph, @nospecialize(literal))::Id = get!(g.constants, literal, length(g.constants) + 1)
 
-# This optimization comes from SymbolicUtils
-# The hash of an enode is cached to avoid recomputing it.
-# Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(n::ENode, salt::UInt)
-  !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
-  h = n.hash[]
-  !iszero(h) && return h
-  h′ = hash(n.args, hash(n.head, hash(n.operation, hash(n.istree, salt))))
-  n.hash[] = h′
-  return h′
-end
+# enode_term(g::EGraph, head, operation, args::Vector{EClassId})::ENode
 
-function Base.:(==)(a::ENode, b::ENode)
-  hash(a) == hash(b) && a.operation == b.operation
-end
+@inline enode_hash!(n::ENode)::Id = n[1] != 0 ? n[1] : (n[1] = reinterpret(Int, hash(@view n[2:end])))
+@inline enode_head(n::ENode)::Id = n[2]
+@inline enode_operation(n::ENode)::Id = n[3]
+@inline enode_arguments(n::ENode)::Vector{Id} = @view n[4:end]
+@inline enode_children(n::ENode)::Vector{Id} = @view n[3:end]
+@inline enode_arity(n::ENode)::Int64 = length(n) - 3
 
-function toexpr(n::ENode)
-  n.istree || return n.operation
-  Expr(:call, :ENode, head(n), operation(n), arguments(n))
-end
-
-Base.show(io::IO, x::ENode) = print(io, toexpr(x))
 
 function op_key(n)
   op = operation(n)
@@ -65,13 +45,15 @@ end
 mutable struct EClass
   g # EGraph
   id::EClassId
+  constant_nodes::Vector{Id}
   nodes::Vector{ENode}
-  parents::Vector{Pair{ENode,EClassId}}
+  # TODO, maybe use hash of enodes?
+  parents::Vector{Pair{ENode,Id}} # Pairs of enodes and their e-class id
   data::AnalysisData
 end
 
-EClass(g, id) = EClass(g, id, ENode[], Pair{ENode,EClassId}[], nothing)
-EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
+EClass(g, id) = EClass(g, id, Id[], ENode[], Pair{ENode,EClassId}[], nothing)
+EClass(g, id, constant_nodes, nodes, parents) = EClass(g, id, constant_nodes, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
 Base.getindex(a::EClass, i) = a.nodes[i]
@@ -259,11 +241,6 @@ function canonicalize!(g::EGraph, n::ENode)
   end
   n.hash[] = UInt(0)
   return n
-end
-
-
-function canonicalize!(g::EGraph, e::EClass)
-  e.id = find(g, e.id)
 end
 
 function lookup(g::EGraph, n::ENode)::EClassId
