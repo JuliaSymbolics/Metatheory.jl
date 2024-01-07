@@ -5,7 +5,7 @@ using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: cleanast, binarize, matcher, instantiate
+using Metatheory: cleanast, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 
