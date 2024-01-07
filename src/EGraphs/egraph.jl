@@ -111,7 +111,7 @@ function Base.show(io::IO, a::EClass)
   print(io, "EClass $(a.id) (")
 
   print(io, "[", Base.join(a.nodes, ", "), "], ")
-  print(io, a.data)
+  # print(io, a.data)
   print(io, ")")
 end
 
