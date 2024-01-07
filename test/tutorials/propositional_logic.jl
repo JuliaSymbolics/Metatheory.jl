@@ -2,7 +2,6 @@
 
 using Test
 using Metatheory
-using TermInterface
 
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 
