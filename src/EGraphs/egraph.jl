@@ -70,15 +70,10 @@ mutable struct EClass
   data::AnalysisData
 end
 
-EClass(g, id) = EClass(g, id, ENode[], Pair{ENode,EClassId}[], nothing)
 EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
 Base.getindex(a::EClass, i) = a.nodes[i]
-Base.setindex!(a::EClass, v, i) = setindex!(a.nodes, v, i)
-Base.firstindex(a::EClass) = firstindex(a.nodes)
-Base.lastindex(a::EClass) = lastindex(a.nodes)
-Base.length(a::EClass) = length(a.nodes)
 
 # Interface for iterating EClass
 Base.iterate(a::EClass) = iterate(a.nodes)
@@ -138,16 +133,6 @@ function setdata!(a::EClass, analysis_name::Symbol, value)
     ref[] = value
   else
     a.data = merge(a.data, NamedTuple{(analysis_name,)}((Ref{Any}(value),)))
-  end
-end
-
-function funs(a::EClass)
-  map(operation, a.nodes)
-end
-
-function funs_arity(a::EClass)
-  map(a.nodes) do x
-    (operation(x), arity(x))
   end
 end
 
@@ -237,10 +222,6 @@ find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
 
 Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
-### Definition 2.3: canonicalization
-iscanonical(g::EGraph, n::ENode) = !n.istree || n == canonicalize(g, n)
-iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
-
 function canonicalize(g::EGraph, n::ENode)::ENode
   n.istree || return n
   ar = length(n.args)
@@ -259,11 +240,6 @@ function canonicalize!(g::EGraph, n::ENode)
   end
   n.hash[] = UInt(0)
   return n
-end
-
-
-function canonicalize!(g::EGraph, e::EClass)
-  e.id = find(g, e.id)
 end
 
 function lookup(g::EGraph, n::ENode)::EClassId
@@ -576,4 +552,3 @@ function lookup_pat(g::EGraph, p::PatTerm)::EClassId
 end
 
 lookup_pat(g::EGraph, p::Any) = lookup(g, ENode(p))
-lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))

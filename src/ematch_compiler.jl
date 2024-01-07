@@ -159,8 +159,6 @@ function ematcher_yield_bidir(l, r, npvars::Int)
   end
 end
 
-ematcher(p::AbstractPattern) = error("Unsupported pattern in e-matching $p")
-
 export ematcher_yield, ematcher_yield_bidir
 
 end
