@@ -4,7 +4,7 @@ include("../docstrings.jl")
 
 using ..TermInterface
 using TimerOutputs
-using Metatheory: alwaystrue, cleanast, binarize
+using Metatheory: alwaystrue, cleanast
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler

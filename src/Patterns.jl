@@ -1,6 +1,6 @@
 module Patterns
 
-using Metatheory: binarize, cleanast, alwaystrue
+using Metatheory: cleanast, alwaystrue
 using AutoHashEquals
 using ..TermInterface
 
