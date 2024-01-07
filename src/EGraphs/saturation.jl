@@ -72,6 +72,7 @@ function eqsat_search!(
   for (rule_idx, rule) in enumerate(theory)
     prev_matches = n_matches
     @timeit report.to string(rule_idx) begin
+      prev_matches = n_matches
       # don't apply banned rules
       if !cansearch(scheduler, rule)
         @debug "$rule is banned"
