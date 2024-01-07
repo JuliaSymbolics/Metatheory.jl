@@ -82,9 +82,9 @@ function bench_while_superinterpreter(expr, expected)
   g.root = id1
   id2 = addexpr!(g, expected)
   goal = (g::EGraph) -> in_same_class(g, id1, id2)
-  params = SaturationParams(timeout = 250, goal = goal)
+  params = SaturationParams(timeout = 250, goal = goal, scheduler = Schedulers.SimpleScheduler)
   saturate!(g, while_language, params)
-  @assert 10 == extract!(g, astsize)
+  @assert expected == extract!(g, astsize)
 end
 
 SUITE["while_superinterpreter"]["while_10"] = @benchmarkable bench_while_superinterpreter($exx, 10)
