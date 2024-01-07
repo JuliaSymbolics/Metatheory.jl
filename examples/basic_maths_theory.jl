@@ -1,4 +1,6 @@
 
+# Basic Mathematics Theory
+
 mult_t = @commutative_monoid (*) 1
 plus_t = @commutative_monoid (+) 0
 
