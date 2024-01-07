@@ -18,15 +18,15 @@ saturate!(g, fibo, params)</code></pre><pre class="documenter-example-output">Sa
  ────────────────────────────────────────────────────────────────────
                             Time                    Allocations      
                    ───────────────────────   ────────────────────────
- Tot / % measured:      375ms /  13.0%           23.3MiB /   8.2%    
+ Tot / % measured:      393ms /  11.9%           23.3MiB /   8.2%    
 
  Section   ncalls     time    %tot     avg     alloc    %tot      avg
  ────────────────────────────────────────────────────────────────────
- Search        16   31.7ms   65.1%  1.98ms   1.30MiB   68.3%  83.2KiB
-   2           16   31.5ms   64.8%  1.97ms   1.25MiB   65.8%  80.3KiB
-   1           16    135μs    0.3%  8.41μs   43.2KiB    2.2%  2.70KiB
- Apply         16   16.7ms   34.4%  1.05ms    550KiB   28.2%  34.3KiB
- Rebuild       16    239μs    0.5%  15.0μs   69.4KiB    3.6%  4.34KiB
+ Search        16   30.6ms   65.1%  1.91ms   1.30MiB   68.3%  83.2KiB
+   2           16   30.4ms   64.7%  1.90ms   1.25MiB   65.8%  80.3KiB
+   1           16    132μs    0.3%  8.27μs   43.2KiB    2.2%  2.70KiB
+ Apply         16   16.2ms   34.4%  1.01ms    550KiB   28.2%  34.3KiB
+ Rebuild       16    232μs    0.5%  14.5μs   69.4KiB    3.6%  4.34KiB
  ────────────────────────────────────────────────────────────────────
 </pre><p>That&#39;s fast!</p><pre><code class="language-julia">z = EGraph(:(fib(10)))
 saturate!(z, fibo, params)</code></pre><pre class="documenter-example-output">SaturationReport
@@ -37,16 +37,16 @@ saturate!(z, fibo, params)</code></pre><pre class="documenter-example-output">Sa
  ────────────────────────────────────────────────────────────────────
                             Time                    Allocations      
                    ───────────────────────   ────────────────────────
- Tot / % measured:     1.44ms /  82.1%            575KiB /  87.3%    
+ Tot / % measured:     1.47ms /  83.9%            575KiB /  87.3%    
 
  Section   ncalls     time    %tot     avg     alloc    %tot      avg
  ────────────────────────────────────────────────────────────────────
- Apply         16    784μs   66.5%  49.0μs    332KiB   66.2%  20.7KiB
- Search        16    198μs   16.8%  12.4μs    100KiB   20.0%  6.27KiB
-   1           16   93.5μs    7.9%  5.85μs   43.2KiB    8.6%  2.70KiB
-   2           16   91.6μs    7.8%  5.73μs   53.0KiB   10.6%  3.31KiB
- Rebuild       16    197μs   16.7%  12.3μs   69.4KiB   13.8%  4.34KiB
+ Apply         16    803μs   65.3%  50.2μs    332KiB   66.2%  20.7KiB
+ Search        16    217μs   17.6%  13.5μs    100KiB   20.0%  6.27KiB
+   2           16    102μs    8.3%  6.36μs   53.0KiB   10.6%  3.31KiB
+   1           16   99.3μs    8.1%  6.21μs   43.2KiB    8.6%  2.70KiB
+ Rebuild       16    210μs   17.1%  13.1μs   69.4KiB   13.8%  4.34KiB
  ────────────────────────────────────────────────────────────────────
 </pre><p>We can test that the result is correct.</p><pre><code class="language-julia">@testset &quot;Fibonacci&quot; begin
   @test 55 == extract!(g, astsize)
-end</code></pre><pre class="documenter-example-output">Test.DefaultTestSet(&quot;Fibonacci&quot;, Any[], 1, false, false, true, 1.704657938597922e9, 1.70465793863097e9, false)</pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../custom_types/">« Interfacing with Metatheory.jl</a><a class="docs-footer-nextpage" href="../mu/">The MU Puzzle »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 7 January 2024 20:06">Sunday 7 January 2024</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output">Test.DefaultTestSet(&quot;Fibonacci&quot;, Any[], 1, false, false, true, 1.704669046945064e9, 1.70466904697939e9, false)</pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../custom_types/">« Interfacing with Metatheory.jl</a><a class="docs-footer-nextpage" href="../mu/">The MU Puzzle »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 7 January 2024 23:11">Sunday 7 January 2024</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
