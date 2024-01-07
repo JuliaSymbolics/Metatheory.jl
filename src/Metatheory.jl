@@ -11,8 +11,7 @@ function maybelock! end
 include("docstrings.jl")
 include("utils.jl")
 export @timer
-export @iftimer
-export @timerewrite
+
 
 include("TermInterface.jl")
 @reexport using .TermInterface
