@@ -1,38 +1,5 @@
 using Base: ImmutableDict
 
-function binarize(e::T) where {T}
-  !istree(e) && return e
-  head = head(e)
-  if head == :call
-    op = operation(e)
-    args = arguments(e)
-    meta = metadata(e)
-    if op ∈ binarize_ops && arity(e) > 2
-      return foldl((x, y) -> similarterm(e, op, [x, y], symtype(e); metadata = meta, exprhead = head), args)
-    end
-  end
-  return e
-end
-
-"""
-Recursive version of binarize
-"""
-function binarize_rec(e::T) where {T}
-  !istree(e) && return e
-  head = exprhead(e)
-  op = operation(e)
-  args = map(binarize_rec, arguments(e))
-  meta = metadata(e)
-  if head == :call
-    if op ∈ binarize_ops && arity(e) > 2
-      return foldl((x, y) -> similarterm(e, op, [x, y], symtype(e); metadata = meta, exprhead = head), args)
-    end
-  end
-  return similarterm(e, op, args, symtype(e); metadata = meta, exprhead = head)
-end
-
-
-
 const binarize_ops = [:(+), :(*), (+), (*)]
 
 function cleanast(e::Expr)
@@ -95,58 +62,6 @@ end
 @inline drop_n(ll::Union{Tuple,AbstractArray}, n) = drop_n(LL(ll, 1), n)
 @inline drop_n(ll::LL, n) = LL(ll.v, ll.i + n)
 
-
-
-isliteral(::Type{T}) where {T} = x -> x isa T
-is_literal_number(x) = isliteral(Number)(x)
-
-# are there nested ⋆ terms?
-function isnotflat(⋆)
-  function (x)
-    args = arguments(x)
-    for t in args
-      if istree(t) && operation(t) === (⋆)
-        return true
-      end
-    end
-    return false
-  end
-end
-
-function hasrepeats(x)
-  length(x) <= 1 && return false
-  for i in 1:(length(x) - 1)
-    if isequal(x[i], x[i + 1])
-      return true
-    end
-  end
-  return false
-end
-
-function merge_repeats(merge, xs)
-  length(xs) <= 1 && return false
-  merged = Any[]
-  i = 1
-
-  while i <= length(xs)
-    l = 1
-    for j in (i + 1):length(xs)
-      if isequal(xs[i], xs[j])
-        l += 1
-      else
-        break
-      end
-    end
-    if l > 1
-      push!(merged, merge(xs[i], l))
-    else
-      push!(merged, xs[i])
-    end
-    i += l
-  end
-  return merged
-end
-
 using TimerOutputs
 
 const being_timed = Ref{Bool}(false)
@@ -159,56 +74,4 @@ macro timer(name, expr)
       $(esc(expr))
     end
   )
-end
-
-macro iftimer(expr)
-  esc(expr)
-end
-
-function timerewrite(f)
-  reset_timer!()
-  being_timed[] = true
-  x = f()
-  being_timed[] = false
-  print_timer()
-  println()
-  x
-end
-
-"""
-    @timerewrite expr
-
-If `expr` calls `simplify` or a `RuleSet` object, track the amount of time
-it spent on applying each rule and pretty print the timing.
-
-This uses [TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl).
-
-## Example:
-
-```julia
-
-julia> expr = foldr(*, rand([a,b,c,d], 100))
-(a ^ 26) * (b ^ 30) * (c ^ 16) * (d ^ 28)
-
-julia> @timerewrite simplify(expr)
- ────────────────────────────────────────────────────────────────────────────────────────────────
-                                                         Time                   Allocations
-                                                 ──────────────────────   ───────────────────────
-                Tot / % measured:                     340ms / 15.3%           92.2MiB / 10.8%
-
- Section                                 ncalls     time   %tot     avg     alloc   %tot      avg
- ────────────────────────────────────────────────────────────────────────────────────────────────
- Rule((~y) ^ ~n * ~y => (~y) ^ (~n ...    667   11.1ms  21.3%  16.7μs   2.66MiB  26.8%  4.08KiB
-   RHS                                       92    277μs  0.53%  3.01μs   14.4KiB  0.14%     160B
- Rule((~x) ^ ~n * (~x) ^ ~m => (~x)...    575   7.63ms  14.6%  13.3μs   1.83MiB  18.4%  3.26KiB
- (*)(~(~(x::!issortedₑ))) => sort_arg...    831   6.31ms  12.1%  7.59μs    738KiB  7.26%     910B
-   RHS                                      164   3.03ms  5.81%  18.5μs    250KiB  2.46%  1.52KiB
-   ...
-   ...
- ────────────────────────────────────────────────────────────────────────────────────────────────
-(a ^ 26) * (b ^ 30) * (c ^ 16) * (d ^ 28)
-```
-"""
-macro timerewrite(expr)
-  :(timerewrite(() -> $(esc(expr))))
 end
