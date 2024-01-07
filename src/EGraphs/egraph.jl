@@ -84,7 +84,6 @@ function Base.show(io::IO, a::EClass)
   print(io, "EClass $(a.id) (")
 
   print(io, "[", Base.join(a.nodes, ", "), "], ")
-  print(io, a.data)
   print(io, ")")
 end
 
@@ -360,9 +359,6 @@ function Base.union!(g::EGraph, enode_id1::EClassId, enode_id2::EClassId)::Bool
 
   append!(eclass_1.nodes, eclass_2.nodes)
   append!(eclass_1.parents, eclass_2.parents)
-  # I (was) the troublesome line!
-  # g.classes[to] = union!(to_class, from_class)
-  # delete!(g.classes, from)
   return true
 end
 
@@ -389,8 +385,9 @@ function rebuild_classes!(g::EGraph)
     for n in eclass.nodes
       canonicalize!(g, n)
     end
+    # Sort to go in order?
+    unique!(eclass.nodes)
 
-    # Sort and dedup to go in order?
     for n in eclass.nodes
       add_class_by_op(g, n, eclass_id)
     end
@@ -413,6 +410,8 @@ function process_unions!(g::EGraph)::Int
         old_class_id = g.memo[node]
         g.memo[node] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
+        # TODO unique! node dedup can be moved here? compare performance
+        # did_something && unique!(g[eclass_id].nodes)
         n_unions += did_something
       end
     end
