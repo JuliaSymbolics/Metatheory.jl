@@ -76,11 +76,15 @@ exx = :((while x < 10
 end;
 x), $(Mem(:x => 3)))
 
-function bench_while_superinterpreter(ex)
-  g = EGraph(ex)
-  params = SaturationParams(timeout = 100)
+function bench_while_superinterpreter(expr, expected)
+  g = EGraph()
+  id1 = addexpr!(g, expr)
+  g.root = id1
+  id2 = addexpr!(g, expected)
+  goal = (g::EGraph) -> in_same_class(g, id1, id2)
+  params = SaturationParams(timeout = 250, goal = goal)
   saturate!(g, while_language, params)
   @assert 10 == extract!(g, astsize)
 end
 
-SUITE["while_superinterpreter"]["while_10"] = @benchmarkable bench_while_superinterpreter($exx)
+SUITE["while_superinterpreter"]["while_10"] = @benchmarkable bench_while_superinterpreter($exx, 10)
