@@ -44,18 +44,7 @@ function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
     !isnothing(id) && return [id]
   else
     get(g.classes_by_op, op_key(p), ())
-    # return keys(g.classes)
   end
-end
-
-# function cached_ids(g::EGraph, p::PatTerm)
-#   keys(g.classes)
-# end
-
-
-function cached_ids(g::EGraph, p::AbstractPattern)
-  @warn "Pattern matching against the whole e-graph"
-  return keys(g.classes)
 end
 
 function cached_ids(g::EGraph, p) # p is a literal
@@ -63,17 +52,6 @@ function cached_ids(g::EGraph, p) # p is a literal
   id > 0 && return [id]
   return []
 end
-
-
-# function cached_ids(g::EGraph, p::PatTerm)
-#   arr = get(g.symcache, operation(p), EClassId[])
-#   if operation(p) isa Union{Function,DataType}
-#     append!(arr, get(g.symcache, nameof(operation(p)), EClassId[]))
-#   end
-#   arr
-# end
-
-
 
 """
 Returns an iterator of `Match`es.
