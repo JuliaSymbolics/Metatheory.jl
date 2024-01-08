@@ -25,17 +25,13 @@ and_alg = @theory p q r begin
 end
 
 comb = @theory p q r begin
-  # DeMorgan
-  !(p || q) == (!p && !q)
+  !(p || q) == (!p && !q)                   # DeMorgan
   !(p && q) == (!p || !q)
-  # distrib
-  (p && (q || r)) == ((p && q) || (p && r))
+  (p && (q || r)) == ((p && q) || (p && r)) # Distributivity
   (p || (q && r)) == ((p || q) && (p || r))
-  # absorb
-  (p && (p || q)) --> p
+  (p && (p || q)) --> p                     # Absorb
   (p || (p && q)) --> p
-  # complement
-  (p && (!p || q)) --> p && q
+  (p && (!p || q)) --> p && q               # Complement
   (p || (!p && q)) --> p || q
 end
 
@@ -60,7 +56,6 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
   params = SaturationParams(
     timeout = timeout,
     eclasslimit = eclasslimit,
-    # scheduler=Schedulers.ScoredScheduler, schedulerparams=(1000,5, Schedulers.exprsize))
     scheduler = Schedulers.BackoffScheduler,
     schedulerparams = (6000, 5),
   )

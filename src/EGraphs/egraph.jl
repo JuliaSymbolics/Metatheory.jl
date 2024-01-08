@@ -346,8 +346,7 @@ function Base.union!(g::EGraph, enode_id1::EClassId, enode_id2::EClassId)::Bool
 
   union!(g.uf, id_1, id_2)
 
-  eclass_2 = g.classes[id_2]::EClass
-  delete!(g.classes, id_2)
+  eclass_2 = pop!(g.classes, id_2)::EClass
   eclass_1 = g.classes[id_1]::EClass
 
   append!(g.pending, eclass_2.parents)

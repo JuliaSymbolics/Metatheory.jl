@@ -34,15 +34,6 @@ end
 export symtype
 
 """
-  issym(x)
-
-Returns `true` if `x` is a symbol. If true, `nameof` must be defined
-on `x` and must return a Symbol.
-"""
-issym(x) = false
-export issym
-
-"""
   exprhead(x)
 
 If `x` is a term as defined by `istree(x)`, `exprhead(x)` must return a symbol,
@@ -132,7 +123,7 @@ export arity
 
 Return the metadata attached to `x`.
 """
-metadata(x) = nothing
+function metadata(x) end
 export metadata
 
 
@@ -142,9 +133,7 @@ export metadata
 Returns a new term which has the structure of `x` but also has
 the metadata `md` attached to it.
 """
-function metadata(x, data)
-  error("Setting metadata on $x is not possible")
-end
+function metadata(x, data) end
 
 
 """
