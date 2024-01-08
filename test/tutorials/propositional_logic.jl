@@ -1,7 +1,6 @@
 # Proving Propositional Logic Statements
 
-using Test
-using Metatheory
+using Metatheory, Test
 
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 
@@ -17,12 +16,11 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)))
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true
 
-  # Frege's theorem
-  @test @areequal propositional_logic_theory true (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))
 
-  # Demorgan's
-  @test @areequal propositional_logic_theory true (!(p || q) == (!p && !q))
+  @test @areequal propositional_logic_theory true (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))   # Frege's theorem
 
-  # Consensus theorem
-  # @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
+  @test @areequal propositional_logic_theory true (!(p || q) == (!p && !q)) # Demorgan's
 end
+
+# Consensus theorem
+# @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))

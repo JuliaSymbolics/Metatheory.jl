@@ -1,6 +1,12 @@
 # API Documentation
 
 
+## TermInterface
+
+```@autodocs
+Modules = [Metatheory.TermInterface]
+
+```
 ## Syntax
 
 ```@autodocs
@@ -13,14 +19,6 @@ Modules = [Metatheory.Syntax]
 
 ```@autodocs
 Modules = [Metatheory.Patterns]
-```
-
----
-
-## Rules 
-
-```@autodocs
-Modules = [Metatheory.Rules]
 ```
 
 ---

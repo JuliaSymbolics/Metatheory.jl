@@ -1,5 +1,5 @@
 # # Rewriting Calculational Logic
-using Metatheory
+using Metatheory, Test
 
 include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_theory.jl"))
 
@@ -17,14 +17,12 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_t
 
   @test areequal(calculational_logic_theory, true, :(((p ⟹ (p || p)) == ((!(p) && q) ⟹ q))); params = params)
 
-  # Frege's theorem
-  ex = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))
+  ex = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))   # Frege's theorem
   res = areequal(calculational_logic_theory, true, ex; params = params)
   @test_broken !ismissing(res) && res
 
-  # Demorgan's
-  @test @areequal calculational_logic_theory true (!(p || q) == (!p && !q))
 
-  # Consensus theorem
-  areequal(calculational_logic_theory, :((x && y) || (!x && z) || (y && z)), :((x && y) || (!x && z)); params = params)
+  @test @areequal calculational_logic_theory true (!(p || q) == (!p && !q))   # Demorgan's
+
+  areequal(calculational_logic_theory, :((x && y) || (!x && z) || (y && z)), :((x && y) || (!x && z)); params = params)   # Consensus theorem
 end

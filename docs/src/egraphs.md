@@ -6,7 +6,7 @@ have very recently repurposed EGraphs to implement state-of-the-art,
 rewrite-driven compiler optimizations and program synthesizers using a technique
 known as equality saturation. Metatheory.jl provides a general purpose,
 customizable implementation of EGraphs and equality saturation, inspired from
-the [egg](https://egraphs-good.github.io/) library for Rust. You can read more
+the [egg](https://egraphs-good.github.io/) Rust library. You can read more
 about the design of the EGraph data structure and equality saturation algorithm
 in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304).
 
@@ -83,20 +83,14 @@ commutativity and distributivity**, rules that are
 otherwise known of causing loops and require extensive user reasoning 
 in classical rewriting.
 
-```jldoctest
+```@example basic_theory
+using Metatheory
+
 t = @theory a b c begin
     a * b == b * a
     a * 1 == a
     a * (b * c) == (a * b) * c
 end
-
-# output
-
-3-element Vector{EqualityRule}:
- ~a * ~b == ~b * ~a
- ~a * 1 == ~a
- ~a * (~b * ~c) == (~a * ~b) * ~c
-
 ```
 
 
@@ -109,7 +103,8 @@ customizable parameters include a `timeout` on the number of iterations, a
 `eclasslimit` on the number of e-classes in the EGraph, a `stopwhen` functions
 that stops saturation when it evaluates to true.
 
-```@example
+```@example basic_theory
+using Metatheory
 g = EGraph(:((a * b) * (1 * (b + c))));
 report = saturate!(g, t);
 ```
@@ -237,7 +232,8 @@ and its cost. More details can be found in the [egg paper](https://dl.acm.org/do
 
 Here's an example:
 
-```julia
+```@example cost_function
+using Metatheory
 # This is a cost function that behaves like `astsize` but increments the cost 
 # of nodes containing the `^` operation. This results in a tendency to avoid 
 # extraction of expressions containing '^'.
@@ -247,6 +243,7 @@ function cost_function(n::ENode, g::EGraph)
 
     cost = 1 + arity(n)
 
+    # This is where the custom cost is computed
     operation(n) == :^ && (cost += 2)
 
     for id in arguments(n)
@@ -294,24 +291,21 @@ the symbolic expressions that will result in an even or an odd number.
 Defining an EGraph Analysis is similar to the process [Mathematical Induction](https://en.wikipedia.org/wiki/Mathematical_induction).
 To define a custom EGraph Analysis, one should start by defining a name of type `Symbol` that will be used to identify this specific analysis and to dispatch against the required methods.
 
-```julia
-using Metatheory
-using Metatheory.EGraphs
-```
-
-The next step, the base case of induction, is to define a method for
+The first step is to define a method for
 [make](@ref) dispatching against our `OddEvenAnalysis`. First, we want to
-associate an analysis value only to the *literals* contained in the EGraph. To do this we
-take advantage of multiple dispatch against `ENodeLiteral`.
+associate an analysis value only to the *literals* contained in the EGraph (the base case of induction).
 
-```julia
-function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENodeLiteral)
-    if n.value isa Integer
-        return iseven(n.value) ? :even : :odd
+```@example custom_analysis
+using Metatheory
+
+function odd_even_base_case(n::ENode) # Should be called only if istree(n) is false
+    return if operation(n) isa Integer
+        iseven(operation(n)) ? :even : :odd
     else 
-        return nothing
+        nothing
     end
 end
+# ... Rest of code defined below
 ```
 
 Now we have to consider the *induction step*. 
@@ -325,17 +319,20 @@ And we know that
 * odd + even = odd 
 * even + even = even
 
-We can now define a method for `make` dispatching against 
-`OddEvenAnalysis` and `ENodeTerm`s to compute the analysis value for *nested* symbolic terms. 
+We can now extend the function defined above to compute the analysis value for *nested* symbolic terms. 
 We take advantage of the methods in [TermInterface](https://github.com/JuliaSymbolics/TermInterface.jl) 
-to inspect the content of an `ENodeTerm`.
+to inspect the children of an `ENode` that is a tree-like expression and not a literal.
 From the definition of an [ENode](@ref), we know that children of ENodes are always IDs pointing
 to EClasses in the EGraph.
 
-```julia
-function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENodeTerm)
+```@example custom_analysis
+function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENode)
+    if !istree(n)
+        return odd_even_base_case(n)
+    end
+    # The e-node is not a literal value,
     # Let's consider only binary function call terms.
-    if exprhead(n) == :call && arity(n) == 2
+    if head_symbol(head(n)) == :call && arity(n) == 2
         op = operation(n)
         # Get the left and right child eclasses
         child_eclasses = arguments(n)
@@ -377,14 +374,14 @@ analysis values. Since EClasses represent many equal ENodes, we have to inform t
 how to extract a single value out of the many analyses values contained in an EGraph.
 We do this by defining a method for [join](@ref).
 
-```julia
+```@example custom_analysis
 function EGraphs.join(::Val{:OddEvenAnalysis}, a, b)
     if a == b 
         return a 
     else
         # an expression cannot be odd and even at the same time!
         # this is contradictory, so we ignore the analysis value
-        return nothing 
+        error("contradiction")
     end
 end
 ```
@@ -393,7 +390,7 @@ We do not care to modify the content of EClasses in consequence of our analysis.
 Therefore, we can skip the definition of [modify!](@ref).
 We are now ready to test our analysis.
 
-```julia
+```@example custom_analysis
 t = @theory a b c begin 
     a * (b * c) == (a * b) * c
     a + (b + c) == (a + b) + c
@@ -405,8 +402,8 @@ end
 function custom_analysis(expr)
     g = EGraph(expr)
     saturate!(g, t)
-    analyze!(g, OddEvenAnalysis)
-    return getdata(g[g.root], OddEvenAnalysis)
+    analyze!(g, :OddEvenAnalysis)
+    return getdata(g[g.root], :OddEvenAnalysis)
 end
 
 custom_analysis(:(2*a)) # :even
