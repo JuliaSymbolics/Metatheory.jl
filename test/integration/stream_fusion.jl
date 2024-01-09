@@ -75,18 +75,11 @@ normalize_theory = @theory x y z f g begin
 end
 
 
-function stream_fusion_cost(n::ENode, g::EGraph)
+function stream_fusion_cost(n::ENode, costs::Vector{Float64})::Float64
   n.istree || return 1
   cost = 1 + arity(n)
-  for id in arguments(n)
-    eclass = g[id]
-    !hasdata(eclass, stream_fusion_cost) && (cost += Inf; break)
-    cost += last(getdata(eclass, stream_fusion_cost))
-  end
-
   operation(n) ∈ (:map, :filter) && (cost += 10)
-
-  return cost
+  cost + sum(costs)
 end
 
 function stream_optimize(ex)

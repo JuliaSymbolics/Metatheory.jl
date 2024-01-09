@@ -33,11 +33,12 @@ This allows users to perform customized and composable compiler optimizations sp
 Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about semantics and all kinds of formal systems, by defining concise rewriting rules in pure, syntactically valid Julia on a high level of abstraction. Our implementation of equality saturation on e-graphs is based on the excellent, state-of-the-art technique implemented in the [egg](https://egraphs-good.github.io/) library, reimplemented in pure Julia.
 
 
-## We need your help!
+<!-- ## We need your help! -->
 
-### Potential applications:
 
-TODO write
+<!-- ### Potential applications: -->
+
+<!-- TODO write -->
 
 ## 3.0 WORK IN PROGRESS!
 - Many tests have been rewritten in [Literate.jl](https://github.com/fredrikekre/Literate.jl) format and are thus narrative tutorials available in the docs.

@@ -38,7 +38,7 @@ end
   apply(n, f, x) = n == 0 ? x : apply(n - 1, f, f(x))
   f(x) = Expr(:call, :f, x)
 
-  g = EGraph(:a)
+  g = EGraph{ExprHead}(:a)
 
   t1 = addexpr!(g, apply(6, f, :a))
   t2 = addexpr!(g, apply(9, f, :a))

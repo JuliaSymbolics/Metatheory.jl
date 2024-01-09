@@ -1,6 +1,4 @@
-using Metatheory
-using Metatheory.EGraphs
-using Test
+using Metatheory, Test
 
 abstract type LambdaExpr end
 
@@ -138,11 +136,11 @@ end
 λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
 
 ex = λ(:x, Add(4, Apply(λ(:y, Variable(:y)), 4)))
-g = EGraph(ex; head_type = LambdaHead)
+g = EGraph{LambdaHead}(ex)
 
 saturate!(g, λT)
 @test λ(:x, Add(4, 4)) == extract!(g, astsize) # expected: :(λ(x, 4 + 4))
 
 #%%
-g = EGraph(; head_type = LambdaHead)
+g = EGraph{LambdaHead}()
 @test areequal(g, λT, 2, Apply(λ(:x, Variable(:x)), 2))

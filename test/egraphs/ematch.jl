@@ -104,7 +104,7 @@ export t
 end
 
 
-g = EGraph(:woo);
+g = EGraph{ExprHead}(:woo);
 saturate!(g, Bar.t);
 saturate!(g, Foo.t);
 foo = 12
@@ -171,7 +171,7 @@ end
     :bazoo --> :wazoo
   end
 
-  g = EGraph(:foo)
+  g = EGraph{ExprHead}(:foo)
   report = saturate!(g, failme)
   @test report.reason === :contradiction
 end

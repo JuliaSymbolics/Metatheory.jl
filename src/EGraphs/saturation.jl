@@ -98,14 +98,14 @@ function eqsat_search!(
   return n_matches
 end
 
-instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENode(p))
-instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
+instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::EClassId = add!(g, ENode(p))
+instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::EClassId = bindings[p.idx][1]
+function instantiate_enode!(bindings::Bindings, g::EGraph{Head}, p::PatTerm)::EClassId where {Head}
   op = operation(p)
   args = arguments(p)
-  # TODO add predicate check `quotes_operation`
-  new_op = g.head_type == ExprHead && op isa Union{Function,DataType} ? nameof(op) : op
-  eh = g.head_type(head_symbol(head(p)))
+  # TODO handle this situation better
+  new_op = Head == ExprHead && op isa Union{Function,DataType} ? nameof(op) : op
+  eh = Head(head_symbol(head(p)))
   nargs = Vector{EClassId}(undef, length(args))
   for i in 1:length(args)
     @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i])
@@ -189,7 +189,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
         return
       end
 
-      if params.enodelimit > 0 && total_size(g) > params.enodelimit
+      if params.enodelimit > 0 && length(g.memo) > params.enodelimit
         @debug "Too many enodes"
         rep.reason = :enodelimit
         break

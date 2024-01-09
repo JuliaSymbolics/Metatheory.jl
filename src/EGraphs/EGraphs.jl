@@ -19,9 +19,6 @@ include("egraph.jl")
 export ENode
 export EClassId
 export EClass
-export hasdata
-export getdata
-export setdata!
 export find
 export lookup
 export arity
@@ -31,14 +28,11 @@ export in_same_class
 export addexpr!
 export rebuild!
 
-include("analysis.jl")
-export analyze!
+include("extract.jl")
 export extract!
 export astsize
 export astsize_inv
-export getcost!
 
-export Sub
 
 include("Schedulers.jl")
 export Schedulers
