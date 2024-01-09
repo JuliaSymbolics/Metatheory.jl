@@ -34,44 +34,41 @@ end
 end
 
 @testset "If Semantics" begin
-  @test areequal(if_language, 2, :(if true
+  @test areequal(if_language, :(if true
     x
   else
     0
-  end, $(Mem(:x => 2))))
-  @test areequal(if_language, 0, :(if false
+  end, $(Mem(:x => 2))), 2)
+  @test areequal(if_language, :(if false
     x
   else
     0
-  end, $(Mem(:x => 2))))
-  @test areequal(if_language, 2, :(if !(false)
+  end, $(Mem(:x => 2))), 0)
+  @test areequal(if_language, :(if !(false)
     x
   else
     0
-  end, $(Mem(:x => 2))))
+  end, $(Mem(:x => 2))), 2)
   params = SaturationParams(timeout = 10)
-  @test areequal(if_language, 0, :(if !(2 < x)
+  @test areequal(if_language, :(if !(2 < x)
     x
   else
     0
-  end, $(Mem(:x => 3))); params = params)
+  end, $(Mem(:x => 3))), 0; params = params)
 end
 
 @testset "While Semantics" begin
   exx = :((x = 3), $(Mem(:x => 2)))
   g = EGraph(exx)
   saturate!(g, while_language)
-  ex = extract!(g, astsize)
+  @test Mem(:x => 3) == extract!(g, astsize)
 
-  @test areequal(while_language, Mem(:x => 3), exx)
 
   exx = :((x = 4; x = x + 1), $(Mem(:x => 3)))
   g = EGraph(exx)
   saturate!(g, while_language)
-  ex = extract!(g, astsize)
+  @test Mem(:x => 5) == extract!(g, astsize)
 
-  params = SaturationParams(timeout = 10)
-  @test areequal(while_language, Mem(:x => 5), exx; params = params)
 
   params = SaturationParams(timeout = 14, timer = false)
   exx = :((
@@ -81,7 +78,7 @@ end
       skip
     end
   ), $(Mem(:x => 3)))
-  @test areequal(while_language, Mem(:x => 4), exx; params = params)
+  @test areequal(while_language, exx, Mem(:x => 4); params = params)
 
   exx = :((while x < 10
     x = x + 1

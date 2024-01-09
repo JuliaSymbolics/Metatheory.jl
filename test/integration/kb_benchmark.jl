@@ -51,14 +51,14 @@ another_expr = :(a * a * a * a)
 g = EGraph(another_expr)
 some_eclass = addexpr!(g, another_expr)
 saturate!(g, G)
-ex = extract!(g, astsize; root = some_eclass)
+ex = extract!(g, astsize)
 @test ex == :ε
 
 another_expr = :(((((((a * b) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b))
 g = EGraph(another_expr)
 some_eclass = addexpr!(g, another_expr)
 saturate!(g, G)
-ex = extract!(g, astsize; root = some_eclass)
+ex = extract!(g, astsize)
 @test ex == :ε
 
 

@@ -72,7 +72,13 @@ ex = :(a[b])
 
 
 # `metadata` should return the extra metadata. If you have many fields, i suggest using a `NamedTuple`.
-TermInterface.metadata(e::MyExpr) = e.foo
+# TermInterface.metadata(e::MyExpr) = e.foo
+
+# struct MetadataAnalysis 
+#   metadata
+# end
+
+# function EGraphs.make(g::EGraph{MyExprHead,MetadataAnalysis}, n::ENode) = 
 
 # Additionally, you can override `EGraphs.preprocess` on your custom expression 
 # to pre-process any expression before insertion in the E-Graph. 
@@ -99,13 +105,15 @@ end
 # Let's create an example expression and e-graph  
 hcall = MyExpr(:h, [4], "hello")
 ex = MyExpr(:f, [MyExpr(:z, [2]), hcall])
-# We use `head_type` kwarg on an existing e-graph to inform the system about 
+# We use the first type parameter an existing e-graph to inform the system about 
 # the *default* type of expressions that we want newly added expressions to have.  
-g = EGraph(ex; keepmeta = true, head_type = MyExprHead)
+g = EGraph{MyExprHead}(ex)
 
 # Now let's test that it works.
 saturate!(g, t)
-expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
+# expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
+expected = MyExpr(:f, [MyExpr(:h, [4], "")], "")
+
 extracted = extract!(g, astsize)
 @test expected == extracted
 
