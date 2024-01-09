@@ -237,23 +237,18 @@ using Metatheory
 # This is a cost function that behaves like `astsize` but increments the cost 
 # of nodes containing the `^` operation. This results in a tendency to avoid 
 # extraction of expressions containing '^'.
-function cost_function(n::ENode, g::EGraph)
+# TODO: add example extraction
+function cost_function(n::ENode, children_costs::Vector{Float64})::Float64
     # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
     istree(n) || return 1
 
     cost = 1 + arity(n)
-
     # This is where the custom cost is computed
     operation(n) == :^ && (cost += 2)
 
-    for id in arguments(n)
-        eclass = g[id]
-        # if the child e-class has not yet been analyzed, return +Inf
-        !hasdata(eclass, cost_function) && (cost += Inf; break)
-        cost += last(getdata(eclass, cost_function))
-    end
-    return cost
+    cost + sum(children_costs)
 end
+
 ```
 
 ## EGraph Analyses
@@ -272,7 +267,6 @@ In Metatheory.jl, **EGraph Analyses are uniquely identified** by either
 If you are specifying a custom analysis by its `Symbol` name, 
 the following functions define an interface for analyses based on multiple dispatch 
 on `Val{analysis_name::Symbol}`: 
-* [islazy(an)](@ref) should return true if the analysis name `an` should NOT be computed on-the-fly during egraphs operation, but only when inspected.  
 * [make(an, egraph, n)](@ref) should take an ENode `n` and return a value from the analysis domain.
 * [join(an, x,y)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*). If `an` is a `Function`, it is treated as a cost function analysis, it is automatically defined to be the minimum analysis value between `x` and `y`. Typically, the domain value of cost functions are real numbers, but if you really do want to have your own cost type, make sure that `Base.isless` is defined.
 * [modify!(an, egraph, eclassid)](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclassid]` on-the-fly during an e-graph saturation iteration, given its analysis value.
@@ -298,12 +292,15 @@ associate an analysis value only to the *literals* contained in the EGraph (the 
 ```@example custom_analysis
 using Metatheory
 
+struct OddEvenAnalysis
+    s::Symbol # :odd or :even 
+end
+
 function odd_even_base_case(n::ENode) # Should be called only if istree(n) is false
-    return if operation(n) isa Integer
-        iseven(operation(n)) ? :even : :odd
-    else 
-        nothing
-    end
+    if operation(n) isa Integer
+        OddEvenAnalysis(iseven(operation(n)) ? :even : :odd)
+    end 
+    # It's ok to return nothing
 end
 # ... Rest of code defined below
 ```
@@ -326,44 +323,32 @@ From the definition of an [ENode](@ref), we know that children of ENodes are alw
 to EClasses in the EGraph.
 
 ```@example custom_analysis
-function EGraphs.make(::Val{:OddEvenAnalysis}, g::EGraph, n::ENode)
-    if !istree(n)
-        return odd_even_base_case(n)
-    end
+function EGraphs.make(g::EGraph{Head,OddEvenAnalysis}, n::ENode) where {Head}
+    istree(n) || return odd_even_base_case(n)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
     if head_symbol(head(n)) == :call && arity(n) == 2
         op = operation(n)
         # Get the left and right child eclasses
         child_eclasses = arguments(n)
-        l = g[child_eclasses[1]]
-        r = g[child_eclasses[2]]
+        l,r = g[child_eclasses[1]],  g[child_eclasses[2]]
 
-        # Get the corresponding OddEvenAnalysis value of the children
-        # defaulting to nothing 
-        ldata = getdata(l, :OddEvenAnalysis, nothing)
-        rdata = getdata(r, :OddEvenAnalysis, nothing)
-
-        if ldata isa Symbol && rdata isa Symbol
+        if !isnothing(l.data) && !isnothing(r.data) 
             if op == :*
-                if ldata == rdata
-                    ldata
-                elseif (ldata == :even || rdata == :even) 
-                    :even
-                else
-                    nothing 
+                if l.data == r.data
+                    l.data
+                elseif (l.data.s == :even || r.data.s == :even) 
+                    OddEvenAnalysis(:even)
                 end
             elseif op == :+
-                (ldata == rdata) ? :even : :odd
+                (l.data == r.data) ? OddEvenAnalysis(:even) : OddEvenAnalysis(:odd)
             end
-        elseif isnothing(ldata) && rdata isa Symbol && op == :*
-            rdata
-        elseif ldata isa Symbol && isnothing(rdata) && op == :*
-            ldata
+        elseif isnothing(l.data) && !isnothing(r.data) && op == :*
+            r.data
+        elseif !isnothing(l.data) && isnothing(r.data) && op == :*
+            l.data
         end
     end
-
-    return nothing
 end
 ```
 
@@ -375,14 +360,11 @@ how to extract a single value out of the many analyses values contained in an EG
 We do this by defining a method for [join](@ref).
 
 ```@example custom_analysis
-function EGraphs.join(::Val{:OddEvenAnalysis}, a, b)
-    if a == b 
-        return a 
-    else
-        # an expression cannot be odd and even at the same time!
-        # this is contradictory, so we ignore the analysis value
-        error("contradiction")
-    end
+function EGraphs.join(a::OddEvenAnalysis, b::OddEvenAnalysis)
+    # an expression cannot be odd and even at the same time!
+    # this is contradictory, so we ignore the analysis value
+    a != b && error("contradiction") 
+    a
 end
 ```
 
@@ -400,10 +382,9 @@ t = @theory a b c begin
 end
 
 function custom_analysis(expr)
-    g = EGraph(expr)
+    g = EGraph{ExprHead, OddEvenAnalysis}(expr)
     saturate!(g, t)
-    analyze!(g, :OddEvenAnalysis)
-    return getdata(g[g.root], :OddEvenAnalysis)
+    return g[g.root].data
 end
 
 custom_analysis(:(2*a)) # :even

@@ -88,7 +88,7 @@ mutable struct EClass{D}
   id::EClassId
   nodes::Vector{ENode}
   parents::Vector{Pair{ENode,EClassId}}
-  data::Union{D,Missing}
+  data::Union{D,Nothing}
 end
 
 # Interface for indexing EClass
@@ -113,16 +113,16 @@ end
 
 
 function merge_analysis_data!(@nospecialize(a::EClass), @nospecialize(b::EClass))::Tuple{Bool,Bool}
-  if !ismissing(a.data) && !ismissing(b.data)
+  if !isnothing(a.data) && !isnothing(b.data)
     new_a_data = join(a.data, b.data)
     merged_a = (a.data == new_a_data)
     a.data = new_a_data
     (merged_a, b.data == new_a_data)
-  elseif !ismissing(a.data) && !ismissing(b.data)
+  elseif !isnothing(a.data) && !isnothing(b.data)
     a.data = b.data
     # a merged, b not merged
     (true, false)
-  elseif !ismissing(a.data) && !ismissing(b.data)
+  elseif !isnothing(a.data) && !isnothing(b.data)
     b.data = a.data
     (false, true)
   else
@@ -180,8 +180,8 @@ function EGraph{Head,Analysis}(; needslock::Bool = false) where {Head,Analysis}
     ReentrantLock(),
   )
 end
-EGraph(; kwargs...) = EGraph{ExprHead,Missing}(; kwargs...)
-EGraph{Head}(; kwargs...) where {Head} = EGraph{Head,Missing}(; kwargs...)
+EGraph(; kwargs...) = EGraph{ExprHead,Nothing}(; kwargs...)
+EGraph{Head}(; kwargs...) where {Head} = EGraph{Head,Nothing}(; kwargs...)
 
 function EGraph{Head,Analysis}(e; kwargs...) where {Head,Analysis}
   g = EGraph{Head,Analysis}(; kwargs...)
@@ -189,11 +189,11 @@ function EGraph{Head,Analysis}(e; kwargs...) where {Head,Analysis}
   g
 end
 
-EGraph{Head}(e; kwargs...) where {Head} = EGraph{Head,Missing}(e; kwargs...)
-EGraph(e; kwargs...) = EGraph{typeof(head(e)),Missing}(e; kwargs...)
+EGraph{Head}(e; kwargs...) where {Head} = EGraph{Head,Nothing}(e; kwargs...)
+EGraph(e; kwargs...) = EGraph{typeof(head(e)),Nothing}(e; kwargs...)
 
 # Fallback implementation for analysis methods make and modify
-@inline make(::EGraph, ::ENode) = missing
+@inline make(::EGraph, ::ENode) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
 
 
@@ -405,10 +405,10 @@ function process_unions!(@nospecialize(g::EGraph))::Int
       eclass = g[eclass_id]
 
       node_data = make(g, node)
-      if !ismissing(eclass.data)
+      if !isnothing(eclass.data)
         joined_data = join(eclass.data, node_data)
 
-        if joined_data != class_data
+        if joined_data != eclass.data
           setdata!(eclass, an, joined_data)
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
@@ -446,7 +446,7 @@ end
 
 function check_analysis(g)
   for (id, eclass) in g.classes
-    ismissing(eclass.data) && continue
+    isnothing(eclass.data) && continue
     pass = mapreduce(x -> make(g, x), (x, y) -> join(x, y), eclass)
     @assert eclass.data == pass
   end
