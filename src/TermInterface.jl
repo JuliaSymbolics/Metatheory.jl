@@ -114,7 +114,7 @@ export unsorted_arguments
 Returns the number of arguments of `x`. Implicitly defined 
 if `arguments(x)` is defined.
 """
-arity(x) = length(arguments(x))
+arity(x)::Int = length(arguments(x))
 export arity
 
 
@@ -220,7 +220,7 @@ struct ExprHead
 end
 export ExprHead
 
-head_symbol(eh::ExprHead) = eh.head
+head_symbol(eh::ExprHead)::Symbol = eh.head
 
 istree(x::Expr) = true
 head(e::Expr) = ExprHead(e.head)
@@ -245,6 +245,11 @@ function arguments(e::Expr)
   else
     e.args
   end
+end
+
+function arity(e::Expr)::Int
+  l = length(e.args)
+  e.head in (:call, :macrocall) ? l - 1 : l
 end
 
 function maketerm(head::ExprHead, children; type = Any, metadata = nothing)

@@ -38,12 +38,12 @@ Base.@kwdef mutable struct SaturationParams
   timer::Bool                          = true
 end
 
-function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
+function cached_ids(g::EGraph, p::PatTerm)::Vector{EClassId}
   if isground(p)
     id = lookup_pat(g, p)
     !isnothing(id) && return [id]
   else
-    get(g.classes_by_op, op_key(p), ())
+    get(g.classes_by_op, op_key(p), UNDEF_ID_VEC)
   end
 end
 
@@ -115,13 +115,15 @@ function instantiate_enode!(bindings::Bindings, g::EGraph{Head}, p::PatTerm)::EC
 end
 
 function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
-  push!(g.merges_buffer, (id, instantiate_enode!(buf, g, rule.right)))
+  push!(g.merges_buffer, id)
+  push!(g.merges_buffer, instantiate_enode!(buf, g, rule.right))
   nothing
 end
 
 function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  push!(g.merges_buffer, (id, instantiate_enode!(bindings, g, pat_to_inst)))
+  push!(g.merges_buffer, id)
+  push!(g.merges_buffer, instantiate_enode!(bindings, g, pat_to_inst))
   nothing
 end
 
@@ -156,7 +158,8 @@ function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::EClas
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
-  push!(g.merges_buffer, (id, rcid))
+  push!(g.merges_buffer, id)
+  push!(g.merges_buffer, rcid)
   return nothing
 end
 
@@ -177,7 +180,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       end
 
       bindings = pop!(g.buffer)
-      rule_idx, id = bindings[0]
+      id, rule_idx = bindings[0]
       direction = sign(rule_idx)
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
@@ -198,7 +201,8 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   end
   maybelock!(g) do
     while !isempty(g.merges_buffer)
-      (l, r) = pop!(g.merges_buffer)
+      l = pop!(g.merges_buffer)
+      r = pop!(g.merges_buffer)
       union!(g, l, r)
     end
   end
