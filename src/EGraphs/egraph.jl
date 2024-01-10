@@ -29,11 +29,10 @@ Given an ENode `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
-const EClassId = Int64
-const TermTypes = Dict{Tuple{Any,Int},Type}
+const EClassId = UInt64
 # TODO document bindings
-const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
-const UNDEF_ARGS = Vector{EClassId}(undef, 0)
+const Bindings = Base.ImmutableDict{Int,Tuple{EClassId,Int}}
+const UNDEF_ID_VEC = Vector{EClassId}(undef, 0)
 
 # @compactify begin 
 struct ENode
@@ -44,7 +43,7 @@ struct ENode
   args::Vector{EClassId}
   hash::Ref{UInt}
   ENode(head, operation, args) = new(true, head, operation, args, Ref{UInt}(0))
-  ENode(literal) = new(false, nothing, literal, UNDEF_ARGS, Ref{UInt}(0))
+  ENode(literal) = new(false, nothing, literal, UNDEF_ID_VEC, Ref{UInt}(0))
 end
 
 TermInterface.istree(n::ENode) = n.istree
@@ -52,7 +51,7 @@ TermInterface.head(n::ENode) = n.head
 TermInterface.operation(n::ENode) = n.operation
 TermInterface.arguments(n::ENode) = n.args
 TermInterface.children(n::ENode) = [n.operation; n.args...]
-TermInterface.arity(n::ENode) = length(n.args)
+TermInterface.arity(n::ENode)::Int = length(n.args)
 
 
 # This optimization comes from SymbolicUtils
@@ -78,7 +77,7 @@ end
 
 Base.show(io::IO, x::ENode) = print(io, to_expr(x))
 
-function op_key(n)
+function op_key(n)::Pair{Any,Int}
   op = operation(n)
   (op isa Union{Function,DataType} ? nameof(op) : op) => (istree(n) ? arity(n) : -1)
 end
@@ -155,7 +154,7 @@ mutable struct EGraph{Head,Analysis}
   "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
   buffer::Vector{Bindings}
   "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
-  merges_buffer::Vector{Tuple{Int,Int}}
+  merges_buffer::Vector{EClassId}
   lock::ReentrantLock
 end
 
@@ -167,16 +166,16 @@ Construct an EGraph from a starting symbolic expression `expr`.
 function EGraph{Head,Analysis}(; needslock::Bool = false) where {Head,Analysis}
   EGraph{Head,Analysis}(
     UnionFind(),
-    Dict{EClassId,EClass}(),
+    Dict{EClassId,EClass{Analysis}}(),
     Dict{ENode,EClassId}(),
     Pair{ENode,EClassId}[],
     UniqueQueue{Pair{ENode,EClassId}}(),
-    -1,
+    0,
     Dict{Pair{Any,Int},Vector{EClassId}}(),
     false,
     needslock,
     Bindings[],
-    Tuple{Int,Int}[],
+    EClassId[],
     ReentrantLock(),
   )
 end
@@ -232,7 +231,7 @@ end
 
 function lookup(g::EGraph, n::ENode)::EClassId
   cc = canonicalize(g, n)
-  haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
+  haskey(g.memo, cc) ? find(g, g.memo[cc]) : 0
 end
 
 
@@ -288,26 +287,22 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se, keepmeta = false)::EClassId
+function addexpr!(g::EGraph, se)::EClassId
   se isa EClass && return se.id
   e = preprocess(se)
 
   n = if istree(se)
     args = arguments(e)
-    ar = length(args)
+    ar = arity(e)
     class_ids = Vector{EClassId}(undef, ar)
     for i in 1:ar
-      @inbounds class_ids[i] = addexpr!(g, args[i], keepmeta)
+      @inbounds class_ids[i] = addexpr!(g, args[i])
     end
     ENode(head(e), operation(e), class_ids)
   else # constant enode
     ENode(e)
   end
   id = add!(g, n)
-  if keepmeta
-    meta = TermInterface.metadata(e)
-    !isnothing(meta) && setdata!(g.classes[id], :metadata_analysis, meta)
-  end
   return id
 end
 
@@ -512,15 +507,18 @@ function lookup_pat(g::EGraph{Head}, p::PatTerm)::EClassId where {Head}
 
   eh = Head(head_symbol(head(p)))
 
-  ids = map(x -> lookup_pat(g, x), args)
-  !all((>)(0), ids) && return -1
+  ids = Vector{EClassId}(undef, ar)
+  for i in 1:ar
+    @inbounds ids[i] = lookup_pat(g, args[i])
+    ids[i] <= 0 && return 0
+  end
 
   if Head == ExprHead && op isa Union{Function,DataType}
     id = lookup(g, ENode(eh, op, ids))
-    id < 0 ? lookup(g, ENode(eh, nameof(op), ids)) : id
+    id <= 0 ? lookup(g, ENode(eh, nameof(op), ids)) : id
   else
     lookup(g, ENode(eh, op, ids))
   end
 end
 
-lookup_pat(g::EGraph, p::Any) = lookup(g, ENode(p))
+lookup_pat(g::EGraph, p::Any)::EClassId = lookup(g, ENode(p))

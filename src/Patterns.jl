@@ -13,7 +13,7 @@ abstract type AbstractPat end
 struct PatHead
   head
 end
-TermInterface.head_symbol(p::PatHead) = p.head
+TermInterface.head_symbol(p::PatHead)::Symbol = p.head
 
 PatHead(p::PatHead) = error("recursive!")
 
@@ -83,34 +83,38 @@ symbol `operation` and expression head `head.head`.
 struct PatTerm <: AbstractPat
   head::PatHead
   children::Vector
-  PatTerm(h, t::Vector) = new(h, t)
+  isground::Bool
+  PatTerm(h, t::Vector) = new(h, t, all(isground, t))
 end
 PatTerm(eh, op) = PatTerm(eh, [op])
 PatTerm(eh, children...) = PatTerm(eh, collect(children))
+
+isground(p::PatTerm)::Bool = p.isground
+
 TermInterface.istree(::PatTerm) = true
 TermInterface.head(p::PatTerm)::PatHead = p.head
 TermInterface.children(p::PatTerm) = p.children
 function TermInterface.operation(p::PatTerm)
   hs = head_symbol(head(p))
-  hs == :call && return first(p.children)
+  hs in (:call, :macrocall) && return first(p.children)
   # hs == :ref && return getindex
   hs
 end
 function TermInterface.arguments(p::PatTerm)
   hs = head_symbol(head(p))
-  hs == :call ? @view(p.children[2:end]) : p.children
+  hs in (:call, :macrocall) ? @view(p.children[2:end]) : p.children
 end
-TermInterface.arity(p::PatTerm) = length(arguments(p))
+function TermInterface.arity(p::PatTerm)
+  hs = head_symbol(head(p))
+  l = length(p.children)
+  hs in (:call, :macrocall) ? l - 1 : l
+end
 TermInterface.metadata(p::PatTerm) = nothing
 
 TermInterface.maketerm(head::PatHead, children; type = Any, metadata = nothing) = PatTerm(head, children...)
 
-isground(p::PatTerm) = all(isground, p.children)
-
-
-# ==============================================
-# ================== PATTERN VARIABLES =========
-# ==============================================
+# ---------------------
+# # Pattern Variables.
 
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
@@ -122,9 +126,9 @@ patvars(x, s) = s
 patvars(p) = unique!(patvars(p, Symbol[]))
 
 
-# ==============================================
-# ================== DEBRUJIN INDEXING =========
-# ==============================================
+# ---------------------
+# # Debrujin Indexing.
+
 
 function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
   p.idx = findfirst((==)(p.name), pvars)

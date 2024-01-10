@@ -7,8 +7,8 @@ using Metatheory
   testmatch = :(a << 1)
   g = EGraph(testexpr)
   t2 = addexpr!(g, testmatch)
-  union!(g, t2, 3)
-  @test find(g, t2) == find(g, 3)
+  union!(g, t2, EClassId(3))
+  @test find(g, t2) == find(g, EClassId(3))
   # DOES NOT UPWARD MERGE
 end
 
@@ -43,8 +43,8 @@ end
   t1 = addexpr!(g, apply(6, f, :a))
   t2 = addexpr!(g, apply(9, f, :a))
 
-  c_id = union!(g, t1, 1) # a == apply(6,f,a)
-  c2_id = union!(g, t2, 1) # a == apply(9,f,a)
+  c_id = union!(g, t1, EClassId(1)) # a == apply(6,f,a)
+  c2_id = union!(g, t2, EClassId(1)) # a == apply(9,f,a)
 
   rebuild!(g)
 
@@ -52,10 +52,10 @@ end
   t4 = addexpr!(g, apply(7, f, :a))
 
   # f^m(a) = a = f^n(a) ⟹ f^(gcd(m,n))(a) = a
-  @test find(g, t1) == find(g, 1)
-  @test find(g, t2) == find(g, 1)
-  @test find(g, t3) == find(g, 1)
-  @test find(g, t4) != find(g, 1)
+  @test find(g, t1) == find(g, EClassId(1))
+  @test find(g, t2) == find(g, EClassId(1))
+  @test find(g, t3) == find(g, EClassId(1))
+  @test find(g, t4) != find(g, EClassId(1))
 
   # if m or n is prime, f(a) = a
   t5 = addexpr!(g, apply(11, f, :a))
@@ -64,6 +64,6 @@ end
 
   rebuild!(g)
 
-  @test find(g, t5) == find(g, 1)
-  @test find(g, t6) == find(g, 1)
+  @test find(g, t5) == find(g, EClassId(1))
+  @test find(g, t6) == find(g, EClassId(1))
 end

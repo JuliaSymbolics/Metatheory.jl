@@ -32,7 +32,7 @@ end
 function predicate_ematcher(p::PatVar, pred)
   function predicate_ematcher(next, g, data, bindings)
     !islist(data) && return
-    id::Int = car(data)
+    id::UInt = car(data)
     eclass = g[id]
     if pred(eclass)
       enode_idx = 0
@@ -122,27 +122,27 @@ function ematcher(p::PatTerm)
 end
 
 
-const EMPTY_ECLASS_DICT = Base.ImmutableDict{Int,Tuple{Int,Int}}()
+const EMPTY_BINDINGS = Base.ImmutableDict{Int,Tuple{UInt,Int}}()
 
 """
-Substitutions are efficiently represented in memory as vector of tuples of two integers.
-This should allow for static allocation of matches and use of LoopVectorization.jl
-The buffer has to be fairly big when e-matching.
-The size of the buffer should double when there's too many matches.
-The format is as follows
-* The first pair denotes the index of the rule in the theory and the e-class id
-  of the node of the e-graph that is being substituted. The rule number should be negative if it's a bidirectional  
-  the direction is right-to-left. 
-* From the second pair on, it represents (e-class id, literal position) at the position of the pattern variable 
-* The end of a substitution is delimited by (0,0)
+Substitutions are efficiently represented in memory as immutable dictionaries of tuples of two integers.
+
+The format is as follows:
+
+bindings[0] holds 
+  1. e-class-id of the node of the e-graph that is being substituted.
+  2. the index of the rule in the theory. The rule number should be negative 
+    if it's a bidirectional rule and the direction is right-to-left. 
+
+The rest of the immutable dictionary bindings[n>0] represents (e-class id, literal position) at the position of the pattern variable `n`.
 """
 function ematcher_yield(p, npvars::Int, direction::Int)
   em = ematcher(p)
   function ematcher_yield(g, rule_idx, id)::Int
     n_matches = 0
-    em(g, (id,), EMPTY_ECLASS_DICT) do b, n
+    em(g, (id,), EMPTY_BINDINGS) do b, n
       maybelock!(g) do
-        push!(g.buffer, assoc(b, 0, (rule_idx * direction, id)))
+        push!(g.buffer, assoc(b, 0, (id, rule_idx * direction)))
         n_matches += 1
       end
     end
