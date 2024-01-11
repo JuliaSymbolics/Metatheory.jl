@@ -12,17 +12,27 @@
 [![status](https://joss.theoj.org/papers/3266e8a08a75b9be2f194126a9c6f0e9/status.svg)](https://joss.theoj.org/papers/3266e8a08a75b9be2f194126a9c6f0e9)
 [![Zulip](https://img.shields.io/badge/Chat-Zulip-blue)](https://julialang.zulipchat.com/#narrow/stream/277860-metatheory.2Ejl)
 
-**Metatheory.jl** is a general purpose term rewriting, metaprogramming and algebraic computation library for the Julia programming language, designed to take advantage of the powerful reflection capabilities to bridge the gap between symbolic mathematics, abstract interpretation, equational reasoning, optimization, composable compiler transforms, and advanced
-homoiconic pattern matching features. The core features of Metatheory.jl are a powerful rewrite rule definition language, a vast library of functional combinators for classical term rewriting and an *e-graph rewriting*, a fresh approach to term rewriting achieved through an equality saturation algorithm. Metatheory.jl can manipulate any kind of
-Julia symbolic expression type, ~~as long as it satisfies the [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl)~~.
+**Metatheory.jl** is a general purpose term rewriting, metaprogramming and
+algebraic computation library for the Julia programming language, designed to
+take advantage of the powerful reflection capabilities to bridge the gap between
+symbolic mathematics, abstract interpretation, equational reasoning,
+optimization, composable compiler transforms, and advanced homoiconic pattern
+matching features. The core features of Metatheory.jl are a powerful rewrite
+rule definition language, a vast library of functional combinators for classical
+term rewriting and an *[e-graph](https://en.wikipedia.org/wiki/E-graph)
+rewriting*, a fresh approach to term rewriting achieved through an equality
+saturation algorithm. Metatheory.jl can manipulate any kind of Julia symbolic
+expression type, ~~as long as it satisfies the [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl)~~.
 
 ### NOTE: TermInterface.jl has been temporarily deprecated. Its functionality has moved to module [Metatheory.TermInterface](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/TermInterface.jl) until consensus for a shared symbolic term interface is reached by the community.
 
+
+
 Metatheory.jl provides:
-- An eDSL (domain specific language) to define different kinds of symbolic rewrite rules.
+- An eDSL (embedded domain specific language) to define different kinds of symbolic rewrite rules.
 - A classical rewriting backend, derived from the [SymbolicUtils.jl](https://github.com/JuliaSymbolics/SymbolicUtils.jl) pattern matcher, supporting associative-commutative rules. It is based on the pattern matcher in the [SICM book](https://mitpress.mit.edu/sites/default/files/titles/content/sicm_edition_2/book.html).
 - A flexible library of rewriter combinators.
-- An e-graph rewriting (equality saturation) engine, based on the [egg](https://egraphs-good.github.io/) library, supporting a backtracking  pattern matcher and non-deterministic term rewriting by using a data structure called *e-graph*, efficiently incorporating the notion of equivalence in order to reduce the amount of user effort required to achieve optimization tasks and equational reasoning.
+- An [e-graph](https://en.wikipedia.org/wiki/E-graph) rewriting (equality saturation) engine, based on the [egg](https://egraphs-good.github.io/) library, supporting a backtracking  pattern matcher and non-deterministic term rewriting by using a data structure called [e-graph](https://en.wikipedia.org/wiki/E-graph), efficiently incorporating the notion of equivalence in order to reduce the amount of user effort required to achieve optimization tasks and equational reasoning.
 - `@capture` macro for flexible metaprogramming.
 
 Intuitively, Metatheory.jl transforms Julia expressions
@@ -33,14 +43,7 @@ This allows users to perform customized and composable compiler optimizations sp
 Our library provides a simple, algebraically composable interface to help scientists in implementing and reasoning about semantics and all kinds of formal systems, by defining concise rewriting rules in pure, syntactically valid Julia on a high level of abstraction. Our implementation of equality saturation on e-graphs is based on the excellent, state-of-the-art technique implemented in the [egg](https://egraphs-good.github.io/) library, reimplemented in pure Julia.
 
 
-<!-- ## We need your help! -->
-
-
-<!-- ### Potential applications: -->
-
-<!-- TODO write -->
-
-## 3.0 WORK IN PROGRESS!
+## 3.0 Alpha
 - Many tests have been rewritten in [Literate.jl](https://github.com/fredrikekre/Literate.jl) format and are thus narrative tutorials available in the docs.
 - Many performance optimizations.
 - Comprehensive benchmarks are available.
@@ -48,8 +51,91 @@ Our library provides a simple, algebraically composable interface to help scient
 - Lots of bugfixes.
 
 
+---
 
-Many features have been ported from SymbolicUtils.jl. Metatheory.jl can be used in place of SymbolicUtils.jl when you have no need of manipulating mathematical expressions. Integration between Metatheory.jl with Symbolics.jl, as it has been shown in the ["High-performance symbolic-numerics via multiple dispatch"](https://arxiv.org/abs/2105.03949) paper.
+## We need your help! - Practical and Research Contributions
+
+There's lot of room for improvement for Metatheory.jl, by making it more performant and by extending its features.
+Any contribution is welcome!
+
+**Performance**:
+- Improving the speed of the e-graph pattern matcher. [(Useful paper)](https://arxiv.org/abs/2108.02290)
+- Reducing allocations used by Equality Saturation.
+- Goal-informed [rule schedulers](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/EGraphs/Schedulers.jl): develop heuristic algorithms that choose what rules to apply at each equality saturation iteration to prune space of possible rewrites.  
+
+**Features**:
+- Introduce proof production capabilities for e-graphs. This can be based on the [egg implementation](https://github.com/egraphs-good/egg/blob/main/src/explain.rs).
+- Common Subexpression Elimination when extracting from an e-graph
+- Integer Linear Programming extraction of expressions.
+
+**Documentation**:
+- Port more [integration tests]() to [tutorials]() that are rendered with [Literate.jl](https://github.com/fredrikekre/Literate.jl)
+- Document [Functional Rewrite Combinators](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/Rewriters.jl) and add a tutorial.
+
+Most importantly, there are many **practical real world applications** where Metatheory.jl could be used. Let's
+work together to turn this list into some new Julia packages:
+
+#### Integration with Symbolics.jl
+
+Many features of this package, such as the classical rewriting system, have been ported from [SymbolicUtils.jl], and are technically the same. Integration between Metatheory.jl with Symbolics.jl **is currently
+paused**, as we are planning to [reach consensus in the development of a common Julia symbolic term interface](https://github.com/JuliaSymbolics/TermInterface.jl). 
+
+An integration between Metatheory.jl and [Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl) is possible and has previously been shown in the ["High-performance symbolic-numerics via multiple dispatch"](https://arxiv.org/abs/2105.03949) paper. Once we reach consensus for a shared symbolic term interface, Metatheory.jl can be used to:
+
+- Rewrite Symbolics.jl expressions with **bi-directional equations** instead of simple directed rewrite rules.
+- Search for the space of mathematically equivalent Symbolics.jl expressions for more computationally efficient forms to speed various packages like  [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) that numerically evaluate Symbolics.jl expressions.
+- When proof production is introduced in Metatheory.jl, automatically search the space of a domain-specific equational theory to prove that Symbolics.jl expressions are equal in that theory. 
+- Other scientific domains extending Symbolics.jl for system modeling.
+
+#### Simplifying Quantum Algebras
+
+[QuantumCumulants.jl](https://github.com/qojulia/QuantumCumulants.jl/) automates
+the symbolic derivation of mean-field equations in quantum mechanics, expanding
+them in cumulants and generating numerical solutions using state-of-the-art
+solvers like [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl)
+and
+[DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl). A
+potential application for Metatheory.jl is domain-specific code optimization for
+QuantumCumulants.jl, aiming to be the first symbolic simplification engine for
+Fock algebras.
+
+
+#### Automatic Floating Point Error Fixer
+
+
+[Herbie](https://herbie.uwplse.org/) is a tool using equality saturation to automatically rewrites mathematical expressions to enhance
+floating-point accuracy. Recently, Herbie's core has been rewritten using
+[egg](https://egraphs-good.github.io/), with the tool originally implemented in
+a mix of Racket, Scheme, and Rust. While effective, its usage involves multiple
+languages, making it impractical for non-experts. The text suggests the theoretical
+possibility of porting this technique to a pure Julia solution, seamlessly
+integrating with the language, in a single macro `@fp_optimize` that fixes
+floating-point errors in expressions just before code compilation and execution.
+
+#### Automatic Theorem Proving in Julia
+
+Metatheory.jl can be used to make a pure Julia Automated Theorem Prover (ATP)
+inspired by the use of E-graphs in existing ATP environments like
+[Z3](https://github.com/Z3Prover/z3), [Simplify](https://dl.acm.org/doi/10.1145/1066100.1066102) and [CVC4](https://en.wikipedia.org/wiki/CVC4), 
+in the context of [Satisfiability Modulo Theories (SMT)](https://en.wikipedia.org/wiki/Satisfiability_modulo_theories). 
+
+The two-language problem in program verification can be addressed by allowing users to define high-level
+theories about their code, that are statically verified before executing the program. This holds potential for various applications in
+software verification, offering a flexible and generic environment for proving
+formulae in different logics, and statically verifying such constraints on Julia
+code before it gets compiled (see
+[Mixtape.jl](https://github.com/JuliaCompilerPlugins/Mixtape.jl)).
+
+**Some concrete steps**:
+
+- Introduce Proof Production in equality saturation.
+- Test using Metatheory for SMT in conjunction with a SAT solver like [PicoSAT.jl](https://github.com/sisl/PicoSAT.jl)
+- Test out various logic theories and software verification applications.
+
+#### And much more
+
+Many projects that could potentially be ported to Julai are listed on the [egg website].
+A simple search for ["equality saturation" on Google Scholar](https://scholar.google.com/scholar?hl=en&q="equality+saturation") shows. 
 
 ## Recommended Readings - Selected Publications
 
