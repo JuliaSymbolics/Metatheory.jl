@@ -148,7 +148,14 @@ PLDI is a premier academic forum in the field of programming languages and progr
 
 ## Theoretical Developments
 
-TODO
+TODO write 
+
+Associative-Commutative matching: 
+
+`@acrule` in SymbolicUtils.jl
+
+[Why reasonable rules can create infinite loops](https://github.com/egraphs-good/egg/discussions/60)
+
 https://effect.systems/blog/ta-completion.html
 
 --- 
