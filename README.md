@@ -61,19 +61,24 @@ Any contribution is welcome!
 **Performance**:
 - Improving the speed of the e-graph pattern matcher. [(Useful paper)](https://arxiv.org/abs/2108.02290)
 - Reducing allocations used by Equality Saturation.
-- Goal-informed [rule schedulers](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/EGraphs/Schedulers.jl): develop heuristic algorithms that choose what rules to apply at each equality saturation iteration to prune space of possible rewrites.  
+- [#50](https://github.com/JuliaSymbolics/Metatheory.jl/issues/50) - Goal-informed [rule schedulers](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/EGraphs/Schedulers.jl): develop heuristic algorithms that choose what rules to apply at each equality saturation iteration to prune space of possible rewrites.  
 
 **Features**:
-- Introduce proof production capabilities for e-graphs. This can be based on the [egg implementation](https://github.com/egraphs-good/egg/blob/main/src/explain.rs).
-- Common Subexpression Elimination when extracting from an e-graph
+- [#111](https://github.com/JuliaSymbolics/Metatheory.jl/issues/111) Introduce proof production capabilities for e-graphs. This can be based on the [egg implementation](https://github.com/egraphs-good/egg/blob/main/src/explain.rs).
+- Common Subexpression Elimination when extracting from an e-graph [#158](https://github.com/JuliaSymbolics/Metatheory.jl/issues/158)
 - Integer Linear Programming extraction of expressions.
+- Pattern matcher enhancements: [#43 Better parsing of blocks](https://github.com/JuliaSymbolics/Metatheory.jl/issues/43), [#3 Support `...` variables in e-graphs](https://github.com/JuliaSymbolics/Metatheory.jl/issues/3), [#89 syntax for vectors](https://github.com/JuliaSymbolics/Metatheory.jl/issues/89)
+- [#75 E-Graph intersection algorithm](https://github.com/JuliaSymbolics/Metatheory.jl/issues/75)
 
 **Documentation**:
-- Port more [integration tests]() to [tutorials]() that are rendered with [Literate.jl](https://github.com/fredrikekre/Literate.jl)
+- Port more [integration tests](https://github.com/JuliaSymbolics/Metatheory.jl/tree/master/test/integration) to [tutorials](https://github.com/JuliaSymbolics/Metatheory.jl/tree/master/test/tutorials) that are rendered with [Literate.jl](https://github.com/fredrikekre/Literate.jl)
 - Document [Functional Rewrite Combinators](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/Rewriters.jl) and add a tutorial.
+
+## Real World Applications
 
 Most importantly, there are many **practical real world applications** where Metatheory.jl could be used. Let's
 work together to turn this list into some new Julia packages:
+
 
 #### Integration with Symbolics.jl
 
@@ -126,16 +131,27 @@ formulae in different logics, and statically verifying such constraints on Julia
 code before it gets compiled (see
 [Mixtape.jl](https://github.com/JuliaCompilerPlugins/Mixtape.jl)).
 
-**Some concrete steps**:
+To develop such a package, Metatheory.jl needs:
 
-- Introduce Proof Production in equality saturation.
-- Test using Metatheory for SMT in conjunction with a SAT solver like [PicoSAT.jl](https://github.com/sisl/PicoSAT.jl)
-- Test out various logic theories and software verification applications.
+- Introduction of Proof Production in equality saturation.
+- SMT in conjunction with a SAT solver like [PicoSAT.jl](https://github.com/sisl/PicoSAT.jl)
+- Experiments with various logic theories and software verification applications.
 
-#### And much more
+#### Other potential applications
 
-Many projects that could potentially be ported to Julai are listed on the [egg website].
-A simple search for ["equality saturation" on Google Scholar](https://scholar.google.com/scholar?hl=en&q="equality+saturation") shows. 
+Many projects that could potentially be ported to Julia are listed on the [egg website](https://egraphs-good.github.io/).
+A simple search for ["equality saturation" on Google Scholar](https://scholar.google.com/scholar?hl=en&q="equality+saturation") shows many new articles that leverage the techniques used in this packages. 
+
+PLDI is a premier academic forum in the field of programming languages and programming systems research, which organizes an [e-graph symposium](https://pldi23.sigplan.org/home/egraphs-2023) where many interesting research and projects have been presented.
+
+--- 
+
+## Theoretical Developments
+
+TODO
+https://effect.systems/blog/ta-completion.html
+
+--- 
 
 ## Recommended Readings - Selected Publications
 
