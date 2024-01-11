@@ -25,7 +25,6 @@ function Base.append!(uq::UniqueQueue{T}, xs::Vector{T}) where {T}
 end
 
 function Base.pop!(uq::UniqueQueue{T}) where {T}
-  # TODO maybe popfirst?
   v = pop!(uq.vec)
   delete!(uq.set, v)
   v
