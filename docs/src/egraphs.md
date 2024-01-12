@@ -297,8 +297,8 @@ struct OddEvenAnalysis
 end
 
 function odd_even_base_case(n::ENode) # Should be called only if istree(n) is false
-    if operation(n) isa Integer
-        OddEvenAnalysis(iseven(operation(n)) ? :even : :odd)
+    if head(n) isa Integer
+        OddEvenAnalysis(iseven(head(n)) ? :even : :odd)
     end 
     # It's ok to return nothing
 end

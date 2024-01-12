@@ -193,7 +193,7 @@ function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
       x = p.rw(x)
     end
     if istree(x)
-      x = p.maketerm(head(x), map(PassThrough(p), children(x)))
+      x = p.maketerm(typeof(x), head(x), map(PassThrough(p), children(x)); is_call = is_function_call(x))
     end
     return ord === :post ? p.rw(x) : x
   else
@@ -216,7 +216,7 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
         end
       end
       ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, children(x))
-      t = p.maketerm(head(x), ntail)
+      t = p.maketerm(typeof(x), head(x), ntail; is_call = is_function_call(x))
     end
     return ord === :post ? p.rw(t) : t
   else

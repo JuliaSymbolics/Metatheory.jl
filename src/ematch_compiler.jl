@@ -16,13 +16,13 @@ end
 
 checktype(n, T) = istree(n) ? symtype(n) <: T : false
 
-function predicate_ematcher(p::PatVar, pred::Type)
+function predicate_ematcher(p::PatVar, T::Type)
   function type_ematcher(next, g, data, bindings)
     !islist(data) && return
     id = car(data)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      if !istree(n) && operation(n) isa pred
+      if !istree(n) && head(n) isa T
         next(assoc(bindings, p.idx, (id, enode_idx)), 1)
       end
     end
@@ -68,17 +68,17 @@ Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || 
 Base.@pure @inline checkop(x, op) = isequal(x, op)
 
 function canbind(p::PatTerm)
-  eh = head_symbol(head(p))
-  op = operation(p)
+  is_call = is_function_call(p)
+  h = head(p)
   ar = arity(p)
   function canbind(n)
-    istree(n) && head_symbol(head(n)) == eh && checkop(op, operation(n)) && arity(n) == ar
+    istree(n) && is_function_call(n) === is_call && checkop(h, head(n)) && arity(n) === ar
   end
 end
 
 
 function ematcher(p::PatTerm)
-  ematchers = map(ematcher, arguments(p))
+  ematchers = map(ematcher, children(p))
 
   if isground(p)
     return function ground_term_ematcher(next, g, data, bindings)
@@ -115,7 +115,7 @@ function ematcher(p::PatTerm)
 
     for n in g[car(data)]
       if canbindtop(n)
-        loop(LL(arguments(n), 1), bindings, ematchers)
+        loop(LL(children(n), 1), bindings, ematchers)
       end
     end
   end
