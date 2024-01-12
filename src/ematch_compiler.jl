@@ -120,7 +120,7 @@ function ematcher(p::PatTerm)
   canbindtop = canbind(p)
   function term_ematcher(success, g, data, bindings)
     !islist(data) && return nothing
-    # has_constant_trick(g, hp) || return nothing
+    has_constant_trick(g, hp) || return nothing
 
     function loop(children_eclass_ids, bindings′, ematchers′)
       if !islist(ematchers′)
