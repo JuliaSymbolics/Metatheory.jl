@@ -2,12 +2,30 @@ module EMatchCompiler
 
 using ..TermInterface
 using ..Patterns
-using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, LL, maybelock!
+using Metatheory:
+  to_expr,
+  islist,
+  car,
+  cdr,
+  assoc,
+  drop_n,
+  lookup_pat,
+  LL,
+  maybelock!,
+  has_constant,
+  get_constant,
+  enode_istree,
+  enode_is_function_call,
+  enode_flags,
+  enode_head,
+  enode_children,
+  enode_arity
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
     !islist(data) && return
     ecid = lookup_pat(g, p)
+    @show p ecid
     if ecid > 0 && ecid == car(data)
       next(bindings, 1)
     end
@@ -22,7 +40,8 @@ function predicate_ematcher(p::PatVar, T::Type)
     id = car(data)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      if !istree(n) && head(n) isa T
+      hn = get_constant(g, n)
+      if !enode_istree(n) && hn isa T
         next(assoc(bindings, p.idx, (id, enode_idx)), 1)
       end
     end
@@ -39,7 +58,7 @@ function predicate_ematcher(p::PatVar, pred)
       # Is this for cycle needed?
       for (j, n) in enumerate(eclass)
         # Find first literal if available
-        if !istree(n)
+        if !enode_istree(n)
           enode_idx = j
           break
         end
@@ -67,18 +86,26 @@ end
 Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
 Base.@pure @inline checkop(x, op) = isequal(x, op)
 
+@inline has_constant_trick(@nospecialize(g), c::Union{Function,DataType}) =
+  has_constant(g, hash(c)) || has_constant(g, hash(nameof(c)))
+@inline has_constant_trick(@nospecialize(g), c) = has_constant(g, hash(c))
+
 function canbind(p::PatTerm)
   is_call = is_function_call(p)
-  h = head(p)
+  hp = head(p)
   ar = arity(p)
-  function canbind(n)
-    istree(n) && is_function_call(n) === is_call && checkop(h, head(n)) && arity(n) === ar
+  function canbind(g, n)
+    # Assumed to have constant
+    enode_istree(n) || return false
+    hn = get_constant(g, enode_head(n))
+    enode_is_function_call(n) === is_call && checkop(hp, hn) && enode_arity(n) === ar
   end
 end
 
 
 function ematcher(p::PatTerm)
   ematchers = map(ematcher, children(p))
+  hp = head(p)
 
   if isground(p)
     return function ground_term_ematcher(next, g, data, bindings)
@@ -93,6 +120,7 @@ function ematcher(p::PatTerm)
   canbindtop = canbind(p)
   function term_ematcher(success, g, data, bindings)
     !islist(data) && return nothing
+    # has_constant_trick(g, hp) || return nothing
 
     function loop(children_eclass_ids, bindings′, ematchers′)
       if !islist(ematchers′)
@@ -113,9 +141,14 @@ function ematcher(p::PatTerm)
       end
     end
 
-    for n in g[car(data)]
-      if canbindtop(n)
-        loop(LL(children(n), 1), bindings, ematchers)
+    for n in g[car(data)].nodes
+      println(p)
+      println(n)
+      println(get_constant(g, enode_head(n)))
+      println(to_expr(g, n))
+      println(canbindtop(g, n))
+      if canbindtop(g, n)
+        loop(LL(enode_children(n), 1), bindings, ematchers)
       end
     end
   end

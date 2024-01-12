@@ -144,10 +144,10 @@ export @matchable
 # ------------------------------
 # ## Traits
 """
-
-Should return `true`` only if `istree(x)` is `true`.
+Whether an expression tree abstractly represents a function call or function application.
+Must be defined if and only if `istree(x)` is defined. Can be true only if `istree(x)` is true.
 """
-is_function_call(x) = false
+function is_function_call end
 export is_function_call
 
 # This file contains default definitions for TermInterface methods on Julia

@@ -40,30 +40,34 @@ end
 
   g = EGraph{Expr}(:a)
 
+  a = addexpr!(g, :a)
+
   t1 = addexpr!(g, apply(6, f, :a))
   t2 = addexpr!(g, apply(9, f, :a))
 
-  c_id = union!(g, t1, EClassId(1)) # a == apply(6,f,a)
-  c2_id = union!(g, t2, EClassId(1)) # a == apply(9,f,a)
+  c_id = union!(g, t1, a) # a == apply(6,f,a)
+  c2_id = union!(g, t2, a) # a == apply(9,f,a)
 
   rebuild!(g)
+
+  pretty_dict(g)
 
   t3 = addexpr!(g, apply(3, f, :a))
   t4 = addexpr!(g, apply(7, f, :a))
 
   # f^m(a) = a = f^n(a) ⟹ f^(gcd(m,n))(a) = a
-  @test find(g, t1) == find(g, EClassId(1))
-  @test find(g, t2) == find(g, EClassId(1))
-  @test find(g, t3) == find(g, EClassId(1))
-  @test find(g, t4) != find(g, EClassId(1))
+  @test find(g, t1) == find(g, a)
+  @test find(g, t2) == find(g, a)
+  @test find(g, t3) == find(g, a)
+  @test find(g, t4) != find(g, a)
 
   # if m or n is prime, f(a) = a
   t5 = addexpr!(g, apply(11, f, :a))
   t6 = addexpr!(g, apply(1, f, :a))
-  c5_id = union!(g, t5, EClassId(1)) # a == apply(11,f,a)
+  c5_id = union!(g, t5, a) # a == apply(11,f,a)
 
   rebuild!(g)
 
-  @test find(g, t5) == find(g, EClassId(1))
-  @test find(g, t6) == find(g, EClassId(1))
+  @test find(g, t5) == find(g, a)
+  @test find(g, t6) == find(g, a)
 end
