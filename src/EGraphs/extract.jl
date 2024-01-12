@@ -15,11 +15,11 @@ function Extractor(g::EGraph, cost_function::Function, cost_type = Float64)
 end
 
 function extract_expr_recursive(g::EGraph{T}, n::ENode, get_node::Function) where {T}
-  n.istree || return n.head
-  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(n.args))
-  h = head(n)
+  h = get_constant(g, enode_head(n))
+  enode_istree(n) || return h
+  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(enode_children(n)))
   # TODO metadata?
-  maketerm(T, h, children; is_call = is_function_call(n))
+  maketerm(T, h, children; is_call = enode_is_function_call(n))
 end
 
 
@@ -38,8 +38,8 @@ end
 
 function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   function enode_cost(n::ENode)::CT
-    if all(x -> haskey(extractor.costs, x), n.args)
-      extractor.cost_function(n, map(child_id -> extractor.costs[child_id][1], n.args))
+    if all(x -> haskey(extractor.costs, x), enode_children(n))
+      extractor.cost_function(n, map(child_id -> extractor.costs[child_id][1], enode_children(n)))
     else
       typemax(CT)
     end
@@ -73,8 +73,8 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
 function astsize(n::ENode, costs::Vector{Float64})::Float64
-  n.istree || return 1
-  cost = 2 + arity(n)
+  enode_istree(n) || return 1
+  cost = 2 + enode_arity(n)
   cost + sum(costs)
 end
 
@@ -84,7 +84,7 @@ A basic cost function, where the computed cost is the size
 Strives to get the largest expression
 """
 function astsize_inv(n::ENode, costs::Vector{Float64})::Float64
-  n.istree || return -1
+  enode_istree(n) || return -1
   cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
   cost + sum(costs)
 end

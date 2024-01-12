@@ -48,7 +48,7 @@ function cached_ids(g::EGraph, p::PatTerm)::Vector{EClassId}
 end
 
 function cached_ids(g::EGraph, p) # p is a literal
-  id = lookup(g, ENode(p))
+  id = lookup_pat(g, p)
   id > 0 && return [id]
   return []
 end
@@ -86,6 +86,8 @@ function eqsat_search!(
         end
       end
 
+      @show rule ids
+
       for i in ids
         n_matches += rule.ematcher!(g, rule_idx, i)
       end
@@ -98,20 +100,29 @@ function eqsat_search!(
   return n_matches
 end
 
-instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::EClassId = add!(g, ENode(p))
+instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::EClassId =
+  add!(g, EClassId[0, 0, add_constant!(g, p)])
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::EClassId = bindings[p.idx][1]
 function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::EClassId where {ExpressionType}
   op = head(p)
   args = children(p)
+  ar = arity(p)
   is_call = is_function_call(p)
   # TODO handle this situation better
   new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
 
-  nargs = Vector{EClassId}(undef, length(args))
-  for i in 1:length(args)
-    @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i])
+  n = Vector{EClassId}(undef, ar + ENODE_META_LENGTH)
+  n[1] = EClassId(0)
+  n[2] = EClassId(0) | ENODE_FLAG_ISTREE
+  if is_call
+    n[2] = EClassId(0) | ENODE_FLAG_ISCALL
   end
-  n = ENode(is_call, new_op, nargs)
+  n[3] = add_constant!(g, new_op)
+
+  for i in ((ENODE_META_LENGTH + 1):ar)
+    @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i - ENODE_META_LENGTH])
+  end
+
   add!(g, n)
 end
 

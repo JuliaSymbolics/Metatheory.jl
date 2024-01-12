@@ -1,8 +1,18 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
-import Metatheory: maybelock!
-
+import Metatheory:
+  to_expr,
+  maybelock!,
+  lookup_pat,
+  has_constant,
+  get_constant,
+  enode_istree,
+  enode_is_function_call,
+  enode_flags,
+  enode_head,
+  enode_children,
+  enode_arity
 """
     modify!(eclass::EClass{Analysis})
 
@@ -34,52 +44,45 @@ const EClassId = UInt64
 const Bindings = Base.ImmutableDict{Int,Tuple{EClassId,Int}}
 const UNDEF_ID_VEC = Vector{EClassId}(undef, 0)
 
-# @compactify begin 
-struct ENode
-  # TODO use UInt flags
-  istree::Bool
-  is_call::Bool
-  head::Any
-  args::Vector{EClassId}
-  hash::Ref{UInt}
-  ENode(is_call, head, args) = new(true, is_call, head, args, Ref{UInt}(0))
-  ENode(literal) = new(false, false, literal, UNDEF_ID_VEC, Ref{UInt}(0))
+
+
+"""
+E-Node vector syntax:
+
+An e-node is a vector of UInt64
+
+Position 1 stores the hash
+Position 2 stores the bit flags (is tree, is function call)
+Position 3 stores the index of the head (if is tree) or value in the e-graph constants
+Rest of positions store the e-class ids of the children
+"""
+
+const ENode = Vector{UInt64}
+
+const ENODE_FLAG_ISTREE = 0x01
+const ENODE_FLAG_ISCALL = 0x10
+const ENODE_META_LENGTH = 3
+
+@inline enode_flags(n::ENode)::UInt64 = n[2]
+@inline enode_istree(n::ENode)::Bool = !iszero(enode_flags(n) & ENODE_FLAG_ISTREE)
+@inline enode_is_function_call(n::ENode)::Bool = !iszero(enode_flags(n) & ENODE_FLAG_ISCALL)
+@inline enode_arity(n::ENode)::Int = length(n) - ENODE_META_LENGTH
+
+@inline function enode_hash!(n::ENode)::UInt64
+  if iszero(n[1])
+    n[1] = hash(@view n[2:end])
+  else
+    h = hash(@view n[2:end])
+    @assert h == n[1]
+    n[1]
+  end
 end
 
-TermInterface.istree(n::ENode) = n.istree
-TermInterface.is_function_call(n::ENode) = n.is_call
-TermInterface.head(n::ENode) = n.head
-TermInterface.children(n::ENode) = n.args
-TermInterface.arity(n::ENode)::Int = length(n.args)
+@inline enode_hash(n::ENode)::UInt64 = n[1]
 
+@inline enode_children(n) = @view n[(ENODE_META_LENGTH + 1):end]
+@inline enode_head(n)::EClassId = n[ENODE_META_LENGTH]
 
-# This optimization comes from SymbolicUtils
-# The hash of an enode is cached to avoid recomputing it.
-# Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(n::ENode, salt::UInt)
-  !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
-  h = n.hash[]
-  !iszero(h) && return h
-  h′ = hash(n.args, hash(n.head, hash(n.istree, hash(n.is_call, salt))))
-  n.hash[] = h′
-  return h′
-end
-
-function Base.:(==)(a::ENode, b::ENode)
-  hash(a) == hash(b) && a.head == b.head
-end
-
-function to_expr(n::ENode)
-  n.istree || return n.head
-  maketerm(Expr, head(n), Core.SSAValue.(Int.(children(n))); is_call = is_function_call(n))
-end
-
-Base.show(io::IO, x::ENode) = print(io, to_expr(x))
-
-function op_key(n)::Pair{Any,Int}
-  op = head(n)
-  (op isa Union{Function,DataType} ? nameof(op) : op) => (istree(n) ? arity(n) : -1)
-end
 
 # parametrize metadata by M
 mutable struct EClass{D}
@@ -141,6 +144,8 @@ mutable struct EGraph{ExpressionType,Analysis}
   classes::Dict{EClassId,EClass{Analysis}}
   "hashcons"
   memo::Dict{ENode,EClassId}
+  "Hashcons the constants in the e-graph"
+  constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
   pending::Vector{Pair{ENode,EClassId}}
   analysis_pending::UniqueQueue{Pair{ENode,EClassId}}
@@ -167,6 +172,7 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     UnionFind(),
     Dict{EClassId,EClass{Analysis}}(),
     Dict{ENode,EClassId}(),
+    Dict{UInt64,Any}(),
     Pair{ENode,EClassId}[],
     UniqueQueue{Pair{ENode,EClassId}}(),
     0,
@@ -200,6 +206,56 @@ function maybelock!(f::Function, g::EGraph)
 end
 
 
+@inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
+@inline has_constant(@nospecialize(g::EGraph), hash::UInt64) = haskey(g.constants, hash)
+@inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))
+  h = hash(c)
+  get!(g.constants, h, c)
+  h
+end
+function to_expr(g::EGraph, n::ENode)
+  enode_istree(n) || return get_constant(g, enode_head(n))
+  # TODO get constant
+  maketerm(
+    Expr,
+    get_constant(g, enode_head(n)),
+    Core.SSAValue.(Int.(enode_children(n)));
+    is_call = enode_is_function_call(n),
+  )
+end
+
+function pretty_dict(g::EGraph)
+  d = Dict{Int,Vector{Any}}()
+  for (class_id, eclass) in g.classes
+    d[class_id] = map(n -> to_expr(g, n), eclass.nodes)
+  end
+  d
+end
+export pretty_dict
+
+function Base.show(io::IO, g::EGraph)
+  show(io, pretty_dict(g))
+end
+
+function enode_op_key(@nospecialize(g::EGraph), n::ENode)::Pair{Any,Int}
+  h = enode_head(n)
+  op = get_constant(g, h)
+  if op isa Union{Function,DataType}
+    # h = add_constant!(g, nameof(op))
+    op = nameof(op)
+  end
+  op => (enode_istree(n) ? enode_arity(n) : -1)
+end
+
+# TODO use flags!
+function op_key(t)::Pair{Any,Int}
+  h = head(t)
+  if h isa Union{Function,DataType}
+    h = nameof(h)
+  end
+  (h => (istree(t) ? arity(t) : -1))
+end
+
 """
 Returns the canonical e-class id for a given e-class.
 """
@@ -209,33 +265,41 @@ Returns the canonical e-class id for a given e-class.
 @inline Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
 
 function canonicalize(g::EGraph, n::ENode)::ENode
-  n.istree || return n
-  ar = length(n.args)
-  ar == 0 && return n
-  canonicalized_args = Vector{EClassId}(undef, ar)
-  for i in 1:ar
-    @inbounds canonicalized_args[i] = find(g, n.args[i])
+  enode_istree(n) || return n
+  l = length(n)
+  new_n = Vector{EClassId}(undef, l)
+  new_n[1] = UInt64(0)
+  new_n[2] = n[2] # copy flags 
+  new_n[3] = n[3] # copy operation
+  for i in 4:l
+    @inbounds new_n[i] = find(g, n[i])
   end
-  ENode(n.is_call, n.head, canonicalized_args)
+
+  # enode_hash!(n)
+  new_n
 end
 
 function canonicalize!(g::EGraph, n::ENode)
-  n.istree || return n
-  for (i, arg) in enumerate(n.args)
-    @inbounds n.args[i] = find(g, arg)
+  enode_istree(n) || return n
+  for i in 4:length(n)
+    @inbounds n[i] = find(g, n[i])
   end
-  n.hash[] = UInt(0)
+  n[1] = UInt64(0) # Unset hash
   return n
 end
 
 function lookup(g::EGraph, n::ENode)::EClassId
   cc = canonicalize(g, n)
+  enode_hash!(n)
+
+  @show cc
+  @assert !iszero(enode_hash(n))
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : 0
 end
 
 
 function add_class_by_op(g::EGraph, n, eclass_id)
-  key = op_key(n)
+  key = enode_op_key(g, n)
   if haskey(g.classes_by_op, key)
     push!(g.classes_by_op[key], eclass_id)
   else
@@ -248,16 +312,21 @@ Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(g::EGraph{ExpressionType,Analysis}, n::ENode)::EClassId where {ExpressionType,Analysis}
   n = canonicalize(g, n)
+  enode_hash!(n)
+
+  @assert !iszero(enode_hash(n))
   haskey(g.memo, n) && return g.memo[n]
+
 
   id = push!(g.uf) # create new singleton eclass
 
-  if n.istree
-    for c_id in n.args
+  if enode_istree(n)
+    for c_id in enode_children(n)
       addparent!(g.classes[c_id], n, id)
     end
   end
 
+  @assert !iszero(enode_hash(n))
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
@@ -289,18 +358,24 @@ insert the literal into the [`EGraph`](@ref).
 function addexpr!(g::EGraph, se)::EClassId
   se isa EClass && return se.id
   e = preprocess(se)
-  is_call = is_function_call(e)
 
   n = if istree(e)
     args = children(e)
-    ar = arity(e)
-    class_ids = Vector{EClassId}(undef, ar)
-    for i in 1:ar
-      @inbounds class_ids[i] = addexpr!(g, args[i])
+    ar = arity(e) + ENODE_META_LENGTH # +3 is for hash, flags and head
+    n = Vector{EClassId}(undef, ar)
+    n[1] = EClassId(0) # Unset hash
+    n[2] = EClassId(0) | ENODE_FLAG_ISTREE # Unset
+    if is_function_call(e)
+      n[2] = n[2] | ENODE_FLAG_ISCALL
     end
-    ENode(is_call, head(e), class_ids)
+    n[3] = add_constant!(g, head(e))
+
+    for i in (ENODE_META_LENGTH + 1):ar
+      @inbounds n[i] = addexpr!(g, args[i - ENODE_META_LENGTH])
+    end
+    n
   else # constant enode
-    ENode(e)
+    EClassId[EClassId(0), EClassId(0), add_constant!(g, e)]
   end
   id = add!(g, n)
   return id
@@ -362,6 +437,7 @@ function rebuild_classes!(g::EGraph)
     # old_len = length(eclass.nodes)
     for n in eclass.nodes
       canonicalize!(g, n)
+      enode_hash!(n)
     end
     # Sort to go in order?
     unique!(eclass.nodes)
@@ -384,8 +460,12 @@ function process_unions!(@nospecialize(g::EGraph))::Int
     while !isempty(g.pending)
       (node::ENode, eclass_id::EClassId) = pop!(g.pending)
       canonicalize!(g, node)
+      enode_hash!(node)
+      @assert !iszero(enode_hash(node))
       if haskey(g.memo, node)
+        @assert !iszero(enode_hash(node))
         old_class_id = g.memo[node]
+        @assert !iszero(enode_hash(node))
         g.memo[node] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! node dedup can be moved here? compare performance
@@ -457,46 +537,15 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
-  # @assert check_analysis(g)
+  @assert check_memo(g)
+  @assert check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
 end
 
-"""
-Recursive function that traverses an [`EGraph`](@ref) and
-returns a vector of all reachable e-classes from a given e-class id.
-"""
-function reachable(g::EGraph, id::EClassId)
-  id = find(g, id)
-  hist = EClassId[id]
-  todo = EClassId[id]
-
-
-  function reachable_node(xn::ENode)
-    xn.istree || return
-    for c_id in arguments(xn)
-      if c_id ∉ hist
-        push!(hist, c_id)
-        push!(todo, c_id)
-      end
-    end
-  end
-
-  while !isempty(todo)
-    curr = find(g, pop!(todo))
-    for n in g.classes[curr]
-      reachable_node(n)
-    end
-  end
-
-  return hist
-end
-
 # Thanks to Max Willsey and Yihong Zhang
 
-import Metatheory: lookup_pat
 
 function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::EClassId where {ExpressionType}
   @assert isground(p)
@@ -506,18 +555,40 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::EClassId where {Expr
   ar = arity(p)
   is_call = is_function_call(p)
 
-  ids = Vector{EClassId}(undef, ar)
-  for i in 1:ar
-    @inbounds ids[i] = lookup_pat(g, args[i])
-    ids[i] <= 0 && return 0
+
+  has_op = has_constant(g, op)
+  if !has_op && ExpressionType === Expr && op isa Union{Function,DataType}
+    has_op = has_constant(g, nameof(op))
+  end
+  has_op || return 0
+
+  n = Vector{EClassId}(undef, ar + ENODE_META_LENGTH) # +3 is for hash, flags, head
+  n[1] = EClassId(0)
+  n[2] = EClassId(0) | ENODE_FLAG_ISTREE
+  if is_call
+    n[2] = n[2] | ENODE_FLAG_ISTREE
+  end
+  n[3] = hash(op)
+
+  if is_function_call(p)
+    n[2] = n[2] | ENODE_FLAG_ISCALL
   end
 
-  if ExpressionType == Expr && op isa Union{Function,DataType}
-    id = lookup(g, ENode(is_call, op, ids))
-    id <= 0 ? lookup(g, ENode(is_call, nameof(op), ids)) : id
-  else
-    lookup(g, ENode(is_call, op, ids))
+  for i in (ENODE_META_LENGTH + 1):ar
+    @inbounds ids[i] = lookup_pat(g, args[i - ENODE_META_LENGTH])
+    n[i] <= 0 && return 0
   end
+
+  id = lookup(g, n)
+  if id <= 0 && ExpressionType == Expr && op isa Union{Function,DataType}
+    n[3] = hash(nameof(op))
+    id = lookup(g, n):id
+  end
+  id
 end
 
-lookup_pat(g::EGraph, p::Any)::EClassId = lookup(g, ENode(p))
+function lookup_pat(g::EGraph, p::Any)::EClassId
+  h = hash(p)
+  @show p h
+  has_constant(g, h) ? lookup(g, EClassId[0, 0, h]) : 0
+end

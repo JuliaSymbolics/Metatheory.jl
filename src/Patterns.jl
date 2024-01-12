@@ -4,6 +4,7 @@ using Metatheory: cleanast, alwaystrue
 using AutoHashEquals
 using ..TermInterface
 
+import Metatheory: to_expr
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 

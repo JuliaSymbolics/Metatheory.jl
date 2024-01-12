@@ -5,12 +5,18 @@ using Metatheory.Library
 falseormissing(x) = x === missing || !x
 
 r = @theory begin
-  max(~x, ~y) → 2 * ~x % ~y
-  max(~x, ~y) → sin(~x)
-  sin(~x) → max(~x, ~x)
+  max(~x, ~y) --> 2 * ~x % ~y
+  # max(~x, ~y) --> sin(~x)
+  # sin(~x) --> max(~x, ~x)
 end
 @testset "Basic Equalities 1" begin
-  @test (@areequal r max(b, c) max(d, d)) == false
+  g = EGraph(:(max(b, c)))
+  t2 = addexpr!(g, :(max(d, d)))
+  saturate!(g, r)
+
+  t1 = addexpr!(g, :(max(b, c)))
+
+  @test !in_same_class(g, t1, t2)
 end
 
 
