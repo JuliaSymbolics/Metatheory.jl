@@ -14,21 +14,19 @@ function Extractor(g::EGraph, cost_function::Function, cost_type = Float64)
   extractor
 end
 
-function extract_expr_recursive(n::ENode, get_node::Function)
-  n.istree || return n.operation
-  children = extract_expr_recursive.(get_node.(n.args), get_node)
+function extract_expr_recursive(g::EGraph{T}, n::ENode, get_node::Function) where {T}
+  n.istree || return n.head
+  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(n.args))
   h = head(n)
-  # TODO style of operation?
-  head_symbol(h) == :call && (children = [operation(n); children])
   # TODO metadata?
-  maketerm(h, children)
+  maketerm(T, h, children; is_call = is_function_call(n))
 end
 
 
 function (extractor::Extractor)(root = extractor.g.root)
   get_node(eclass_id::EClassId) = find_best_node(extractor, eclass_id)
   # TODO check if infinite cost?
-  extract_expr_recursive(find_best_node(extractor, root), get_node)
+  extract_expr_recursive(extractor.g, find_best_node(extractor, root), get_node)
 end
 
 # costs dict stores index of enode. get this enode from the eclass
@@ -40,7 +38,7 @@ end
 
 function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   function enode_cost(n::ENode)::CT
-    if all(x -> haskey(extractor.costs, x), arguments(n))
+    if all(x -> haskey(extractor.costs, x), n.args)
       extractor.cost_function(n, map(child_id -> extractor.costs[child_id][1], n.args))
     else
       typemax(CT)

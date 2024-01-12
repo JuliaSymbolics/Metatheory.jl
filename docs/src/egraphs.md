@@ -323,7 +323,7 @@ From the definition of an [ENode](@ref), we know that children of ENodes are alw
 to EClasses in the EGraph.
 
 ```@example custom_analysis
-function EGraphs.make(g::EGraph{Head,OddEvenAnalysis}, n::ENode) where {Head}
+function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::ENode) where {ExpressionType}
     istree(n) || return odd_even_base_case(n)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
@@ -382,7 +382,7 @@ t = @theory a b c begin
 end
 
 function custom_analysis(expr)
-    g = EGraph{ExprHead, OddEvenAnalysis}(expr)
+    g = EGraph{Expr, OddEvenAnalysis}(expr)
     saturate!(g, t)
     return g[g.root].data
 end

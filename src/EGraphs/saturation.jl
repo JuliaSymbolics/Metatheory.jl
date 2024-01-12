@@ -100,17 +100,18 @@ end
 
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::EClassId = add!(g, ENode(p))
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::EClassId = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph{Head}, p::PatTerm)::EClassId where {Head}
-  op = operation(p)
-  args = arguments(p)
+function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::EClassId where {ExpressionType}
+  op = head(p)
+  args = children(p)
+  is_call = is_function_call(p)
   # TODO handle this situation better
-  new_op = Head == ExprHead && op isa Union{Function,DataType} ? nameof(op) : op
-  eh = Head(head_symbol(head(p)))
+  new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
+
   nargs = Vector{EClassId}(undef, length(args))
   for i in 1:length(args)
     @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i])
   end
-  n = ENode(eh, new_op, nargs)
+  n = ENode(is_call, new_op, nargs)
   add!(g, n)
 end
 
@@ -148,7 +149,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   eclass = g[ecid]
   if literal_position > 0
     @assert !eclass[literal_position].istree
-    return eclass[literal_position].operation
+    return eclass[literal_position].head
   end
   return eclass
 end

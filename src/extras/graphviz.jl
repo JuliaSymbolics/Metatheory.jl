@@ -47,7 +47,7 @@ end
 
 
 function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::ENode)
-  label = operation(node)
+  label = head(node)
   # (mr, style) = if node in diff && get(report.cause, node, missing) !== missing
   #   pair = get(report.cause, node, missing)
   #   split(split("$(pair[1].rule) ", "=>")[1], "-->")[1], " color=\"red\""
