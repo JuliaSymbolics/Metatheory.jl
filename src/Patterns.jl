@@ -10,13 +10,6 @@ Abstract type representing a pattern used in all the various pattern matching ba
 """
 abstract type AbstractPat end
 
-struct PatHead
-  head
-end
-TermInterface.head_symbol(p::PatHead)::Symbol = p.head
-
-PatHead(p::PatHead) = error("recursive!")
-
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
 end
@@ -77,41 +70,30 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
-Term patterns will match on terms of the same `arity` and with the same function
-symbol `operation` and expression head `head.head`.
+Term patterns will match on terms of the same `arity` and with the same `head`.
 """
 struct PatTerm <: AbstractPat
-  head::PatHead
+  is_call::Bool
+  head
   children::Vector
   isground::Bool
-  PatTerm(h, t::Vector) = new(h, t, all(isground, t))
+  PatTerm(is_call, h, c::Vector) = new(is_call, h, c, all(isground, c))
 end
-PatTerm(eh, op) = PatTerm(eh, [op])
-PatTerm(eh, children...) = PatTerm(eh, collect(children))
+PatTerm(is_call, eh, op) = PatTerm(is_call, eh, [op])
+PatTerm(is_call, eh, children...) = PatTerm(is_call, eh, collect(children))
 
 isground(p::PatTerm)::Bool = p.isground
 
 TermInterface.istree(::PatTerm) = true
-TermInterface.head(p::PatTerm)::PatHead = p.head
+TermInterface.is_function_call(p::PatTerm)::Bool = p.is_call
+TermInterface.head(p::PatTerm) = p.head
 TermInterface.children(p::PatTerm) = p.children
-function TermInterface.operation(p::PatTerm)
-  hs = head_symbol(head(p))
-  hs in (:call, :macrocall) && return first(p.children)
-  # hs == :ref && return getindex
-  hs
-end
-function TermInterface.arguments(p::PatTerm)
-  hs = head_symbol(head(p))
-  hs in (:call, :macrocall) ? @view(p.children[2:end]) : p.children
-end
-function TermInterface.arity(p::PatTerm)
-  hs = head_symbol(head(p))
-  l = length(p.children)
-  hs in (:call, :macrocall) ? l - 1 : l
-end
-TermInterface.metadata(p::PatTerm) = nothing
 
-TermInterface.maketerm(head::PatHead, children; type = Any, metadata = nothing) = PatTerm(head, children...)
+TermInterface.arity(p::PatTerm) = length(p.children)
+# TermInterface.metadata(p::PatTerm) = nothing
+
+TermInterface.maketerm(::Type{PatTerm}, head, children; is_call = true, type = Any, metadata = nothing) =
+  PatTerm(is_call, head, children...)
 
 # ---------------------
 # # Pattern Variables.
@@ -121,8 +103,8 @@ Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
-patvars(p::PatTerm, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
-patvars(x, s) = s
+patvars(p::PatTerm, s) = (patvars(head(p), s); foreach(x -> patvars(x, s), children(p)); s)
+patvars(::Any, s) = s
 patvars(p) = unique!(patvars(p, Symbol[]))
 
 
@@ -138,7 +120,7 @@ end
 setdebrujin!(p, pvars) = nothing
 
 function setdebrujin!(p::PatTerm, pvars)
-  setdebrujin!(operation(p), pvars)
+  setdebrujin!(head(p), pvars)
   foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
@@ -148,7 +130,7 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = maketerm(ExprHead(head_symbol(head(x))), to_expr.(children(x)))
+to_expr(x::PatTerm) = maketerm(Expr, head(x), to_expr.(children(x)); is_call = is_function_call(x))
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 

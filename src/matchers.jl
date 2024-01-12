@@ -93,9 +93,9 @@ end
 # Slows compile time down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object.
 # Execution time should not be affected.
 # and SymbolicUtils-like objects that store function references as operations.
-function operation_matcher(f::Union{Function,DataType,UnionAll})
+function head_matcher(f::Union{Function,DataType,UnionAll})
   checkop(x) = isequal(x, f) || isequal(x, nameof(f))
-  function operation_matcher(next, data, bindings)
+  function head_matcher(next, data, bindings)
     h = car(data)
     if islist(data) && checkop(h)
       next(bindings, 1)
@@ -105,24 +105,22 @@ function operation_matcher(f::Union{Function,DataType,UnionAll})
   end
 end
 
-operation_matcher(x) = matcher(x)
+head_matcher(x) = matcher(x)
 
-function head_matcher(x)
-  term_head_symbol = head_symbol(x)
-  function head_matcher(next, data, bindings)
-    islist(data) && isequal(head_symbol(car(data)), term_head_symbol) ? next(bindings, 1) : nothing
+function is_call_matcher(pat_is_call::Bool)
+  # TODO show AAAAAAAAAAAAAAAAA
+  function is_call_matcher(next, data, bindings)
+    @show pat_is_call is_function_call(data) data
+    islist(data) && pat_is_call === is_function_call(data) ? next(bindings, 0) : nothing
   end
 end
 
 function matcher(term::PatTerm)
-  op = operation(term)
-  hm = head_matcher(head(term))
+  pat_is_call = is_function_call(term)
+  h = head(term)
+  is_call_m = is_call_matcher(pat_is_call)
   # Hacky solution for function objects matching against their `nameof`
-  matchers = if head(term) == PatHead(:call)
-    [hm; operation_matcher(op); map(matcher, arguments(term))]
-  else
-    [hm; map(matcher, children(term))]
-  end
+  matchers = [is_call_m; head_matcher(h); map(matcher, children(term))]
 
   function term_matcher(success, data, bindings)
     !islist(data) && return nothing
@@ -168,8 +166,7 @@ function instantiate(left, pat::PatTerm, mem)
   for parg in children(pat)
     instantiate_arg!(ntail, left, parg, mem)
   end
-  reference_head = istree(left) ? head(left) : ExprHead
-  maketerm(typeof(reference_head)(head_symbol(head(pat))), ntail)
+  maketerm(typeof(left), head(pat), ntail; is_call = is_function_call(pat))
 end
 
 instantiate_arg!(acc, left, parg::PatSegment, mem) = append!(acc, instantiate(left, parg, mem))

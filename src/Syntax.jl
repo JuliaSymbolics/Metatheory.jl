@@ -26,7 +26,7 @@ function makesegment(s::Expr, pvars)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
-  name, predicate = arguments(s)
+  name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
   return :($PatSegment($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
 end
@@ -41,7 +41,7 @@ function makevar(s::Expr, pvars)
     error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
   end
 
-  name, predicate = arguments(s)
+  name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
   return :($PatVar($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
 end
@@ -54,25 +54,24 @@ end
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
-  head = expr.head
-  args = arguments(expr)
-  op = operation(expr)
-  if head === :call
+  args = children(expr)
+  op = head(expr)
+  if is_function_call(expr)
     if op === :(~)
       if args[1] isa Symbol
         return args[1]
-      elseif args[1] isa Expr && operation(args[1]) == :(~)
-        n = arguments(args[1])[1]
+      elseif args[1] isa Expr && head(args[1]) == :(~)
+        n = children(args[1])[1]
         @assert n isa Symbol
         return n
       else
         error("Error when parsing right hand side")
       end
     else
-      return Expr(head, makeconsequent(op), map(makeconsequent, args)...)
+      return Expr(expr.head, makeconsequent(op), map(makeconsequent, args)...)
     end
   else
-    return Expr(head, map(makeconsequent, args)...)
+    return Expr(expr.head, map(makeconsequent, args)...)
   end
 end
 
@@ -84,20 +83,20 @@ end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   h = ex.head
-  ph = PatHead(h)
+  is_call = is_function_call(ex)
 
-  op = operation(ex)
+  op = head(ex)
   # Retrieve the function object if available
   # Optionally quote function objects
-  args = arguments(ex)
+  args = children(ex)
   istree(op) && (op = makepattern(op, pvars, slots, mod))
 
-  if h === :call
-    if operation(ex) === :(~) # is a variable or segment
+  if is_call
+    if op === :(~) # is a variable or segment
       let v = args[1]
-        if v isa Expr && operation(v) == :(~)
+        if v isa Expr && head(v) == :(~)
           # matches ~~x::predicate or ~~x::predicate...
-          makesegment(arguments(v)[1], pvars)
+          makesegment(children(v)[1], pvars)
         elseif splat
           # matches ~x::predicate...
           makesegment(v, pvars)
@@ -107,7 +106,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm($ph, $(function_object_or_quote(op, mod)), $(patargs...)))
+      :($PatTerm($is_call, $(function_object_or_quote(op, mod)), $(patargs...)))
     end
 
   elseif h === :...
@@ -121,13 +120,14 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   elseif h === :$
     args[1]
   else
+    @show "BUBUBU"
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm($ph, $(patargs...)))
+    :($PatTerm($false, $(QuoteNode(h)), $(patargs...)))
   end
 end
 
 function rule_sym_map(ex::Expr)
-  h = operation(ex)
+  h = head(ex)
   if h == :(-->) || h == :(→)
     RewriteRule
   elseif h == :(=>)
@@ -150,7 +150,7 @@ The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : n
 """
 function rewrite_rhs(ex::Expr)
   if ex.head == :where
-    rhs, predicate = arguments(ex)
+    rhs, predicate = children(ex)
     return :($predicate ? $rhs : nothing)
   end
   ex
@@ -337,7 +337,7 @@ macro rule(args...)
   e = rmlines(e)
   RuleType = rule_sym_map(e)
 
-  l, r = arguments(e)
+  l, r = children(e)
   pvars = Symbol[]
   lhs = makepattern(l, pvars, slots, __module__)
   rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
@@ -395,7 +395,7 @@ macro theory(args...)
   # e = interp_dollar(e, __module__)
 
   if e.head == :block
-    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
+    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), children(e))...)
     esc(ee)
   else
     error("theory is not in form begin a => b; ... end")

@@ -38,8 +38,8 @@ const UNDEF_ID_VEC = Vector{EClassId}(undef, 0)
 struct ENode
   # TODO use UInt flags
   istree::Bool
+  is_call::Bool
   head::Any
-  operation::Any
   args::Vector{EClassId}
   hash::Ref{UInt}
   ENode(head, operation, args) = new(true, head, operation, args, Ref{UInt}(0))
@@ -47,10 +47,9 @@ struct ENode
 end
 
 TermInterface.istree(n::ENode) = n.istree
+TermInterface.is_function_call(n::ENode) = n.is_function_call
 TermInterface.head(n::ENode) = n.head
-TermInterface.operation(n::ENode) = n.operation
-TermInterface.arguments(n::ENode) = n.args
-TermInterface.children(n::ENode) = [n.operation; n.args...]
+TermInterface.children(n::ENode) = n.args
 TermInterface.arity(n::ENode)::Int = length(n.args)
 
 

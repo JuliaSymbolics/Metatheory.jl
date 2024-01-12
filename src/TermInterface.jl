@@ -33,40 +33,18 @@ function symtype(x)
 end
 export symtype
 
-"""
-  exprhead(x)
-
-If `x` is a term as defined by `istree(x)`, `exprhead(x)` must return a symbol,
-corresponding to the head of the `Expr` most similar to the term `x`.
-If `x` represents a function call, for example, the `exprhead` is `:call`.
-If `x` represents an indexing operation, such as `arr[i]`, then `exprhead` is `:ref`.
-Note that `exprhead` is different from `operation` and both functions should 
-be defined correctly in order to let other packages provide code generation 
-and pattern matching features. 
-"""
-function exprhead end
-export exprhead
 
 """
   head(x)
 
 If `x` is a term as defined by `istree(x)`, `head(x)` returns the head of the
 term if `x`. The `head` type has to be provided by the package.
+if `x` represents a function call, for example, the head
+is the function being called.
 """
 function head end
 export head
 
-"""
-  head_symbol(x::HeadType)
-
-If `x` is a head object, `head_symbol(T, x)` returns a `Symbol` object that
-corresponds to `y.head` if `y` was the representation of the corresponding term
-as a Julia Expression. This is useful to define interoperability between
-symbolic term types defined in different packages and should be used when
-calling `maketerm`.
-"""
-function head_symbol end
-export head_symbol
 
 """
   children(x)
@@ -76,45 +54,13 @@ Get the arguments of `x`, must be defined if `istree(x)` is `true`.
 function children end
 export children
 
-
-"""
-  operation(x)
-
-If `x` is a term as defined by `istree(x)`, `operation(x)` returns the
-operation of the term if `x` represents a function call, for example, the head
-is the function being called.
-"""
-function operation end
-export operation
-
-"""
-  arguments(x)
-
-Get the arguments of `x`, must be defined if `istree(x)` is `true`.
-"""
-function arguments end
-export arguments
-
-
-"""
-  unsorted_arguments(x::T)
-
-If x is a term satisfying `istree(x)` and your term type `T` orovides
-and optimized implementation for storing the arguments, this function can 
-be used to retrieve the arguments when the order of arguments does not matter 
-but the speed of the operation does.
-"""
-unsorted_arguments(x) = arguments(x)
-export unsorted_arguments
-
-
 """
   arity(x)
 
-Returns the number of arguments of `x`. Implicitly defined 
-if `arguments(x)` is defined.
+Returns the number of children of `x`. Implicitly defined 
+if `children(x)` is defined.
 """
-arity(x)::Int = length(arguments(x))
+arity(x)::Int = length(children(x))
 export arity
 
 
@@ -137,9 +83,9 @@ function metadata(x, data) end
 
 
 """
-  maketerm(head::H, children; type=Any, metadata=nothing)
+  maketerm(T::Type, children; type=Any, metadata=nothing)
 
-Has to be implemented by the provider of H.
+Has to be implemented by the provider of T.
 Returns a term that is in the same closure of types as `typeof(x)`,
 with `head` as the head and `children` as the arguments, `type` as the symtype
 and `metadata` as the metadata. 
@@ -151,29 +97,26 @@ export maketerm
   is_operation(f)
 
 Returns a single argument anonymous function predicate, that returns `true` if and only if
-the argument to the predicate satisfies `istree` and `operation(x) == f` 
+the argument to the predicate satisfies `istree` and `head(x) == f` 
 """
-is_operation(f) = @nospecialize(x) -> istree(x) && (operation(x) == f)
-export is_operation
+is_head(f) = @nospecialize(x) -> istree(x) && (head(x) == f)
+export is_head
 
 
 """
   node_count(t)
 Count the nodes in a symbolic expression tree satisfying `istree` and `arguments`.
 """
-node_count(t) = istree(t) ? reduce(+, node_count(x) for x in arguments(t), init in 0) + 1 : 1
+node_count(t) = istree(t) ? reduce(+, node_count(x) for x in children(t), init in 0) + 1 : 1
 export node_count
 
 """ 
   @matchable struct Foo fields... end [HeadType]
 
-Take a struct definition and automatically define `TermInterface` methods. This
-will automatically define a head type. If `HeadType` is given then it will be
-used as `head(::Foo)`. If it is omitted, and the struct is called `Foo`, then
-the head type will be called `FooHead`. The `head_symbol` of such head types
-will default to `:call`.
+Take a struct definition and automatically define `TermInterface` methods. 
+`is_function_call` of such type will default to `true`.
 """
-macro matchable(expr, head_name = nothing)
+macro matchable(expr)
   @assert expr.head == :struct
   name = expr.args[2]
   if name isa Expr
@@ -184,81 +127,57 @@ macro matchable(expr, head_name = nothing)
   get_name(s::Symbol) = s
   get_name(e::Expr) = (@assert(e.head == :(::)); e.args[1])
   fields = map(get_name, fields)
-  has_head = !isnothing(head_name)
-  head_name = has_head ? head_name : Symbol(name, :Head)
 
   quote
     $expr
-    $(
-      if !has_head
-        quote
-          struct $head_name
-            head
-          end
-          TermInterface.head_symbol(x::$head_name) = x.head
-        end
-      end
-    )
     # TODO default to call?
-    TermInterface.head(::$name) = $head_name(:call)
     TermInterface.istree(::$name) = true
-    TermInterface.operation(::$name) = $name
-    TermInterface.arguments(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
-    TermInterface.children(x::$name) = [operation(x); arguments(x)...]
+    TermInterface.is_function_call(::$name) = true
+    TermInterface.head(::$name) = $name
+    TermInterface.children(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
     TermInterface.arity(x::$name) = $(length(fields))
     Base.length(x::$name) = $(length(fields) + 1)
   end |> esc
 end
 export @matchable
 
+# ------------------------------
+# ## Traits
+"""
+
+Should return `true`` only if `istree(x)` is `true`.
+"""
+is_function_call(x) = false
+export is_function_call
 
 # This file contains default definitions for TermInterface methods on Julia
 # Builtin Expr type.
 
-struct ExprHead
-  head
-end
-export ExprHead
-
-head_symbol(eh::ExprHead)::Symbol = eh.head
+is_function_call(e::Expr) = _is_function_call_expr_head(e.head)
+_is_function_call_expr_head(x::Symbol) = x in (:call, :macrocall)
 
 istree(x::Expr) = true
-head(e::Expr) = ExprHead(e.head)
-children(e::Expr) = e.args
 
 # See https://docs.julialang.org/en/v1/devdocs/ast/
-function operation(e::Expr)
-  h = head(e)
-  hh = h.head
-  if hh in (:call, :macrocall)
-    e.args[1]
-  else
-    hh
-  end
-end
-
-function arguments(e::Expr)
-  h = head(e)
-  hh = h.head
-  if hh in (:call, :macrocall)
-    e.args[2:end]
-  else
-    e.args
-  end
-end
+head(e::Expr) = is_function_call(e) ? e.args[1] : e.head
+children(e::Expr) = is_function_call(e) ? e.args[2:end] : e.args
 
 function arity(e::Expr)::Int
   l = length(e.args)
-  e.head in (:call, :macrocall) ? l - 1 : l
+  is_function_call(e) ? l - 1 : l
 end
 
-function maketerm(head::ExprHead, children; type = Any, metadata = nothing)
-  if !isempty(children) && first(children) isa Union{Function,DataType}
-    Expr(head.head, nameof(first(children)), @view(children[2:end])...)
+function maketerm(T::Type{Expr}, head::Symbol, children; is_call = true, type = Any, metadata = nothing)
+  if is_call
+    Expr(:call, head, children...)
   else
-    Expr(head.head, children...)
+    Expr(head, children...)
   end
 end
+
+# TODO is this needed?
+maketerm(T::Type{Expr}, head::Union{Function,DataType}, children; is_call = true, type = Any, metadata = nothing) =
+  maketerm(T, nameof(head), children; is_call, type, metadata)
 
 
 end # module
