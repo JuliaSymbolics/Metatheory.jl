@@ -2,9 +2,6 @@ using Metatheory, Test
 
 abstract type LambdaExpr end
 
-struct LambdaHead
-  head
-end
 
 @matchable struct IfThenElse <: LambdaExpr
   guard
@@ -25,33 +22,33 @@ end
   variable
   value
   body
-end LambdaHead
+end
 @matchable struct λ <: LambdaExpr
   x::Symbol
   body
-end LambdaHead
+end
 
 @matchable struct Apply <: LambdaExpr
   lambda
   value
-end LambdaHead
+end
 
 @matchable struct Add <: LambdaExpr
   x
   y
-end LambdaHead
+end
 
 
-function TermInterface.maketerm(head::LambdaHead, children; type = Any, metadata = nothing)
-  (first(children))(@view(children[2:end])...)
+function TermInterface.maketerm(::Type{LambdaExpr}, head, children; is_call = true, type = Any, metadata = nothing)
+  head(children...)
 end
 
 function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENode)
   free = Set{Int64}()
   n.istree || return free
   if head_symbol(head(n)) == :call
-    op = operation(n)
-    args = arguments(n)
+    op = head(n)
+    args = children(n)
 
     if op == Variable
       push!(free, args[1])
@@ -135,11 +132,11 @@ end
 λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
 
 ex = λ(:x, Add(4, Apply(λ(:y, Variable(:y)), 4)))
-g = EGraph{LambdaHead}(ex)
+g = EGraph{LambdaExpr}(ex)
 
 saturate!(g, λT)
 @test λ(:x, Add(4, 4)) == extract!(g, astsize) # expected: :(λ(x, 4 + 4))
 
 #%%
-g = EGraph{LambdaHead}()
+g = EGraph{LambdaExpr}()
 @test areequal(g, λT, 2, Apply(λ(:x, Variable(:x)), 2))

@@ -167,7 +167,7 @@ function arity(e::Expr)::Int
   is_function_call(e) ? l - 1 : l
 end
 
-function maketerm(T::Type{Expr}, head::Symbol, children; is_call = true, type = Any, metadata = nothing)
+function maketerm(T::Type{Expr}, head, children; is_call = true, type = Any, metadata = nothing)
   if is_call
     Expr(:call, head, children...)
   else

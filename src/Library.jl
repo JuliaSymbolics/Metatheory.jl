@@ -11,36 +11,36 @@ using Metatheory.Rules
 
 
 macro commutativity(op)
-  RewriteRule(PatTerm(PatHead(:call), op, PatVar(:a), PatVar(:b)), PatTerm(PatHead(:call), op, PatVar(:b), PatVar(:a)))
+  RewriteRule(PatTerm(true, op, PatVar(:a), PatVar(:b)), PatTerm(true, op, PatVar(:b), PatVar(:a)))
 end
 
 macro right_associative(op)
   RewriteRule(
-    PatTerm(PatHead(:call), op, PatVar(:a), PatTerm(PatHead(:call), op, PatVar(:b), PatVar(:c))),
-    PatTerm(PatHead(:call), op, PatTerm(PatHead(:call), op, PatVar(:a), PatVar(:b)), PatVar(:c)),
+    PatTerm(true, op, PatVar(:a), PatTerm(true, op, PatVar(:b), PatVar(:c))),
+    PatTerm(true, op, PatTerm(true, op, PatVar(:a), PatVar(:b)), PatVar(:c)),
   )
 end
 macro left_associative(op)
   RewriteRule(
-    PatTerm(PatHead(:call), op, PatTerm(PatHead(:call), op, PatVar(:a), PatVar(:b)), PatVar(:c)),
-    PatTerm(PatHead(:call), op, PatVar(:a), PatTerm(PatHead(:call), op, PatVar(:b), PatVar(:c))),
+    PatTerm(true, op, PatTerm(true, op, PatVar(:a), PatVar(:b)), PatVar(:c)),
+    PatTerm(true, op, PatVar(:a), PatTerm(true, op, PatVar(:b), PatVar(:c))),
   )
 end
 
 
 macro identity_left(op, id)
-  RewriteRule(PatTerm(PatHead(:call), op, id, PatVar(:a)), PatVar(:a))
+  RewriteRule(PatTerm(true, op, id, PatVar(:a)), PatVar(:a))
 end
 
 macro identity_right(op, id)
-  RewriteRule(PatTerm(PatHead(:call), op, PatVar(:a), id), PatVar(:a))
+  RewriteRule(PatTerm(true, op, PatVar(:a), id), PatVar(:a))
 end
 
 macro inverse_left(op, id, invop)
-  RewriteRule(PatTerm(PatHead(:call), op, PatTerm(PatHead(:call), invop, PatVar(:a)), PatVar(:a)), id)
+  RewriteRule(PatTerm(true, op, PatTerm(true, invop, PatVar(:a)), PatVar(:a)), id)
 end
 macro inverse_right(op, id, invop)
-  RewriteRule(PatTerm(PatHead(:call), op, PatVar(:a), PatTerm(PatHead(:call), invop, PatVar(:a))), id)
+  RewriteRule(PatTerm(true, op, PatVar(:a), PatTerm(true, invop, PatVar(:a))), id)
 end
 
 

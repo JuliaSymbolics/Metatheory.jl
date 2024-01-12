@@ -58,12 +58,13 @@ import Base.Cartesian: inlineanonymous
 
 tryinlineanonymous(x) = nothing
 function tryinlineanonymous(ex::Expr)
-  ex.head != :call && return nothing
-  f = operation(ex)
-  (!(f isa Expr) || f.head !== :->) && return nothing
-  arg = arguments(ex)[1]
+  is_function_call(ex) || return nothing
+  op = head(ex)
+  (!(op isa Expr) || op.head !== :->) && return nothing
+  args = children(ex)[1]
+  # TODO more args?
   try
-    return inlineanonymous(f, arg)
+    return inlineanonymous(op, args)
   catch e
     return nothing
   end
@@ -78,7 +79,7 @@ end
 function stream_fusion_cost(n::ENode, costs::Vector{Float64})::Float64
   n.istree || return 1
   cost = 1 + arity(n)
-  operation(n) ∈ (:map, :filter) && (cost += 10)
+  head(n) ∈ (:map, :filter) && (cost += 10)
   cost + sum(costs)
 end
 
