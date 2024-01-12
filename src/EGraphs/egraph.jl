@@ -42,7 +42,7 @@ struct ENode
   head::Any
   args::Vector{EClassId}
   hash::Ref{UInt}
-  ENode(is_call, head, args) = new(is_call, true, head, args, Ref{UInt}(0))
+  ENode(is_call, head, args) = new(true, is_call, head, args, Ref{UInt}(0))
   ENode(literal) = new(false, false, literal, UNDEF_ID_VEC, Ref{UInt}(0))
 end
 
@@ -188,7 +188,7 @@ function EGraph{ExpressionType,Analysis}(e; kwargs...) where {ExpressionType,Ana
 end
 
 EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(e; kwargs...)
-EGraph(e; kwargs...) = EGraph{typeof(head(e)),Nothing}(e; kwargs...)
+EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 
 # Fallback implementation for analysis methods make and modify
 @inline make(::EGraph, ::ENode) = nothing
@@ -291,7 +291,7 @@ function addexpr!(g::EGraph, se)::EClassId
   e = preprocess(se)
   is_call = is_function_call(e)
 
-  n = if istree(se)
+  n = if istree(e)
     args = children(e)
     ar = arity(e)
     class_ids = Vector{EClassId}(undef, ar)

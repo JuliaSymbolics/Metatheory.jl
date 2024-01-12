@@ -104,7 +104,7 @@ end
     istree(n) || return 1
     cost = 1 + arity(n)
 
-    if operation(n) == :^
+    if head(n) == :^
       cost += 2
     end
 
@@ -124,7 +124,7 @@ end
   function costfun(n::ENode, children_costs::Vector{Float64})::Float64
     n.istree || return 1
     arity(n) != 2 && (return 1)
-    left = arguments(n)[1]
+    left = children(n)[1]
     left_class = g[left]
     ENode(:a) ∈ left_class.nodes ? 1 : 100
   end
