@@ -82,8 +82,10 @@ work together to turn this list into some new Julia packages:
 
 #### Integration with Symbolics.jl
 
-Many features of this package, such as the classical rewriting system, have been ported from [SymbolicUtils.jl], and are technically the same. Integration between Metatheory.jl with Symbolics.jl **is currently
-paused**, as we are planning to [reach consensus in the development of a common Julia symbolic term interface](https://github.com/JuliaSymbolics/TermInterface.jl). 
+Many features of this package, such as the classical rewriting system, have been ported from [SymbolicUtils.jl](https://github.com/JuliaSymbolics/SymbolicUtils.jl), and are technically the same. Integration between Metatheory.jl with Symbolics.jl **is currently
+paused**, as we are waiting to reach consensus for the redesign of a common Julia symbolic term interface, [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl). 
+
+TODO link discussion when posted
 
 An integration between Metatheory.jl and [Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl) is possible and has previously been shown in the ["High-performance symbolic-numerics via multiple dispatch"](https://arxiv.org/abs/2105.03949) paper. Once we reach consensus for a shared symbolic term interface, Metatheory.jl can be used to:
 
@@ -148,15 +150,19 @@ PLDI is a premier academic forum in the field of programming languages and progr
 
 ## Theoretical Developments
 
-TODO write 
+There's also lots of room for theoretical improvements to the e-graph data structure and equality saturation rewriting.  
 
-Associative-Commutative matching: 
+#### Associative-Commutative-Distributive e-matching
 
-`@acrule` in SymbolicUtils.jl
+In classical rewriting SymbolicUtils.jl offers a mechanism for matching expressions with associative and commutative operations: [`@acrule`](https://docs.sciml.ai/SymbolicUtils/stable/manual/rewrite/#Associative-Commutative-Rules) - a special kind of rule that considers all permutations and combinations of arguments. In e-graph rewriting in Metatheory.jl, associativity and commutativity have to be explicitly defined as rules. However, the presence of such rules, together with distributivity, will likely cause equality saturation to loop infinitely. See ["Why reasonable rules can create infinite loops"](https://github.com/egraphs-good/egg/discussions/60) for an explanation.
 
-[Why reasonable rules can create infinite loops](https://github.com/egraphs-good/egg/discussions/60)
+Some workaround exists for ensuring termination of equality saturation: bounding the depth of search, or merge-only rewriting without introducing new terms (see ["Ensuring the Termination of EqSat over a Terminating Term Rewriting System"](https://effect.systems/blog/ta-completion.html)). 
 
-https://effect.systems/blog/ta-completion.html
+There's a few theoretical questions left:
+
+- **What kind of rewrite systems terminate in equality saturation**?
+- Can associative-commutative matching be applied efficiently to e-graphs while avoiding combinatory explosion?
+- Can e-graphs be extended to include nodes with special algebraic properties, in order to mitigate the downsides of non-terminating systems? 
 
 --- 
 
