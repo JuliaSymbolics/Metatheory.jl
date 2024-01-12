@@ -23,7 +23,7 @@ when two eclasses are being merged or the analysis is being constructed.
 function join end
 
 """
-    make(g::EGraph{Head, AnalysisType}, n::ENode)::AnalysisType where Head
+    make(g::EGraph{ExpressionType, AnalysisType}, n::ENode)::AnalysisType where {ExpressionType}
 
 Given an ENode `n`, `make` should return the corresponding analysis value. 
 """
@@ -42,12 +42,12 @@ struct ENode
   head::Any
   args::Vector{EClassId}
   hash::Ref{UInt}
-  ENode(head, operation, args) = new(true, head, operation, args, Ref{UInt}(0))
-  ENode(literal) = new(false, nothing, literal, UNDEF_ID_VEC, Ref{UInt}(0))
+  ENode(is_call, head, args) = new(is_call, true, head, args, Ref{UInt}(0))
+  ENode(literal) = new(false, false, literal, UNDEF_ID_VEC, Ref{UInt}(0))
 end
 
 TermInterface.istree(n::ENode) = n.istree
-TermInterface.is_function_call(n::ENode) = n.is_function_call
+TermInterface.is_function_call(n::ENode) = n.is_call
 TermInterface.head(n::ENode) = n.head
 TermInterface.children(n::ENode) = n.args
 TermInterface.arity(n::ENode)::Int = length(n.args)
@@ -60,24 +60,24 @@ function Base.hash(n::ENode, salt::UInt)
   !iszero(salt) && return hash(hash(n, zero(UInt)), salt)
   h = n.hash[]
   !iszero(h) && return h
-  h′ = hash(n.args, hash(n.head, hash(n.operation, hash(n.istree, salt))))
+  h′ = hash(n.args, hash(n.head, hash(n.istree, hash(n.is_call, salt))))
   n.hash[] = h′
   return h′
 end
 
 function Base.:(==)(a::ENode, b::ENode)
-  hash(a) == hash(b) && a.operation == b.operation
+  hash(a) == hash(b) && a.head == b.head
 end
 
 function to_expr(n::ENode)
-  n.istree || return n.operation
-  Expr(:call, :ENode, head(n), operation(n), arguments(n))
+  n.istree || return n.head
+  maketerm(Expr, head(n), Core.SSAValue.(Int.(children(n))); is_call = is_function_call(n))
 end
 
 Base.show(io::IO, x::ENode) = print(io, to_expr(x))
 
 function op_key(n)::Pair{Any,Int}
-  op = operation(n)
+  op = head(n)
   (op isa Union{Function,DataType} ? nameof(op) : op) => (istree(n) ? arity(n) : -1)
 end
 
@@ -134,7 +134,7 @@ A concrete type representing an [`EGraph`].
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
 """
-mutable struct EGraph{Head,Analysis}
+mutable struct EGraph{ExpressionType,Analysis}
   "stores the equality relations over e-class ids"
   uf::UnionFind
   "map from eclass id to eclasses"
@@ -162,8 +162,8 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph{Head,Analysis}(; needslock::Bool = false) where {Head,Analysis}
-  EGraph{Head,Analysis}(
+function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
+  EGraph{ExpressionType,Analysis}(
     UnionFind(),
     Dict{EClassId,EClass{Analysis}}(),
     Dict{ENode,EClassId}(),
@@ -178,16 +178,16 @@ function EGraph{Head,Analysis}(; needslock::Bool = false) where {Head,Analysis}
     ReentrantLock(),
   )
 end
-EGraph(; kwargs...) = EGraph{ExprHead,Nothing}(; kwargs...)
-EGraph{Head}(; kwargs...) where {Head} = EGraph{Head,Nothing}(; kwargs...)
+EGraph(; kwargs...) = EGraph{Expr,Nothing}(; kwargs...)
+EGraph{ExpressionType}(; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(; kwargs...)
 
-function EGraph{Head,Analysis}(e; kwargs...) where {Head,Analysis}
-  g = EGraph{Head,Analysis}(; kwargs...)
+function EGraph{ExpressionType,Analysis}(e; kwargs...) where {ExpressionType,Analysis}
+  g = EGraph{ExpressionType,Analysis}(; kwargs...)
   g.root = addexpr!(g, e)
   g
 end
 
-EGraph{Head}(e; kwargs...) where {Head} = EGraph{Head,Nothing}(e; kwargs...)
+EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(e; kwargs...)
 EGraph(e; kwargs...) = EGraph{typeof(head(e)),Nothing}(e; kwargs...)
 
 # Fallback implementation for analysis methods make and modify
@@ -216,7 +216,7 @@ function canonicalize(g::EGraph, n::ENode)::ENode
   for i in 1:ar
     @inbounds canonicalized_args[i] = find(g, n.args[i])
   end
-  ENode(head(n), operation(n), canonicalized_args)
+  ENode(n.is_call, n.head, canonicalized_args)
 end
 
 function canonicalize!(g::EGraph, n::ENode)
@@ -246,7 +246,7 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph{Head,Analysis}, n::ENode)::EClassId where {Head,Analysis}
+function add!(g::EGraph{ExpressionType,Analysis}, n::ENode)::EClassId where {ExpressionType,Analysis}
   n = canonicalize(g, n)
   haskey(g.memo, n) && return g.memo[n]
 
@@ -289,15 +289,16 @@ insert the literal into the [`EGraph`](@ref).
 function addexpr!(g::EGraph, se)::EClassId
   se isa EClass && return se.id
   e = preprocess(se)
+  is_call = is_function_call(e)
 
   n = if istree(se)
-    args = arguments(e)
+    args = children(e)
     ar = arity(e)
     class_ids = Vector{EClassId}(undef, ar)
     for i in 1:ar
       @inbounds class_ids[i] = addexpr!(g, args[i])
     end
-    ENode(head(e), operation(e), class_ids)
+    ENode(is_call, head(e), class_ids)
   else # constant enode
     ENode(e)
   end
@@ -497,14 +498,13 @@ end
 
 import Metatheory: lookup_pat
 
-function lookup_pat(g::EGraph{Head}, p::PatTerm)::EClassId where {Head}
+function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::EClassId where {ExpressionType}
   @assert isground(p)
 
-  op = operation(p)
-  args = arguments(p)
+  op = head(p)
+  args = children(p)
   ar = arity(p)
-
-  eh = Head(head_symbol(head(p)))
+  is_call = is_function_call(p)
 
   ids = Vector{EClassId}(undef, ar)
   for i in 1:ar
@@ -512,11 +512,11 @@ function lookup_pat(g::EGraph{Head}, p::PatTerm)::EClassId where {Head}
     ids[i] <= 0 && return 0
   end
 
-  if Head == ExprHead && op isa Union{Function,DataType}
-    id = lookup(g, ENode(eh, op, ids))
-    id <= 0 ? lookup(g, ENode(eh, nameof(op), ids)) : id
+  if ExpressionType == Expr && op isa Union{Function,DataType}
+    id = lookup(g, ENode(is_call, op, ids))
+    id <= 0 ? lookup(g, ENode(is_call, nameof(op), ids)) : id
   else
-    lookup(g, ENode(eh, op, ids))
+    lookup(g, ENode(is_call, op, ids))
   end
 end
 

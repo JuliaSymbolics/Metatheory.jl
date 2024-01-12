@@ -5,22 +5,21 @@ abstract type LambdaExpr end
 struct LambdaHead
   head
 end
-TermInterface.head_symbol(lh::LambdaHead) = lh.head
 
 @matchable struct IfThenElse <: LambdaExpr
   guard
   then
   otherwise
-end LambdaHead
+end
 
 @matchable struct Variable <: LambdaExpr
   x::Symbol
-end LambdaHead
+end
 
 @matchable struct Fix <: LambdaExpr
   variable
   expression
-end LambdaHead
+end
 
 @matchable struct Let <: LambdaExpr
   variable

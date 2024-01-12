@@ -108,9 +108,7 @@ end
 head_matcher(x) = matcher(x)
 
 function is_call_matcher(pat_is_call::Bool)
-  # TODO show AAAAAAAAAAAAAAAAA
   function is_call_matcher(next, data, bindings)
-    @show pat_is_call is_function_call(data) data
     islist(data) && pat_is_call === is_function_call(data) ? next(bindings, 0) : nothing
   end
 end

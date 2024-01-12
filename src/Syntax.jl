@@ -120,7 +120,6 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   elseif h === :$
     args[1]
   else
-    @show "BUBUBU"
     patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
     :($PatTerm($false, $(QuoteNode(h)), $(patargs...)))
   end
