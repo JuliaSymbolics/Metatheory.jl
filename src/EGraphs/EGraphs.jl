@@ -4,10 +4,15 @@ include("../docstrings.jl")
 
 using ..TermInterface
 using TimerOutputs
-using Metatheory: alwaystrue, cleanast
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
+using Metatheory.VecExprModule
+
+using Metatheory: alwaystrue, cleanast, Bindings, UNDEF_ID_VEC
+
+import Metatheory: to_expr, maybelock!, lookup_pat, has_constant, get_constant
+
 
 include("unionfind.jl")
 export IntDisjointSet
@@ -16,7 +21,6 @@ export UnionFind
 include("uniquequeue.jl")
 
 include("egraph.jl")
-export ENode
 export Id
 export EClass
 export find

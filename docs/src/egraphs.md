@@ -35,7 +35,7 @@ system governed by equational rules, about non obviously oriented equations, suc
 )`?
 
 E-Graphs come to our help. 
-EGraphs are bipartite graphs of [ENode](@ref)s and [EClass](@ref)es:
+EGraphs are bipartite graphs of e-nodes (stored in [VecExpr](@ref)s) and [EClass](@ref)es:
 a data structure for efficiently represent and rewrite on many equivalent expressions at the same time. A sort of fast data structure for sets of trees. Subtrees and parents are shared if possible. This makes EGraphs similar to DAGs.
 Most importantly, with EGraph rewriting you can use **bidirectional rewrite rules**, such as **equalities** without worrying about
 the ordering and confluence of your rewrite system!
@@ -217,7 +217,7 @@ A *cost function* for *EGraph extraction* is a function used to determine
 which *e-node* will be extracted from an *e-class*. 
 
 It must return a positive, non-complex number value and, must accept 3 arguments.
-1) The current [ENode](@ref) `n` that is being inspected. 
+1) The current e-node [VecExpr](@ref) `n` that is being inspected. 
 2) The current [EGraph](@ref) `g`.
 3) The current analysis name `an::Symbol`.
 

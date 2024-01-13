@@ -5,6 +5,7 @@ using Reexport
 
 @inline alwaystrue(x) = true
 
+
 function to_expr end
 function has_constant end
 function get_constant end
@@ -13,7 +14,11 @@ function maybelock! end
 
 include("docstrings.jl")
 
-include("lowlevel_utils.jl")
+include("vecexpr.jl")
+@reexport using .VecExprModule
+
+const Bindings = Base.ImmutableDict{Int,Tuple{Id,Int}}
+const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
 include("utils.jl")
 export @timer

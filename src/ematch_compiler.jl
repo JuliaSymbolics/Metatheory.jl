@@ -14,18 +14,17 @@ using Metatheory:
   maybelock!,
   has_constant,
   get_constant,
-  enode_istree,
-  enode_is_function_call,
-  enode_flags,
-  enode_head,
-  enode_children,
-  enode_arity
+  v_istree,
+  v_isfuncall,
+  v_flags,
+  v_head,
+  v_children,
+  v_arity
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
     !islist(data) && return
     ecid = lookup_pat(g, p)
-    @show p ecid
     if ecid > 0 && ecid == car(data)
       next(bindings, 1)
     end
@@ -40,8 +39,8 @@ function predicate_ematcher(p::PatVar, T::Type)
     id = car(data)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      if !enode_istree(n)
-        hn = get_constant(g, enode_head(n))
+      if !v_istree(n)
+        hn = get_constant(g, v_head(n))
         if hn isa T
           next(assoc(bindings, p.idx, (id, enode_idx)), 1)
         end
@@ -60,7 +59,7 @@ function predicate_ematcher(p::PatVar, pred)
       # Is this for cycle needed?
       for (j, n) in enumerate(eclass)
         # Find first literal if available
-        if !enode_istree(n)
+        if !v_istree(n)
           enode_idx = j
           break
         end
@@ -98,9 +97,9 @@ function canbind(p::PatTerm)
   ar = arity(p)
   function canbind(g, n)
     # Assumed to have constant
-    enode_istree(n) || return false
-    hn = get_constant(g, enode_head(n))
-    enode_is_function_call(n) === is_call && checkop(hp, hn) && enode_arity(n) === ar
+    v_istree(n) || return false
+    hn = get_constant(g, v_head(n))
+    v_isfuncall(n) === is_call && checkop(hp, hn) && v_arity(n) === ar
   end
 end
 
@@ -144,13 +143,8 @@ function ematcher(p::PatTerm)
     end
 
     for n in g[car(data)].nodes
-      println(p)
-      println(n)
-      println(get_constant(g, enode_head(n)))
-      println(to_expr(g, n))
-      println(canbindtop(g, n))
       if canbindtop(g, n)
-        loop(LL(enode_children(n), 1), bindings, ematchers)
+        loop(LL(v_children(n), 1), bindings, ematchers)
       end
     end
   end
