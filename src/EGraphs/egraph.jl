@@ -213,7 +213,6 @@ function canonicalize(g::EGraph, n::VecExpr)::VecExpr
   for i in v_children_range(n)
     @inbounds new_n[i] = find(g, n[i])
   end
-
   # v_hash!(n)
   new_n
 end
@@ -229,10 +228,10 @@ end
 
 function lookup(g::EGraph, n::VecExpr)::Id
   cc = canonicalize(g, n)
-  v_hash!(n)
+  v_hash!(cc)
 
   @debug cc
-  @assert !iszero(v_hash(n))
+  @assert !iszero(v_hash(cc))
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : 0
 end
 
@@ -300,7 +299,7 @@ function addexpr!(g::EGraph, se)::Id
 
   n = if istree(e)
     args = children(e)
-    ar = arity(e) #+ VECEXPR_META_LENGTH # +3 is for hash, flags and head
+    ar = arity(e)
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)
     if is_function_call(e)
@@ -506,8 +505,8 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {Expression
   is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, h_op)
 
-  for i in v_children_range
-    @inbounds ids[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
+  for i in v_children_range(n)
+    @inbounds n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
     n[i] <= 0 && return 0
   end
 

@@ -100,11 +100,11 @@ t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids ∪ 
 end
 
 @testset "Custom Cost Function 1" begin
-  function cust_astsize(n::ENode, children_costs::Vector{Float64})::Float64
-    istree(n) || return 1
-    cost = 1 + arity(n)
+  function cust_astsize(n::VecExpr, head, children_costs::Vector{Float64})::Float64
+    v_istree(n) || return 1
+    cost = 1 + v_arity(n)
 
-    if head(n) == :^
+    if head == :^
       cost += 2
     end
 
@@ -121,12 +121,15 @@ end
   expr = :(a * (a * (b * (a * b))))
   g = EGraph(expr)
 
-  function costfun(n::ENode, children_costs::Vector{Float64})::Float64
-    n.istree || return 1
-    arity(n) != 2 && (return 1)
-    left = children(n)[1]
+  a_id = addexpr!(g, :a)
+
+  #  TODO reformulate accordingly
+  function costfun(n::VecExpr, op, children_costs::Vector{Float64})::Float64
+    v_istree(n) || return 1
+    v_arity(n) != 2 && (return 1)
+    left = v_children(n)[1]
     left_class = g[left]
-    ENode(:a) ∈ left_class.nodes ? 1 : 100
+    g[a_id].nodes[1] ∈ left_class.nodes ? 1 : 100
   end
 
 
