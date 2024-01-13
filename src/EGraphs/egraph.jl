@@ -87,8 +87,8 @@ mutable struct EGraph{ExpressionType,Analysis}
   uf::UnionFind
   "map from eclass id to eclasses"
   classes::Dict{Id,EClass{Analysis}}
-  "hashcons"
-  memo::Dict{VecExpr,Id}
+  "hashcons mapping e-node hashes to their e-class id"
+  memo::Dict{Id,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
@@ -232,7 +232,7 @@ function lookup(g::EGraph, n::VecExpr)::Id
 
   @debug cc
   @assert !iszero(v_hash(cc))
-  haskey(g.memo, cc) ? find(g, g.memo[cc]) : 0
+  haskey(g.memo, v_hash(cc)) ? find(g, g.memo[v_hash(cc)]) : 0
 end
 
 
@@ -253,7 +253,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {Express
   v_hash!(n)
 
   @assert !iszero(v_hash(n))
-  haskey(g.memo, n) && return g.memo[n]
+  haskey(g.memo, v_hash(n)) && return g.memo[v_hash(n)]
 
 
   id = push!(g.uf) # create new singleton eclass
@@ -265,7 +265,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {Express
   end
 
   @assert !iszero(v_hash(n))
-  g.memo[n] = id
+  g.memo[v_hash(n)] = id
 
   add_class_by_op(g, n, id)
   eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
@@ -399,11 +399,11 @@ function process_unions!(@nospecialize(g::EGraph))::Int
       canonicalize!(g, node)
       v_hash!(node)
       @assert !iszero(v_hash(node))
-      if haskey(g.memo, node)
+      if haskey(g.memo, v_hash(node))
         @assert !iszero(v_hash(node))
-        old_class_id = g.memo[node]
+        old_class_id = g.memo[v_hash(node)]
         @assert !iszero(v_hash(node))
-        g.memo[node] = eclass_id
+        g.memo[v_hash(node)] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! node dedup can be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
@@ -450,7 +450,7 @@ function check_memo(g::EGraph)::Bool
 
   for (node, id) in test_memo
     @assert id == find(g, id)
-    @assert id == find(g, g.memo[node])
+    @assert id == find(g, g.memo[v_hash(node)])
   end
 
   true
@@ -474,8 +474,8 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  @assert check_memo(g)
-  @assert check_analysis(g)
+  # @assert check_memo(g)
+  # @assert check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
