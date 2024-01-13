@@ -1,7 +1,7 @@
 struct Extractor{CostFun,Cost}
   g::EGraph
   cost_function::CostFun
-  costs::Dict{EClassId,Tuple{Cost,Int64}} # Cost and index in eclass
+  costs::Dict{Id,Tuple{Cost,Int64}} # Cost and index in eclass
 end
 
 """
@@ -9,7 +9,7 @@ Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
 function Extractor(g::EGraph, cost_function::Function, cost_type = Float64)
-  extractor = Extractor{typeof(cost_function),cost_type}(g, cost_function, Dict{EClassId,Tuple{cost_type,ENode}}())
+  extractor = Extractor{typeof(cost_function),cost_type}(g, cost_function, Dict{Id,Tuple{cost_type,ENode}}())
   find_costs!(extractor)
   extractor
 end
@@ -24,13 +24,13 @@ end
 
 
 function (extractor::Extractor)(root = extractor.g.root)
-  get_node(eclass_id::EClassId) = find_best_node(extractor, eclass_id)
+  get_node(eclass_id::Id) = find_best_node(extractor, eclass_id)
   # TODO check if infinite cost?
   extract_expr_recursive(extractor.g, find_best_node(extractor, root), get_node)
 end
 
 # costs dict stores index of enode. get this enode from the eclass
-function find_best_node(extractor::Extractor, eclass_id::EClassId)
+function find_best_node(extractor::Extractor, eclass_id::Id)
   eclass = extractor.g[eclass_id]
   (_, node_index) = extractor.costs[eclass.id]
   eclass.nodes[node_index]

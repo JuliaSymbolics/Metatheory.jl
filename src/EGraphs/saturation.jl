@@ -38,7 +38,7 @@ Base.@kwdef mutable struct SaturationParams
   timer::Bool                          = true
 end
 
-function cached_ids(g::EGraph, p::PatTerm)::Vector{EClassId}
+function cached_ids(g::EGraph, p::PatTerm)::Vector{Id}
   if isground(p)
     id = lookup_pat(g, p)
     !isnothing(id) && return [id]
@@ -86,7 +86,7 @@ function eqsat_search!(
         end
       end
 
-      @show rule ids
+      @debug "Matching" rule ids
 
       for i in ids
         n_matches += rule.ematcher!(g, rule_idx, i)
@@ -100,29 +100,38 @@ function eqsat_search!(
   return n_matches
 end
 
-instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::EClassId =
-  add!(g, EClassId[0, 0, add_constant!(g, p)])
-instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::EClassId = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::EClassId where {ExpressionType}
+function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::Id
+  new_node_literal = Id[0, 0, add_constant!(g, p)]
+  @debug new_node_literal
+  add!(g, new_node_literal)
+end
+instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
+function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
   op = head(p)
   args = children(p)
-  ar = arity(p)
   is_call = is_function_call(p)
   # TODO handle this situation better
   new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
 
-  n = Vector{EClassId}(undef, ar + ENODE_META_LENGTH)
-  n[1] = EClassId(0)
-  n[2] = EClassId(0) | ENODE_FLAG_ISTREE
+  @debug p
+  @debug bindings
+
+  ar = arity(p) + ENODE_META_LENGTH
+  n = Vector{Id}(undef, ar)
+  n[1] = Id(0)
+  n[2] = Id(0) | ENODE_FLAG_ISTREE
+  @show n[2]
   if is_call
-    n[2] = EClassId(0) | ENODE_FLAG_ISCALL
+    n[2] = n[2] | ENODE_FLAG_ISCALL
   end
   n[3] = add_constant!(g, new_op)
 
   for i in ((ENODE_META_LENGTH + 1):ar)
-    @inbounds nargs[i] = instantiate_enode!(bindings, g, args[i - ENODE_META_LENGTH])
+    @debug args[i - ENODE_META_LENGTH]
+    @inbounds n[i] = instantiate_enode!(bindings, g, args[i - ENODE_META_LENGTH])
   end
 
+  @show p n to_expr(g, n)
   add!(g, n)
 end
 
@@ -132,7 +141,7 @@ function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
   nothing
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   push!(g.merges_buffer, id)
   push!(g.merges_buffer, instantiate_enode!(bindings, g, pat_to_inst))
@@ -140,7 +149,7 @@ function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::ECla
 end
 
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
@@ -159,13 +168,13 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
-    @assert !eclass[literal_position].istree
-    return eclass[literal_position].head
+    @assert !enode_istree(eclass[literal_position])
+    return get_constant(g, enode_head(eclass[literal_position]))
   end
   return eclass
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
+function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int)
   f = rule.rhs_fun
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing

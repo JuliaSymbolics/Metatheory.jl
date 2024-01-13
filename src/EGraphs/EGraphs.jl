@@ -17,7 +17,7 @@ include("uniquequeue.jl")
 
 include("egraph.jl")
 export ENode
-export EClassId
+export Id
 export EClass
 export find
 export lookup

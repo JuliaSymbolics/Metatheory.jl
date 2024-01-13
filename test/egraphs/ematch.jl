@@ -6,11 +6,12 @@ falseormissing(x) = x === missing || !x
 
 r = @theory begin
   max(~x, ~y) --> 2 * ~x % ~y
-  # max(~x, ~y) --> sin(~x)
-  # sin(~x) --> max(~x, ~x)
+  max(~x, ~y) --> sin(~x)
+  sin(~x) --> max(~x, ~x)
 end
 @testset "Basic Equalities 1" begin
   g = EGraph(:(max(b, c)))
+
   t2 = addexpr!(g, :(max(d, d)))
   saturate!(g, r)
 
@@ -46,11 +47,20 @@ end
 
 comm_monoid = @commutative_monoid (*) 1
 @testset "Basic Equalities - Commutative Monoid" begin
-  @test true == (@areequal comm_monoid a * (c * (1 * d)) c * (1 * (d * a)))
-  @test true == (@areequal comm_monoid x * y y * x)
-  @test true == (@areequal comm_monoid (x * x) * (x * 1) x * (x * x))
+  @test @areequal comm_monoid a * (c * (1 * d)) c * (1 * (d * a))
+  @test @areequal comm_monoid x * y y * x
+  @test @areequal comm_monoid (x * x) * (x * 1) x * (x * x)
 end
 
+
+g = EGraph(:(a * (c * (1 * d))))
+t1 = g.root
+t2 = addexpr!(g, :(c * (1 * (d * a))))
+
+pretty_dict(g)
+g.memo
+
+saturate!(g, comm_monoid)
 
 comm_group = @commutative_group (+) 0 inv
 t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+))

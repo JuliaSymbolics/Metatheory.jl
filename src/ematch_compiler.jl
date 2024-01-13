@@ -40,9 +40,11 @@ function predicate_ematcher(p::PatVar, T::Type)
     id = car(data)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      hn = get_constant(g, n)
-      if !enode_istree(n) && hn isa T
-        next(assoc(bindings, p.idx, (id, enode_idx)), 1)
+      if !enode_istree(n)
+        hn = get_constant(g, enode_head(n))
+        if hn isa T
+          next(assoc(bindings, p.idx, (id, enode_idx)), 1)
+        end
       end
     end
   end
