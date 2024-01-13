@@ -11,6 +11,8 @@ function has_constant end
 function get_constant end
 function lookup_pat end
 function maybelock! end
+export has_constant
+export get_constant
 
 include("docstrings.jl")
 

@@ -53,18 +53,8 @@ comm_monoid = @commutative_monoid (*) 1
 end
 
 
-g = EGraph(:(a * (c * (1 * d))))
-t1 = g.root
-t2 = addexpr!(g, :(c * (1 * (d * a))))
-
-pretty_dict(g)
-g.memo
-
-saturate!(g, comm_monoid)
-
 comm_group = @commutative_group (+) 0 inv
 t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+))
-
 
 @testset "Basic Equalities - Comm. Monoid, Abelian Group, Distributivity" begin
   @test true == (@areequal t (a * b) + (a * c) a * (b + c))
@@ -99,34 +89,30 @@ saturate!(g, simp_theory)
 @test extract!(g, astsize) == :foo
 
 module Bar
-foo = 42
-export foo
+var = :bar
 using Metatheory
 
 t = @theory begin
-  :woo => foo
+  woo(:foo) => var
 end
-export t
 end
 
 module Foo
-foo = 12
+var = :foo
 using Metatheory
 
 t = @theory begin
-  :woo => foo
+  woo(:foo) => var
 end
-export t
 end
 
 
-g = EGraph{Expr}(:woo);
+g = EGraph{Expr}(:(woo(foo)));
 saturate!(g, Bar.t);
 saturate!(g, Foo.t);
-foo = 12
 
 @testset "Different modules" begin
-  @test @areequalg g t 42 12
+  @test in_same_class(g, addexpr!(g, :foo), addexpr!(g, :bar))
 end
 
 
@@ -165,15 +151,18 @@ end
   @test true == areequal(g, some_theory, :(sin(2, 3)), :(cos(3, 2)))
 end
 
-Base.iszero(ec::EClass) = ENode(0) ∈ ec
 
 @testset "Predicates in Ematcher" begin
+  g = EGraph(:(2 * 3))
+  zero_id = addexpr!(g, 0)
+
   some_theory = @theory begin
     ~a::iszero * ~b --> 0
     ~a * ~b --> ~b * ~a
   end
 
-  g = EGraph(:(2 * 3))
+  Base.iszero(ec::EClass) = in_same_class(g, zero_id, ec.id)
+
   saturate!(g, some_theory)
 
   @test true == areequal(g, some_theory, :(a * b * 0), 0)

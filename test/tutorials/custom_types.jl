@@ -61,7 +61,7 @@ ex = :(a[b])
 #   metadata
 # end
 
-# function EGraphs.make(g::EGraph{MyExprHead,MetadataAnalysis}, n::ENode) = 
+# function EGraphs.make(g::EGraph{MyExprHead,MetadataAnalysis}, n::VecExpr) = 
 
 # Additionally, you can override `EGraphs.preprocess` on your custom expression 
 # to pre-process any expression before insertion in the E-Graph. 

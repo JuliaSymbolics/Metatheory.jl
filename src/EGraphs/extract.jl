@@ -39,7 +39,11 @@ end
 function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   function enode_cost(n::VecExpr)::CT
     if all(x -> haskey(extractor.costs, x), v_children(n))
-      extractor.cost_function(n, map(child_id -> extractor.costs[child_id][1], v_children(n)))
+      extractor.cost_function(
+        n,
+        get_constant(extractor.g, v_head(n)),
+        map(child_id -> extractor.costs[child_id][1], v_children(n)),
+      )
     else
       typemax(CT)
     end
@@ -72,7 +76,7 @@ end
 A basic cost function, where the computed cost is the size
 (number of children) of the current expression.
 """
-function astsize(n::VecExpr, costs::Vector{Float64})::Float64
+function astsize(n::VecExpr, op, costs::Vector{Float64})::Float64
   v_istree(n) || return 1
   cost = 2 + v_arity(n)
   cost + sum(costs)
@@ -83,9 +87,9 @@ A basic cost function, where the computed cost is the size
 (number of children) of the current expression, times -1.
 Strives to get the largest expression
 """
-function astsize_inv(n::VecExpr, costs::Vector{Float64})::Float64
+function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
   v_istree(n) || return -1
-  cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
+  cost = -(1 + v_arity(n)) # minus sign here is the only difference vs astsize
   cost + sum(costs)
 end
 

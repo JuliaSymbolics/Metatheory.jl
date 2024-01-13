@@ -76,7 +76,7 @@ end
   n
 end
 
-@inline v_children_range(n::VecExpr) = (VECEXPR_META_LENGTH + 1, length(n))
+@inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n))
 
 
 end

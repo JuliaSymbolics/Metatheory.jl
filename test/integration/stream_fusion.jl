@@ -76,10 +76,10 @@ normalize_theory = @theory x y z f g begin
 end
 
 
-function stream_fusion_cost(n::ENode, costs::Vector{Float64})::Float64
-  n.istree || return 1
-  cost = 1 + arity(n)
-  head(n) ∈ (:map, :filter) && (cost += 10)
+function stream_fusion_cost(n::VecExpr, op, costs::Vector{Float64})::Float64
+  v_istree(n) || return 1
+  cost = 1 + v_arity(n)
+  op ∈ (:map, :filter) && (cost += 10)
   cost + sum(costs)
 end
 

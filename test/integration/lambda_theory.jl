@@ -43,12 +43,12 @@ function TermInterface.maketerm(::Type{LambdaExpr}, head, children; is_call = tr
   head(children...)
 end
 
-function EGraphs.make(::Val{:freevar}, g::EGraph, n::ENode)
+function EGraphs.make(::Val{:freevar}, g::EGraph, n::VecExpr)
   free = Set{Int64}()
-  n.istree || return free
-  if head_symbol(head(n)) == :call
-    op = head(n)
-    args = children(n)
+  v_istree(n) || return free
+  if v_isfuncall(n)
+    op = get_constant(g, v_head(n))
+    args = v_children(n)
 
     if op == Variable
       push!(free, args[1])
