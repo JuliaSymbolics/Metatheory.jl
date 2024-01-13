@@ -1,25 +1,12 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
-using Metatheory: Id
 
-import Metatheory:
-  to_expr,
-  maybelock!,
-  lookup_pat,
-  has_constant,
-  get_constant,
-  enode_istree,
-  enode_is_function_call,
-  enode_flags,
-  enode_head,
-  enode_children,
-  enode_arity
 """
     modify!(eclass::EClass{Analysis})
 
 The `modify!` function for EGraph Analysis can optionally modify the eclass
-`eclass` after it has been analyzed, typically by adding an ENode.
+`eclass` after it has been analyzed, typically by adding an e-node.
 It should be **idempotent** if no other changes occur to the EClass. 
 (See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
 """
@@ -35,22 +22,18 @@ when two eclasses are being merged or the analysis is being constructed.
 function join end
 
 """
-    make(g::EGraph{ExpressionType, AnalysisType}, n::ENode)::AnalysisType where {ExpressionType}
+    make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
 
-Given an ENode `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, `make` should return the corresponding analysis value. 
 """
 function make end
-
-# TODO document bindings
-const Bindings = Base.ImmutableDict{Int,Tuple{Id,Int}}
-const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
 
 # parametrize metadata by M
 mutable struct EClass{D}
   id::Id
-  nodes::Vector{ENode}
-  parents::Vector{Pair{ENode,Id}}
+  nodes::Vector{VecExpr}
+  parents::Vector{Pair{VecExpr,Id}}
   data::Union{D,Nothing}
 end
 
@@ -70,7 +53,7 @@ function Base.show(io::IO, a::EClass)
   print(io, ")")
 end
 
-function addparent!(@nospecialize(a::EClass), n::ENode, id::Id)
+function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
   push!(a.parents, (n => id))
 end
 
@@ -105,12 +88,12 @@ mutable struct EGraph{ExpressionType,Analysis}
   "map from eclass id to eclasses"
   classes::Dict{Id,EClass{Analysis}}
   "hashcons"
-  memo::Dict{ENode,Id}
+  memo::Dict{VecExpr,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
-  pending::Vector{Pair{ENode,Id}}
-  analysis_pending::UniqueQueue{Pair{ENode,Id}}
+  pending::Vector{Pair{VecExpr,Id}}
+  analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
   root::Id
   "a cache mapping function symbols and their arity to e-classes that contain e-nodes with that function symbol."
   classes_by_op::Dict{Pair{Any,Int},Vector{Id}}
@@ -133,10 +116,10 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
     Dict{Id,EClass{Analysis}}(),
-    Dict{ENode,Id}(),
+    Dict{VecExpr,Id}(),
     Dict{UInt64,Any}(),
-    Pair{ENode,Id}[],
-    UniqueQueue{Pair{ENode,Id}}(),
+    Pair{VecExpr,Id}[],
+    UniqueQueue{Pair{VecExpr,Id}}(),
     0,
     Dict{Pair{Any,Int},Vector{Id}}(),
     false,
@@ -159,7 +142,7 @@ EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionT
 EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 
 # Fallback implementation for analysis methods make and modify
-@inline make(::EGraph, ::ENode) = nothing
+@inline make(::EGraph, ::VecExpr) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
 
 
@@ -175,15 +158,10 @@ end
   get!(g.constants, h, c)
   h
 end
-function to_expr(g::EGraph, n::ENode)
-  enode_istree(n) || return get_constant(g, enode_head(n))
+function to_expr(g::EGraph, n::VecExpr)
+  v_istree(n) || return get_constant(g, v_head(n))
   # TODO get constant
-  maketerm(
-    Expr,
-    get_constant(g, enode_head(n)),
-    Core.SSAValue.(Int.(enode_children(n)));
-    is_call = enode_is_function_call(n),
-  )
+  maketerm(Expr, get_constant(g, v_head(n)), Core.SSAValue.(Int.(v_children(n))); is_call = v_isfuncall(n))
 end
 
 function pretty_dict(g::EGraph)
@@ -199,14 +177,14 @@ function Base.show(io::IO, g::EGraph)
   show(io, pretty_dict(g))
 end
 
-function enode_op_key(@nospecialize(g::EGraph), n::ENode)::Pair{Any,Int}
-  h = enode_head(n)
+function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{Any,Int}
+  h = v_head(n)
   op = get_constant(g, h)
   if op isa Union{Function,DataType}
     # h = add_constant!(g, nameof(op))
     op = nameof(op)
   end
-  op => (enode_istree(n) ? enode_arity(n) : -1)
+  op => (v_istree(n) ? v_arity(n) : -1)
 end
 
 # TODO use flags!
@@ -226,36 +204,35 @@ Returns the canonical e-class id for a given e-class.
 
 @inline Base.getindex(g::EGraph, i::Id) = g.classes[find(g, i)]
 
-function canonicalize(g::EGraph, n::ENode)::ENode
-  enode_istree(n) || return n
-  l = length(n)
-  new_n = Vector{Id}(undef, l)
-  new_n[1] = UInt64(0)
-  new_n[2] = n[2] # copy flags 
-  new_n[3] = n[3] # copy operation
-  for i in (ENODE_META_LENGTH + 1):l
+function canonicalize(g::EGraph, n::VecExpr)::VecExpr
+  v_istree(n) || return n
+  l = v_arity(n)
+  new_n = v_new(l)
+  v_set_flag!(new_n, v_flags(n))
+  v_set_head!(new_n, v_head(n))
+  for i in v_children_range(n)
     @inbounds new_n[i] = find(g, n[i])
   end
 
-  # enode_hash!(n)
+  # v_hash!(n)
   new_n
 end
 
-function canonicalize!(g::EGraph, n::ENode)
-  enode_istree(n) || return n
+function canonicalize!(g::EGraph, n::VecExpr)
+  v_istree(n) || return n
   for i in 4:length(n)
     @inbounds n[i] = find(g, n[i])
   end
-  n[1] = UInt64(0) # Unset hash
+  n[1] = Id(0) # Unset hash
   return n
 end
 
-function lookup(g::EGraph, n::ENode)::Id
+function lookup(g::EGraph, n::VecExpr)::Id
   cc = canonicalize(g, n)
-  enode_hash!(n)
+  v_hash!(n)
 
   @debug cc
-  @assert !iszero(enode_hash(n))
+  @assert !iszero(v_hash(n))
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : 0
 end
 
@@ -272,27 +249,27 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph{ExpressionType,Analysis}, n::ENode)::Id where {ExpressionType,Analysis}
+function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {ExpressionType,Analysis}
   n = canonicalize(g, n)
-  enode_hash!(n)
+  v_hash!(n)
 
-  @assert !iszero(enode_hash(n))
+  @assert !iszero(v_hash(n))
   haskey(g.memo, n) && return g.memo[n]
 
 
   id = push!(g.uf) # create new singleton eclass
 
-  if enode_istree(n)
-    for c_id in enode_children(n)
+  if v_istree(n)
+    for c_id in v_children(n)
       addparent!(g.classes[c_id], n, id)
     end
   end
 
-  @assert !iszero(enode_hash(n))
+  @assert !iszero(v_hash(n))
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, ENode[n], Pair{ENode,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
   g.classes[id] = eclass
   modify!(g, eclass)
   push!(g.pending, n => id)
@@ -323,17 +300,16 @@ function addexpr!(g::EGraph, se)::Id
 
   n = if istree(e)
     args = children(e)
-    ar = arity(e) + ENODE_META_LENGTH # +3 is for hash, flags and head
-    n = Vector{Id}(undef, ar)
-    n[1] = Id(0) # Unset hash
-    n[2] = Id(0) | ENODE_FLAG_ISTREE # Unset
+    ar = arity(e) #+ VECEXPR_META_LENGTH # +3 is for hash, flags and head
+    n = v_new(ar)
+    v_set_flag!(n, VECEXPR_FLAG_ISTREE)
     if is_function_call(e)
-      n[2] = n[2] | ENODE_FLAG_ISCALL
+      v_set_flag!(n, VECEXPR_FLAG_ISCALL)
     end
-    n[3] = add_constant!(g, head(e))
+    v_set_head!(n, add_constant!(g, head(e)))
 
-    for i in (ENODE_META_LENGTH + 1):ar
-      @inbounds n[i] = addexpr!(g, args[i - ENODE_META_LENGTH])
+    for i in v_children_range(n)
+      @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
     end
     n
   else # constant enode
@@ -399,7 +375,7 @@ function rebuild_classes!(g::EGraph)
     # old_len = length(eclass.nodes)
     for n in eclass.nodes
       canonicalize!(g, n)
-      enode_hash!(n)
+      v_hash!(n)
     end
     # Sort to go in order?
     unique!(eclass.nodes)
@@ -420,14 +396,14 @@ function process_unions!(@nospecialize(g::EGraph))::Int
 
   while !isempty(g.pending) || !isempty(g.analysis_pending)
     while !isempty(g.pending)
-      (node::ENode, eclass_id::Id) = pop!(g.pending)
+      (node::VecExpr, eclass_id::Id) = pop!(g.pending)
       canonicalize!(g, node)
-      enode_hash!(node)
-      @assert !iszero(enode_hash(node))
+      v_hash!(node)
+      @assert !iszero(v_hash(node))
       if haskey(g.memo, node)
-        @assert !iszero(enode_hash(node))
+        @assert !iszero(v_hash(node))
         old_class_id = g.memo[node]
-        @assert !iszero(enode_hash(node))
+        @assert !iszero(v_hash(node))
         g.memo[node] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! node dedup can be moved here? compare performance
@@ -437,7 +413,7 @@ function process_unions!(@nospecialize(g::EGraph))::Int
     end
 
     while !isempty(g.analysis_pending)
-      (node::ENode, eclass_id::Id) = pop!(g.analysis_pending)
+      (node::VecExpr, eclass_id::Id) = pop!(g.analysis_pending)
       eclass_id = find(g, eclass_id)
       eclass = g[eclass_id]
 
@@ -461,7 +437,7 @@ function process_unions!(@nospecialize(g::EGraph))::Int
 end
 
 function check_memo(g::EGraph)::Bool
-  test_memo = Dict{ENode,Id}()
+  test_memo = Dict{VecExpr,Id}()
   for (id, class) in g.classes
     @assert id == class.id
     for node in class.nodes
@@ -525,26 +501,19 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {Expression
   end
   has_op || return 0
 
-  n = Vector{Id}(undef, ar + ENODE_META_LENGTH) # +3 is for hash, flags, head
-  n[1] = Id(0)
-  n[2] = Id(0) | ENODE_FLAG_ISTREE
-  if is_call
-    n[2] = n[2] | ENODE_FLAG_ISTREE
-  end
-  n[3] = hash(op)
+  n = v_new(ar)
+  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+  is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  v_set_head!(n, h_op)
 
-  if is_function_call(p)
-    n[2] = n[2] | ENODE_FLAG_ISCALL
-  end
-
-  for i in (ENODE_META_LENGTH + 1):ar
-    @inbounds ids[i] = lookup_pat(g, args[i - ENODE_META_LENGTH])
+  for i in v_children_range
+    @inbounds ids[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
     n[i] <= 0 && return 0
   end
 
   id = lookup(g, n)
   if id <= 0 && ExpressionType == Expr && op isa Union{Function,DataType}
-    n[3] = hash(nameof(op))
+    v_set_head!(n, hash(nameof(op)))
     id = lookup(g, n)
   end
   id
@@ -552,6 +521,5 @@ end
 
 function lookup_pat(g::EGraph, p::Any)::Id
   h = hash(p)
-  @show p h
   has_constant(g, h) ? lookup(g, Id[0, 0, h]) : 0
 end

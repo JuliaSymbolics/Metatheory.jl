@@ -116,22 +116,15 @@ function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::Pa
   @debug p
   @debug bindings
 
-  ar = arity(p) + ENODE_META_LENGTH
-  n = Vector{Id}(undef, ar)
-  n[1] = Id(0)
-  n[2] = Id(0) | ENODE_FLAG_ISTREE
-  @show n[2]
-  if is_call
-    n[2] = n[2] | ENODE_FLAG_ISCALL
-  end
-  n[3] = add_constant!(g, new_op)
+  ar = arity(p)
+  n = v_new(ar)
+  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+  is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  v_set_head!(n, add_constant!(g, new_op))
 
-  for i in ((ENODE_META_LENGTH + 1):ar)
-    @debug args[i - ENODE_META_LENGTH]
-    @inbounds n[i] = instantiate_enode!(bindings, g, args[i - ENODE_META_LENGTH])
+  for i in v_children_range(n)
+    @inbounds n[i] = instantiate_enode!(bindings, g, args[i - VECEXPR_META_LENGTH])
   end
-
-  @show p n to_expr(g, n)
   add!(g, n)
 end
 
@@ -168,8 +161,8 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
-    @assert !enode_istree(eclass[literal_position])
-    return get_constant(g, enode_head(eclass[literal_position]))
+    @assert !v_istree(eclass[literal_position])
+    return get_constant(g, v_head(eclass[literal_position]))
   end
   return eclass
 end
