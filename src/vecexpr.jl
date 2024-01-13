@@ -18,7 +18,8 @@ export Id,
   v_children_range,
   v_arity,
   v_hash!,
-  v_hash
+  v_hash,
+  v_unset_hash!
 
 const Id = UInt64
 
@@ -56,8 +57,8 @@ Compute the hash of a `VecExpr` and store it as the first element.
   if iszero(n[1])
     n[1] = hash(@view n[2:end])
   else
-    h = hash(@view n[2:end])
-    @assert h == n[1]
+    # h = hash(@view n[2:end])
+    # @assert h == n[1]
     n[1]
   end
 end

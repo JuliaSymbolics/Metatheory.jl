@@ -204,35 +204,38 @@ Returns the canonical e-class id for a given e-class.
 
 @inline Base.getindex(g::EGraph, i::Id) = g.classes[find(g, i)]
 
-function canonicalize(g::EGraph, n::VecExpr)::VecExpr
-  v_istree(n) || return n
-  l = v_arity(n)
-  new_n = v_new(l)
-  v_set_flag!(new_n, v_flags(n))
-  v_set_head!(new_n, v_head(n))
-  for i in v_children_range(n)
-    @inbounds new_n[i] = find(g, n[i])
-  end
-  # v_hash!(n)
-  new_n
-end
+# function canonicalize(g::EGraph, n::VecExpr)::VecExpr
+#   if !v_istree(n)
+#     v_hash!(n)
+#     return n
+#   end
+#   l = v_arity(n)
+#   new_n = v_new(l)
+#   v_set_flag!(new_n, v_flags(n))
+#   v_set_head!(new_n, v_head(n))
+#   for i in v_children_range(n)
+#     @inbounds new_n[i] = find(g, n[i])
+#   end
+#   v_hash!(new_n)
+#   new_n
+# end
 
 function canonicalize!(g::EGraph, n::VecExpr)
-  v_istree(n) || return n
+  v_istree(n) || @goto ret
   for i in 4:length(n)
     @inbounds n[i] = find(g, n[i])
   end
-  n[1] = Id(0) # Unset hash
-  return n
+  v_unset_hash!(n)
+  @label ret
+  v_hash!(n)
+  n
 end
 
 function lookup(g::EGraph, n::VecExpr)::Id
-  cc = canonicalize(g, n)
-  v_hash!(cc)
+  canonicalize!(g, n)
+  h = v_hash(n)
 
-  @debug cc
-  @assert !iszero(v_hash(cc))
-  haskey(g.memo, v_hash(cc)) ? find(g, g.memo[v_hash(cc)]) : 0
+  haskey(g.memo, h) ? find(g, g.memo[h]) : 0
 end
 
 
@@ -249,11 +252,10 @@ end
 Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {ExpressionType,Analysis}
-  n = canonicalize(g, n)
-  v_hash!(n)
+  canonicalize!(g, n)
+  h = v_hash(n)
 
-  @assert !iszero(v_hash(n))
-  haskey(g.memo, v_hash(n)) && return g.memo[v_hash(n)]
+  haskey(g.memo, h) && return g.memo[h]
 
 
   id = push!(g.uf) # create new singleton eclass
@@ -264,8 +266,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {Express
     end
   end
 
-  @assert !iszero(v_hash(n))
-  g.memo[v_hash(n)] = id
+  g.memo[h] = id
 
   add_class_by_op(g, n, id)
   eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
@@ -374,7 +375,6 @@ function rebuild_classes!(g::EGraph)
     # old_len = length(eclass.nodes)
     for n in eclass.nodes
       canonicalize!(g, n)
-      v_hash!(n)
     end
     # Sort to go in order?
     unique!(eclass.nodes)
@@ -397,13 +397,10 @@ function process_unions!(@nospecialize(g::EGraph))::Int
     while !isempty(g.pending)
       (node::VecExpr, eclass_id::Id) = pop!(g.pending)
       canonicalize!(g, node)
-      v_hash!(node)
-      @assert !iszero(v_hash(node))
-      if haskey(g.memo, v_hash(node))
-        @assert !iszero(v_hash(node))
-        old_class_id = g.memo[v_hash(node)]
-        @assert !iszero(v_hash(node))
-        g.memo[v_hash(node)] = eclass_id
+      h = v_hash(node)
+      if haskey(g.memo, h)
+        old_class_id = g.memo[h]
+        g.memo[h] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! node dedup can be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
@@ -474,8 +471,8 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
-  # @assert check_analysis(g)
+  @assert check_memo(g)
+  @assert check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
