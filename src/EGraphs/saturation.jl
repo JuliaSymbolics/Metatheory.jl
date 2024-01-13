@@ -102,7 +102,6 @@ end
 
 function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::Id
   new_node_literal = Id[0, 0, add_constant!(g, p)]
-  @debug new_node_literal
   add!(g, new_node_literal)
 end
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
@@ -112,9 +111,6 @@ function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::Pa
   is_call = is_function_call(p)
   # TODO handle this situation better
   new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
-
-  @debug p
-  @debug bindings
 
   ar = arity(p)
   n = v_new(ar)
