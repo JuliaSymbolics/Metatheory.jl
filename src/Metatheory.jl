@@ -10,14 +10,11 @@ function has_constant end
 function get_constant end
 function lookup_pat end
 function maybelock! end
-function enode_istree end
-function enode_is_function_call end
-function enode_flags end
-function enode_head end
-function enode_children end
-function enode_arity end
 
 include("docstrings.jl")
+
+include("lowlevel_utils.jl")
+
 include("utils.jl")
 export @timer
 

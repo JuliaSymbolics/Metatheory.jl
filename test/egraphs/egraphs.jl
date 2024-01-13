@@ -7,8 +7,8 @@ using Metatheory
   testmatch = :(a << 1)
   g = EGraph(testexpr)
   t2 = addexpr!(g, testmatch)
-  union!(g, t2, EClassId(3))
-  @test find(g, t2) == find(g, EClassId(3))
+  union!(g, t2, Id(3))
+  @test find(g, t2) == find(g, Id(3))
   # DOES NOT UPWARD MERGE
 end
 
