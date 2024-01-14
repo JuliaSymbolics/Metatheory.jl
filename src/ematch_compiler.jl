@@ -2,23 +2,8 @@ module EMatchCompiler
 
 using ..TermInterface
 using ..Patterns
-using Metatheory:
-  Id,
-  to_expr,
-  islist,
-  assoc,
-  drop_n,
-  lookup_pat,
-  LL,
-  maybelock!,
-  has_constant,
-  get_constant,
-  v_istree,
-  v_isfuncall,
-  v_flags,
-  v_head,
-  v_children,
-  v_arity
+using Metatheory.VecExprModule
+using Metatheory: assoc, lookup_pat, LL, maybelock!, has_constant, get_constant
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, eclass_id::Id, bindings)
@@ -114,36 +99,19 @@ function ematcher(p::PatTerm)
   function term_ematcher(success, g, eclass_id::Id, bindings)
     has_constant_trick(g, hp) || return nothing
 
-    # function loop(children_eclass_ids, bindings′, ematchers′)
-    #   if !islist(ematchers′)
-    #     # term is empty
-    #     if !islist(children_eclass_ids)
-    #       # we have correctly matched the term
-    #       return success(bindings′, 1)
-    #     end
-    #     return nothing
-    #   end
-    #   car(ematchers′)(g, children_eclass_ids, bindings′) do b, n_of_matched # next
-    #     # recursion case:
-    #     # take the first matcher, on success,
-    #     # keep looping by matching the rest 
-    #     # by removing the first n matched elements 
-    #     # from the term, with the bindings, 
-    #     loop(drop_n(children_eclass_ids, n_of_matched), b, cdr(ematchers′))
-    #   end
-    # end
-
+    # Define OK variable to avoid boxing issue
+    ok = false
+    new_bindings = bindings
     for n in g[eclass_id].nodes
       if canbindtop(g, n)
-        # loop(LL(v_children(n), 1), bindings, ematchers)
         len = length(ematchers)
         # TODO revise this logic for splat variables
         v_arity(n) === len || @goto skip_node
-        n_args = v_children(n)
+        # n_args = v_children(n)
         new_bindings = bindings
         for i in 1:len
           ok = false
-          ematchers[i](g, n_args[i], new_bindings) do b, n_of_matched
+          ematchers[i](g, n[i + VECEXPR_META_LENGTH], new_bindings) do b, n_of_matched
             new_bindings = b
             ok = true
           end
@@ -154,7 +122,6 @@ function ematcher(p::PatTerm)
         success(new_bindings, 1)
       end
       @label skip_node
-      # loop(LL(v_children(n), 1), bindings, ematchers)
     end
   end
 end
