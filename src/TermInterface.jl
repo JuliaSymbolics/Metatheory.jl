@@ -175,7 +175,6 @@ function maketerm(T::Type{Expr}, head, children; is_call = true, type = Any, met
   end
 end
 
-# TODO is this needed?
 maketerm(T::Type{Expr}, head::Union{Function,DataType}, children; is_call = true, type = Any, metadata = nothing) =
   maketerm(T, nameof(head), children; is_call, type, metadata)
 

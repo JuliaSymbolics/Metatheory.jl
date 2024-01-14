@@ -152,16 +152,17 @@ end
 
 
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
-@inline has_constant(@nospecialize(g::EGraph), hash::UInt64) = haskey(g.constants, hash)
-@inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))
+@inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
+@inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
   h = hash(c)
   get!(g.constants, h, c)
   h
 end
 function to_expr(g::EGraph, n::VecExpr)
   v_istree(n) || return get_constant(g, v_head(n))
-  # TODO get constant
-  maketerm(Expr, get_constant(g, v_head(n)), Core.SSAValue.(Int.(v_children(n))); is_call = v_isfuncall(n))
+  h = get_constant(g, v_head(n))
+  args = Core.SSAValue.(Int.(v_children(n)))
+  maketerm(Expr, h, args; is_call = v_isfuncall(n))
 end
 
 function pretty_dict(g::EGraph)
@@ -402,7 +403,7 @@ function process_unions!(@nospecialize(g::EGraph))::Int
         old_class_id = g.memo[h]
         g.memo[h] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
-        # TODO unique! node dedup can be moved here? compare performance
+        # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
         n_unions += did_something
       end
@@ -485,13 +486,12 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {Expression
   @assert isground(p)
 
   op = head(p)
-  h_op = hash(op)
   args = children(p)
   ar = arity(p)
   is_call = is_function_call(p)
 
 
-  has_op = has_constant(g, h_op)
+  has_op = has_constant(g, p.head_hash)
   if !has_op && ExpressionType === Expr && op isa Union{Function,DataType}
     has_op = has_constant(g, hash(nameof(op)))
   end
@@ -500,7 +500,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {Expression
   n = v_new(ar)
   v_set_flag!(n, VECEXPR_FLAG_ISTREE)
   is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
-  v_set_head!(n, h_op)
+  v_set_head!(n, p.head_hash)
 
   for i in v_children_range(n)
     @inbounds n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
