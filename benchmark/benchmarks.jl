@@ -51,7 +51,7 @@ ex_orig = :(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s))
 ex_logic = rewrite(ex_orig, impl)
 
 SUITE["prop_logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
-SUITE["prop_logic"]["prove1"] = @benchmarkable (@assert prove($propositional_logic_theory, $ex_logic, 3, 5, 5000))
+SUITE["prop_logic"]["prove1"] = @benchmarkable (@assert prove($propositional_logic_theory, $ex_logic, 2))
 
 ex_demorgan = :(!(p || q) == (!p && !q))
 SUITE["prop_logic"]["demorgan"] = @benchmarkable (@assert prove($propositional_logic_theory, $ex_demorgan))
