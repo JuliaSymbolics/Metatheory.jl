@@ -123,13 +123,12 @@ end
 
   a_id = addexpr!(g, :a)
 
-  #  TODO reformulate accordingly
   function costfun(n::VecExpr, op, children_costs::Vector{Float64})::Float64
     v_istree(n) || return 1
-    v_arity(n) != 2 && (return 1)
+    v_arity(n) == 2 || return 1
+
     left = v_children(n)[1]
-    left_class = g[left]
-    g[a_id].nodes[1] ∈ left_class.nodes ? 1 : 100
+    in_same_class(g, left, a_id) ? 1 : 100
   end
 
 

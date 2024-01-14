@@ -44,11 +44,12 @@ Our library provides a simple, algebraically composable interface to help scient
 
 
 ## 3.0 Alpha
-- Many tests have been rewritten in [Literate.jl](https://github.com/fredrikekre/Literate.jl) format and are thus narrative tutorials available in the docs.
-- Many performance optimizations.
-- Comprehensive benchmarks are available.
-- Complete overhaul of the rebuilding algorithm.
-- Lots of bugfixes.
+
+- [x] Using new TermInterface.
+- [ ] Rewrite integration test files in [Literate.jl](https://github.com/fredrikekre/Literate.jl) format, becoming narrative tutorials available in the docs.
+- [x] Performance optimization: use vectors of UInt to internally represent terms in e-graphs.
+- [x] Comprehensive suite of benchmarks that are run automatically on PR.
+- [x] Complete overhaul of the rebuilding algorithm.
 
 
 ---

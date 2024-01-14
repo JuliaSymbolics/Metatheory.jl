@@ -76,9 +76,10 @@ Term patterns will match on terms of the same `arity` and with the same `head`.
 struct PatTerm <: AbstractPat
   is_call::Bool
   head
+  head_hash::UInt
   children::Vector
   isground::Bool
-  PatTerm(is_call, h, c::Vector) = new(is_call, h, c, all(isground, c))
+  PatTerm(is_call, h, c::Vector) = new(is_call, h, hash(h), c, all(isground, c))
 end
 PatTerm(is_call, eh, op) = PatTerm(is_call, eh, [op])
 PatTerm(is_call, eh, children...) = PatTerm(is_call, eh, collect(children))
@@ -91,7 +92,6 @@ TermInterface.head(p::PatTerm) = p.head
 TermInterface.children(p::PatTerm) = p.children
 
 TermInterface.arity(p::PatTerm) = length(p.children)
-# TermInterface.metadata(p::PatTerm) = nothing
 
 TermInterface.maketerm(::Type{PatTerm}, head, children; is_call = true, type = Any, metadata = nothing) =
   PatTerm(is_call, head, children...)

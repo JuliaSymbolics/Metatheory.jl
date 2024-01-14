@@ -3,10 +3,9 @@ module EMatchCompiler
 using ..TermInterface
 using ..Patterns
 using Metatheory:
+  Id,
   to_expr,
   islist,
-  car,
-  cdr,
   assoc,
   drop_n,
   lookup_pat,
@@ -22,10 +21,9 @@ using Metatheory:
   v_arity
 
 function ematcher(p::Any)
-  function literal_ematcher(next, g, data, bindings)
-    !islist(data) && return
+  function literal_ematcher(next, g, eclass_id::Id, bindings)
     ecid = lookup_pat(g, p)
-    if ecid > 0 && ecid == car(data)
+    if ecid > 0 && ecid === eclass_id
       next(bindings, 1)
     end
   end
@@ -34,9 +32,7 @@ end
 checktype(n, T) = istree(n) ? symtype(n) <: T : false
 
 function predicate_ematcher(p::PatVar, T::Type)
-  function type_ematcher(next, g, data, bindings)
-    !islist(data) && return
-    id = car(data)
+  function type_ematcher(next, g, id::Id, bindings)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
       if !v_istree(n)
@@ -50,9 +46,7 @@ function predicate_ematcher(p::PatVar, T::Type)
 end
 
 function predicate_ematcher(p::PatVar, pred)
-  function predicate_ematcher(next, g, data, bindings)
-    !islist(data) && return
-    id::UInt = car(data)
+  function predicate_ematcher(next, g, id::Id, bindings)
     eclass = g[id]
     if pred(eclass)
       enode_idx = 0
@@ -72,14 +66,13 @@ end
 function ematcher(p::PatVar)
   pred_matcher = predicate_ematcher(p, p.predicate)
 
-  function var_ematcher(next, g, data, bindings)
-    id = car(data)
+  function var_ematcher(next, g, id::Id, bindings)
     ecid = get(bindings, p.idx, 0)[1]
     if ecid > 0
-      ecid == id ? next(bindings, 1) : nothing
+      ecid === id ? next(bindings, 1) : nothing
     else
       # Variable is not bound, check predicate and bind 
-      pred_matcher(next, g, data, bindings)
+      pred_matcher(next, g, id, bindings)
     end
   end
 end
@@ -105,47 +98,63 @@ end
 
 
 function ematcher(p::PatTerm)
-  ematchers = map(ematcher, children(p))
+  ematchers::Vector{Function} = map(ematcher, children(p))
   hp = head(p)
 
   if isground(p)
-    return function ground_term_ematcher(next, g, data, bindings)
-      !islist(data) && return
+    return function ground_term_ematcher(next, g, eclass_id::Id, bindings)
       ecid = lookup_pat(g, p)
-      if ecid > 0 && ecid == car(data)
+      if ecid > 0 && ecid === eclass_id
         next(bindings, 1)
       end
     end
   end
 
   canbindtop = canbind(p)
-  function term_ematcher(success, g, data, bindings)
-    !islist(data) && return nothing
+  function term_ematcher(success, g, eclass_id::Id, bindings)
     has_constant_trick(g, hp) || return nothing
 
-    function loop(children_eclass_ids, bindings′, ematchers′)
-      if !islist(ematchers′)
-        # term is empty
-        if !islist(children_eclass_ids)
-          # we have correctly matched the term
-          return success(bindings′, 1)
-        end
-        return nothing
-      end
-      car(ematchers′)(g, children_eclass_ids, bindings′) do b, n_of_matched # next
-        # recursion case:
-        # take the first matcher, on success,
-        # keep looping by matching the rest 
-        # by removing the first n matched elements 
-        # from the term, with the bindings, 
-        loop(drop_n(children_eclass_ids, n_of_matched), b, cdr(ematchers′))
-      end
-    end
+    # function loop(children_eclass_ids, bindings′, ematchers′)
+    #   if !islist(ematchers′)
+    #     # term is empty
+    #     if !islist(children_eclass_ids)
+    #       # we have correctly matched the term
+    #       return success(bindings′, 1)
+    #     end
+    #     return nothing
+    #   end
+    #   car(ematchers′)(g, children_eclass_ids, bindings′) do b, n_of_matched # next
+    #     # recursion case:
+    #     # take the first matcher, on success,
+    #     # keep looping by matching the rest 
+    #     # by removing the first n matched elements 
+    #     # from the term, with the bindings, 
+    #     loop(drop_n(children_eclass_ids, n_of_matched), b, cdr(ematchers′))
+    #   end
+    # end
 
-    for n in g[car(data)].nodes
+    for n in g[eclass_id].nodes
       if canbindtop(g, n)
-        loop(LL(v_children(n), 1), bindings, ematchers)
+        # loop(LL(v_children(n), 1), bindings, ematchers)
+        len = length(ematchers)
+        # TODO revise this logic for splat variables
+        v_arity(n) === len || @goto skip_node
+        n_args = v_children(n)
+        new_bindings = bindings
+        for i in 1:len
+          ok = false
+          ematchers[i](g, n_args[i], new_bindings) do b, n_of_matched
+            new_bindings = b
+            ok = true
+          end
+          ok || @goto skip_node
+        end
+
+        # we have correctly matched the term
+        success(new_bindings, 1)
       end
+      @label skip_node
+      # loop(LL(v_children(n), 1), bindings, ematchers)
     end
   end
 end
@@ -169,7 +178,7 @@ function ematcher_yield(p, npvars::Int, direction::Int)
   em = ematcher(p)
   function ematcher_yield(g, rule_idx, id)::Int
     n_matches = 0
-    em(g, (id,), EMPTY_BINDINGS) do b, n
+    em(g, id, EMPTY_BINDINGS) do b, n
       maybelock!(g) do
         push!(g.buffer, assoc(b, 0, (id, rule_idx * direction)))
         n_matches += 1
