@@ -8,39 +8,33 @@ module Library
 
 using Metatheory.Patterns
 using Metatheory.Rules
-
+using Metatheory.Syntax
 
 macro commutativity(op)
-  RewriteRule(PatTerm(true, op, PatVar(:a), PatVar(:b)), PatTerm(true, op, PatVar(:b), PatVar(:a)))
+  :(@rule $(op)(~a, ~b) --> $(op)(~b, ~a))
 end
 
 macro right_associative(op)
-  RewriteRule(
-    PatTerm(true, op, PatVar(:a), PatTerm(true, op, PatVar(:b), PatVar(:c))),
-    PatTerm(true, op, PatTerm(true, op, PatVar(:a), PatVar(:b)), PatVar(:c)),
-  )
+  :(@rule a b c $(op)(a, $(op)(b, c)) --> $(op)($(op)(a, b), c))
 end
 macro left_associative(op)
-  RewriteRule(
-    PatTerm(true, op, PatTerm(true, op, PatVar(:a), PatVar(:b)), PatVar(:c)),
-    PatTerm(true, op, PatVar(:a), PatTerm(true, op, PatVar(:b), PatVar(:c))),
-  )
+  :(@rule a b c $(op)($(op)(a, b), c) --> $(op)(a, $(op)(b, c)))
 end
 
 
 macro identity_left(op, id)
-  RewriteRule(PatTerm(true, op, id, PatVar(:a)), PatVar(:a))
+  :(@rule $(op)($id, ~a) --> ~a)
 end
 
 macro identity_right(op, id)
-  RewriteRule(PatTerm(true, op, PatVar(:a), id), PatVar(:a))
+  :(@rule $(op)(~a, $id) --> ~a)
 end
 
 macro inverse_left(op, id, invop)
-  RewriteRule(PatTerm(true, op, PatTerm(true, invop, PatVar(:a)), PatVar(:a)), id)
+  :(@rule $(op)($(invop)(~a), ~a) --> $id)
 end
 macro inverse_right(op, id, invop)
-  RewriteRule(PatTerm(true, op, PatVar(:a), PatTerm(true, invop, PatVar(:a))), id)
+  :(@rule $(op)(~a, $(invop)(~a)) --> $id)
 end
 
 
