@@ -1,11 +1,12 @@
 """
-This module defines a contains definitions for common functions that are useful for symbolic expression manipulation.
-Its purpose is to provide a shared interface between various symbolic programming Julia packages.
+This module defines a contains definitions for common functions that are useful
+for symbolic expression manipulation. Its purpose is to provide a shared
+interface between various symbolic programming Julia packages.
 
-This is currently borrowed from TermInterface.jl. 
-If you want to use Metatheory.jl, please use this internal interface, as we are waiting that 
-a redesign proposal of the interface package will reach consensus. When this happens, this module 
-will be moved back into a separate package.
+This is currently borrowed from TermInterface.jl. If you want to use
+Metatheory.jl, please use this internal interface, as we are waiting that a
+redesign proposal of the interface package will reach consensus. When this
+happens, this module will be moved back into a separate package.
 
 See https://github.com/JuliaSymbolics/TermInterface.jl/pull/22
 """
@@ -14,11 +15,21 @@ module TermInterface
 """
   istree(x)
 
-Returns `true` if `x` is a term. If true, `operation`, `arguments`
-must also be defined for `x` appropriately.
+Returns `true` if `x` is a term. If true, `head`, `children` and 
+`is_function_call` must also be defined for `x` appropriately.
 """
 istree(x) = false
 export istree
+
+"""
+  is_function_call(x)
+
+Returns true if a term abstractly represents a function call or function application.
+Must be defined if `istree(x)` is defined. 
+Can be true only if `istree(x)` is true.
+"""
+function is_function_call end
+export is_function_call
 
 """
   symtype(x)
@@ -35,12 +46,21 @@ export symtype
 
 
 """
+  issym(x)
+
+Returns `true` if `x` is a symbol. If true, `nameof` must be defined
+on `x` and must return a Symbol.
+"""
+issym(x) = false
+export issym
+
+
+"""
   head(x)
 
 If `x` is a term as defined by `istree(x)`, `head(x)` returns the head of the
-term if `x`. The `head` type has to be provided by the package.
-if `x` represents a function call, for example, the head
-is the function being called.
+term. If `x` represents a function call term like `f(a,b)`, the head
+is the function being called, `f`.
 """
 function head end
 export head
@@ -49,10 +69,22 @@ export head
 """
   children(x)
 
-Get the arguments of `x`, must be defined if `istree(x)` is `true`.
+Get the children of a term `x`, must be defined if `istree(x)` is `true`.
 """
 function children end
 export children
+
+"""
+  unsorted_children(x::T)
+
+If x is a term satisfying `istree(x)` and your term type `T` provides
+and optimized implementation for storing the children, this function can 
+be used to retrieve the children when the order of arguments does not matter 
+but the speed of the operation does.
+"""
+unsorted_arguments(x) = arguments(x)
+export unsorted_arguments
+
 
 """
   arity(x)
@@ -69,7 +101,7 @@ export arity
 
 Return the metadata attached to `x`.
 """
-function metadata(x) end
+metadata(x) = nothing
 export metadata
 
 
@@ -83,24 +115,20 @@ function metadata(x, data) end
 
 
 """
-  maketerm(T::Type, children; type=Any, metadata=nothing)
+  maketerm(T::Type, head, children; is_call = true, type=Any, metadata=nothing)
 
-Has to be implemented by the provider of T.
-Returns a term that is in the same closure of types as `typeof(x)`,
+Has to be implemented by the provider of the expression type T.
+Returns a term that is in the same closure of types as `T`,
 with `head` as the head and `children` as the arguments, `type` as the symtype
 and `metadata` as the metadata. 
+
+`is_call` is used to determine if the constructed term represents a function
+call. If `is_call = true`, then it must construct a term `x` such that
+`is_function_call(x) = true`, and vice-versa for `is_call = false`.
 """
 function maketerm end
 export maketerm
 
-"""
-  is_operation(f)
-
-Returns a single argument anonymous function predicate, that returns `true` if and only if
-the argument to the predicate satisfies `istree` and `head(x) == f` 
-"""
-is_head(f) = @nospecialize(x) -> istree(x) && (head(x) == f)
-export is_head
 
 
 """
@@ -130,7 +158,6 @@ macro matchable(expr)
 
   quote
     $expr
-    # TODO default to call?
     TermInterface.istree(::$name) = true
     TermInterface.is_function_call(::$name) = true
     TermInterface.head(::$name) = $name
@@ -140,15 +167,6 @@ macro matchable(expr)
   end |> esc
 end
 export @matchable
-
-# ------------------------------
-# ## Traits
-"""
-Whether an expression tree abstractly represents a function call or function application.
-Must be defined if and only if `istree(x)` is defined. Can be true only if `istree(x)` is true.
-"""
-function is_function_call end
-export is_function_call
 
 # This file contains default definitions for TermInterface methods on Julia
 # Builtin Expr type.
