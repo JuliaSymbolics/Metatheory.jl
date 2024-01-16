@@ -29,7 +29,7 @@ Given an e-node `n`, `make` should return the corresponding analysis value.
 function make end
 
 
-# parametrize metadata by M
+# TODO parametrize metadata by M
 mutable struct EClass{D}
   id::Id
   nodes::Vector{VecExpr}
