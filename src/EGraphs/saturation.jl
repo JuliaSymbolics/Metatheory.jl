@@ -100,12 +100,13 @@ function eqsat_search!(
   return n_matches
 end
 
-function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::Id
+function instantiate_enode!(@nospecialize(g::EGraph), p::Any)::Id
+  # TODO make op_key here and do not allocate if it's already there
   new_node_literal = Id[0, 0, add_constant!(g, p)]
   add!(g, new_node_literal)
 end
-instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
+instantiate_enode!(@nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(g.buffer[g.buffer_position + p.idx - 1])
+function instantiate_enode!(g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
   op = head(p)
   args = children(p)
   is_call = is_function_call(p)
@@ -118,29 +119,31 @@ function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::Pa
   is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, add_constant!(g, new_op))
 
+  # TODO optimize if node is already there
+
   for i in v_children_range(n)
-    @inbounds n[i] = instantiate_enode!(bindings, g, args[i - VECEXPR_META_LENGTH])
+    @inbounds n[i] = instantiate_enode!(g, args[i - VECEXPR_META_LENGTH])
   end
   add!(g, n)
 end
 
-function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
+function apply_rule!(g::EGraph, rule::RewriteRule, id, direction)
   push!(g.merges_buffer, id)
-  push!(g.merges_buffer, instantiate_enode!(buf, g, rule.right))
+  push!(g.merges_buffer, instantiate_enode!(g, rule.right))
   nothing
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
+function apply_rule!(g::EGraph, rule::EqualityRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   push!(g.merges_buffer, id)
-  push!(g.merges_buffer, instantiate_enode!(bindings, g, pat_to_inst))
+  push!(g.merges_buffer, instantiate_enode!(g, pat_to_inst))
   nothing
 end
 
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
+function apply_rule!(g::EGraph, rule::UnequalRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  other_id = instantiate_enode!(bindings, g, pat_to_inst)
+  other_id = instantiate_enode!(g, pat_to_inst)
 
   if find(g, id) == find(g, other_id)
     @debug "$rule produced a contradiction!"
@@ -152,8 +155,11 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
-  ecid, literal_position = bindings[i]
+function instantiate_actual_param!(g::EGraph, i)
+  p = g.buffer[g.buffer_position + i - 1]
+  ecid = v_pair_first(p)
+  literal_position = v_pair_last(p)
+
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
@@ -163,9 +169,9 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int)
+function apply_rule!(g::EGraph, rule::DynamicRule, id::Id, direction::Int)
   f = rule.rhs_fun
-  r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
+  r = f(id, g, (instantiate_actual_param!(g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
   push!(g.merges_buffer, id)
@@ -176,12 +182,11 @@ end
 
 
 function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
-  i = 0
   @assert isempty(g.merges_buffer)
 
   @debug "APPLYING $(length(g.buffer)) matches"
   maybelock!(g) do
-    while !isempty(g.buffer)
+    while g.buffer_position <= length(g.buffer)
 
       if params.goal(g)
         @debug "Goal reached"
@@ -189,13 +194,25 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
         return
       end
 
-      bindings = pop!(g.buffer)
-      id, rule_idx = bindings[0]
+      id = v_pair_first(g.buffer[g.buffer_position])
+      rule_idx = reinterpret(Int, v_pair_last(g.buffer[g.buffer_position]))
+
+      @debug "id" id
+      @debug "rule idx" rule_idx
       direction = sign(rule_idx)
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
+      npvars = length(rule.patvars)
 
-      halt_reason = apply_rule!(bindings, g, rule, id, direction)
+      @show g.buffer[(g.buffer_position):(g.buffer_position + npvars)]
+
+      g.buffer_position += 1
+
+
+      halt_reason = apply_rule!(g, rule, id, direction)
+
+      g.buffer_position += npvars
+
 
       if !isnothing(halt_reason)
         rep.reason = halt_reason
@@ -233,7 +250,11 @@ function eqsat_step!(
 
   setiter!(scheduler, curr_iter)
 
+  g.buffer_position = 1
+
   @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
+
+  g.buffer_position = 1
 
   @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
 

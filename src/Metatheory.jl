@@ -19,7 +19,6 @@ include("docstrings.jl")
 include("vecexpr.jl")
 @reexport using .VecExprModule
 
-const Bindings = Base.ImmutableDict{Int,Tuple{Id,Int}}
 const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
 include("utils.jl")

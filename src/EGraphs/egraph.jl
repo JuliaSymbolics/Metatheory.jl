@@ -101,7 +101,8 @@ mutable struct EGraph{ExpressionType,Analysis}
   "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
   "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
-  buffer::Vector{Bindings}
+  buffer::VecBindings
+  buffer_position::Int
   "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
   merges_buffer::Vector{Id}
   lock::ReentrantLock
@@ -124,7 +125,8 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     Dict{Pair{Any,Int},Vector{Id}}(),
     false,
     needslock,
-    Bindings[],
+    VecBindings(),
+    1,
     Id[],
     ReentrantLock(),
   )

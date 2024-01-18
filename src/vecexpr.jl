@@ -2,6 +2,7 @@ module VecExprModule
 
 export Id,
   VecExpr,
+  VecBindings,
   VECEXPR_FLAG_ISTREE,
   VECEXPR_FLAG_ISCALL,
   VECEXPR_META_LENGTH,
@@ -19,9 +20,13 @@ export Id,
   v_arity,
   v_hash!,
   v_hash,
-  v_unset_hash!
+  v_unset_hash!,
+  v_pair_first,
+  v_pair_last,
+  v_pair
 
 const Id = UInt64
+
 
 """
 VecExpr vector syntax:
@@ -35,6 +40,9 @@ Rest of positions store the e-class ids of the children
 """
 
 const VecExpr = Vector{Id}
+
+const VecBindings = Vector{UInt128}
+
 
 const VECEXPR_FLAG_ISTREE = 0x01
 const VECEXPR_FLAG_ISCALL = 0x10
@@ -78,6 +86,11 @@ end
 end
 
 @inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n))
+
+
+@inline v_pair_first(p::UInt128) = Id(p >> 64)
+@inline v_pair_last(p::UInt128) = Id(p & 0x0000000000000000ffffffffffffffff)
+@inline v_pair(a::Id, b::Id) = (UInt128(a) << 64) | b
 
 
 end

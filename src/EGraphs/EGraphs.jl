@@ -9,7 +9,7 @@ using Metatheory.Rules
 using Metatheory.EMatchCompiler
 using Metatheory.VecExprModule
 
-using Metatheory: alwaystrue, cleanast, Bindings, UNDEF_ID_VEC
+using Metatheory: alwaystrue, cleanast, UNDEF_ID_VEC
 
 import Metatheory: to_expr, maybelock!, lookup_pat, has_constant, get_constant
 

@@ -3,35 +3,36 @@ module EMatchCompiler
 using ..TermInterface
 using ..Patterns
 using Metatheory.VecExprModule
-using Metatheory: assoc, lookup_pat, LL, maybelock!, has_constant, get_constant
+using Metatheory: lookup_pat, LL, maybelock!, has_constant, get_constant
 
-function ematcher(p::Any)
-  function literal_ematcher(next, g, eclass_id::Id, bindings)
+function ematcher(p::Any, bindings::VecBindings)
+  function literal_ematcher(next, g, eclass_id::Id)
     ecid = lookup_pat(g, p)
     if ecid > 0 && ecid === eclass_id
-      next(bindings, 1)
+      next(1)
     end
   end
 end
 
 checktype(n, T) = istree(n) ? symtype(n) <: T : false
 
-function predicate_ematcher(p::PatVar, T::Type)
-  function type_ematcher(next, g, id::Id, bindings)
+function predicate_ematcher(p::PatVar, T::Type, bindings::VecBindings)
+  function type_ematcher(next, g, id::Id)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
       if !v_istree(n)
         hn = get_constant(g, v_head(n))
         if hn isa T
-          next(assoc(bindings, p.idx, (id, enode_idx)), 1)
+          bindings[p.idx] = v_pair(id, UInt64(enode_idx))
+          next(1)
         end
       end
     end
   end
 end
 
-function predicate_ematcher(p::PatVar, pred)
-  function predicate_ematcher(next, g, id::Id, bindings)
+function predicate_ematcher(p::PatVar, pred, bindings::VecBindings)
+  function predicate_ematcher(next, g, id::Id)
     eclass = g[id]
     if pred(eclass)
       enode_idx = 0
@@ -43,21 +44,23 @@ function predicate_ematcher(p::PatVar, pred)
           break
         end
       end
-      next(assoc(bindings, p.idx, (id, enode_idx)), 1)
+      bindings[p.idx] = v_pair(id, UInt64(enode_idx))
+      next(1)
     end
   end
 end
 
-function ematcher(p::PatVar)
-  pred_matcher = predicate_ematcher(p, p.predicate)
+function ematcher(p::PatVar, bindings::VecBindings)
+  pred_matcher = predicate_ematcher(p, p.predicate, bindings)
 
-  function var_ematcher(next, g, id::Id, bindings)
-    ecid = get(bindings, p.idx, 0)[1]
+  function var_ematcher(next, g, id::Id)
+    ecid = v_pair_first(bindings[p.idx])
     if ecid > 0
-      ecid === id ? next(bindings, 1) : nothing
+      # Variable is bound
+      ecid === id ? next(1) : nothing
     else
       # Variable is not bound, check predicate and bind 
-      pred_matcher(next, g, id, bindings)
+      pred_matcher(next, g, id)
     end
   end
 end
@@ -82,44 +85,43 @@ function canbind(p::PatTerm)
 end
 
 
-function ematcher(p::PatTerm)
-  ematchers::Vector{Function} = map(ematcher, children(p))
+function ematcher(p::PatTerm, bindings::VecBindings)
+  ematchers::Vector{Function} = [ematcher(cp, bindings) for cp in children(p)]
   hp = head(p)
 
   if isground(p)
-    return function ground_term_ematcher(next, g, eclass_id::Id, bindings)
+    return function ground_term_ematcher(next, g, eclass_id::Id, ::VecBindings)
       ecid = lookup_pat(g, p)
       if ecid > 0 && ecid === eclass_id
-        next(bindings, 1)
+        next(1)
       end
     end
   end
 
+  local_bindings::VecBindings = VecBindings(undef, length(bindings))
   canbindtop = canbind(p)
-  function term_ematcher(success, g, eclass_id::Id, bindings)
+  function term_ematcher(success, g, eclass_id::Id)
     has_constant_trick(g, hp) || return nothing
 
     # Define OK variable to avoid boxing issue
     ok = false
-    new_bindings = bindings
+    copyto!(local_bindings, bindings) # save backtracking
     for n in g[eclass_id].nodes
       if canbindtop(g, n)
         len = length(ematchers)
         # TODO revise this logic for splat variables
         v_arity(n) === len || @goto skip_node
-        # n_args = v_children(n)
-        new_bindings = bindings
+        copyto!(bindings, local_bindings)
         for i in 1:len
           ok = false
-          ematchers[i](g, n[i + VECEXPR_META_LENGTH], new_bindings) do b, n_of_matched
-            new_bindings = b
+          ematchers[i](g, n[i + VECEXPR_META_LENGTH]) do n_of_matched
             ok = true
           end
           ok || @goto skip_node
         end
 
         # we have correctly matched the term
-        success(new_bindings, 1)
+        success(1)
       end
       @label skip_node
     end
@@ -132,6 +134,8 @@ const EMPTY_BINDINGS = Base.ImmutableDict{Int,Tuple{UInt,Int}}()
 """
 Substitutions are efficiently represented in memory as immutable dictionaries of tuples of two integers.
 
+
+TODO rewrite
 The format is as follows:
 
 bindings[0] holds 
@@ -142,12 +146,23 @@ bindings[0] holds
 The rest of the immutable dictionary bindings[n>0] represents (e-class id, literal position) at the position of the pattern variable `n`.
 """
 function ematcher_yield(p, npvars::Int, direction::Int)
-  em = ematcher(p)
+  bindings = VecBindings(undef, npvars)
+  em = ematcher(p, bindings)
   function ematcher_yield(g, rule_idx, id)::Int
     n_matches = 0
-    em(g, id, EMPTY_BINDINGS) do b, n
+    # First element of the bindings holds the e-class id of the substitution 
+    # and the rule index in the theory, multiplied by -1 if the direction of the rule is inverted (right to left) 
+    em(g, id) do n_of_matched
       maybelock!(g) do
-        push!(g.buffer, assoc(b, 0, (id, rule_idx * direction)))
+        id_rule_pair = v_pair(id, reinterpret(UInt64, rule_idx * direction))
+        buffer_needs_n_more_elements = (g.buffer_position + npvars) - length(g.buffer)
+        @show buffer_needs_n_more_elements npvars
+        if buffer_needs_n_more_elements > 0
+          Base._growend!(g.buffer, buffer_needs_n_more_elements)
+        end
+        g.buffer[g.buffer_position] = id_rule_pair
+        copyto!(g.buffer, g.buffer_position + 1, bindings, 1, npvars)
+        g.buffer_position += npvars + 1
         n_matches += 1
       end
     end
