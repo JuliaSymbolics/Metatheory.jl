@@ -419,7 +419,7 @@ function process_unions!(@nospecialize(g::EGraph))::Int
         joined_data = join(eclass.data, node_data)
 
         if joined_data != eclass.data
-          setdata!(eclass, an, joined_data)
+          eclass.data = joined_data
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
         end
