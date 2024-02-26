@@ -58,7 +58,7 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
       costs = enode_cost.(eclass.nodes)
       pass = (minimum(costs), argmin(costs))
 
-      if pass != typemax(CT) && (!haskey(extractor.costs, id) || (pass[1] < extractor.costs[id][1]))
+      if pass[1] != typemax(CT) && (!haskey(extractor.costs, id) || (pass[1] < extractor.costs[id][1]))
         extractor.costs[id] = pass
         did_something = true
       end
