@@ -86,7 +86,7 @@ A basic cost function, where the computed cost is the number
 of expression tree nodes times -1.
 Strives to get the largest expression
 """
-function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64 = -astsize(n, op, costs)
+astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64 = -astsize(n, op, costs)
 
 function extract!(g::EGraph, costfun, cost_type = Float64)
   Extractor(g, costfun, cost_type)()
