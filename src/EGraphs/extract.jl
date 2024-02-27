@@ -58,7 +58,7 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
       costs = enode_cost.(eclass.nodes)
       pass = (minimum(costs), argmin(costs))
 
-      if pass != typemax(CT) && (!haskey(extractor.costs, id) || (pass[1] < extractor.costs[id][1]))
+      if pass[1] != typemax(CT) && (!haskey(extractor.costs, id) || (pass[1] < extractor.costs[id][1]))
         extractor.costs[id] = pass
         did_something = true
       end
@@ -73,27 +73,22 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
 end
 
 """
-A basic cost function, where the computed cost is the size
-(number of children) of the current expression.
+A basic cost function, where the computed cost is the number 
+of expression tree nodes.
 """
 function astsize(n::VecExpr, op, costs::Vector{Float64})::Float64
   v_istree(n) || return 1
-  cost = 2 + v_arity(n)
-  cost + sum(costs)
+  cost = 1 + sum(costs)
 end
 
 """
-A basic cost function, where the computed cost is the size
-(number of children) of the current expression, times -1.
+A basic cost function, where the computed cost is the number
+of expression tree nodes times -1.
 Strives to get the largest expression
 """
-function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
-  v_istree(n) || return -1
-  cost = -(1 + v_arity(n)) # minus sign here is the only difference vs astsize
-  cost + sum(costs)
+astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64 = -astsize(n, op, costs)
+
+function extract!(g::EGraph, costfun, cost_type = Float64)
+  Extractor(g, costfun, cost_type)()
 end
 
-
-function extract!(g::EGraph, costfun)
-  Extractor(g, costfun, Float64)()
-end

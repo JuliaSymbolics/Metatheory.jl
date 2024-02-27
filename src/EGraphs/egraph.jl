@@ -64,11 +64,11 @@ function merge_analysis_data!(@nospecialize(a::EClass), @nospecialize(b::EClass)
     merged_a = (a.data == new_a_data)
     a.data = new_a_data
     (merged_a, b.data == new_a_data)
-  elseif !isnothing(a.data) && !isnothing(b.data)
+  elseif isnothing(a.data) && !isnothing(b.data)
     a.data = b.data
     # a merged, b not merged
     (true, false)
-  elseif !isnothing(a.data) && !isnothing(b.data)
+  elseif !isnothing(a.data) && isnothing(b.data)
     b.data = a.data
     (false, true)
   else
@@ -419,7 +419,7 @@ function process_unions!(@nospecialize(g::EGraph))::Int
         joined_data = join(eclass.data, node_data)
 
         if joined_data != eclass.data
-          setdata!(eclass, an, joined_data)
+          eclass.data = joined_data
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
         end
