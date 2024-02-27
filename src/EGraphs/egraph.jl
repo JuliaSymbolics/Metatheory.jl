@@ -96,7 +96,7 @@ mutable struct EGraph{ExpressionType,Analysis}
   analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
   root::Id
   "a cache mapping function symbols and their arity to e-classes that contain e-nodes with that function symbol."
-  classes_by_op::Dict{Pair{Any,Int},Vector{Id}}
+  classes_by_op::Dict{UInt128,Vector{Id}}
   clean::Bool
   "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
@@ -178,18 +178,17 @@ function Base.show(io::IO, g::EGraph)
   show(io, pretty_dict(g))
 end
 
-function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{Any,Int}
+function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::UInt128
   h = v_head(n)
   op = get_constant(g, h)
   if op isa Union{Function,DataType}
-    # h = add_constant!(g, nameof(op))
     op = nameof(op)
   end
-  op => (v_istree(n) ? v_arity(n) : -1)
+  v_pair128(hash(op), v_pair64(UInt32(v_flags(n)), v_arity(n)))
 end
 
 # TODO use flags!
-function op_key(t)::Pair{Any,Int}
+function op_key(t)::UInt128
   h = head(t)
   if h isa Union{Function,DataType}
     h = nameof(h)

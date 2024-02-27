@@ -79,5 +79,20 @@ end
 
 @inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n))
 
+# Handle a pair of two UInt64 in a single UInt128  
+@inline v_pair128(a::UInt64, b::UInt64)::UInt128 = (UInt128(a) << 64) | b
+@inline v_pair128_first(p::UInt128)::UInt64 = UInt64((p >> 64))
+@inline v_pair128_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
+
+# Same as above but for UInt32
+@inline v_pair64(a::UInt32, b::UInt32)::UInt64 = (UInt128(a) << 32) | b
+@inline v_pair64_first(p::UInt64)::UInt32 = UInt64((p >> 64))
+@inline v_pair64_last(p::UInt64)::UInt32 = UInt64(p & 0xffffffffffffffff)
+
+
+@inline function v_signature(head_hash::Id)::UInt128
+  v_pair(head_hash)
+end
+
 
 end
