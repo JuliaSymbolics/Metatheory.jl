@@ -70,15 +70,6 @@ PatSegment(v) = PatSegment(v, -1, alwaystrue, nothing)
 PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
-function patterm_signature(h::Union{Function,DataType}, is_call::Bool, arity::Int)
-  flags = zero(UInt32) | VECEXPR_FLAG_ISTREE
-  is_call && (flags = flags | VECEXPR_FLAG_ISCALL)
-  flags_arity = v_pair64(flags, arity)
-  v_pair128(hash(nameof(h)), flags_arity)
-end
-
-function patterm_signature(h) end
-
 """
 Term patterns will match on terms of the same `arity` and with the same `head`.
 """
@@ -86,14 +77,12 @@ struct PatTerm <: AbstractPat
   is_call::Bool
   head
   head_hash::UInt
-  # signature::UInt128
   children::Vector
   isground::Bool
-  PatTerm(is_call, h, c::Vector) =
-    new(is_call, h, hash(h), patterm_signature(h, is_call, length(c)), c, all(isground, c))
+  PatTerm(is_call, h, c::Vector) = new(is_call, h, hash(h), c, all(isground, c))
 end
-PatTerm(is_call, h, op) = PatTerm(is_call, h, [op])
-PatTerm(is_call, h, children...) = PatTerm(is_call, h, collect(children))
+PatTerm(is_call, eh, op) = PatTerm(is_call, eh, [op])
+PatTerm(is_call, eh, children...) = PatTerm(is_call, eh, collect(children))
 
 isground(p::PatTerm)::Bool = p.isground
 
