@@ -45,8 +45,8 @@ end
 
 function EGraphs.make(::Val{:freevar}, g::EGraph, n::VecExpr)
   free = Set{Int64}()
-  v_istree(n) || return free
-  if v_isfuncall(n)
+  v_isexpr(n) || return free
+  if v_iscall(n)
     op = get_constant(g, v_head(n))
     args = v_children(n)
 

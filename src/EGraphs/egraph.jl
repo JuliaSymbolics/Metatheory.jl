@@ -159,10 +159,10 @@ end
   h
 end
 function to_expr(g::EGraph, n::VecExpr)
-  v_istree(n) || return get_constant(g, v_head(n))
+  v_isexpr(n) || return get_constant(g, v_head(n))
   h = get_constant(g, v_head(n))
   args = Core.SSAValue.(Int.(v_children(n)))
-  maketerm(Expr, h, args; is_call = v_isfuncall(n))
+  maketerm(Expr, h, args; is_call = v_iscall(n))
 end
 
 function pretty_dict(g::EGraph)
@@ -185,7 +185,7 @@ function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{Any,Int}
     # h = add_constant!(g, nameof(op))
     op = nameof(op)
   end
-  op => (v_istree(n) ? v_arity(n) : -1)
+  op => (v_isexpr(n) ? v_arity(n) : -1)
 end
 
 # TODO use flags!
@@ -194,7 +194,7 @@ function op_key(t)::Pair{Any,Int}
   if h isa Union{Function,DataType}
     h = nameof(h)
   end
-  (h => (istree(t) ? arity(t) : -1))
+  (h => (isexpr(t) ? arity(t) : -1))
 end
 
 """
@@ -206,7 +206,7 @@ Returns the canonical e-class id for a given e-class.
 @inline Base.getindex(g::EGraph, i::Id) = g.classes[find(g, i)]
 
 # function canonicalize(g::EGraph, n::VecExpr)::VecExpr
-#   if !v_istree(n)
+#   if !v_isexpr(n)
 #     v_hash!(n)
 #     return n
 #   end
@@ -222,7 +222,7 @@ Returns the canonical e-class id for a given e-class.
 # end
 
 function canonicalize!(g::EGraph, n::VecExpr)
-  v_istree(n) || @goto ret
+  v_isexpr(n) || @goto ret
   for i in 4:length(n)
     @inbounds n[i] = find(g, n[i])
   end
@@ -261,7 +261,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {Express
 
   id = push!(g.uf) # create new singleton eclass
 
-  if v_istree(n)
+  if v_isexpr(n)
     for c_id in v_children(n)
       addparent!(g.classes[c_id], n, id)
     end
@@ -299,7 +299,7 @@ function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
 
-  n = if istree(e)
+  n = if isexpr(e)
     args = children(e)
     ar = arity(e)
     n = v_new(ar)

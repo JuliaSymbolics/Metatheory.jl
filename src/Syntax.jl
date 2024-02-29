@@ -1,7 +1,7 @@
 module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules
-using ..TermInterface
+using TermInterface
 
 using Metatheory: alwaystrue, cleanast
 
@@ -55,8 +55,8 @@ end
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
   args = children(expr)
-  op = head(expr)
-  if is_function_call(expr)
+  if iscall(expr)
+    op = operation(expr)
     if op === :(~)
       if args[1] isa Symbol
         return args[1]
@@ -82,19 +82,17 @@ function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
-  h = ex.head
-  is_call = is_function_call(ex)
+  h = head(ex)
 
-  op = head(ex)
-  # Retrieve the function object if available
-  # Optionally quote function objects
-  args = children(ex)
-  istree(op) && (op = makepattern(op, pvars, slots, mod))
 
-  if is_call
+  if iscall(ex)
+    op = operation(ex)
+    isexpr(op) && (op = makepattern(op, pvars, slots, mod))
+    # Optionally quote function objects
+    args = arguments(ex)
     if op === :(~) # is a variable or segment
       let v = args[1]
-        if v isa Expr && head(v) == :(~)
+        if v isa Expr && iscall(v) && head(v) == :(~)
           # matches ~~x::predicate or ~~x::predicate...
           makesegment(children(v)[1], pvars)
         elseif splat
@@ -106,11 +104,11 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm($is_call, $(function_object_or_quote(op, mod)), $(patargs...)))
+      :($PatTerm($(iscall(ex)), $(function_object_or_quote(op, mod)), $(patargs...)))
     end
 
   elseif h === :...
-    makepattern(args[1], pvars, slots, mod, true)
+    makepattern(ex.args[1], pvars, slots, mod, true)
   elseif h == :(::) && args[1] in slots
     splat ? makesegment(ex, pvars) : makevar(ex, pvars)
     # elseif h === :ref
@@ -118,15 +116,15 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     #   patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
     #   :($PatTerm($ph, getindex, $(patargs...)))
   elseif h === :$
-    args[1]
+    ex.args[1]
   else
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
+    patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
     :($PatTerm($false, $(QuoteNode(h)), $(patargs...)))
   end
 end
 
 function rule_sym_map(ex::Expr)
-  h = head(ex)
+  h = iscall(ex) ? operation(ex) : head(ex)
   if h == :(-->) || h == :(→)
     RewriteRule
   elseif h == :(=>)

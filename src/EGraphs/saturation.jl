@@ -157,7 +157,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
-    @assert !v_istree(eclass[literal_position])
+    @assert !v_isexpr(eclass[literal_position])
     return get_constant(g, v_head(eclass[literal_position]))
   end
   return eclass

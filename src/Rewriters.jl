@@ -30,7 +30,7 @@ rewriters.
 
 """
 module Rewriters
-using ..TermInterface
+using TermInterface
 using Metatheory: @timer
 
 export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, PassThrough
@@ -188,12 +188,12 @@ instrument(x::PassThrough, f) = PassThrough(instrument(x.rw, f))
 passthrough(x, default) = x === nothing ? default : x
 function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
   @assert ord === :pre || ord === :post
-  if istree(x)
+  if isexpr(x)
     if ord === :pre
       x = p.rw(x)
     end
-    if istree(x)
-      x = p.maketerm(typeof(x), head(x), map(PassThrough(p), children(x)); is_call = is_function_call(x))
+    if isexpr(x)
+      x = p.maketerm(typeof(x), head(x), map(PassThrough(p), children(x)))
     end
     return ord === :post ? p.rw(x) : x
   else
@@ -203,11 +203,11 @@ end
 
 function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
   @assert ord === :pre || ord === :post
-  if istree(x)
+  if isexpr(x)
     if ord === :pre
       x = p.rw(x)
     end
-    if istree(x)
+    if isexpr(x)
       _args = map(children(x)) do arg
         if node_count(arg) > p.thread_cutoff
           Threads.@spawn p(arg)
@@ -216,7 +216,7 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
         end
       end
       ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, children(x))
-      t = p.maketerm(typeof(x), head(x), ntail; is_call = is_function_call(x))
+      t = p.maketerm(typeof(x), head(x), ntail)
     end
     return ord === :post ? p.rw(t) : t
   else

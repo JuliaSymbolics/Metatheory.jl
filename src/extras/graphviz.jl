@@ -1,6 +1,6 @@
 using GraphViz
 using Metatheory
-using ..TermInterface
+using TermInterface
 
 function render_egraph!(io::IO, g::EGraph)
   print(
@@ -59,7 +59,7 @@ function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::VecExpr)
 end
 
 function render_enode_edges!(io::IO, g::EGraph, eclass_id, i, node::VecExpr)
-  node.istree || return nothing
+  node.isexpr || return nothing
   len = length(arguments(node))
   for (ite, child) in enumerate(arguments(node))
     cluster_id = find(g, child)

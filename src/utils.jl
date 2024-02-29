@@ -26,7 +26,7 @@ struct LL{V}
   i::Int
 end
 
-islist(x) = istree(x) || !isempty(x)
+islist(x) = isexpr(x) || !isempty(x)
 
 Base.empty(l::LL) = empty(l.v)
 Base.isempty(l::LL) = l.i > length(l.v)
@@ -40,9 +40,9 @@ Base.length(l::LL) = length(l.v) - l.i + 1
 # @inline car(t::Term) = operation(t)
 # @inline cdr(t::Term) = arguments(t)
 
-@inline car(v) = istree(v) ? head(v) : first(v)
+@inline car(v) = isexpr(v) ? head(v) : first(v)
 @inline function cdr(v)
-  if istree(v)
+  if isexpr(v)
     children(v)
   else
     islist(v) ? LL(v, 2) : error("asked cdr of empty")
@@ -56,7 +56,7 @@ end
   if n === 0
     return ll
   else
-    istree(ll) ? drop_n(children(ll), n - 1) : drop_n(cdr(ll), n - 1)
+    isexpr(ll) ? drop_n(children(ll), n - 1) : drop_n(cdr(ll), n - 1)
   end
 end
 @inline drop_n(ll::Union{Tuple,AbstractArray}, n) = drop_n(LL(ll, 1), n)

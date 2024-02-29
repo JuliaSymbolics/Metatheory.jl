@@ -107,22 +107,22 @@ end
 
 head_matcher(x) = matcher(x)
 
-function is_call_matcher(pat_is_call::Bool)
+function is_call_matcher(pat_iscall::Bool)
   function is_call_matcher(next, data, bindings)
-    islist(data) && pat_is_call === is_function_call(data) ? next(bindings, 0) : nothing
+    islist(data) && pat_iscall === iscall(data) ? next(bindings, 0) : nothing
   end
 end
 
 function matcher(term::PatTerm)
-  pat_is_call = is_function_call(term)
+  pat_iscall = iscall(term)
   h = head(term)
-  is_call_m = is_call_matcher(pat_is_call)
+  is_call_m = is_call_matcher(pat_iscall)
   # Hacky solution for function objects matching against their `nameof`
   matchers = [is_call_m; head_matcher(h); map(matcher, children(term))]
 
   function term_matcher(success, data, bindings)
     !islist(data) && return nothing
-    !istree(car(data)) && return nothing
+    !isexpr(car(data)) && return nothing
 
     function loop(term, bindings′, matchers′) # Get it to compile faster
       # Base case, no more matchers
