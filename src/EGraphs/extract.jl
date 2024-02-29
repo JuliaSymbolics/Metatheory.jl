@@ -84,9 +84,12 @@ end
 """
 A basic cost function, where the computed cost is the number
 of expression tree nodes times -1.
-Strives to get the largest expression
+Strives to get the largest expression. This may lead to a stack overflow in egraphs with loops.
 """
-astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64 = -astsize(n, op, costs)
+function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
+  v_istree(n) || return -1
+  cost = -1 + sum(costs) # child cost are negative
+end
 
 function extract!(g::EGraph, costfun, cost_type = Float64)
   Extractor(g, costfun, cost_type)()
