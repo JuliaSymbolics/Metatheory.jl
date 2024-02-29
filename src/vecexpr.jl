@@ -10,8 +10,8 @@ export Id,
   v_unset_flags!,
   v_check_flags,
   v_set_flag!,
-  v_istree,
-  v_isfuncall,
+  v_isexpr,
+  v_iscall,
   v_head,
   v_set_head!,
   v_children,
@@ -45,8 +45,8 @@ const VECEXPR_META_LENGTH = 3
 @inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flags)
 @inline v_set_flag!(n::VecExpr, flag)::Id = (n[2] = n[2] | flag)
 
-@inline v_istree(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
-@inline v_isfuncall(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISCALL)
+@inline v_isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
+@inline v_iscall(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISCALL)
 
 @inline v_arity(n::VecExpr)::Int = length(n) - VECEXPR_META_LENGTH
 

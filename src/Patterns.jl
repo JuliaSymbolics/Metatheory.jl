@@ -2,7 +2,7 @@ module Patterns
 
 using Metatheory: cleanast, alwaystrue
 using AutoHashEquals
-using ..TermInterface
+using TermInterface
 
 import Metatheory: to_expr
 
@@ -71,30 +71,31 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
-Term patterns will match on terms of the same `arity` and with the same `head`.
+Term patterns will match on terms of the same `arity` and with the same `operation`.
 """
 struct PatTerm <: AbstractPat
-  is_call::Bool
+  iscall::Bool
   head
   head_hash::UInt
   children::Vector
   isground::Bool
-  PatTerm(is_call, h, c::Vector) = new(is_call, h, hash(h), c, all(isground, c))
+  PatTerm(iscall, op, args::Vector) = new(iscall, op, hash(op), args, all(isground, args))
 end
-PatTerm(is_call, eh, op) = PatTerm(is_call, eh, [op])
-PatTerm(is_call, eh, children...) = PatTerm(is_call, eh, collect(children))
+PatTerm(iscall, op, children...) = PatTerm(iscall, op, collect(children))
 
 isground(p::PatTerm)::Bool = p.isground
 
-TermInterface.istree(::PatTerm) = true
-TermInterface.is_function_call(p::PatTerm)::Bool = p.is_call
+TermInterface.isexpr(::PatTerm) = true
 TermInterface.head(p::PatTerm) = p.head
+TermInterface.operation(p::PatTerm) = p.head
 TermInterface.children(p::PatTerm) = p.children
+TermInterface.arguments(p::PatTerm) = p.children
+TermInterface.iscall(p::PatTerm) = p.iscall
 
 TermInterface.arity(p::PatTerm) = length(p.children)
 
-TermInterface.maketerm(::Type{PatTerm}, head, children; is_call = true, type = Any, metadata = nothing) =
-  PatTerm(is_call, head, children...)
+TermInterface.maketerm(::Type{PatTerm}, operation, arguments, type = Any, metadata = (iscall = true,)) =
+  PatTerm(iscall = true, operation, children...)
 
 # ---------------------
 # # Pattern Variables.
@@ -104,7 +105,7 @@ Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
-patvars(p::PatTerm, s) = (patvars(head(p), s); foreach(x -> patvars(x, s), children(p)); s)
+patvars(p::PatTerm, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
 patvars(::Any, s) = s
 patvars(p) = unique!(patvars(p, Symbol[]))
 
@@ -121,7 +122,7 @@ end
 setdebrujin!(p, pvars) = nothing
 
 function setdebrujin!(p::PatTerm, pvars)
-  setdebrujin!(head(p), pvars)
+  setdebrujin!(operation(p), pvars)
   foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
@@ -131,7 +132,15 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = maketerm(Expr, head(x), to_expr.(children(x)); is_call = is_function_call(x))
+function to_expr(x::PatTerm)
+  if iscall(x)
+    op = operation(x)
+    op_name = op isa Union{Function,DataType} ? nameof(op) : op
+    maketerm(Expr, :call, [op_name; to_expr.(arguments(x))])
+  else
+    maketerm(Expr, operation(x), to_expr.(arguments(x)))
+  end
+end
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 

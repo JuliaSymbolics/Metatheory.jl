@@ -36,8 +36,8 @@ end
 # ## Overriding `TermInterface`` methods
 
 # First, we need to discern when an expression is a leaf or a tree node.
-# We can do it by overriding `istree`.
-TermInterface.istree(::MyExpr) = true
+# We can do it by overriding `isexpr`.
+TermInterface.isexpr(::MyExpr) = true
 # By default, our expression trees always represent a function call
 TermInterface.is_function_call(::MyExpr) = true
 

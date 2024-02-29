@@ -240,7 +240,7 @@ using Metatheory
 # TODO: add example extraction
 function cost_function(n::ENode, children_costs::Vector{Float64})::Float64
     # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
-    istree(n) || return 1
+    isexpr(n) || return 1
 
     cost = 1 + arity(n)
     # This is where the custom cost is computed
@@ -296,7 +296,7 @@ struct OddEvenAnalysis
     s::Symbol # :odd or :even 
 end
 
-function odd_even_base_case(n::ENode) # Should be called only if istree(n) is false
+function odd_even_base_case(n::ENode) # Should be called only if isexpr(n) is false
     if head(n) isa Integer
         OddEvenAnalysis(iseven(head(n)) ? :even : :odd)
     end 
@@ -324,7 +324,7 @@ to EClasses in the EGraph.
 
 ```@example custom_analysis
 function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::ENode) where {ExpressionType}
-    istree(n) || return odd_even_base_case(n)
+    isexpr(n) || return odd_even_base_case(n)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
     if head_symbol(head(n)) == :call && arity(n) == 2

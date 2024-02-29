@@ -207,7 +207,7 @@ end
     head
   end
   TermInterface.is_function_call(::Qux) = true
-  TermInterface.istree(::Qux) = true
+  TermInterface.isexpr(::Qux) = true
   TermInterface.head(::Qux) = Qux
   TermInterface.children(x::Qux) = [x.args...]
 

@@ -25,7 +25,7 @@ end
 
 
 function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENode)
-  istree(n) || return make_value(operation(n))
+  isexpr(n) || return make_value(operation(n))
 
   # Let's consider only binary function call terms.
   if exprhead(n) == :call && arity(n) == 2

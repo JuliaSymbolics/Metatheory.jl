@@ -77,7 +77,7 @@ end
 
 
 function stream_fusion_cost(n::VecExpr, op, costs::Vector{Float64})::Float64
-  v_istree(n) || return 1
+  v_isexpr(n) || return 1
   cost = 1 + v_arity(n)
   op ∈ (:map, :filter) && (cost += 10)
   cost + sum(costs)

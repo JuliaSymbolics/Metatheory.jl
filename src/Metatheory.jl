@@ -22,12 +22,12 @@ include("vecexpr.jl")
 const Bindings = Base.ImmutableDict{Int,Tuple{Id,Int}}
 const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
+using TermInterface
+using TermInterface: isexpr
+
 include("utils.jl")
 export @timer
 
-
-include("TermInterface.jl")
-@reexport using .TermInterface
 
 include("Patterns.jl")
 @reexport using .Patterns
