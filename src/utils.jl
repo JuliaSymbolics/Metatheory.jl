@@ -4,12 +4,12 @@ const binarize_ops = [:(+), :(*), (+), (*)]
 
 function cleanast(e::Expr)
   # TODO better line removal 
-  if isexpr(e, :block)
+  if e.head === :block
     return Expr(e.head, filter(x -> !(x isa LineNumberNode), e.args)...)
   end
 
   # Binarize
-  if isexpr(e, :call)
+  if iscall(e)
     op = e.args[1]
     if op ∈ binarize_ops && length(e.args) > 3
       return foldl((x, y) -> Expr(:call, op, x, y), @view e.args[2:end])
@@ -40,10 +40,10 @@ Base.length(l::LL) = length(l.v) - l.i + 1
 # @inline car(t::Term) = operation(t)
 # @inline cdr(t::Term) = arguments(t)
 
-@inline car(v) = isexpr(v) ? head(v) : first(v)
+@inline car(v) = isexpr(v) ? (iscall(v) ? operation(v) : head(v)) : first(v)
 @inline function cdr(v)
   if isexpr(v)
-    children(v)
+    iscall(v) ? arguments(v) : children(v)
   else
     islist(v) ? LL(v, 2) : error("asked cdr of empty")
   end
@@ -56,7 +56,7 @@ end
   if n === 0
     return ll
   else
-    isexpr(ll) ? drop_n(children(ll), n - 1) : drop_n(cdr(ll), n - 1)
+    isexpr(ll) ? drop_n(iscall(ll) ? arguments(ll) : children(ll), n - 1) : drop_n(cdr(ll), n - 1)
   end
 end
 @inline drop_n(ll::Union{Tuple,AbstractArray}, n) = drop_n(LL(ll, 1), n)

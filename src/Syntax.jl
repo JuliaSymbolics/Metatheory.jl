@@ -38,7 +38,12 @@ end
 
 function makevar(s::Expr, pvars)
   if s.head != :(::)
-    error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
+    throw(
+      DomainError(
+        s,
+        "Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type",
+      ),
+    )
   end
 
   name, predicate = children(s)
@@ -54,24 +59,26 @@ end
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
-  args = children(expr)
   if iscall(expr)
     op = operation(expr)
+    args = arguments(expr)
     if op === :(~)
-      if args[1] isa Symbol
-        return args[1]
-      elseif args[1] isa Expr && head(args[1]) == :(~)
-        n = children(args[1])[1]
-        @assert n isa Symbol
-        return n
-      else
-        error("Error when parsing right hand side")
+      let v = args[1]
+        if v isa Symbol
+          v
+        elseif v isa Expr && iscall(v) && operation(v) === :(~)
+          n = v.args[2]
+          @assert n isa Symbol
+          n
+        else
+          throw(DomainError(v, "Could not parse RHS, unknown expression"))
+        end
       end
     else
-      return Expr(expr.head, makeconsequent(op), map(makeconsequent, args)...)
+      Expr(expr.head, makeconsequent(op), map(makeconsequent, args)...)
     end
   else
-    return Expr(expr.head, map(makeconsequent, args)...)
+    Expr(expr.head, map(makeconsequent, children(expr))...)
   end
 end
 
@@ -92,9 +99,10 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     args = arguments(ex)
     if op === :(~) # is a variable or segment
       let v = args[1]
-        if v isa Expr && iscall(v) && head(v) == :(~)
+        if v isa Expr && iscall(v) && operation(v) === :(~)
+          @show v
           # matches ~~x::predicate or ~~x::predicate...
-          makesegment(children(v)[1], pvars)
+          makesegment(v.args[2], pvars)
         elseif splat
           # matches ~x::predicate...
           makesegment(v, pvars)
@@ -104,22 +112,18 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm($(iscall(ex)), $(function_object_or_quote(op, mod)), $(patargs...)))
+      :($PatExpr($(iscall(ex)), $(function_object_or_quote(op, mod)), $(patargs...)))
     end
 
   elseif h === :...
     makepattern(ex.args[1], pvars, slots, mod, true)
-  elseif h == :(::) && args[1] in slots
+  elseif h == :(::) && ex.args[1] in slots
     splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-    # elseif h === :ref
-    #   # getindex 
-    #   patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    #   :($PatTerm($ph, getindex, $(patargs...)))
   elseif h === :$
     ex.args[1]
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
-    :($PatTerm($false, $(QuoteNode(h)), $(patargs...)))
+    :($PatExpr($false, $(QuoteNode(h)), $(patargs...)))
   end
 end
 
@@ -334,7 +338,7 @@ macro rule(args...)
   e = rmlines(e)
   RuleType = rule_sym_map(e)
 
-  l, r = children(e)
+  l, r = iscall(e) ? arguments(e) : children(e)
   pvars = Symbol[]
   lhs = makepattern(l, pvars, slots, __module__)
   rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r

@@ -165,6 +165,14 @@ function to_expr(g::EGraph, n::VecExpr)
   maketerm(Expr, h, args; is_call = v_iscall(n))
 end
 
+function to_expr(g::EGraph{Expr}, n::VecExpr)
+  v_isexpr(n) || return get_constant(g, v_head(n))
+  h = get_constant(g, v_head(n))
+  args = Core.SSAValue.(Int.(v_children(n)))
+  maketerm(Expr, h, args; is_call = v_iscall(n))
+end
+
+
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
@@ -300,14 +308,14 @@ function addexpr!(g::EGraph, se)::Id
   e = preprocess(se)
 
   n = if isexpr(e)
-    args = children(e)
+    args = iscall(e) ? arguments(e) : children(e)
     ar = arity(e)
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-    if is_function_call(e)
-      v_set_flag!(n, VECEXPR_FLAG_ISCALL)
-    end
-    v_set_head!(n, add_constant!(g, head(e)))
+    iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+
+    h = iscall(e) ? operation(e) : head(e)
+    v_set_head!(n, add_constant!(g, h))
 
     for i in v_children_range(n)
       @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
@@ -482,7 +490,7 @@ end
 # Thanks to Max Willsey and Yihong Zhang
 
 
-function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
+function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   @assert isground(p)
 
   op = head(p)

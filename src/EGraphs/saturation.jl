@@ -38,7 +38,7 @@ Base.@kwdef mutable struct SaturationParams
   timer::Bool                          = true
 end
 
-function cached_ids(g::EGraph, p::PatTerm)::Vector{Id}
+function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
   if isground(p)
     id = lookup_pat(g, p)
     !isnothing(id) && return [id]
@@ -105,7 +105,7 @@ function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any
   add!(g, new_node_literal)
 end
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
+function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   op = head(p)
   args = children(p)
   is_call = is_function_call(p)
