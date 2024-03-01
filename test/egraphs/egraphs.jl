@@ -1,6 +1,5 @@
 
-using Test
-using Metatheory
+using Test, Metatheory
 
 @testset "Merging" begin
   testexpr = :((a * 2) / 2)
@@ -9,7 +8,6 @@ using Metatheory
   t2 = addexpr!(g, testmatch)
   union!(g, t2, Id(3))
   @test find(g, t2) == find(g, Id(3))
-  # DOES NOT UPWARD MERGE
 end
 
 # testexpr = :(42a + b * (foo($(Dict(:x => 2)), 42)))

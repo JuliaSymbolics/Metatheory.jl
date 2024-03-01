@@ -169,7 +169,7 @@ function instantiate(left::Expr, pat::PatExpr, mem)
     for parg in children(pat)
       instantiate_arg!(ntail, left, parg, mem)
     end
-    maketerm(Expr, :call, head(pat), ntail)
+    maketerm(Expr, head(pat), ntail)
   end
 end
 
