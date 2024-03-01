@@ -28,7 +28,7 @@ function matcher(slot::PatVar)
       end
     else
       # Variable is not bound, first time it is found
-      # check the predicate            
+      # check the predicate     
       if pred(car(data))
         next(assoc(bindings, slot.idx, car(data)), 1)
       end
@@ -93,9 +93,9 @@ end
 # Slows compile time down a bit but lets this matcher work at the same time on both purely symbolic Expr-like object.
 # Execution time should not be affected.
 # and SymbolicUtils-like objects that store function references as operations.
-function head_matcher(f::Union{Function,DataType,UnionAll})
+function operation_matcher(f::Union{Function,DataType,UnionAll})
   checkop(x) = isequal(x, f) || isequal(x, nameof(f))
-  function head_matcher(next, data, bindings)
+  function operation_matcher(next, data, bindings)
     h = car(data)
     if islist(data) && checkop(h)
       next(bindings, 1)
@@ -105,7 +105,7 @@ function head_matcher(f::Union{Function,DataType,UnionAll})
   end
 end
 
-head_matcher(x) = matcher(x)
+operation_matcher(x) = matcher(x)
 
 function is_call_matcher(pat_iscall::Bool)
   function is_call_matcher(next, data, bindings)
@@ -113,12 +113,12 @@ function is_call_matcher(pat_iscall::Bool)
   end
 end
 
-function matcher(term::PatTerm)
+function matcher(term::PatExpr)
   pat_iscall = iscall(term)
-  h = head(term)
+  h = operation(term)
   is_call_m = is_call_matcher(pat_iscall)
   # Hacky solution for function objects matching against their `nameof`
-  matchers = [is_call_m; head_matcher(h); map(matcher, children(term))]
+  matchers = [is_call_m; operation_matcher(h); map(matcher, arguments(term))]
 
   function term_matcher(success, data, bindings)
     !islist(data) && return nothing
@@ -148,23 +148,29 @@ function matcher(term::PatTerm)
   end
 end
 
-# function TermInterface.similarterm(
-#   x::Expr,
-#   head::Union{Function,DataType},
-#   args,
-#   symtype = nothing;
-#   metadata = nothing,
-#   exprhead = exprhead(x),
-# )
-#   similarterm(x, nameof(head), args, symtype; metadata, exprhead)
-# end
-
-function instantiate(left, pat::PatTerm, mem)
+function instantiate(left, pat::PatExpr, mem)
   ntail = []
-  for parg in children(pat)
+  for parg in arguments(pat)
     instantiate_arg!(ntail, left, parg, mem)
   end
-  maketerm(typeof(left), head(pat), ntail; is_call = is_function_call(pat))
+  maketerm(typeof(left), operation(pat), ntail)
+end
+
+function instantiate(left::Expr, pat::PatExpr, mem)
+  ntail = []
+  if iscall(pat)
+    for parg in arguments(pat)
+      instantiate_arg!(ntail, left, parg, mem)
+    end
+    op = operation(pat)
+    op_name = op isa Union{Function,DataType} ? nameof(op) : op
+    maketerm(Expr, :call, [op_name; ntail])
+  else
+    for parg in children(pat)
+      instantiate_arg!(ntail, left, parg, mem)
+    end
+    maketerm(Expr, :call, head(pat), ntail)
+  end
 end
 
 instantiate_arg!(acc, left, parg::PatSegment, mem) = append!(acc, instantiate(left, parg, mem))

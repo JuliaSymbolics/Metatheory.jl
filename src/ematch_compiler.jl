@@ -69,7 +69,7 @@ Base.@pure @inline checkop(x, op) = isequal(x, op)
   has_constant(g, hash(c)) || has_constant(g, hash(nameof(c)))
 @inline has_constant_trick(@nospecialize(g), c) = has_constant(g, hash(c))
 
-function canbind(p::PatTerm)
+function canbind(p::PatExpr)
   p_iscall = iscall(p)
   op = operation(p)
   ar = arity(p)
@@ -82,7 +82,7 @@ function canbind(p::PatTerm)
 end
 
 
-function ematcher(p::PatTerm)
+function ematcher(p::PatExpr)
   ematchers::Vector{Function} = map(ematcher, arguments(p))
   op = operation(p)
 

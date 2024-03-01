@@ -170,7 +170,7 @@ cansearch(s::ScoredScheduler, r::AbstractRule)::Bool = s.curr_iter > s.data[r].b
 
 exprsize(a) = 1
 
-function exprsize(e::PatTerm)
+function exprsize(e::PatExpr)
   c = 1 + length(e.args)
   for a in e.args
     c += exprsize(a)

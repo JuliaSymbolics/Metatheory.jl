@@ -181,7 +181,7 @@ using Metatheory.Syntax: @capture
   ret = @capture :(a + b) (+)(~~z)
   @test ret
   @test @isdefined z
-  @test all(z .=== children(:(a + b)))
+  @test all(z .=== arguments(:(a + b)))
 
   #a more typical way to use the @capture macro
 
@@ -203,13 +203,12 @@ end
     args
     Qux(args...) = new(args)
   end
-  struct QuxHead
-    head
-  end
-  TermInterface.is_function_call(::Qux) = true
+  TermInterface.iscall(::Qux) = true
   TermInterface.isexpr(::Qux) = true
   TermInterface.head(::Qux) = Qux
+  TermInterface.operation(::Qux) = Qux
   TermInterface.children(x::Qux) = [x.args...]
+  TermInterface.arguments(x::Qux) = [x.args...]
 
 
   @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
