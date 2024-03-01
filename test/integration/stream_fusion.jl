@@ -1,4 +1,5 @@
 using Metatheory
+using TermInterface
 using Metatheory.Rewriters
 using Test
 
@@ -58,10 +59,10 @@ import Base.Cartesian: inlineanonymous
 
 tryinlineanonymous(x) = nothing
 function tryinlineanonymous(ex::Expr)
-  is_function_call(ex) || return nothing
-  op = head(ex)
+  iscall(ex) || return nothing
+  op = operation(ex)
   (!(op isa Expr) || op.head !== :->) && return nothing
-  args = children(ex)[1]
+  args = arguments(ex)[1]
   # TODO more args?
   try
     return inlineanonymous(op, args)

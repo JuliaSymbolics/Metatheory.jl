@@ -19,7 +19,19 @@ function extract_expr_recursive(g::EGraph{T}, n::VecExpr, get_node::Function) wh
   v_isexpr(n) || return h
   children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
   # TODO metadata?
-  maketerm(T, h, children; is_call = v_iscall(n))
+  maketerm(T, h, children)
+end
+
+function extract_expr_recursive(g::EGraph{Expr}, n::VecExpr, get_node::Function)
+  h = get_constant(g, v_head(n))
+  v_isexpr(n) || return h
+  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
+
+  if v_iscall(n)
+    maketerm(Expr, :call, [h; children])
+  else
+    maketerm(Expr, h, children)
+  end
 end
 
 

@@ -169,7 +169,11 @@ function to_expr(g::EGraph{Expr}, n::VecExpr)
   v_isexpr(n) || return get_constant(g, v_head(n))
   h = get_constant(g, v_head(n))
   args = Core.SSAValue.(Int.(v_children(n)))
-  maketerm(Expr, h, args; is_call = v_iscall(n))
+  if v_iscall(n)
+    maketerm(Expr, :call, [h; args])
+  else
+    maketerm(Expr, h, args)
+  end
 end
 
 
@@ -309,7 +313,7 @@ function addexpr!(g::EGraph, se)::Id
 
   n = if isexpr(e)
     args = iscall(e) ? arguments(e) : children(e)
-    ar = arity(e)
+    ar = length(args)
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)
     iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
@@ -496,7 +500,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   op = head(p)
   args = children(p)
   ar = arity(p)
-  is_call = is_function_call(p)
+  p_iscall = iscall(p)
 
 
   has_op = has_constant(g, p.head_hash)
@@ -507,7 +511,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
 
   n = v_new(ar)
   v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-  is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, p.head_hash)
 
   for i in v_children_range(n)

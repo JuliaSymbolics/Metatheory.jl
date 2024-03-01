@@ -29,7 +29,7 @@ using TermInterface: isexpr
   @matchable struct Foo fields... end [HeadType]
 
 Take a struct definition and automatically define `TermInterface` methods. 
-`is_function_call` of such type will default to `true`.
+`iscall` of such type will default to `true`.
 """
 macro matchable(expr)
   @assert expr.head == :struct

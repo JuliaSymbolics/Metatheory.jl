@@ -108,14 +108,14 @@ instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id 
 function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   op = head(p)
   args = children(p)
-  is_call = is_function_call(p)
+  p_iscall = iscall(p)
   # TODO handle this situation better
   new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
 
   ar = arity(p)
   n = v_new(ar)
   v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-  is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, add_constant!(g, new_op))
 
   for i in v_children_range(n)

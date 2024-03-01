@@ -100,7 +100,6 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     if op === :(~) # is a variable or segment
       let v = args[1]
         if v isa Expr && iscall(v) && operation(v) === :(~)
-          @show v
           # matches ~~x::predicate or ~~x::predicate...
           makesegment(v.args[2], pvars)
         elseif splat

@@ -1,4 +1,4 @@
-using Metatheory, Test
+using Metatheory, Test, TermInterface
 
 abstract type LambdaExpr end
 

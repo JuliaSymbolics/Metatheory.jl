@@ -72,6 +72,7 @@ function (r::RewriteRule)(term)
   try
     r.matcher(success, (term,), EMPTY_DICT)
   catch err
+    rethrow(err)
     throw(RuleRewriteError(r, term, err))
   end
 end
