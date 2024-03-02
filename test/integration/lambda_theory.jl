@@ -1,4 +1,4 @@
-using Metatheory, Test
+using Metatheory, Test, TermInterface
 
 abstract type LambdaExpr end
 
@@ -39,14 +39,14 @@ end
 end
 
 
-function TermInterface.maketerm(::Type{LambdaExpr}, head, children; is_call = true, type = Any, metadata = nothing)
+function TermInterface.maketerm(::Type{LambdaExpr}, head, children; type = nothing, metadata = nothing)
   head(children...)
 end
 
 function EGraphs.make(::Val{:freevar}, g::EGraph, n::VecExpr)
   free = Set{Int64}()
-  v_istree(n) || return free
-  if v_isfuncall(n)
+  v_isexpr(n) || return free
+  if v_iscall(n)
     op = get_constant(g, v_head(n))
     args = v_children(n)
 

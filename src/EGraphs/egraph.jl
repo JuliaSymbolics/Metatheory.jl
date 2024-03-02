@@ -159,11 +159,27 @@ end
   h
 end
 function to_expr(g::EGraph, n::VecExpr)
-  v_istree(n) || return get_constant(g, v_head(n))
+  v_isexpr(n) || return get_constant(g, v_head(n))
   h = get_constant(g, v_head(n))
   args = Core.SSAValue.(Int.(v_children(n)))
-  maketerm(Expr, h, args; is_call = v_isfuncall(n))
+  if v_iscall(n)
+    maketerm(Expr, :call, [h; args])
+  else
+    maketerm(Expr, h, args)
+  end
 end
+
+function to_expr(g::EGraph{Expr}, n::VecExpr)
+  v_isexpr(n) || return get_constant(g, v_head(n))
+  h = get_constant(g, v_head(n))
+  args = Core.SSAValue.(Int.(v_children(n)))
+  if v_iscall(n)
+    maketerm(Expr, :call, [h; args])
+  else
+    maketerm(Expr, h, args)
+  end
+end
+
 
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
@@ -185,7 +201,7 @@ function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{Any,Int}
     # h = add_constant!(g, nameof(op))
     op = nameof(op)
   end
-  op => (v_istree(n) ? v_arity(n) : -1)
+  op => (v_isexpr(n) ? v_arity(n) : -1)
 end
 
 # TODO use flags!
@@ -194,7 +210,7 @@ function op_key(t)::Pair{Any,Int}
   if h isa Union{Function,DataType}
     h = nameof(h)
   end
-  (h => (istree(t) ? arity(t) : -1))
+  (h => (isexpr(t) ? arity(t) : -1))
 end
 
 """
@@ -206,7 +222,7 @@ Returns the canonical e-class id for a given e-class.
 @inline Base.getindex(g::EGraph, i::Id) = g.classes[find(g, i)]
 
 # function canonicalize(g::EGraph, n::VecExpr)::VecExpr
-#   if !v_istree(n)
+#   if !v_isexpr(n)
 #     v_hash!(n)
 #     return n
 #   end
@@ -222,7 +238,7 @@ Returns the canonical e-class id for a given e-class.
 # end
 
 function canonicalize!(g::EGraph, n::VecExpr)
-  v_istree(n) || @goto ret
+  v_isexpr(n) || @goto ret
   for i in 4:length(n)
     @inbounds n[i] = find(g, n[i])
   end
@@ -261,7 +277,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {Express
 
   id = push!(g.uf) # create new singleton eclass
 
-  if v_istree(n)
+  if v_isexpr(n)
     for c_id in v_children(n)
       addparent!(g.classes[c_id], n, id)
     end
@@ -299,15 +315,15 @@ function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
 
-  n = if istree(e)
-    args = children(e)
-    ar = arity(e)
+  n = if isexpr(e)
+    args = iscall(e) ? arguments(e) : children(e)
+    ar = length(args)
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-    if is_function_call(e)
-      v_set_flag!(n, VECEXPR_FLAG_ISCALL)
-    end
-    v_set_head!(n, add_constant!(g, head(e)))
+    iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+
+    h = iscall(e) ? operation(e) : head(e)
+    v_set_head!(n, add_constant!(g, h))
 
     for i in v_children_range(n)
       @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
@@ -482,13 +498,13 @@ end
 # Thanks to Max Willsey and Yihong Zhang
 
 
-function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
+function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   @assert isground(p)
 
   op = head(p)
   args = children(p)
   ar = arity(p)
-  is_call = is_function_call(p)
+  p_iscall = iscall(p)
 
 
   has_op = has_constant(g, p.head_hash)
@@ -499,7 +515,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatTerm)::Id where {Expression
 
   n = v_new(ar)
   v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-  is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, p.head_hash)
 
   for i in v_children_range(n)

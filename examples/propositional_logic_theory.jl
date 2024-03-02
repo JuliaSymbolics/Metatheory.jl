@@ -70,7 +70,7 @@ function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
     params.goal = (g::EGraph) -> in_same_class(g, ids...)
     saturate!(g, t, params)
     ex = extract!(g, astsize)
-    if !Metatheory.istree(ex)
+    if !Metatheory.isexpr(ex)
       return ex
     end
     if hash(ex) ∈ hist

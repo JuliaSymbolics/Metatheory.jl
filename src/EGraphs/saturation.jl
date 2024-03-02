@@ -38,7 +38,7 @@ Base.@kwdef mutable struct SaturationParams
   timer::Bool                          = true
 end
 
-function cached_ids(g::EGraph, p::PatTerm)::Vector{Id}
+function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
   if isground(p)
     id = lookup_pat(g, p)
     !isnothing(id) && return [id]
@@ -105,17 +105,17 @@ function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any
   add!(g, new_node_literal)
 end
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatTerm)::Id where {ExpressionType}
+function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   op = head(p)
   args = children(p)
-  is_call = is_function_call(p)
+  p_iscall = iscall(p)
   # TODO handle this situation better
   new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
 
   ar = arity(p)
   n = v_new(ar)
   v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-  is_call && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, add_constant!(g, new_op))
 
   for i in v_children_range(n)
@@ -157,7 +157,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
-    @assert !v_istree(eclass[literal_position])
+    @assert !v_isexpr(eclass[literal_position])
     return get_constant(g, v_head(eclass[literal_position]))
   end
   return eclass

@@ -16,10 +16,22 @@ end
 
 function extract_expr_recursive(g::EGraph{T}, n::VecExpr, get_node::Function) where {T}
   h = get_constant(g, v_head(n))
-  v_istree(n) || return h
+  v_isexpr(n) || return h
   children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
   # TODO metadata?
-  maketerm(T, h, children; is_call = v_isfuncall(n))
+  maketerm(T, h, children)
+end
+
+function extract_expr_recursive(g::EGraph{Expr}, n::VecExpr, get_node::Function)
+  h = get_constant(g, v_head(n))
+  v_isexpr(n) || return h
+  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
+
+  if v_iscall(n)
+    maketerm(Expr, :call, [h; children])
+  else
+    maketerm(Expr, h, children)
+  end
 end
 
 
@@ -77,7 +89,7 @@ A basic cost function, where the computed cost is the number
 of expression tree nodes.
 """
 function astsize(n::VecExpr, op, costs::Vector{Float64})::Float64
-  v_istree(n) || return 1
+  v_isexpr(n) || return 1
   cost = 1 + sum(costs)
 end
 

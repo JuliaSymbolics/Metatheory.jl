@@ -1,8 +1,8 @@
 module EMatchCompiler
 
-using ..TermInterface
+using TermInterface
 using ..Patterns
-using Metatheory.VecExprModule
+using ..VecExprModule
 using Metatheory: assoc, lookup_pat, LL, maybelock!, has_constant, get_constant
 
 function ematcher(p::Any)
@@ -14,13 +14,13 @@ function ematcher(p::Any)
   end
 end
 
-checktype(n, T) = istree(n) ? symtype(n) <: T : false
+checktype(n, T) = isexpr(n) ? symtype(n) <: T : false
 
 function predicate_ematcher(p::PatVar, T::Type)
   function type_ematcher(next, g, id::Id, bindings)
     eclass = g[id]
     for (enode_idx, n) in enumerate(eclass)
-      if !v_istree(n)
+      if !v_isexpr(n)
         hn = get_constant(g, v_head(n))
         if hn isa T
           next(assoc(bindings, p.idx, (id, enode_idx)), 1)
@@ -38,7 +38,7 @@ function predicate_ematcher(p::PatVar, pred)
       # Is this for cycle needed?
       for (j, n) in enumerate(eclass)
         # Find first literal if available
-        if !v_istree(n)
+        if !v_isexpr(n)
           enode_idx = j
           break
         end
@@ -69,22 +69,22 @@ Base.@pure @inline checkop(x, op) = isequal(x, op)
   has_constant(g, hash(c)) || has_constant(g, hash(nameof(c)))
 @inline has_constant_trick(@nospecialize(g), c) = has_constant(g, hash(c))
 
-function canbind(p::PatTerm)
-  is_call = is_function_call(p)
-  hp = head(p)
+function canbind(p::PatExpr)
+  p_iscall = iscall(p)
+  op = operation(p)
   ar = arity(p)
   function canbind(g, n)
     # Assumed to have constant
-    v_istree(n) || return false
+    v_isexpr(n) || return false
     hn = get_constant(g, v_head(n))
-    v_isfuncall(n) === is_call && checkop(hp, hn) && v_arity(n) === ar
+    v_iscall(n) === p_iscall && checkop(op, hn) && v_arity(n) === ar
   end
 end
 
 
-function ematcher(p::PatTerm)
-  ematchers::Vector{Function} = map(ematcher, children(p))
-  hp = head(p)
+function ematcher(p::PatExpr)
+  ematchers::Vector{Function} = map(ematcher, arguments(p))
+  op = operation(p)
 
   if isground(p)
     return function ground_term_ematcher(next, g, eclass_id::Id, bindings)
@@ -97,7 +97,7 @@ function ematcher(p::PatTerm)
 
   canbindtop = canbind(p)
   function term_ematcher(success, g, eclass_id::Id, bindings)
-    has_constant_trick(g, hp) || return nothing
+    has_constant_trick(g, op) || return nothing
 
     # Define OK variable to avoid boxing issue
     ok = false

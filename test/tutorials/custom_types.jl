@@ -18,6 +18,7 @@
 
 using Metatheory, Test
 using Metatheory.EGraphs
+using TermInterface
 
 # We first define our custom expression type in `MyExpr`:
 struct MyExpr
@@ -36,20 +37,26 @@ end
 # ## Overriding `TermInterface`` methods
 
 # First, we need to discern when an expression is a leaf or a tree node.
-# We can do it by overriding `istree`.
-TermInterface.istree(::MyExpr) = true
+# We can do it by overriding `isexpr`.
+TermInterface.isexpr(::MyExpr) = true
 # By default, our expression trees always represent a function call
-TermInterface.is_function_call(::MyExpr) = true
+TermInterface.iscall(::MyExpr) = true
 
 # The `head` function tells us what's the node's represented operation. 
 TermInterface.head(e::MyExpr) = e.head
 # `children` tells the system how to extract the children nodes.
 TermInterface.children(e::MyExpr) = e.args
 
-# While for common usage you will always define `is_function_call` to be `true`, 
+# `operation` and `arguments` are functions used by the pattern matcher, required 
+# when `iscall` is true on an expression. Since our custom expression type 
+# **always represents function calls**, we can just define them to be `head` and `children`.
+TermInterface.operation(e::MyExpr) = head(e)
+TermInterface.arguments(e::MyExpr) = children(e)
+
+# While for common usage you will always define `iscall` to be `true`, 
 # there are some cases where you would like to match your expression types 
 # against more complex patterns that are not function calls, for example, to match an expression `x` against an `a[b]` kind of pattern, 
-# you would need to inform the system that `is_function_call` is `false`, and that its operation can match against `:ref` because 
+# you would need to inform the system that `iscall` is `false`, and that its operation can match against `:ref` or `getindex` because 
 ex = :(a[b])
 (ex.head, ex.args)
 
@@ -72,10 +79,10 @@ EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo))
 # `TermInterface` provides a very important function called `maketerm`. 
 # It is used to create a term that is in the same closure of types of `x`. 
 # Given an existing head `h`, it is used to  instruct Metatheory how to recompose 
-# a similar expression, given some children in `children` 
+# a similar expression, given some children in `c` 
 # and additionally, `metadata` and `type`, in case you are recomposing an `Expr`.
-TermInterface.maketerm(::Type{MyExpr}, head, children; is_call = true, type = Any, metadata = nothing) =
-  MyExpr(head, children, isnothing(metadata) ? "" : metadata)
+TermInterface.maketerm(::Type{MyExpr}, h, c, type = nothing, metadata = nothing) =
+  MyExpr(h, c, isnothing(metadata) ? "" : metadata)
 
 # ## Theory Example
 

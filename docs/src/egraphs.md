@@ -238,13 +238,13 @@ using Metatheory
 # of nodes containing the `^` operation. This results in a tendency to avoid 
 # extraction of expressions containing '^'.
 # TODO: add example extraction
-function cost_function(n::ENode, children_costs::Vector{Float64})::Float64
+function cost_function(n::VecExpr, op, children_costs::Vector{Float64})::Float64
     # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
-    istree(n) || return 1
+    v_isexpr(n) || return 1
 
     cost = 1 + arity(n)
     # This is where the custom cost is computed
-    head(n) == :^ && (cost += 2)
+    cost += op == :^ ? 2 : 0
 
     cost + sum(children_costs)
 end
@@ -259,17 +259,15 @@ automate the process of EGraph Analysis.
 
 An *EGraph Analysis* defines a domain of values and associates a value from the domain to each [EClass](@ref) in the graph. Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).  Rewrites can cooperate with e-class analyses by depending on analysis facts and adding equivalences that in turn establish additional facts. 
 
-In Metatheory.jl, **EGraph Analyses are uniquely identified** by either
+In Metatheory.jl, **EGraph Analyses are uniquely identified** by a type:
+The `EGraph{E,A}` type is parametrized by the expression type `E` and the 
+**analysis type** `A`. 
 
-* An unique name of type `Symbol`. 
-* A function object `f`, used for cost function analysis. This will use built-in definitions of `make` and `join`.
-
-If you are specifying a custom analysis by its `Symbol` name, 
-the following functions define an interface for analyses based on multiple dispatch 
-on `Val{analysis_name::Symbol}`: 
-* [make(an, egraph, n)](@ref) should take an ENode `n` and return a value from the analysis domain.
-* [join(an, x,y)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*). If `an` is a `Function`, it is treated as a cost function analysis, it is automatically defined to be the minimum analysis value between `x` and `y`. Typically, the domain value of cost functions are real numbers, but if you really do want to have your own cost type, make sure that `Base.isless` is defined.
-* [modify!(an, egraph, eclassid)](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclassid]` on-the-fly during an e-graph saturation iteration, given its analysis value.
+The following functions define an interface for analyses based on multiple dispatch:
+ 
+* [make(g::EGraph{ExprType, AnalysisType}, n)](@ref) should take an e-node `n::VecExpr` and return a value from the analysis domain.
+* [join(x::AnalysisType, y::AnalysisType)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?* or *how should they be merged?*).`Base.isless` must be defined.
+* [modify!(g::EGraph{ExprType, AnalysisType}, eclass::EClass{AnalysisType})](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclass.id]` on-the-fly during an e-graph saturation iteration, given its analysis value, typically by adding an e-node.
 
 ### Defining a custom analysis
 
@@ -296,12 +294,12 @@ struct OddEvenAnalysis
     s::Symbol # :odd or :even 
 end
 
-function odd_even_base_case(n::ENode) # Should be called only if istree(n) is false
-    if head(n) isa Integer
-        OddEvenAnalysis(iseven(head(n)) ? :even : :odd)
-    end 
-    # It's ok to return nothing
-end
+# Should be called only if isexpr(n) is false
+odd_even_base_case(val::Integer) = OddEvenAnalysis(iseven(val) ? :even : :odd)
+# By default, literals that are not integers yield no analysis value.
+# In this case you should return `nothing`
+odd_even_base_case(val) = nothing
+
 # ... Rest of code defined below
 ```
 
@@ -318,16 +316,16 @@ And we know that
 
 We can now extend the function defined above to compute the analysis value for *nested* symbolic terms. 
 We take advantage of the methods in [TermInterface](https://github.com/JuliaSymbolics/TermInterface.jl) 
-to inspect the children of an `ENode` that is a tree-like expression and not a literal.
-From the definition of an [ENode](@ref), we know that children of ENodes are always IDs pointing
-to EClasses in the EGraph.
+to inspect the children of an e-node that is a tree-like expression and not a literal.
+From the definition of an e-node, we know that children of e-nodes are always IDs pointing
+to e-classes in the `EGraph`.
 
 ```@example custom_analysis
-function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::ENode) where {ExpressionType}
-    istree(n) || return odd_even_base_case(n)
+function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, op, n::VecExpr) where {ExpressionType}
+    v_isexpr(n) || return odd_even_base_case(op)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
-    if head_symbol(head(n)) == :call && arity(n) == 2
+    if v_iscall(n) && arity(n) == 2
         op = operation(n)
         # Get the left and right child eclasses
         child_eclasses = arguments(n)
@@ -352,7 +350,7 @@ function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::ENode) where
 end
 ```
 
-We have now defined a way of tagging each ENode in the EGraph with `:odd` or `:even`, reasoning 
+We have now defined a way of tagging each e-node in the EGraph with `:odd` or `:even`, reasoning 
 inductively on the analyses values. The [analyze!](@ref) function will do the dirty job of doing 
 a recursive walk over the EGraph. The missing piece, is now telling Metatheory.jl how to merge together
 analysis values. Since EClasses represent many equal ENodes, we have to inform the automated analysis

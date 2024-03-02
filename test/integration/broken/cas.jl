@@ -116,7 +116,7 @@ end
 
 
 function simplcost(n::ENode, g::EGraph)
-  n.istree || return 0
+  n.isexpr || return 0
   cost = 0 + arity(n)
   if operation(n) == :∂
     cost += 20
@@ -144,7 +144,7 @@ function simplify(ex; steps = 4)
     @profview_allocs saturate!(g, cas, params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)
-    if !TermInterface.istree(ex)
+    if !TermInterface.isexpr(ex)
       return ex
     end
     if hash(ex) ∈ hist
