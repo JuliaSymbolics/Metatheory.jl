@@ -40,10 +40,10 @@ const VECEXPR_FLAG_ISTREE = 0x01
 const VECEXPR_FLAG_ISCALL = 0x10
 const VECEXPR_META_LENGTH = 3
 
-@inline v_flags(n::VecExpr)::Id = n[2]
-@inline v_unset_flags!(n::VecExpr) = (n[2] = 0)
+@inline v_flags(n::VecExpr)::Id = @inbounds n[2]
+@inline v_unset_flags!(n::VecExpr) = @inbounds (n[2] = 0)
 @inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flags)
-@inline v_set_flag!(n::VecExpr, flag)::Id = (n[2] = n[2] | flag)
+@inline v_set_flag!(n::VecExpr, flag)::Id = @inbounds (n[2] = n[2] | flag)
 
 @inline v_isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
 @inline v_iscall(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISCALL)
@@ -63,12 +63,12 @@ Compute the hash of a `VecExpr` and store it as the first element.
   end
 end
 
-@inline v_hash(n::VecExpr)::Id = n[1]
-@inline v_unset_hash!(n::VecExpr)::Id = (n[1] = Id(0))
+@inline v_hash(n::VecExpr)::Id = @inbounds n[1]
+@inline v_unset_hash!(n::VecExpr)::Id = @inbounds (n[1] = Id(0))
 
 @inline v_children(n::VecExpr) = @view n[(VECEXPR_META_LENGTH + 1):end]
-@inline v_head(n::VecExpr)::Id = n[VECEXPR_META_LENGTH]
-@inline v_set_head!(n::VecExpr, h::Id) = (n[3] = h)
+@inline v_head(n::VecExpr)::Id = @inbounds n[VECEXPR_META_LENGTH]
+@inline v_set_head!(n::VecExpr, h::Id) = @inbounds (n[3] = h)
 
 @inline function v_new(len::Int)::VecExpr
   n = Vector{Id}(undef, len + VECEXPR_META_LENGTH)
