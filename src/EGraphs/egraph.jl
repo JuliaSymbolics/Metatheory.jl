@@ -81,6 +81,8 @@ end
 A concrete type representing an [`EGraph`].
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
+
+
 """
 mutable struct EGraph{ExpressionType,Analysis}
   "stores the equality relations over e-class ids"
@@ -191,7 +193,9 @@ end
 export pretty_dict
 
 function Base.show(io::IO, g::EGraph)
-  show(io, pretty_dict(g))
+  d = pretty_dict(g)
+  t = "$(typeof(g)) with $(length(d)) e-classes:"
+  print(io, Base.join([t; map(((k,v),)->"  $k => $v", collect(d))], "\n"))
 end
 
 function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{UInt64,Int}
