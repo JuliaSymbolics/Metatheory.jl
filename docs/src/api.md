@@ -45,6 +45,16 @@ Modules = [Metatheory.Rewriters]
 Modules = [Metatheory.EGraphs]
 ```
 
+## VecExprs (aka e-nodes)
+
+```@docs
+Metatheory.VecExprModule.VecExpr
+```
+
+```@autodocs
+Modules = [Metatheory.VecExprModule]
+```
+
 ---
 
 ## EGraph Schedulers

@@ -24,16 +24,14 @@ export Id,
 const Id = UInt64
 
 """
-VecExpr vector syntax:
+    const VecExpr = Vector{Id}
 
-An e-node is a vector of `Id`
-
-Position 1 stores the hash
-Position 2 stores the bit flags (is tree, is function call)
-Position 3 stores the index of the head (if is tree) or value in the e-graph constants
-Rest of positions store the e-class ids of the children
+An e-node is a `Vector{ID}` where:
+* Position 1 stores the hash of the `VecExpr`.
+* Position 2 stores the bit flags (`istree` or `iscall`).
+* Position 3 stores the index of the `head` (if `istree`) or value in the e-graph constants.
+* The rest of the positions store the e-class ids of the children nodes.
 """
-
 const VecExpr = Vector{Id}
 
 const VECEXPR_FLAG_ISTREE = 0x01
