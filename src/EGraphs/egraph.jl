@@ -36,7 +36,7 @@ function make end
 An `EClass` is an equivalence class of terms.
 
 The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, which
-means that without the [`EGraph`](@ref) we cannot see the human-readable terms
+means that without a reference to the [`EGraph`](@ref) object we cannot re-build human-readable terms
 they represent. The [`EGraph`](@ref) itself comes with pretty printing for humean-readable terms.
 """
 mutable struct EClass{D}
