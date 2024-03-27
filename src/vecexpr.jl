@@ -26,7 +26,7 @@ const Id = UInt64
 """
     const VecExpr = Vector{Id}
 
-An e-node is a `Vector{ID}` where:
+An e-node is a `Vector{Id}` where:
 * Position 1 stores the hash of the `VecExpr`.
 * Position 2 stores the bit flags (`isexpr` or `iscall`).
 * Position 3 stores the index of the `head` (if `isexpr`) or value in the e-graph constants.
