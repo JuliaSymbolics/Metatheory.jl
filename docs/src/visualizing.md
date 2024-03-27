@@ -1,13 +1,12 @@
 # Visualizing E-Graphs
 
-You can visualize e-graphs in VSCode by using [GraphViz.jl]()
+You can visualize e-graphs in VSCode by using [GraphViz.jl](https://github.com/JuliaGraphs/GraphViz.jl)
 
-All you need to do is to install GraphViz.jl and to evaluate an e-graph after including the extra script:
+All you need to do is to install GraphViz.jl and load it:
 
 ```julia
+using Metatheory
 using GraphViz
-
-include(dirname(pathof(Metatheory)) * "/extras/graphviz.jl")
 
 algebra_rules = @theory a b c begin
   a * (b * c) == (a * b) * c
@@ -38,4 +37,4 @@ g
 
 And you will see a nice e-graph drawing in the Julia Plots VSCode panel:
 
-![E-Graph Drawing](/assets/graphviz.svg)
+![E-Graph Drawing](assets/graphviz.svg)
