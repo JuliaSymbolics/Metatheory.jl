@@ -30,6 +30,15 @@ function make end
 
 
 # TODO parametrize metadata by M
+"""
+    EClass{D}
+
+An `EClass` is an equivalence class of terms.
+
+The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, which
+means that without the [`EGraph`](@ref) we cannot see the human-readable terms
+they represent. The [`EGraph`](@ref) itself comes with pretty printing for humean-readable terms.
+"""
 mutable struct EClass{D}
   id::Id
   nodes::Vector{VecExpr}
@@ -47,7 +56,6 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 # Showing
 function Base.show(io::IO, a::EClass)
   print(io, "EClass $(a.id) (")
-
   print(io, "[", Base.join(a.nodes, ", "), "], ")
   print(io, a.data)
   print(io, ")")
@@ -78,11 +86,20 @@ end
 
 
 """
-A concrete type representing an [`EGraph`].
+    EGraph{ExpressionType,Analysis}
+
+A concrete type representing an *e-graph*.
+
+An [`EGraph`](@ref) is a set of equivalence classes ([`EClass`](@ref)).
+An `EClass` is in turn a set of e-nodes representing equivalent terms.
+An e-node points to a set of children e-classes.
+In Metatheory.jl, an e-node is implemented as a [`VecExpr`](@ref) for performance reasons.
+The IDs stored in an e-node (i.e. `VecExpr`) or an `EClass` by themselves are
+not necessarily very informative, but you can access the terms of each e-node
+via `Metatheory.to_expr`.
+
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
-
-
 """
 mutable struct EGraph{ExpressionType,Analysis}
   "stores the equality relations over e-class ids"
@@ -195,7 +212,10 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  print(io, Base.join([t; map(((k,v),)->"  $k => $v", collect(d))], "\n"))
+  cs = map(collect(d)) do (k,vect)
+    "  $k => [$(Base.join(vect, ", "))]"
+  end
+  print(io, Base.join([t; cs], "\n"))
 end
 
 function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{UInt64,Int}
