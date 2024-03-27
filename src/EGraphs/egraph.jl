@@ -55,10 +55,12 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
 function Base.show(io::IO, a::EClass)
-  print(io, "EClass $(a.id) (")
-  print(io, "[", Base.join(a.nodes, ", "), "], ")
-  print(io, a.data)
-  print(io, ")")
+  println(io, "EClass #$(a.id) with $(length(a.nodes)) e-nodes:")
+  println(io, " data: $(a.data)")
+  println(io, " nodes:")
+  for n in a.nodes
+    println(io, "    $n")
+  end
 end
 
 function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
