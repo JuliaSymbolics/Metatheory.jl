@@ -103,7 +103,7 @@ function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
   cost = -1 + sum(costs)
 end
 
-function extract!(g::EGraph, costfun, cost_type = Float64)
-  Extractor(g, costfun, cost_type)()
+function extract!(g::EGraph, costfun, root=g.root, cost_type = Float64)
+  Extractor(g, costfun, cost_type)(root)
 end
 
