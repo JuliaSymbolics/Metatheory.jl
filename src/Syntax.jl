@@ -3,7 +3,7 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
 
-using Metatheory: alwaystrue, cleanast, binarize
+using Metatheory: alwaystrue, cleanast
 
 export @rule
 export @theory
@@ -22,11 +22,11 @@ function_object_or_quote(op::Symbol, mod)::Expr = :(isdefined($mod, $(QuoteNode(
 function_object_or_quote(op, mod) = op
 
 function makesegment(s::Expr, pvars)
-  if !(exprhead(s) == :(::))
+  if s.head != :(::)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
-  name, predicate = arguments(s)
+  name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
   return :($PatSegment($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
 end
@@ -37,11 +37,16 @@ function makesegment(name::Symbol, pvars)
 end
 
 function makevar(s::Expr, pvars)
-  if !(exprhead(s) == :(::))
-    error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
+  if s.head != :(::)
+    throw(
+      DomainError(
+        s,
+        "Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type",
+      ),
+    )
   end
 
-  name, predicate = arguments(s)
+  name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
   return :($PatVar($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
 end
@@ -54,25 +59,26 @@ end
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
-  head = exprhead(expr)
-  args = arguments(expr)
-  op = operation(expr)
-  if head === :call
+  if iscall(expr)
+    op = operation(expr)
+    args = arguments(expr)
     if op === :(~)
-      if args[1] isa Symbol
-        return args[1]
-      elseif args[1] isa Expr && operation(args[1]) == :(~)
-        n = arguments(args[1])[1]
-        @assert n isa Symbol
-        return n
-      else
-        error("Error when parsing right hand side")
+      let v = args[1]
+        if v isa Symbol
+          v
+        elseif v isa Expr && iscall(v) && operation(v) === :(~)
+          n = v.args[2]
+          @assert n isa Symbol
+          n
+        else
+          throw(DomainError(v, "Could not parse RHS, unknown expression"))
+        end
       end
     else
-      return Expr(head, makeconsequent(op), map(makeconsequent, args)...)
+      Expr(expr.head, makeconsequent(op), map(makeconsequent, args)...)
     end
   else
-    return Expr(head, map(makeconsequent, args)...)
+    Expr(expr.head, map(makeconsequent, children(expr))...)
   end
 end
 
@@ -83,19 +89,19 @@ function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
-  head = exprhead(ex)
-  op = operation(ex)
-  # Retrieve the function object if available
-  # Optionally quote function objects
-  args = arguments(ex)
-  istree(op) && (op = makepattern(op, pvars, slots, mod))
+  h = head(ex)
 
-  if head === :call
-    if operation(ex) === :(~) # is a variable or segment
+
+  if iscall(ex)
+    op = operation(ex)
+    isexpr(op) && (op = makepattern(op, pvars, slots, mod))
+    # Optionally quote function objects
+    args = arguments(ex)
+    if op === :(~) # is a variable or segment
       let v = args[1]
-        if v isa Expr && operation(v) == :(~)
+        if v isa Expr && iscall(v) && operation(v) === :(~)
           # matches ~~x::predicate or ~~x::predicate...
-          makesegment(arguments(v)[1], pvars)
+          makesegment(v.args[2], pvars)
         elseif splat
           # matches ~x::predicate...
           makesegment(v, pvars)
@@ -105,27 +111,23 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else # Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm(:call, $(function_object_or_quote(op, mod)), [$(patargs...)]))
+      :($PatExpr($(iscall(ex)), $(function_object_or_quote(op, mod)), $(patargs...)))
     end
 
-  elseif head === :...
-    makepattern(args[1], pvars, slots, mod, true)
-  elseif head == :(::) && args[1] in slots
+  elseif h === :...
+    makepattern(ex.args[1], pvars, slots, mod, true)
+  elseif h == :(::) && ex.args[1] in slots
     splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-  elseif head === :ref
-    # getindex 
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm(:ref, getindex, [$(patargs...)]))
-  elseif head === :$
-    args[1]
+  elseif h === :$
+    ex.args[1]
   else
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm($(QuoteNode(head)), $(function_object_or_quote(op, mod)), [$(patargs...)]))
+    patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
+    :($PatExpr($false, $(QuoteNode(h)), $(patargs...)))
   end
 end
 
 function rule_sym_map(ex::Expr)
-  h = operation(ex)
+  h = iscall(ex) ? operation(ex) : head(ex)
   if h == :(-->) || h == :(→)
     RewriteRule
   elseif h == :(=>)
@@ -147,8 +149,8 @@ Rewrite the `expr` by dealing with `:where` if necessary.
 The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : nothing`.
 """
 function rewrite_rhs(ex::Expr)
-  if exprhead(ex) == :where
-    rhs, predicate = arguments(ex)
+  if ex.head == :where
+    rhs, predicate = children(ex)
     return :($predicate ? $rhs : nothing)
   end
   ex
@@ -335,7 +337,7 @@ macro rule(args...)
   e = rmlines(e)
   RuleType = rule_sym_map(e)
 
-  l, r = arguments(e)
+  l, r = iscall(e) ? arguments(e) : children(e)
   pvars = Symbol[]
   lhs = makepattern(l, pvars, slots, __module__)
   rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
@@ -392,8 +394,8 @@ macro theory(args...)
   e = rmlines(e)
   # e = interp_dollar(e, __module__)
 
-  if exprhead(e) == :block
-    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
+  if e.head == :block
+    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), children(e))...)
     esc(ee)
   else
     error("theory is not in form begin a => b; ... end")

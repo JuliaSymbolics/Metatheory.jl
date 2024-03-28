@@ -2,7 +2,6 @@ using Test
 using Metatheory
 using Metatheory.Library
 using Metatheory.Schedulers
-using TermInterface
 
 mult_t = @commutative_monoid (*) 1
 plus_t = @commutative_monoid (+) 0
@@ -116,7 +115,8 @@ canonical_t = @theory x y n xs ys begin
 end
 
 
-function simplcost(n::ENodeTerm, g::EGraph)
+function simplcost(n::ENode, g::EGraph)
+  n.isexpr || return 0
   cost = 0 + arity(n)
   if operation(n) == :∂
     cost += 20
@@ -128,8 +128,6 @@ function simplcost(n::ENodeTerm, g::EGraph)
   end
   return cost
 end
-
-simplcost(n::ENodeLiteral, g::EGraph) = 0
 
 function simplify(ex; steps = 4)
   params = SaturationParams(
@@ -146,7 +144,7 @@ function simplify(ex; steps = 4)
     @profview_allocs saturate!(g, cas, params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)
-    if !TermInterface.istree(ex)
+    if !TermInterface.isexpr(ex)
       return ex
     end
     if hash(ex) ∈ hist
@@ -226,7 +224,7 @@ if VERSION < v"1.9.0-DEV"
   end
 
   function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeTerm)
-    symtype(n) !== Expr && return Any
+    head(n) isa ExprHead || return Any
     if exprhead(n) != :call
       # println("$n is not a call")
       t = Any

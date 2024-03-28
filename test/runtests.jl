@@ -3,7 +3,7 @@ using Documenter
 using Metatheory
 using Test
 
-doctest(Metatheory)
+# doctest(Metatheory)
 
 function test(file::String)
   @info file

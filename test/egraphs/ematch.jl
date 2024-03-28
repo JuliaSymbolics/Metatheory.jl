@@ -5,12 +5,19 @@ using Metatheory.Library
 falseormissing(x) = x === missing || !x
 
 r = @theory begin
-  max(~x, ~y) → 2 * ~x % ~y
-  max(~x, ~y) → sin(~x)
-  sin(~x) → max(~x, ~x)
+  max(~x, ~y) --> 2 * ~x % ~y
+  max(~x, ~y) --> sin(~x)
+  sin(~x) --> max(~x, ~x)
 end
 @testset "Basic Equalities 1" begin
-  @test (@areequal r max(b, c) max(d, d)) == false
+  g = EGraph(:(max(b, c)))
+
+  t2 = addexpr!(g, :(max(d, d)))
+  saturate!(g, r)
+
+  t1 = addexpr!(g, :(max(b, c)))
+
+  @test !in_same_class(g, t1, t2)
 end
 
 
@@ -40,15 +47,14 @@ end
 
 comm_monoid = @commutative_monoid (*) 1
 @testset "Basic Equalities - Commutative Monoid" begin
-  @test true == (@areequal comm_monoid a * (c * (1 * d)) c * (1 * (d * a)))
-  @test true == (@areequal comm_monoid x * y y * x)
-  @test true == (@areequal comm_monoid (x * x) * (x * 1) x * (x * x))
+  @test @areequal comm_monoid a * (c * (1 * d)) c * (1 * (d * a))
+  @test @areequal comm_monoid x * y y * x
+  @test @areequal comm_monoid (x * x) * (x * 1) x * (x * x)
 end
 
 
 comm_group = @commutative_group (+) 0 inv
 t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+))
-
 
 @testset "Basic Equalities - Comm. Monoid, Abelian Group, Distributivity" begin
   @test true == (@areequal t (a * b) + (a * c) a * (b + c))
@@ -83,34 +89,30 @@ saturate!(g, simp_theory)
 @test extract!(g, astsize) == :foo
 
 module Bar
-foo = 42
-export foo
+var = :bar
 using Metatheory
 
 t = @theory begin
-  :woo => foo
+  woo(:foo) => var
 end
-export t
 end
 
 module Foo
-foo = 12
+var = :foo
 using Metatheory
 
 t = @theory begin
-  :woo => foo
+  woo(:foo) => var
 end
-export t
 end
 
 
-g = EGraph(:woo);
+g = EGraph{Expr}(:(woo(foo)));
 saturate!(g, Bar.t);
 saturate!(g, Foo.t);
-foo = 12
 
 @testset "Different modules" begin
-  @test @areequalg g t 42 12
+  @test in_same_class(g, addexpr!(g, :foo), addexpr!(g, :bar))
 end
 
 
@@ -149,15 +151,18 @@ end
   @test true == areequal(g, some_theory, :(sin(2, 3)), :(cos(3, 2)))
 end
 
-Base.iszero(ec::EClass) = ENodeLiteral(0) ∈ ec
 
 @testset "Predicates in Ematcher" begin
+  g = EGraph(:(2 * 3))
+  zero_id = addexpr!(g, 0)
+
   some_theory = @theory begin
     ~a::iszero * ~b --> 0
     ~a * ~b --> ~b * ~a
   end
 
-  g = EGraph(:(2 * 3))
+  Base.iszero(ec::EClass) = in_same_class(g, zero_id, ec.id)
+
   saturate!(g, some_theory)
 
   @test true == areequal(g, some_theory, :(a * b * 0), 0)
@@ -171,7 +176,7 @@ end
     :bazoo --> :wazoo
   end
 
-  g = EGraph(:foo)
+  g = EGraph{Expr}(:foo)
   report = saturate!(g, failme)
   @test report.reason === :contradiction
 end

@@ -1,15 +1,15 @@
 module Patterns
 
-using Metatheory: binarize, cleanast, alwaystrue
+using Metatheory: cleanast, alwaystrue
 using AutoHashEquals
 using TermInterface
 
+import Metatheory: to_expr
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
 """
 abstract type AbstractPat end
-
 
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
@@ -71,47 +71,48 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
-Term patterns will match
-on terms of the same `arity` and with the same 
-function symbol `operation` and expression head `exprhead`.
+Term patterns will match on terms of the same `arity` and with the same `operation`.
 """
-struct PatTerm <: AbstractPat
-  exprhead::Any
-  operation::Any
-  args::Vector
-  PatTerm(eh, op, args) = new(eh, op, args) #Ref{UInt}(0))
+struct PatExpr <: AbstractPat
+  iscall::Bool
+  head
+  head_hash::UInt
+  children::Vector
+  isground::Bool
+  PatExpr(iscall, op, args::Vector) = new(iscall, op, hash(op), args, all(isground, args))
 end
-TermInterface.istree(::PatTerm) = true
-TermInterface.exprhead(e::PatTerm) = e.exprhead
-TermInterface.operation(p::PatTerm) = p.operation
-TermInterface.arguments(p::PatTerm) = p.args
-TermInterface.arity(p::PatTerm) = length(arguments(p))
-TermInterface.metadata(p::PatTerm) = nothing
+PatExpr(iscall, op, children...) = PatExpr(iscall, op, collect(children))
 
-function TermInterface.similarterm(x::PatTerm, head, args, symtype = nothing; metadata = nothing, exprhead = :call)
-  PatTerm(exprhead, head, args)
-end
+isground(p::PatExpr)::Bool = p.isground
 
-isground(p::PatTerm) = all(isground, p.args)
+TermInterface.isexpr(::PatExpr) = true
+TermInterface.head(p::PatExpr) = p.head
+TermInterface.operation(p::PatExpr) = p.head
+TermInterface.children(p::PatExpr) = p.children
+TermInterface.arguments(p::PatExpr) = p.children
+TermInterface.iscall(p::PatExpr) = p.iscall
 
+TermInterface.arity(p::PatExpr) = length(p.children)
 
-# ==============================================
-# ================== PATTERN VARIABLES =========
-# ==============================================
+TermInterface.maketerm(::Type{PatExpr}, operation, arguments, type = Any, metadata = (iscall = true,)) =
+  PatExpr(iscall, operation, children...)
+
+# ---------------------
+# # Pattern Variables.
 
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
-patvars(p::PatTerm, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
-patvars(x, s) = s
+patvars(p::PatExpr, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
+patvars(::Any, s) = s
 patvars(p) = unique!(patvars(p, Symbol[]))
 
 
-# ==============================================
-# ================== DEBRUJIN INDEXING =========
-# ==============================================
+# ---------------------
+# # Debrujin Indexing.
+
 
 function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
   p.idx = findfirst((==)(p.name), pvars)
@@ -120,9 +121,9 @@ end
 # literal case
 setdebrujin!(p, pvars) = nothing
 
-function setdebrujin!(p::PatTerm, pvars)
+function setdebrujin!(p::PatExpr, pvars)
   setdebrujin!(operation(p), pvars)
-  foreach(x -> setdebrujin!(x, pvars), p.args)
+  foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
 
@@ -131,15 +132,24 @@ to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicat
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = similarterm(Expr(:call, :x), operation(x), map(to_expr, arguments(x)); exprhead = exprhead(x))
+function to_expr(x::PatExpr)
+  if iscall(x)
+    op = operation(x)
+    op_name = op isa Union{Function,DataType} ? nameof(op) : op
+    maketerm(Expr, :call, [op_name; to_expr.(arguments(x))])
+  else
+    maketerm(Expr, operation(x), to_expr.(arguments(x)))
+  end
+end
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 
 
 # include("rules/patterns.jl")
 export AbstractPat
+export PatHead
 export PatVar
-export PatTerm
+export PatExpr
 export PatSegment
 export patvars
 export setdebrujin!

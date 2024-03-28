@@ -2,27 +2,27 @@ module EGraphs
 
 include("../docstrings.jl")
 
-using DataStructures
 using TermInterface
 using TimerOutputs
-using Metatheory: alwaystrue, cleanast, binarize
 using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.EMatchCompiler
+using Metatheory.VecExprModule
 
-include("intdisjointmap.jl")
+using Metatheory: alwaystrue, cleanast, Bindings, UNDEF_ID_VEC
+
+import Metatheory: to_expr, maybelock!, lookup_pat, has_constant, get_constant
+
+
+include("unionfind.jl")
 export IntDisjointSet
-export in_same_set
+export UnionFind
+
+include("uniquequeue.jl")
 
 include("egraph.jl")
-export AbstractENode
-export ENodeLiteral
-export ENodeTerm
-export EClassId
+export Id
 export EClass
-export hasdata
-export getdata
-export setdata!
 export find
 export lookup
 export arity
@@ -31,26 +31,18 @@ export merge!
 export in_same_class
 export addexpr!
 export rebuild!
-export settermtype!
-export gettermtype
 
-include("analysis.jl")
-export analyze!
+include("extract.jl")
 export extract!
 export astsize
 export astsize_inv
-export getcost!
 
-export Sub
 
 include("Schedulers.jl")
 export Schedulers
 using .Schedulers
 
 include("saturation.jl")
-export SaturationGoal
-export EqualityGoal
-export reached
 export SaturationParams
 export saturate!
 export areequal

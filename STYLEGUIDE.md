@@ -12,15 +12,7 @@ other text editors that support it.
 #### Recommended VSCode extensions
 
 - Julia: the official Julia extension. 
-- GitLens: lets you see inline which
-commit recently affected the selected line. It is excellent to know who was
-working on a piece of code, such that you can easily ask for explanations or
-help in case of trouble.
 
-### Reduce latency with system images
-
-We can put package dependencies into a system image (kind of like a snapshot of
-a Julia session, abbreviated as sysimage) to speed up their loading.
 
 ### Logging
 
@@ -76,12 +68,6 @@ fixed then the following line with link to issue should be added.
 # ISSUE: https://
 ```
 
-Probabilistic tests can sometimes fail in CI. If that is the case they should be marked with [`@test_skip`](https://docs.julialang.org/en/v1/stdlib/Test/#Test.@test_skip), which indicates that the test may intermittently fail (it will be reported in the test summary as `Broken`). This is equivalent to `@test (...) skip=true` but requires at least Julia v1.7. A comment before the relevant line is useful so that they can be debugged and made more reliable. 
-
-```
-# FLAKY
-@test_skip some_probabilistic_test()
-```
 
 For packages that do not have to be used as libraries, it is sometimes
 convenient to extend external methods on external types - this is referred to as

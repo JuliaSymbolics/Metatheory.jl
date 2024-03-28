@@ -5,7 +5,7 @@ using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: cleanast, binarize, matcher, instantiate
+using Metatheory: cleanast, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 
@@ -20,17 +20,14 @@ abstract type BidirRule <: SymbolicRule end
 struct RuleRewriteError
   rule
   expr
+  err
 end
 
-getdepth(::Any) = typemax(Int)
-
-showraw(io, t) = Base.show(IOContext(io, :simplify => false), t)
-showraw(t) = showraw(stdout, t)
 
 @noinline function Base.showerror(io::IO, err::RuleRewriteError)
-  msg = "Failed to apply rule $(err.rule) on expression "
-  msg *= sprint(io -> showraw(io, err.expr))
-  print(io, msg)
+  print(io, "Failed to apply rule $(err.rule) on expression ")
+  print(io, Base.show(IOContext(io, :simplify => false), err.expr))
+  Base.showerror(io, err.err)
 end
 
 
@@ -75,7 +72,8 @@ function (r::RewriteRule)(term)
   try
     r.matcher(success, (term,), EMPTY_DICT)
   catch err
-    throw(RuleRewriteError(r, term))
+    rethrow(err)
+    throw(RuleRewriteError(r, term, err))
   end
 end
 
@@ -113,11 +111,6 @@ end
 
 
 Base.show(io::IO, r::EqualityRule) = print(io, :($(r.left) == $(r.right)))
-
-function (r::EqualityRule)(x)
-  throw(RuleRewriteError(r, x))
-end
-
 
 # ============================================================
 # UnequalRule
@@ -202,8 +195,7 @@ function (r::DynamicRule)(term)
   try
     return r.matcher(success, (term,), EMPTY_DICT)
   catch err
-    rethrow(err)
-    throw(RuleRewriteError(r, term))
+    throw(RuleRewriteError(r, term, err))
   end
 end
 
