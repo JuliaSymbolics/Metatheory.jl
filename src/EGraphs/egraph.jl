@@ -190,18 +190,6 @@ function to_expr(g::EGraph, n::VecExpr)
   end
 end
 
-function to_expr(g::EGraph{Expr}, n::VecExpr)
-  v_isexpr(n) || return get_constant(g, v_head(n))
-  h = get_constant(g, v_head(n))
-  args = Core.SSAValue.(Int.(v_children(n)))
-  if v_iscall(n)
-    maketerm(Expr, :call, [h; args])
-  else
-    maketerm(Expr, h, args)
-  end
-end
-
-
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
