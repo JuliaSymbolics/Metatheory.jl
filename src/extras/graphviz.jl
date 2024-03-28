@@ -24,7 +24,7 @@ function render_eclass!(io::IO, g::EGraph, eclass::EClass)
     """    subgraph cluster_$(eclass.id) {
          style="dotted,rounded";
          rank=same;
-         label="#$(eclass.id). Smallest: $(extract!(g, astsize))"
+         label="%$(eclass.id). Smallest: $(extract!(g, astsize, eclass.id))"
          fontcolor = gray
          fontsize  = 8
    """,

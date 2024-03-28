@@ -74,10 +74,10 @@ end
 """E-class IDs of the children of the e-node."""
 @inline v_children(n::VecExpr) = @view n[(VECEXPR_META_LENGTH + 1):end]
 
-"""E-node ID."""
+"The constant ID of the operation of the e-node, or the e-node ."
 @inline v_head(n::VecExpr)::Id = @inbounds n[VECEXPR_META_LENGTH]
 
-"""Update the E-node ID."""
+"Update the E-Node operation ID."
 @inline v_set_head!(n::VecExpr, h::Id) = @inbounds (n[3] = h)
 
 """Construct a new, empty `VecExpr` with `len` children."""

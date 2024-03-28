@@ -55,7 +55,7 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
 function Base.show(io::IO, a::EClass)
-  println(io, "$(typeof(a)) #$(a.id) with $(length(a.nodes)) e-nodes:")
+  println(io, "$(typeof(a)) %$(a.id) with $(length(a.nodes)) e-nodes:")
   println(io, " data: $(a.data)")
   println(io, " nodes:")
   for n in a.nodes
