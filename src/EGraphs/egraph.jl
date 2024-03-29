@@ -332,16 +332,24 @@ function addexpr!(g::EGraph, se)::Id
   n = if isexpr(e)
     args = iscall(e) ? arguments(e) : children(e)
     ar = length(args)
+    has_symtype = typeof(se) != symtype(se)
+
+    # Expression has a symtype, add space for type
+    has_symtype && ar += 1
+
     n = v_new(ar)
-    v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+    v_set_flag!(n, VECEXPR_FLAG_ISEXPR)
     iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
 
+    
     h = iscall(e) ? operation(e) : head(e)
     v_set_head!(n, add_constant!(g, h))
-
+    
     for i in v_children_range(n)
       @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
     end
+
+    has_symtype && v_set_symtype!(n, add_constant!(g, symtype(se)))
     n
   else # constant enode
     Id[Id(0), Id(0), add_constant!(g, e)]
@@ -528,7 +536,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   has_op || return 0
 
   n = v_new(ar)
-  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+  v_set_flag!(n, VECEXPR_FLAG_ISEXPR)
   p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, p.head_hash)
 

@@ -2,7 +2,7 @@ module VecExprModule
 
 export Id,
   VecExpr,
-  VECEXPR_FLAG_ISTREE,
+  VECEXPR_FLAG_ISEXPR,
   VECEXPR_FLAG_ISCALL,
   VECEXPR_META_LENGTH,
   v_new,
@@ -34,20 +34,36 @@ An e-node is a `Vector{Id}` where:
 """
 const VecExpr = Vector{Id}
 
-const VECEXPR_FLAG_ISTREE = 0x01
-const VECEXPR_FLAG_ISCALL = 0x10
+const VECEXPR_FLAG_ISEXPR = 0x001
+const VECEXPR_FLAG_ISCALL = 0x010
+const VECEXPR_FLAG_HASTYPE = 0x100
 const VECEXPR_META_LENGTH = 3
 
 @inline v_flags(n::VecExpr)::Id = @inbounds n[2]
 @inline v_unset_flags!(n::VecExpr) = @inbounds (n[2] = 0)
-@inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flags)
+@inline v_check_flags(n::VecExpr, flags::Id)::Bool = !iszero(v_flags(n) & flags)
 @inline v_set_flag!(n::VecExpr, flag)::Id = @inbounds (n[2] = n[2] | flag)
 
-"""Returns `true` if the e-node ID points to a an expression tree."""
-@inline v_isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
+"Returns `true` if the expression represented by the e-node satisfies `TermInterface.isexpr`."
+@inline v_isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISEXPR)
 
-"""Returns `true` if the e-node ID points to a function call."""
+"Returns `true` if the expression represented by the e-node satisfies `TermInterface.iscall`."
 @inline v_iscall(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISCALL)
+
+"""
+Returns `true` iff last argument of the expression represented 
+by the e-node is the `type` argument to `TermInterface.maketerm` (typed ASTs).
+"""
+@inline v_has_symtype(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_HASTYPE)
+
+"If `v_has_symtype` is true, use this to get the `TermInterface.symtype` of the represented expression."
+@inline v_symtype(n::VecExpr)::Bool = @inbounds n[end]
+
+"If `v_has_symtype` is true, use this to get the `TermInterface.symtype` of the represented expression."
+@inline function v_set_symtype!(n::VecExpr, symtype::Id)::Bool
+  v_set_flag!(n, VECEXPR_FLAG_HASTYPE)
+  @inbounds n[end] = symtype
+end
 
 """Number of children in the e-node."""
 @inline v_arity(n::VecExpr)::Int = length(n) - VECEXPR_META_LENGTH
@@ -65,14 +81,14 @@ Compute the hash of a `VecExpr` and store it as the first element.
   end
 end
 
-"""The hash of the e-node."""
+"The hash of the e-node."
 @inline v_hash(n::VecExpr)::Id = @inbounds n[1]
 
-"""Set e-node hash to zero."""
+"Set e-node hash to zero."
 @inline v_unset_hash!(n::VecExpr)::Id = @inbounds (n[1] = Id(0))
 
-"""E-class IDs of the children of the e-node."""
-@inline v_children(n::VecExpr) = @view n[(VECEXPR_META_LENGTH + 1):end]
+"E-class IDs of the children of the e-node."
+@inline v_children(n::VecExpr) = @view n[v_children_range(n)]
 
 "The constant ID of the operation of the e-node, or the e-node ."
 @inline v_head(n::VecExpr)::Id = @inbounds n[VECEXPR_META_LENGTH]
@@ -88,7 +104,9 @@ end
   n
 end
 
-@inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n))
+@inline v_children_range(n::VecExpr) = let l = length(n) 
+  ((VECEXPR_META_LENGTH + 1):(v_has_symtype(n) ? l+1 : l))
+end
 
 
 end

@@ -114,7 +114,7 @@ function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::Pa
 
   ar = arity(p)
   n = v_new(ar)
-  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+  v_set_flag!(n, VECEXPR_FLAG_ISEXPR)
   p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
   v_set_head!(n, add_constant!(g, new_op))
 
