@@ -1,3 +1,5 @@
+module Plotting
+
 using GraphViz
 using Metatheory
 using TermInterface
@@ -92,4 +94,6 @@ end
 
 function Base.show(io::IO, mime::MIME"image/svg+xml", g::EGraph)
   show(io, mime, convert(GraphViz.Graph, g))
+end
+
 end
