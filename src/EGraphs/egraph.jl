@@ -36,7 +36,7 @@ function make end
 An `EClass` is an equivalence class of terms.
 
 The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, which
-means that without the [`EGraph`](@ref) we cannot see the human-readable terms
+means that without a reference to the [`EGraph`](@ref) object we cannot re-build human-readable terms
 they represent. The [`EGraph`](@ref) itself comes with pretty printing for humean-readable terms.
 """
 mutable struct EClass{D}
@@ -55,7 +55,7 @@ Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
 function Base.show(io::IO, a::EClass)
-  println(io, "$(typeof(a)) #$(a.id) with $(length(a.nodes)) e-nodes:")
+  println(io, "$(typeof(a)) %$(a.id) with $(length(a.nodes)) e-nodes:")
   println(io, " data: $(a.data)")
   println(io, " nodes:")
   for n in a.nodes
@@ -189,18 +189,6 @@ function to_expr(g::EGraph, n::VecExpr)
     maketerm(Expr, h, args)
   end
 end
-
-function to_expr(g::EGraph{Expr}, n::VecExpr)
-  v_isexpr(n) || return get_constant(g, v_head(n))
-  h = get_constant(g, v_head(n))
-  args = Core.SSAValue.(Int.(v_children(n)))
-  if v_iscall(n)
-    maketerm(Expr, :call, [h; args])
-  else
-    maketerm(Expr, h, args)
-  end
-end
-
 
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
