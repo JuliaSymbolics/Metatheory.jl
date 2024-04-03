@@ -335,7 +335,7 @@ function addexpr!(g::EGraph, se)::Id
     has_symtype = typeof(se) != symtype(se)
 
     # Expression has a symtype, add space for type
-    has_symtype && ar += 1
+    has_symtype && (ar += 1)
 
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISEXPR)

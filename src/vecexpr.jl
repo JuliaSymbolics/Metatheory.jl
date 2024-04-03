@@ -19,7 +19,10 @@ export Id,
   v_arity,
   v_hash!,
   v_hash,
-  v_unset_hash!
+  v_unset_hash!,
+  v_symtype,
+  v_has_symtype,
+  v_set_symtype!
 
 const Id = UInt64
 
