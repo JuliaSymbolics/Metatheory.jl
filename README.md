@@ -22,11 +22,7 @@ rule definition language, a vast library of functional combinators for classical
 term rewriting and an *[e-graph](https://en.wikipedia.org/wiki/E-graph)
 rewriting*, a fresh approach to term rewriting achieved through an equality
 saturation algorithm. Metatheory.jl can manipulate any kind of Julia symbolic
-expression type, ~~as long as it satisfies the [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl)~~.
-
-### NOTE: TermInterface.jl has been temporarily deprecated. Its functionality has moved to module [Metatheory.TermInterface](https://github.com/JuliaSymbolics/Metatheory.jl/blob/master/src/TermInterface.jl) until consensus for a shared symbolic term interface is reached by the community.
-
-
+expression type, as long as it satisfies [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl).
 
 Metatheory.jl provides:
 - An eDSL (embedded domain specific language) to define different kinds of symbolic rewrite rules.
@@ -84,9 +80,7 @@ work together to turn this list into some new Julia packages:
 #### Integration with Symbolics.jl
 
 Many features of this package, such as the classical rewriting system, have been ported from [SymbolicUtils.jl](https://github.com/JuliaSymbolics/SymbolicUtils.jl), and are technically the same. Integration between Metatheory.jl with Symbolics.jl **is currently
-paused**, as we are waiting to reach consensus for the redesign of a common Julia symbolic term interface, [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl). 
-
-TODO link discussion when posted
+in-development**, as we recently released a new version of [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl). 
 
 An integration between Metatheory.jl and [Symbolics.jl](https://github.com/JuliaSymbolics/Symbolics.jl) is possible and has previously been shown in the ["High-performance symbolic-numerics via multiple dispatch"](https://arxiv.org/abs/2105.03949) paper. Once we reach consensus for a shared symbolic term interface, Metatheory.jl can be used to:
 

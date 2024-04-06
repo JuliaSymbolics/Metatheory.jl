@@ -1,3 +1,6 @@
+# 3.0
+- Updated TermInterface to 0.4.1
+
 # 2.0
 - No longer dispatch against types, but instead dispatch against objects.
 - Faster E-Graph Analysis
@@ -6,6 +9,7 @@
 - New interface for e-graph extraction using `EGraphs.egraph_reconstruct_expression`
 - Simplify E-Graph Analysis Interface. Use Symbols or functions for identifying Analyses. 
 - Remove duplicates in E-Graph analyses data.
+
 ## 1.2
 - Fixes when printing patterns
 - Can pass custom `similarterm` to `SaturationParams` by using `SaturationParams.simterm`.

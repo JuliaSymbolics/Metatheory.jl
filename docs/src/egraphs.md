@@ -218,17 +218,16 @@ which *e-node* will be extracted from an *e-class*.
 
 It must return a positive, non-complex number value and, must accept 3 arguments.
 1) The current e-node [VecExpr](@ref) `n` that is being inspected. 
-2) The current [EGraph](@ref) `g`.
-3) The current analysis name `an::Symbol`.
+2) The object corresponding to the e-node operation.
+3) The cost of children as a `Vector`.
 
 From those 3 parameters, one can access all the data needed to compute
 the cost of an e-node recursively.
 
-* One can use [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl) methods to access the operation and child arguments of an e-node: `head(n)`, `arity(n)` and `children(n)`
-* Since e-node children always point to e-classes in the same e-graph, one can retrieve the [EClass](@ref) object for each child of the currently visited enode with `g[id] for id in children(n)`
-* One can inspect the analysis data for a given eclass and a given analysis name `an`, by using [hasdata](@ref) and [getdata](@ref).
-* Extraction analyses always associate a tuple of 2 values to a single e-class: which e-node is the one that minimizes the cost
-and its cost. More details can be found in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) in the *Analyses* section. 
+<!-- * Since e-node children always point to e-classes in the same e-graph, one can retrieve the [EClass](@ref) object for each child of the currently visited enode with `g[id] for id in children(n)` -->
+<!-- * One can inspect the analysis data for a given eclass and a given analysis name `an`, by using [hasdata](@ref) and [getdata](@ref). -->
+<!-- * Extraction analyses always associate a tuple of 2 values to a single e-class: which e-node is the one that minimizes the cost -->
+<!-- and its cost. More details can be found in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) in the *Analyses* section.  -->
 
 Here's an example:
 
