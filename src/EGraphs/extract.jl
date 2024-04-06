@@ -11,7 +11,7 @@ Given a cost function, extract the expression
 with the smallest computed cost from an [`EGraph`](@ref)
 """
 function Extractor(g::EGraph, cost_function::Function, cost_type = Float64)
-  extractor = Extractor{typeof(cost_function),cost_type}(g, cost_function, Dict{Id,Tuple{cost_type,VecExpr}}())
+  extractor = Extractor{typeof(cost_function),cost_type}(g, cost_function, Dict{Id,Tuple{cost_type,Int64}}())
   find_costs!(extractor)
   extractor
 end
