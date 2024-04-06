@@ -259,7 +259,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
 
   start_time = time_ns()
 
-  !params.timer && disable_timer!(report.to)
+  params.timer || disable_timer!(report.to)
 
   while true
     curr_iter += 1
