@@ -1,11 +1,5 @@
 # API Documentation
 
-
-## TermInterface
-
-```@autodocs
-Modules = [Metatheory.TermInterface]
-
 ```
 ## Syntax
 
