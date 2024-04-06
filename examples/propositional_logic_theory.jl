@@ -52,14 +52,20 @@ propositional_logic_theory = or_alg ∪ and_alg ∪ comb ∪ negt ∪ impl ∪ f
 
 
 # Sketch function for basic iterative saturation and extraction 
-function prove(t, ex, steps = 1, timeout = 10, eclasslimit = 5000)
+function prove(
+  t,
+  ex,
+  steps = 1,
+  timeout = 10,
+  eclasslimit = 5000,
   params = SaturationParams(
     timeout = timeout,
     eclasslimit = eclasslimit,
     scheduler = Schedulers.BackoffScheduler,
     schedulerparams = (6000, 5),
-  )
-
+    timer = false,
+  ),
+)
   hist = UInt64[]
   push!(hist, hash(ex))
   for i in 1:steps

@@ -6,8 +6,7 @@ const SUITE = BenchmarkGroup()
 
 function simplify(ex, theory, params = SaturationParams(), postprocess = identity)
   g = EGraph(ex)
-  report = saturate!(g, theory, params)
-  println(report)
+  saturate!(g, theory, params)
   res = extract!(g, astsize)
   postprocess(res)
 end
@@ -41,7 +40,7 @@ SUITE["basic_maths"] = BenchmarkGroup(["egraphs"])
 
 ex_math = :(a + b + (0 * c) + d)
 SUITE["basic_maths"]["simpl1"] =
-  @benchmarkable (@assert :(a + b + d) == simplify($ex_math, $maths_theory, $(SaturationParams()), postprocess_maths))
+  @benchmarkable (@assert :(a + b + d) == simplify($ex_math, $maths_theory, $(SaturationParams(;timer=false)), postprocess_maths))
 
 # ==================================================================
 
