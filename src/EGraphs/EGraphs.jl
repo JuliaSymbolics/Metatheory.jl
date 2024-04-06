@@ -15,7 +15,6 @@ import Metatheory: to_expr, maybelock!, lookup_pat, has_constant, get_constant
 
 
 include("unionfind.jl")
-export IntDisjointSet
 export UnionFind
 
 include("uniquequeue.jl")

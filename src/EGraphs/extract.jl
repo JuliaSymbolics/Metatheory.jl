@@ -2,6 +2,8 @@ struct Extractor{CostFun,Cost}
   g::EGraph
   cost_function::CostFun
   costs::Dict{Id,Tuple{Cost,Int64}} # Cost and index in eclass
+  Extractor{CF,C}(g::EGraph, cf::CF, d::Dict{Id, Tuple{C, Int64}}) where {CF,C} = 
+    new{CF,C}(g,cf,d)
 end
 
 """

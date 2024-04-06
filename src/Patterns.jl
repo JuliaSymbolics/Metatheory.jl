@@ -147,7 +147,6 @@ Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
 
 # include("rules/patterns.jl")
 export AbstractPat
-export PatHead
 export PatVar
 export PatExpr
 export PatSegment
