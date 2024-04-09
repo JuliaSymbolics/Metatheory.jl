@@ -35,7 +35,7 @@ function predicate_ematcher(p::PatVar, pred)
     eclass = g[id]
     if pred(eclass)
       enode_idx = 0
-      # Is this for cycle needed?
+      # TODO Is this for cycle needed?
       for (j, n) in enumerate(eclass)
         # Find first literal if available
         if !v_isexpr(n)
