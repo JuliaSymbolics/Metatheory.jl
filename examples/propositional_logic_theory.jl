@@ -57,10 +57,8 @@ function prove(
   ex,
   steps = 1,
   timeout = 10,
-  eclasslimit = 5000,
   params = SaturationParams(
     timeout = timeout,
-    eclasslimit = eclasslimit,
     scheduler = Schedulers.BackoffScheduler,
     schedulerparams = (6000, 5),
     timer = false,
