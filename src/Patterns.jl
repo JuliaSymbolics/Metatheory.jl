@@ -79,7 +79,16 @@ struct PatExpr <: AbstractPat
   head_hash::UInt
   children::Vector
   isground::Bool
-  PatExpr(iscall, op, args::Vector) = new(iscall, op, hash(op), args, all(isground, args))
+  signature::Pair{UInt, Int}
+  function PatExpr(iscall, op, args::Vector) 
+    op_hash = hash(op)
+    signature = op_hash => length(args)
+    new(iscall, op, op_hash, args, all(isground, args), signature)
+  end
+  function PatExpr(iscall, op::Union{Function,DataType}, args::Vector) 
+    signature = hash(nameof(op)) => length(args)
+    new(iscall, op, hash(op), args, all(isground, args), signature)
+  end
 end
 PatExpr(iscall, op, children...) = PatExpr(iscall, op, collect(children))
 

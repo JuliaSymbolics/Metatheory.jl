@@ -219,7 +219,7 @@ function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{UInt64,Int}
 end
 
 # TODO use flags!
-function op_key(t)::Pair{UInt64,Int}
+function op_key(t::PatExpr)::Pair{UInt64,Int}
   h = head(t)
   if h isa Union{Function,DataType}
     h = nameof(h)

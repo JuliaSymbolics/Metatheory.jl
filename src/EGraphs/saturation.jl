@@ -43,7 +43,7 @@ function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
     id = lookup_pat(g, p)
     !isnothing(id) && return [id]
   else
-    get(g.classes_by_op, op_key(p), UNDEF_ID_VEC)
+    get(g.classes_by_op, p.signature, UNDEF_ID_VEC)
   end
 end
 
