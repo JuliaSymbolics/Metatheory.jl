@@ -38,9 +38,13 @@ SUITE["egraph"]["addexpr"] = @benchmarkable EGraph($(nested_expr(2000)))
 SUITE["basic_maths"] = BenchmarkGroup(["egraphs"])
 
 
-ex_math = :(a + b + (0 * c) + d)
+simpl1_math = :(a + b + (0 * c) + d)
 SUITE["basic_maths"]["simpl1"] =
-  @benchmarkable (@assert :(a + b + d) == simplify($ex_math, $maths_theory, $(SaturationParams(;timer=false)), postprocess_maths))
+  @benchmarkable (@assert :(a + b + d) == simplify($simpl1_math, $maths_theory, $(SaturationParams(;timer=false)), postprocess_maths))
+
+simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
+SUITE["basic_maths"]["simpl2"] =
+  @benchmarkable (@assert :a == simplify($simpl2_math, $maths_theory, $(SaturationParams()), postprocess_maths))
 
 # ==================================================================
 
