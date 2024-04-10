@@ -208,6 +208,7 @@ function Base.show(io::IO, g::EGraph)
   print(io, Base.join([t; cs], "\n"))
 end
 
+# TODO optimize
 function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{UInt64,Int}
   h = v_head(n)
   op = get_constant(g, h)
@@ -216,15 +217,6 @@ function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{UInt64,Int}
     op = nameof(op)
   end
   hash(op) => (v_isexpr(n) ? v_arity(n) : -1)
-end
-
-# TODO use flags!
-function op_key(t::PatExpr)::Pair{UInt64,Int}
-  h = head(t)
-  if h isa Union{Function,DataType}
-    h = nameof(h)
-  end
-  (hash(h) => (isexpr(t) ? arity(t) : -1))
 end
 
 """
