@@ -63,8 +63,6 @@ function prove(
   timeout = 10,
   params = SaturationParams(
     timeout = timeout,
-    eclasslimit = eclasslimit,
-    # scheduler=Schedulers.ScoredScheduler, schedulerparams=(1000,5, Schedulers.exprsize))
     scheduler = Schedulers.BackoffScheduler,
     schedulerparams = (6000, 5),
     timer = false,
