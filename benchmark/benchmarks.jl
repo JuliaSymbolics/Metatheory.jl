@@ -46,6 +46,7 @@ simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
 SUITE["basic_maths"]["simpl2"] =
   @benchmarkable (@assert :a == simplify($simpl2_math, $maths_theory, $(SaturationParams()), postprocess_maths))
 
+  
 # ==================================================================
 
 SUITE["prop_logic"] = BenchmarkGroup(["egraph", "logic"])
