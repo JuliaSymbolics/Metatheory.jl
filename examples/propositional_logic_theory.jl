@@ -61,7 +61,6 @@ function prove(
   ex,
   steps = 1,
   timeout = 10,
-  eclasslimit = 5000,
   params = SaturationParams(
     timeout = timeout,
     eclasslimit = eclasslimit,
