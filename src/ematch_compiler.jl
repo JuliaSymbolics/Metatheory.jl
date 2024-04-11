@@ -62,26 +62,6 @@ function ematcher(p::PatVar)
   end
 end
 
-Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
-Base.@pure @inline checkop(x, op) = isequal(x, op)
-
-@inline has_constant_trick(@nospecialize(g), c::Union{Function,DataType}) =
-  has_constant(g, hash(c)) || has_constant(g, hash(nameof(c)))
-@inline has_constant_trick(@nospecialize(g), c) = has_constant(g, hash(c))
-
-function canbind(p::PatExpr)
-  p_iscall = iscall(p)
-  op = operation(p)
-  ar = arity(p)
-  function canbind(g, n)
-    # Assumed to have constant
-    v_isexpr(n) || return false
-    hn = get_constant(g, v_head(n))
-    v_iscall(n) === p_iscall && checkop(op, hn) && v_arity(n) === ar
-  end
-end
-
-
 function ematcher(p::PatExpr)
   ematchers::Vector{Function} = map(ematcher, arguments(p))
   op = operation(p)
@@ -95,32 +75,34 @@ function ematcher(p::PatExpr)
     end
   end
 
-  canbindtop = canbind(p)
   function term_ematcher(success, g, eclass_id::Id, bindings)
-    has_constant_trick(g, op) || return nothing
+    has_constant(g, v_head(p.n)) || has_constant(g, p.quoted_head_hash) || return nothing
 
     # Define OK variable to avoid boxing issue
     ok = false
     new_bindings = bindings
     for n in g[eclass_id].nodes
-      if canbindtop(g, n)
-        len = length(ematchers)
-        # TODO revise this logic for splat variables
-        v_arity(n) === len || @goto skip_node
-        # n_args = v_children(n)
-        new_bindings = bindings
-        for i in 1:len
-          ok = false
-          ematchers[i](g, n[i + VECEXPR_META_LENGTH], new_bindings) do b, n_of_matched
-            new_bindings = b
-            ok = true
-          end
-          ok || @goto skip_node
-        end
+      # TODO WARNING: HASH COLLISIONS (very unlikely)
+      v_flags(n) == v_flags(p.n) || @goto skip_node
+      v_signature(n) == v_signature(p.n) || @goto skip_node
+      v_head(n) == v_head(p.n) || (v_head(n) == p.quoted_head_hash || @goto skip_node)
 
-        # we have correctly matched the term
-        success(new_bindings, 1)
+      len = length(ematchers)
+      # TODO revise this logic for splat variables
+      v_arity(n) === len || @goto skip_node
+      # n_args = v_children(n)
+      new_bindings = bindings
+      for i in 1:len
+        ok = false
+        ematchers[i](g, n[i + VECEXPR_META_LENGTH], new_bindings) do b, n_of_matched
+          new_bindings = b
+          ok = true
+        end
+        ok || @goto skip_node
       end
+
+      # we have correctly matched the term
+      success(new_bindings, 1)
       @label skip_node
     end
   end

@@ -43,7 +43,7 @@ function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
     id = lookup_pat(g, p)
     !isnothing(id) && return [id]
   else
-    get(g.classes_by_op, p.signature, UNDEF_ID_VEC)
+    get(g.classes_by_op, v_signature(p.n), UNDEF_ID_VEC)
   end
 end
 
@@ -101,27 +101,29 @@ function eqsat_search!(
 end
 
 function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::Id
-  new_node_literal = Id[0, 0, add_constant!(g, p)]
-  add!(g, new_node_literal)
+  # TODO avoid allocation
+  new_node_literal = Id[0, 0, 0, add_constant!(g, p)]
+  add!(g, new_node_literal, false)
 end
+
 instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
 function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
-  op = head(p)
-  args = children(p)
-  p_iscall = iscall(p)
-  # TODO handle this situation better
-  new_op = ExpressionType === Expr && op isa Union{Function,DataType} ? nameof(op) : op
+  add_constant!(g, head(p))
 
-  ar = arity(p)
-  n = v_new(ar)
-  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-  p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
-  v_set_head!(n, add_constant!(g, new_op))
-
-  for i in v_children_range(n)
-    @inbounds n[i] = instantiate_enode!(bindings, g, args[i - VECEXPR_META_LENGTH])
+  for i in v_children_range(p.n)
+    @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
   end
-  add!(g, n)
+  add!(g, p.n, true)
+end
+
+function instantiate_enode!(bindings::Bindings, g::EGraph{Expr}, p::PatExpr)::Id
+  add_constant!(g, p.quoted_head)
+  v_set_head!(p.n, p.quoted_head_hash)
+
+  for i in v_children_range(p.n)
+    @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
+  end
+  add!(g, p.n, true)
 end
 
 function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)

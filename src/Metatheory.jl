@@ -14,6 +14,11 @@ function maybelock! end
 export has_constant
 export get_constant
 
+# TODO: document
+function should_quote_operation end 
+should_quote_operation(::Function) = true
+should_quote_operation(x) = false
+
 include("docstrings.jl")
 
 include("vecexpr.jl")
