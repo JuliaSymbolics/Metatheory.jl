@@ -142,7 +142,7 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
     0,
-    Dict{Pair{Any,Int},Vector{Id}}(),
+    Dict{UInt,Vector{Id}}(),
     false,
     needslock,
     Bindings[],
