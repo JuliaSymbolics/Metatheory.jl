@@ -1,8 +1,9 @@
 module Patterns
 
-using Metatheory: cleanast, alwaystrue
+using Metatheory: cleanast, alwaystrue, should_quote_operation
 using AutoHashEquals
 using TermInterface
+using Metatheory.VecExprModule
 
 import Metatheory: to_expr
 
@@ -74,20 +75,34 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 Term patterns will match on terms of the same `arity` and with the same `operation`.
 """
 struct PatExpr <: AbstractPat
-  iscall::Bool
   head
   head_hash::UInt
+  quoted_head
+  quoted_head_hash::UInt
   children::Vector
   isground::Bool
-  signature::Pair{UInt, Int}
+  """
+  Behaves like an e-node to not re-allocate memory when doing e-graph lookups and instantiation 
+  in case of cache hits in the e-graph hashcons
+  """
+  n::VecExpr 
   function PatExpr(iscall, op, args::Vector) 
     op_hash = hash(op)
-    signature = op_hash => length(args)
-    new(iscall, op, op_hash, args, all(isground, args), signature)
-  end
-  function PatExpr(iscall, op::Union{Function,DataType}, args::Vector) 
-    signature = hash(nameof(op)) => length(args)
-    new(iscall, op, hash(op), args, all(isground, args), signature)
+    qop, qop_hash = should_quote_operation(op) ? (nameof(op), hash(nameof(op))) : (op, op_hash) 
+    ar = length(args)
+    signature = hash(qop, hash(ar))
+    
+    n = v_new(ar)
+    v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+    iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+    v_set_head!(n, op_hash)
+    v_set_signature!(n, signature)
+
+    for i in v_children_range(n)
+      @inbounds n[i] = 0
+    end
+
+    new(op, op_hash, qop, qop_hash, args, all(isground, args), n)
   end
 end
 PatExpr(iscall, op, children...) = PatExpr(iscall, op, collect(children))
@@ -99,7 +114,7 @@ TermInterface.head(p::PatExpr) = p.head
 TermInterface.operation(p::PatExpr) = p.head
 TermInterface.children(p::PatExpr) = p.children
 TermInterface.arguments(p::PatExpr) = p.children
-TermInterface.iscall(p::PatExpr) = p.iscall
+TermInterface.iscall(p::PatExpr) = v_iscall(p.n)
 
 TermInterface.arity(p::PatExpr) = length(p.children)
 

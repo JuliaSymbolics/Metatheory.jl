@@ -116,8 +116,8 @@ mutable struct EGraph{ExpressionType,Analysis}
   pending::Vector{Pair{VecExpr,Id}}
   analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
   root::Id
-  "a cache mapping function symbols and their arity to e-classes that contain e-nodes with that function symbol."
-  classes_by_op::Dict{Pair{Id,Int},Vector{Id}}
+  "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
+  classes_by_op::Dict{UInt,Vector{Id}}
   clean::Bool
   "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
@@ -202,22 +202,12 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(collect(d)) do (k,vect)
+  cs = map(collect(d)) do (k, vect)
     "  $k => [$(Base.join(vect, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
 end
 
-# TODO optimize
-function enode_op_key(@nospecialize(g::EGraph), n::VecExpr)::Pair{UInt64,Int}
-  h = v_head(n)
-  op = get_constant(g, h)
-  if op isa Union{Function,DataType}
-    # h = add_constant!(g, nameof(op))
-    op = nameof(op)
-  end
-  hash(op) => (v_isexpr(n) ? v_arity(n) : -1)
-end
 
 """
 Returns the canonical e-class id for a given e-class.
@@ -245,7 +235,7 @@ Returns the canonical e-class id for a given e-class.
 
 function canonicalize!(g::EGraph, n::VecExpr)
   v_isexpr(n) || @goto ret
-  for i in 4:length(n)
+  for i in (VECEXPR_META_LENGTH + 1):length(n)
     @inbounds n[i] = find(g, n[i])
   end
   v_unset_hash!(n)
@@ -263,7 +253,7 @@ end
 
 
 function add_class_by_op(g::EGraph, n, eclass_id)
-  key = enode_op_key(g, n)
+  key = v_signature(n)
   if haskey(g.classes_by_op, key)
     push!(g.classes_by_op[key], eclass_id)
   else
@@ -274,12 +264,15 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr)::Id where {ExpressionType,Analysis}
+function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)::Id where {ExpressionType,Analysis}
   canonicalize!(g, n)
   h = v_hash(n)
 
   haskey(g.memo, h) && return g.memo[h]
 
+  if should_copy 
+    n = copy(n)
+  end
 
   id = push!(g.uf) # create new singleton eclass
 
@@ -331,14 +324,17 @@ function addexpr!(g::EGraph, se)::Id
     h = iscall(e) ? operation(e) : head(e)
     v_set_head!(n, add_constant!(g, h))
 
+    # get the signature from op and arity 
+    v_set_signature!(n, hash(should_quote_operation(h) ? nameof(h) : h, hash(ar)))
+
     for i in v_children_range(n)
       @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
     end
     n
   else # constant enode
-    Id[Id(0), Id(0), add_constant!(g, e)]
+    Id[Id(0), Id(0), Id(0), add_constant!(g, e)]
   end
-  id = add!(g, n)
+  id = add!(g, n, false)
   return id
 end
 
@@ -507,37 +503,27 @@ end
 function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   @assert isground(p)
 
-  op = head(p)
   args = children(p)
-  ar = arity(p)
-  p_iscall = iscall(p)
+  h = v_head(p.n)
 
-
-  has_op = has_constant(g, p.head_hash)
-  if !has_op && ExpressionType === Expr && op isa Union{Function,DataType}
-    has_op = has_constant(g, hash(nameof(op)))
-  end
+  has_op = has_constant(g, h) || (h != p.quoted_head_hash && has_constant(g, p.quoted_head_hash))
   has_op || return 0
 
-  n = v_new(ar)
-  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-  p_iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
-  v_set_head!(n, p.head_hash)
-
-  for i in v_children_range(n)
-    @inbounds n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
-    n[i] <= 0 && return 0
+  for i in v_children_range(p.n)
+    @inbounds p.n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
+    p.n[i] <= 0 && return 0
   end
 
-  id = lookup(g, n)
-  if id <= 0 && ExpressionType == Expr && op isa Union{Function,DataType}
-    v_set_head!(n, hash(nameof(op)))
-    id = lookup(g, n)
+  id = lookup(g, p.n)
+  if id <= 0 && h != p.quoted_head_hash
+    v_set_head!(p.n, p.quoted_head_hash)
+    id = lookup(g, p.n)
+    v_set_head!(p.n, p.head_hash)
   end
   id
 end
 
 function lookup_pat(g::EGraph, p::Any)::Id
   h = hash(p)
-  has_constant(g, h) ? lookup(g, Id[0, 0, h]) : 0
+  has_constant(g, h) ? lookup(g, Id[0, 0, 0, h]) : 0
 end

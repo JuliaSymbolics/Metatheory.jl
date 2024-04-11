@@ -19,7 +19,7 @@ function cleanast(e::Expr)
 end
 
 # Linked List interface
-@inline assoc(d::ImmutableDict, k, v) = ImmutableDict(d, k => v)
+@inline assoc(d::ImmutableDict{K,V}, k::K, v::V) where {K,V} = ImmutableDict{K,V}(d, k, v)
 
 struct LL{V}
   v::V
