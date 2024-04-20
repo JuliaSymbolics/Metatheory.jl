@@ -52,6 +52,7 @@ variables.
   matcher
   patvars::Vector{Symbol}
   ematcher!
+  ematcher_new!
 end
 
 function RewriteRule(l, r)
@@ -59,7 +60,15 @@ function RewriteRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)))
+  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), nothing)
+end
+
+function RewriteRule(l, r, ematcher_new)
+  pvars = patvars(l) ∪ patvars(r)
+  # sort!(pvars)
+  setdebrujin!(l, pvars)
+  setdebrujin!(r, pvars)
+  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new)
 end
 
 Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))

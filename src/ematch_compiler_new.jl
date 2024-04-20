@@ -1,6 +1,8 @@
 # Full e-matcher
 function ematch_compile(p, direction)
   pvars = patvars(p)
+  setdebrujin!(p, pvars)
+
   npvars = length(pvars)
 
   patvar_to_addr = fill(-1, npvars)
@@ -13,14 +15,14 @@ function ematch_compile(p, direction)
   first_nonground = memsize[]
   memsize[] += 1
 
-  ematch_compile!(first_nonground, ground_terms_to_addr, program, memsize, p)
+  ematch_compile!(first_nonground, ground_terms_to_addr, patvar_to_addr, program, memsize, p)
 
   push!(program, yield_expr(patvar_to_addr, direction))
-  σ = fill(-1, memsize[])
+  σ = Ref(fill(-1, memsize[]))
   quote
-    function ematch_this(g::EGraph, rule_idx::Int, root_id::Id)::Int
+    function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id)::Int
       # Copy and empty the memory 
-      σ = $σ
+      σ = ($σ)[]
       fill!(σ, -1)
       σ[$first_nonground] = root_id
 
@@ -43,8 +45,8 @@ function ematch_compile(p, direction)
       # Checking if the current value 
       $([:(
         begin
-          #   @show σ
-          #   println("CURRENT PC = $pc")
+          # @show σ
+          # println("CURRENT PC = $pc")
           if pc == $i
             $code
           end
@@ -54,8 +56,8 @@ function ematch_compile(p, direction)
       error("unreachable code!")
 
       @label backtrack
-      #   @show "BACKTRACKING"
-      #   @show stack
+      # @show "BACKTRACKING"
+      # @show stack
       pc = pop!(stack)
       @goto compute
 
@@ -78,6 +80,7 @@ function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, p:
     ground_terms_to_addr[p] = addr
     # Add the lookup instruction to the program
     push!(program, lookup_expr(addr, p))
+    memsize[] += 1
   end
 end
 
@@ -98,7 +101,7 @@ function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pa
     else
       # Search for ground patterns in the children.
       for child_pattern in children(pattern)
-        ematch_compile_ground!.(memsize[], ground_terms_to_addr, program, memsize, child_pattern)
+        ematch_compile_ground!(memsize[], ground_terms_to_addr, program, memsize, child_pattern)
       end
     end
   end
@@ -108,11 +111,37 @@ end
 # Term E-Matchers
 # ==============================================================
 
-function ematch_compile!(addr, ground_terms_to_addr, program, memsize, pattern::PatExpr)
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::PatExpr)
   if haskey(ground_terms_to_addr, pattern)
     push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
     return
   end
+
+  # TODO continue...
+end
+
+
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, patvar::PatVar)
+  instruction = if patvar_to_addr[patvar.idx] != -1
+    # Pattern variable with the same Debrujin index has appeared in the  
+    # pattern before this. Just check if the current e-class id matches the one 
+    # That was already encountered.
+    check_eq_expr(addr, patvar_to_addr[patvar.idx])
+  else
+    # Variable has not been seen before. Store its memory address
+    patvar_to_addr[patvar.idx] = addr
+    # insert instruction for checking predicates or type.
+    check_var_expr(addr, patvar.predicate)
+  end
+  push!(program, instruction)
+end
+
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal)
+  push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
+end
+
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::AbstractPattern)
+  throw(DomainError(pattern, "Pattern not supported in e-graph pattern matching."))
 end
 
 
@@ -120,6 +149,63 @@ end
 # Actual Instructions
 # ==============================================================
 
+
+function check_var_expr(addr, predicate::typeof(alwaystrue))
+  quote
+    # TODO bind first literal enode index 
+    pc += 1
+    @goto compute
+  end
+end
+
+function check_var_expr(addr, predicate::Function)
+  quote
+    eclass = g[σ[$addr]]
+    if predicate(eclass)
+      # TODO bind first literal enode index 
+      pc += 1
+      @goto compute
+    end
+    @goto backtrack
+  end
+end
+
+
+function check_var_expr(addr, T::Type)
+  quote
+    eclass = g[σ[$addr]]
+    eclass_length = length(eclass.nodes)
+    if enode_iter_indexes[$addr] <= eclass_length
+      push!(stack, pc)
+
+      n = eclass.nodes[enode_iter_indexes[$addr]]
+
+      if !Metatheory.VecExpr.v_isexpr(n)
+        hn = Metatheory.EGraphs.get_constant(g, Metatheory.VecExpr.v_head(n))
+        if hn isa T
+          enode_iter_indexes[$addr] += 1
+          pc += 1
+          @goto compute
+        end
+      end
+
+      # This node did not match. Try next node and backtrack.
+      enode_iter_indexes[$addr] += 1
+      @goto backtrack
+    end
+
+    # Restart from first option
+    enode_iter_indexes[$addr] = 1
+    @goto backtrack
+  end
+end
+
+
+"""
+Constructs an e-matcher instruction `Expr` that checks if 2 e-class IDs 
+contained in memory addresses `addr_a` and `addr_b` are equal, 
+backtracks otherwise.
+"""
 function check_eq_expr(addr_a, addr_b)
   quote
     if σ[$addr_a] == σ[$addr_b]
@@ -162,45 +248,47 @@ end
 
 # DEMO
 
-function ematch_compiler()
-  is_var_bound = fill(false, npvars)
-  quote
-    function ematch_rule()::Int
-      n_matches = 0
-      stack = Int[]
-      push!(stack, 0)
-      pc = 1
-      options = fill(1, 3)
+quote
+  function ematch_compiler()
+    is_var_bound = fill(false, npvars)
+    quote
+      function ematch_rule()::Int
+        n_matches = 0
+        stack = Int[]
+        push!(stack, 0)
+        pc = 1
+        options = fill(1, 3)
 
-      @label compute
+        @label compute
 
-      if pc == 0
-        # Return 
-        return n_matches
-      elseif pc == 1
-        # instead of for loop
-        if options[1] < num_options_1
-          push!(stack, 1)
-          if matches(...)
+        if pc == 0
+          # Return 
+          return n_matches
+        elseif pc == 1
+          # instead of for loop
+          if options[1] < num_options_1
+            push!(stack, 1)
+            if matches(aa)
+              options[1] += 1
+              pc += 1
+              @goto compute
+            end
             options[1] += 1
-            pc += 1
-            @goto compute
+            @goto backtrack
           end
-          options[1] += 1
+          options[1] = 1 # restart from first option
+          @goto backtrack
+        elseif pc == 2
+          bbb
+        elseif pc == 3
+          println("success!")
           @goto backtrack
         end
-        options[1] = 1 # restart from first option
-        @goto backtrack
-      elseif pc == 2
-        ...
-      elseif pc == 3
-        println("success!")
-        @goto backtrack
-      end
 
-      @label backtrack
-      pc = pop!(stack)
-      @goto compute
+        @label backtrack
+        pc = pop!(stack)
+        @goto compute
+      end
     end
   end
 end

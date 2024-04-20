@@ -3,7 +3,7 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
 
-using Metatheory: alwaystrue, cleanast
+using Metatheory: alwaystrue, cleanast, ematch_compile
 
 export @rule
 export @theory
@@ -355,7 +355,7 @@ macro rule(args...)
 
   quote
     $(__source__)
-    ($RuleType)($(esc(lhs)), $rhs)
+    ($RuleType)($(esc(lhs)), $rhs, $(__module__).eval(($ematch_compile)($(esc(lhs)), 1)))
   end
 end
 
