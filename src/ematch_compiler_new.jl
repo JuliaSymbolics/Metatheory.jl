@@ -13,37 +13,38 @@ function ematch_compile(p, direction)
   first_nonground = memsize[]
   memsize[] += 1
 
-  #   ematch_compile!(program, p, memsize, first_nonground)
-  #   There is only a ground pattern 
-  if first_nonground == memsize[] - 1 && isground(p)
-    push!(program, :(
-      if root_id == σ[1]
-        pc += 1
-        @goto compute
-      else
-        @goto backtrack
-      end
-    ))
-  end
+  ematch_compile!(first_nonground, ground_terms_to_addr, program, memsize, p)
 
   push!(program, yield_expr(patvar_to_addr, direction))
   σ = fill(-1, memsize[])
   quote
     function ematch_this(g::EGraph, rule_idx::Int, root_id::Id)::Int
+      # Copy and empty the memory 
       σ = $σ
+      fill!(σ, -1)
+      σ[$first_nonground] = root_id
+
       n_matches = 0
+      # Backtracking stack
       stack = Int[]
+      # Instruction 0 is used to return when  the backtracking stack is empty. 
+      # We start from 1.
       push!(stack, 0)
       pc = 1
 
+      # We goto this label when:
+      # 1) After backtracking, the pc is popped from the stack.
+      # 2) When an instruction succeeds, the pc is incremented.  
       @label compute
-
+      # Instruction 0 is used to return when  the backtracking stack is empty. 
       pc == 0 && return n_matches
 
+      # For each instruction in the program, create an if statement, 
+      # Checking if the current value 
       $([:(
         begin
-          @show σ
-          println("CURRENT PC = $pc")
+          #   @show σ
+          #   println("CURRENT PC = $pc")
           if pc == $i
             $code
           end
@@ -53,8 +54,8 @@ function ematch_compile(p, direction)
       error("unreachable code!")
 
       @label backtrack
-      @show "BACKTRACKING"
-      @show stack
+      #   @show "BACKTRACKING"
+      #   @show stack
       pc = pop!(stack)
       @goto compute
 
@@ -104,8 +105,31 @@ function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pa
 end
 
 # ==============================================================
+# Term E-Matchers
+# ==============================================================
+
+function ematch_compile!(addr, ground_terms_to_addr, program, memsize, pattern::PatExpr)
+  if haskey(ground_terms_to_addr, pattern)
+    push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
+    return
+  end
+end
+
+
+# ==============================================================
 # Actual Instructions
 # ==============================================================
+
+function check_eq_expr(addr_a, addr_b)
+  quote
+    if σ[$addr_a] == σ[$addr_b]
+      pc += 1
+      @goto compute
+    else
+      @goto backtrack
+    end
+  end
+end
 
 function lookup_expr(addr, p)
   quote

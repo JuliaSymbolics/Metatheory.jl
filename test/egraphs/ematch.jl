@@ -2,6 +2,16 @@ using Metatheory
 using Test
 using Metatheory.Library
 
+# Simple E-Matching
+
+r = @rule f(2, 3) --> true
+g = EGraph(:(f(2, 3)))
+@test r.ematcher!(g, 0, g.root) == 1
+@test r.ematcher!(g, 0, Id(1)) == 0
+@test r.ematcher!(g, 0, Id(2)) == 0
+
+
+
 falseormissing(x) = x === missing || !x
 
 r = @theory begin
