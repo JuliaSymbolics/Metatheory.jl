@@ -10,6 +10,42 @@ g = EGraph(:(f(2, 3)))
 @test r.ematcher!(g, 0, Id(1)) == 0
 @test r.ematcher!(g, 0, Id(2)) == 0
 
+@test r.ematcher_new!(g, 0, g.root) == 1
+@test r.ematcher_new!(g, 0, Id(1)) == 0
+@test r.ematcher_new!(g, 0, Id(2)) == 0
+
+
+g = EGraph(:(f(2, 4)))
+@test r.ematcher!(g, 0, g.root) == 0
+@test r.ematcher!(g, 0, Id(1)) == 0
+@test r.ematcher!(g, 0, Id(2)) == 0
+
+@test r.ematcher_new!(g, 0, g.root) == 0
+@test r.ematcher_new!(g, 0, Id(1)) == 0
+@test r.ematcher_new!(g, 0, Id(2)) == 0
+
+g = EGraph(:(f(2, 1)))
+r = @rule f(2, 1) --> true
+@test r.ematcher!(g, 0, g.root) == 1
+@test r.ematcher!(g, 0, Id(1)) == 0
+@test r.ematcher!(g, 0, Id(2)) == 0
+
+@test r.ematcher_new!(g, 0, g.root) == 1
+@test r.ematcher_new!(g, 0, Id(1)) == 0
+@test r.ematcher_new!(g, 0, Id(2)) == 0
+
+
+g = EGraph(:(f(2, 1)))
+r = @rule f(2, ~a) --> true
+@test r.ematcher!(g, 0, g.root) == 1
+@test r.ematcher!(g, 0, Id(1)) == 0
+@test r.ematcher!(g, 0, Id(2)) == 0
+
+@test r.ematcher_new!(g, 0, g.root) == 1
+@test r.ematcher_new!(g, 0, Id(1)) == 0
+@test r.ematcher_new!(g, 0, Id(2)) == 0
+
+
 
 
 falseormissing(x) = x === missing || !x

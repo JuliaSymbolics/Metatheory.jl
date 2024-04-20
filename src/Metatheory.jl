@@ -15,7 +15,7 @@ export has_constant
 export get_constant
 
 # TODO: document
-function should_quote_operation end 
+function should_quote_operation end
 should_quote_operation(::Function) = true
 should_quote_operation(x) = false
 
@@ -71,6 +71,9 @@ include("Patterns.jl")
 
 include("ematch_compiler.jl")
 @reexport using .EMatchCompiler
+
+include("ematch_compiler_new.jl")
+export ematch_compile
 
 include("matchers.jl")
 include("Rules.jl")
