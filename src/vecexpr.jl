@@ -102,8 +102,8 @@ end
 
 
 v_pair(a::UInt64, b::UInt64) = UInt128(a) << 64 | b
-v_pair_first(a::UInt128)::UInt64 = UInt64(a >> 64)
-v_pair_last(a::UInt128)::UInt64 = UInt64(a & 0xffffffffffffffff)
+v_pair_first(p::UInt128)::UInt64 = UInt64(p >> 64)
+v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 
 
 end

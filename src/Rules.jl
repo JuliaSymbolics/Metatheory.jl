@@ -63,12 +63,12 @@ function RewriteRule(l, r)
   RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), nothing)
 end
 
-function RewriteRule(l, r, ematcher_new)
+function RewriteRule(l, r, ematcher_new!)
   pvars = patvars(l) ∪ patvars(r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new)
+  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new!)
 end
 
 Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
@@ -180,14 +180,15 @@ Dynamic rule
   matcher
   patvars::Vector{Symbol} # useful set of pattern variables
   ematcher!
+  ematcher_new!
 end
 
-function DynamicRule(l, r::Function, rhs_code = nothing)
+function DynamicRule(l, r::Function, ematcher_new!, rhs_code = nothing)
   pvars = patvars(l)
   setdebrujin!(l, pvars)
   isnothing(rhs_code) && (rhs_code = repr(rhs_code))
 
-  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)))
+  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new!)
 end
 
 

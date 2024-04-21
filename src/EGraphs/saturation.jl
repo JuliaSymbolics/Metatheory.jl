@@ -65,7 +65,7 @@ function eqsat_search!(
   n_matches = 0
 
   maybelock!(g) do
-    empty!(g.buffer)
+    empty!(g.buffer_new)
   end
 
   @debug "SEARCHING"
@@ -89,7 +89,7 @@ function eqsat_search!(
       @debug "Matching" rule ids
 
       for i in ids
-        n_matches += rule.ematcher!(g, rule_idx, i)
+        n_matches += rule.ematcher_new!(g, rule_idx, i)
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
       inform!(scheduler, rule_idx, n_matches)
@@ -100,13 +100,13 @@ function eqsat_search!(
   return n_matches
 end
 
-function instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::Any)::Id
+function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::Any)::Id
   # TODO avoid allocation
   new_node_literal = Id[0, 0, 0, add_constant!(g, p)]
   add!(g, new_node_literal, false)
 end
 
-instantiate_enode!(bindings::Bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx][1]
+instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
 function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   add_constant!(g, head(p))
 
@@ -116,7 +116,7 @@ function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::Pa
   add!(g, p.n, true)
 end
 
-function instantiate_enode!(bindings::Bindings, g::EGraph{Expr}, p::PatExpr)::Id
+function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add_constant!(g, p.quoted_head)
   v_set_head!(p.n, p.quoted_head_hash)
 
@@ -154,8 +154,9 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
-  ecid, literal_position = bindings[i]
+function instantiate_actual_param!(bindings, g::EGraph, i)
+  ecid = v_pair_first(bindings[i])
+  literal_position = reinterpret(Int, v_pair_last(bindings[i]))
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
   if literal_position > 0
@@ -165,7 +166,7 @@ function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int)
+function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int)
   f = rule.rhs_fun
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
@@ -181,9 +182,9 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   i = 0
   @assert isempty(g.merges_buffer)
 
-  @debug "APPLYING $(length(g.buffer)) matches"
+  @debug "APPLYING $(length(g.buffer_new)) matches"
   maybelock!(g) do
-    while !isempty(g.buffer)
+    while !isempty(g.buffer_new)
 
       if params.goal(g)
         @debug "Goal reached"
@@ -191,13 +192,36 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
         return
       end
 
-      bindings = pop!(g.buffer)
-      id, rule_idx = bindings[0]
+      # @show g.buffer_new
+
+      delimiter = g.buffer_new[end]
+      @assert delimiter == 0xffffffffffffffffffffffffffffffff
+      n = length(g.buffer_new) - 1
+
+      next_delimiter_idx = 0
+      n_elems = 0
+      for i in n:-1:1
+        n_elems += 1
+        if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
+          n_elems -= 1
+          next_delimiter_idx = i
+          break
+        end
+      end
+
+      match_info = g.buffer_new[next_delimiter_idx + 1]
+      id = v_pair_first(match_info)
+      rule_idx = reinterpret(Int, v_pair_last(match_info))
       direction = sign(rule_idx)
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
 
+      bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
+      # @show bindings
+
       halt_reason = apply_rule!(bindings, g, rule, id, direction)
+
+      resize!(g.buffer_new, next_delimiter_idx)
 
       if !isnothing(halt_reason)
         rep.reason = halt_reason

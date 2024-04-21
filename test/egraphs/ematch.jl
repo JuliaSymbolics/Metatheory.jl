@@ -125,6 +125,14 @@ end
   r = @rule f(~a, ~a) --> true
   @test r.ematcher!(g, 0, g.root) == 0
   @test r.ematcher_new!(g, 0, g.root) == 0
+
+  g = EGraph(:(f(2, 2)))
+  @test r.ematcher!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root) == 1
+
+  g = EGraph(:(f(h(3, 4), h(3, 4))))
+  @test r.ematcher!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root) == 1
 end
 
 
