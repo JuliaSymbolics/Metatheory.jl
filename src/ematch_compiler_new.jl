@@ -19,12 +19,11 @@ function ematch_compile(p, direction)
 
   push!(program, yield_expr(patvar_to_addr, direction))
 
-  enode_iter_indexes = Ref(fill(1, memsize[]))
   quote
     function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id)::Int
       # Copy and empty the memory 
       $(make_memory(memsize[], first_nonground)...)
-      enode_iter_indexes = ($enode_iter_indexes)[]
+      $([:($(Symbol(:enode_idx, i)) = 1) for i in 1:memsize[]]...)
 
       n_matches = 0
       # Backtracking stack
@@ -170,10 +169,10 @@ function bind_expr(addr, p::PatExpr, memrange)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
-    if enode_iter_indexes[$addr] <= eclass_length
+    if $(Symbol(:enode_idx, addr)) <= eclass_length
       push!(stack, pc)
 
-      n = eclass.nodes[enode_iter_indexes[$addr]]
+      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       v_flags(n) == $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
       v_signature(n) == $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
@@ -182,17 +181,17 @@ function bind_expr(addr, p::PatExpr, memrange)
       # Node has matched.
       $([:($(Symbol(:σ, j)) = v_children(n)[$i]) for (i, j) in enumerate(memrange)]...)
       pc += 1
-      enode_iter_indexes[$addr] += 1
+      $(Symbol(:enode_idx, addr)) += 1
       @goto compute
 
       @label $(Symbol(:skip_node, addr))
       # This node did not match. Try next node and backtrack.
-      enode_iter_indexes[$addr] += 1
+      $(Symbol(:enode_idx, addr)) += 1
       @goto backtrack
     end
 
     # # Restart from first option
-    enode_iter_indexes[$addr] = 1
+    $(Symbol(:enode_idx, addr)) = 1
     @goto backtrack
   end
 end
@@ -222,27 +221,27 @@ function check_var_expr(addr, T::Type)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
-    if enode_iter_indexes[$addr] <= eclass_length
+    if $(Symbol(:enode_idx, addr)) <= eclass_length
       push!(stack, pc)
 
-      n = eclass.nodes[enode_iter_indexes[$addr]]
+      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       if !v_isexpr(n)
         hn = Metatheory.EGraphs.get_constant(g, v_head(n))
         if hn isa $T
-          enode_iter_indexes[$addr] += 1
+          $(Symbol(:enode_idx, addr)) += 1
           pc += 1
           @goto compute
         end
       end
 
       # This node did not match. Try next node and backtrack.
-      enode_iter_indexes[$addr] += 1
+      $(Symbol(:enode_idx, addr)) += 1
       @goto backtrack
     end
 
     # Restart from first option
-    enode_iter_indexes[$addr] = 1
+    $(Symbol(:enode_idx, addr)) = 1
     @goto backtrack
   end
 end
@@ -278,23 +277,23 @@ end
 
 function yield_expr(patvar_to_addr, direction)
   # makedict = [
-  #   :(b = Metatheory.assoc(b, $i, ($(Symbol(:σ, addr)), enode_iter_indexes[$addr]))) for
+  #   :(b = Metatheory.assoc(b, $i, ($(Symbol(:σ, addr)), $(Symbol(:enode_idx, addr))))) for
   #   (i, addr) in enumerate(patvar_to_addr)
   # ]
   push_exprs = [
-    :(push!(g.buffer_new, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, enode_iter_indexes[$addr])))) for
+    :(push!(g.buffer_new, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)))))) for
     addr in patvar_to_addr
   ]
   quote
-    Metatheory.EGraphs.maybelock!(g) do
-      b = Metatheory.Bindings()
-      # push!(g.buffer, Metatheory.assoc(b, 0, (root_id, rule_idx * $direction)))
-      push!(g.buffer_new, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
-      $(push_exprs...)
-      # Add delimiter to buffer. 
-      push!(g.buffer_new, 0xffffffffffffffffffffffffffffffff)
-      n_matches += 1
-    end
+    g.needslock && lock(g.buffer_lock)
+    b = Metatheory.Bindings()
+    # push!(g.buffer, Metatheory.assoc(b, 0, (root_id, rule_idx * $direction)))
+    push!(g.buffer_new, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
+    $(push_exprs...)
+    # Add delimiter to buffer. 
+    push!(g.buffer_new, 0xffffffffffffffffffffffffffffffff)
+    n_matches += 1
+    g.needslock && unlock(g.buffer_lock)
     @goto backtrack
   end
 end
