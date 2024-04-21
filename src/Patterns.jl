@@ -85,13 +85,13 @@ struct PatExpr <: AbstractPat
   Behaves like an e-node to not re-allocate memory when doing e-graph lookups and instantiation 
   in case of cache hits in the e-graph hashcons
   """
-  n::VecExpr 
-  function PatExpr(iscall, op, args::Vector) 
+  n::VecExpr
+  function PatExpr(iscall, op, args::Vector)
     op_hash = hash(op)
-    qop, qop_hash = should_quote_operation(op) ? (nameof(op), hash(nameof(op))) : (op, op_hash) 
+    qop, qop_hash = should_quote_operation(op) ? (nameof(op), hash(nameof(op))) : (op, op_hash)
     ar = length(args)
     signature = hash(qop, hash(ar))
-    
+
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)
     iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
