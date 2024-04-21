@@ -349,7 +349,12 @@ macro rule(args...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote
       $(__source__)
-      DynamicRule($(esc(lhs)), $rhs, $(QuoteNode(rhs_consequent)))
+      DynamicRule(
+        $(esc(lhs)),
+        $rhs,
+        $(__module__).eval(($ematch_compile)($(esc(lhs)), 1)),
+        $(QuoteNode(rhs_consequent)),
+      )
     end
   end
 
