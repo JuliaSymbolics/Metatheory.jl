@@ -18,13 +18,13 @@ function ematch_compile(p, direction)
   ematch_compile!(first_nonground, ground_terms_to_addr, patvar_to_addr, program, memsize, p)
 
   push!(program, yield_expr(patvar_to_addr, direction))
-  σ = Ref(fill(-1, memsize[]))
+
+  enode_iter_indexes = Ref(fill(1, memsize[]))
   quote
     function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id)::Int
       # Copy and empty the memory 
-      σ = ($σ)[]
-      fill!(σ, -1)
-      σ[$first_nonground] = root_id
+      $(make_memory(memsize[], first_nonground)...)
+      enode_iter_indexes = ($enode_iter_indexes)[]
 
       n_matches = 0
       # Backtracking stack
@@ -45,7 +45,7 @@ function ematch_compile(p, direction)
       # Checking if the current value 
       $([:(
         begin
-          # @show σ
+          # println("σ = ", [$([:($(Symbol(:σ, i))) for i in 1:memsize[]]...)])
           # println("CURRENT PC = $pc")
           if pc == $i
             $code
@@ -64,8 +64,16 @@ function ematch_compile(p, direction)
       return -1
     end
   end
-
 end
+
+"""
+Create a vector of assignment expressions in the form of 
+`σi = 0x0000000000000000` where `i`` is a number from 1 to n. 
+If `i == first_nonground`, create an expression `σi = root_id`, 
+where root_id is a parameter of the ematching function, defined 
+in scope. 
+"""
+make_memory(n, first_nonground) = [:($(Symbol(:σ, i)) = $(i == first_nonground ? :root_id : Id(0))) for i in 1:n]
 
 # ==============================================================
 # Ground Term E-Matchers
@@ -76,7 +84,7 @@ function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, p:
   if !haskey(ground_terms_to_addr, p)
     # If the instruction for searching the constant literal
     # has not already been inserted in the program: 
-    # Remember that it has been searched and its stored in σ[addr]
+    # Remember that it has been searched and its stored in σaddr
     ground_terms_to_addr[p] = addr
     # Add the lookup instruction to the program
     push!(program, lookup_expr(addr, p))
@@ -84,25 +92,25 @@ function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, p:
   end
 end
 
+ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pattern::AbstractPat) = nothing
+
 # Ground e-matchers
 function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pattern::PatExpr)
-  if !haskey(ground_terms_to_addr, pattern)
-    # If the instruction for searching the term
-    # has not already been inserted in the program:
-    ground_terms_to_addr[pattern] = addr
+  if haskey(ground_terms_to_addr, pattern)
+    return
+  end
 
-    if isground(pattern)
-      # Remember that it has been searched and its stored in σ[addr]
-      ground_terms_to_addr[pattern] = addr
-      # Add the lookup instruction to the program
-      push!(program, lookup_expr(addr, pattern))
-      # Memory needs one more register 
-      memsize[] += 1
-    else
-      # Search for ground patterns in the children.
-      for child_pattern in children(pattern)
-        ematch_compile_ground!(memsize[], ground_terms_to_addr, program, memsize, child_pattern)
-      end
+  if isground(pattern)
+    # Remember that it has been searched and its stored in σaddr
+    ground_terms_to_addr[pattern] = addr
+    # Add the lookup instruction to the program
+    push!(program, lookup_expr(addr, pattern))
+    # Memory needs one more register 
+    memsize[] += 1
+  else
+    # Search for ground patterns in the children.
+    for child_pattern in children(pattern)
+      ematch_compile_ground!(memsize[], ground_terms_to_addr, program, memsize, child_pattern)
     end
   end
 end
@@ -113,11 +121,20 @@ end
 
 function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::PatExpr)
   if haskey(ground_terms_to_addr, pattern)
+    @show ground_terms_to_addr pattern
     push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
     return
   end
 
-  # TODO continue...
+  c = memsize[]
+  nargs = arity(pattern)
+  memrange = c:(c + nargs - 1)
+  memsize[] += nargs
+
+  push!(program, bind_expr(addr, pattern, memrange))
+  for (i, child_pattern) in enumerate(arguments(pattern))
+    ematch_compile!(memrange[i], ground_terms_to_addr, patvar_to_addr, program, memsize, child_pattern)
+  end
 end
 
 
@@ -137,7 +154,7 @@ function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, me
 end
 
 function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal)
-  push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
+  push!(program, check_eq_expr(addr, ground_terms_to_addr[literal]))
 end
 
 function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::AbstractPattern)
@@ -149,6 +166,36 @@ end
 # Actual Instructions
 # ==============================================================
 
+function bind_expr(addr, p::PatExpr, memrange)
+  quote
+    eclass = g[$(Symbol(:σ, addr))]
+    eclass_length = length(eclass.nodes)
+    if enode_iter_indexes[$addr] <= eclass_length
+      push!(stack, pc)
+
+      n = eclass.nodes[enode_iter_indexes[$addr]]
+
+      v_flags(n) == $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
+      v_signature(n) == $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
+      v_head(n) == $(v_head(p.n)) || (v_head(n) == $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr)))
+
+      # Node has matched.
+      $([:($(Symbol(:σ, j)) = v_children(n)[$i]) for (i, j) in enumerate(memrange)]...)
+      pc += 1
+      enode_iter_indexes[$addr] += 1
+      @goto compute
+
+      @label $(Symbol(:skip_node, addr))
+      # This node did not match. Try next node and backtrack.
+      enode_iter_indexes[$addr] += 1
+      @goto backtrack
+    end
+
+    # # Restart from first option
+    enode_iter_indexes[$addr] = 1
+    @goto backtrack
+  end
+end
 
 function check_var_expr(addr, predicate::typeof(alwaystrue))
   quote
@@ -160,8 +207,8 @@ end
 
 function check_var_expr(addr, predicate::Function)
   quote
-    eclass = g[σ[$addr]]
-    if predicate(eclass)
+    eclass = g[$(Symbol(:σ, addr))]
+    if ($predicate)(g, eclass)
       # TODO bind first literal enode index 
       pc += 1
       @goto compute
@@ -173,16 +220,16 @@ end
 
 function check_var_expr(addr, T::Type)
   quote
-    eclass = g[σ[$addr]]
+    eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
     if enode_iter_indexes[$addr] <= eclass_length
       push!(stack, pc)
 
       n = eclass.nodes[enode_iter_indexes[$addr]]
 
-      if !Metatheory.VecExpr.v_isexpr(n)
-        hn = Metatheory.EGraphs.get_constant(g, Metatheory.VecExpr.v_head(n))
-        if hn isa T
+      if !v_isexpr(n)
+        hn = Metatheory.EGraphs.get_constant(g, v_head(n))
+        if hn isa $T
           enode_iter_indexes[$addr] += 1
           pc += 1
           @goto compute
@@ -208,7 +255,7 @@ backtracks otherwise.
 """
 function check_eq_expr(addr_a, addr_b)
   quote
-    if σ[$addr_a] == σ[$addr_b]
+    if $(Symbol(:σ, addr_a)) == $(Symbol(:σ, addr_b))
       pc += 1
       @goto compute
     else
@@ -221,7 +268,7 @@ function lookup_expr(addr, p)
   quote
     ecid = Metatheory.EGraphs.lookup_pat(g, $p)
     if ecid > 0
-      σ[$addr] = ecid
+      $(Symbol(:σ, addr)) = ecid
       pc += 1
       @goto compute
     end
@@ -230,12 +277,22 @@ function lookup_expr(addr, p)
 end
 
 function yield_expr(patvar_to_addr, direction)
-  makedict = [:(b = assoc(b, $i, (σ[$addr], n[$addr]))) for (i, addr) in enumerate(patvar_to_addr)]
+  # makedict = [
+  #   :(b = Metatheory.assoc(b, $i, ($(Symbol(:σ, addr)), enode_iter_indexes[$addr]))) for
+  #   (i, addr) in enumerate(patvar_to_addr)
+  # ]
+  push_exprs = [
+    :(push!(g.buffer_new, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, enode_iter_indexes[$addr])))) for
+    addr in patvar_to_addr
+  ]
   quote
     Metatheory.EGraphs.maybelock!(g) do
       b = Metatheory.Bindings()
-      $(makedict...)
-      push!(g.buffer, Metatheory.assoc(b, 0, (root_id, rule_idx * $direction)))
+      # push!(g.buffer, Metatheory.assoc(b, 0, (root_id, rule_idx * $direction)))
+      push!(g.buffer_new, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
+      $(push_exprs...)
+      # Add delimiter to buffer. 
+      push!(g.buffer_new, 0xffffffffffffffffffffffffffffffff)
       n_matches += 1
     end
     @goto backtrack

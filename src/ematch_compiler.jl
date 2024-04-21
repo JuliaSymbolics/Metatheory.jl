@@ -33,7 +33,7 @@ end
 function predicate_ematcher(p::PatVar, pred)
   function predicate_ematcher(next, g, id::Id, bindings)
     eclass = g[id]
-    if pred(eclass)
+    if pred(g, eclass)
       enode_idx = 0
       # TODO Is this for cycle needed?
       for (j, n) in enumerate(eclass)

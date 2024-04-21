@@ -3,7 +3,7 @@ module Metatheory
 using Base.Meta
 using Reexport
 
-@inline alwaystrue(x) = true
+@inline alwaystrue(x...) = true
 
 
 function to_expr end

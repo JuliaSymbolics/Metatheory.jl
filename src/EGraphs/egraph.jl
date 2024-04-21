@@ -123,6 +123,7 @@ mutable struct EGraph{ExpressionType,Analysis}
   needslock::Bool
   "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
   buffer::Vector{Bindings}
+  buffer_new::Vector{UInt128}
   "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
   merges_buffer::Vector{Id}
   lock::ReentrantLock
@@ -146,6 +147,7 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     false,
     needslock,
     Bindings[],
+    UInt128[],
     Id[],
     ReentrantLock(),
   )
@@ -270,7 +272,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   haskey(g.memo, h) && return g.memo[h]
 
-  if should_copy 
+  if should_copy
     n = copy(n)
   end
 
