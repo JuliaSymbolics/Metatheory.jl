@@ -1,7 +1,8 @@
 # Full e-matcher
-function ematch_compile(p, direction)
-  pvars = patvars(p)
-  setdebrujin!(p, pvars)
+function ematch_compile(p, pvars, direction)
+  dump(p)
+
+  @show p
 
   npvars = length(pvars)
 
@@ -19,8 +20,12 @@ function ematch_compile(p, direction)
 
   push!(program, yield_expr(patvar_to_addr, direction))
 
+  pat_constants_checks = check_constant_exprs!(Expr[], p)
+
   quote
     function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id)::Int
+      # If the constants in the pattern are not all present in the e-graph, just return 
+      $(pat_constants_checks...)
       # Copy and empty the memory 
       $(make_memory(memsize[], first_nonground)...)
       $([:($(Symbol(:enode_idx, i)) = 1) for i in 1:memsize[]]...)
@@ -63,6 +68,19 @@ function ematch_compile(p, direction)
       return -1
     end
   end
+end
+
+
+check_constant_exprs!(buf, p) = push!(buf, :(has_constant(g, $(hash(p))) || return 0))
+check_constant_exprs!(buf, ::AbstractPat) = buf
+function check_constant_exprs!(buf, p::PatExpr)
+  if !(p.head isa AbstractPat)
+    push!(buf, :(has_constant(g, $(p.head_hash)) || has_constant(g, $(p.quoted_head_hash)) || return 0))
+  end
+  for child in children(p)
+    check_constant_exprs!(buf, child)
+  end
+  buf
 end
 
 """
@@ -120,7 +138,6 @@ end
 
 function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::PatExpr)
   if haskey(ground_terms_to_addr, pattern)
-    @show ground_terms_to_addr pattern
     push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
     return
   end
@@ -152,12 +169,14 @@ function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, me
   push!(program, instruction)
 end
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal)
-  push!(program, check_eq_expr(addr, ground_terms_to_addr[literal]))
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, ::AbstractPat)
+  # Pattern not supported.
+  push!(program, :(println("NOT SUPPORTED"); return 0))
 end
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::AbstractPattern)
-  throw(DomainError(pattern, "Pattern not supported in e-graph pattern matching."))
+
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal)
+  push!(program, check_eq_expr(addr, ground_terms_to_addr[literal]))
 end
 
 
@@ -198,7 +217,13 @@ end
 
 function check_var_expr(addr, predicate::typeof(alwaystrue))
   quote
-    # TODO bind first literal enode index 
+    eclass = g[$(Symbol(:σ, addr))]
+    for (j, n) in enumerate(eclass.nodes)
+      if !v_isexpr(n)
+        $(Symbol(:enode_idx, addr)) = j + 1
+        break
+      end
+    end
     pc += 1
     @goto compute
   end
@@ -208,7 +233,12 @@ function check_var_expr(addr, predicate::Function)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
-      # TODO bind first literal enode index 
+      for (j, n) in enumerate(eclass.nodes)
+        if !v_isexpr(n)
+          $(Symbol(:enode_idx, addr)) = j + 1
+          break
+        end
+      end
       pc += 1
       @goto compute
     end
@@ -263,6 +293,7 @@ function check_eq_expr(addr_a, addr_b)
   end
 end
 
+lookup_expr(addr, p::Symbol) = lookup_expr(addr, QuoteNode(p))
 function lookup_expr(addr, p)
   quote
     ecid = Metatheory.EGraphs.lookup_pat(g, $p)
@@ -276,12 +307,8 @@ function lookup_expr(addr, p)
 end
 
 function yield_expr(patvar_to_addr, direction)
-  # makedict = [
-  #   :(b = Metatheory.assoc(b, $i, ($(Symbol(:σ, addr)), $(Symbol(:enode_idx, addr))))) for
-  #   (i, addr) in enumerate(patvar_to_addr)
-  # ]
   push_exprs = [
-    :(push!(g.buffer_new, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)))))) for
+    :(push!(g.buffer_new, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
     addr in patvar_to_addr
   ]
   quote
@@ -298,53 +325,3 @@ function yield_expr(patvar_to_addr, direction)
   end
 end
 
-# ==============================================================
-# ==============================================================
-# ==============================================================
-
-# DEMO
-
-quote
-  function ematch_compiler()
-    is_var_bound = fill(false, npvars)
-    quote
-      function ematch_rule()::Int
-        n_matches = 0
-        stack = Int[]
-        push!(stack, 0)
-        pc = 1
-        options = fill(1, 3)
-
-        @label compute
-
-        if pc == 0
-          # Return 
-          return n_matches
-        elseif pc == 1
-          # instead of for loop
-          if options[1] < num_options_1
-            push!(stack, 1)
-            if matches(aa)
-              options[1] += 1
-              pc += 1
-              @goto compute
-            end
-            options[1] += 1
-            @goto backtrack
-          end
-          options[1] = 1 # restart from first option
-          @goto backtrack
-        elseif pc == 2
-          bbb
-        elseif pc == 3
-          println("success!")
-          @goto backtrack
-        end
-
-        @label backtrack
-        pc = pop!(stack)
-        @goto compute
-      end
-    end
-  end
-end

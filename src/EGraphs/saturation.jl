@@ -88,8 +88,15 @@ function eqsat_search!(
 
       @debug "Matching" rule ids
 
-      for i in ids
-        n_matches += rule.ematcher_new!(g, rule_idx, i)
+      if rule isa BidirRule
+        for i in ids
+          n_matches += rule.ematcher_new_left!(g, rule_idx, i)
+          n_matches += rule.ematcher_new_right!(g, rule_idx, i)
+        end
+      else
+        for i in ids
+          n_matches += rule.ematcher_new!(g, rule_idx, i)
+        end
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
       inform!(scheduler, rule_idx, n_matches)
@@ -107,7 +114,7 @@ function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::Any)::Id
 end
 
 instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
-function instantiate_enode!(bindings::Bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
+function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   add_constant!(g, head(p))
 
   for i in v_children_range(p.n)
@@ -132,7 +139,7 @@ function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
   nothing
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
+function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   push!(g.merges_buffer, id)
   push!(g.merges_buffer, instantiate_enode!(bindings, g, pat_to_inst))
@@ -140,7 +147,7 @@ function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::Id, 
 end
 
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
+function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
@@ -213,11 +220,11 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       id = v_pair_first(match_info)
       rule_idx = reinterpret(Int, v_pair_last(match_info))
       direction = sign(rule_idx)
+      # @show direction
       rule_idx = abs(rule_idx)
       rule = theory[rule_idx]
 
       bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
-      # @show bindings
 
       halt_reason = apply_rule!(bindings, g, rule, id, direction)
 

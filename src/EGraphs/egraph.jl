@@ -176,6 +176,8 @@ end
 
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
+
+using ..Patterns
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
   h = hash(c)
   get!(g.constants, h, c)
@@ -204,7 +206,7 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(collect(d)) do (k, vect)
+  cs = map(sort!(collect(d); by = first)) do (k, vect)
     "  $k => [$(Base.join(vect, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
@@ -274,6 +276,12 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   if should_copy
     n = copy(n)
+  end
+
+  if v_head(n) == 0x6b268fa6aca9af40 &&
+     extract!(g, astsize, v_children(n)[1]) == 2 &&
+     extract!(g, astsize, v_children(n)[2]) == :(log(a))
+    error("PORCO DIO LURIDO")
   end
 
   id = push!(g.uf) # create new singleton eclass
