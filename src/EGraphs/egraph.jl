@@ -278,12 +278,6 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
     n = copy(n)
   end
 
-  if v_head(n) == 0x6b268fa6aca9af40 &&
-     extract!(g, astsize, v_children(n)[1]) == 2 &&
-     extract!(g, astsize, v_children(n)[2]) == :(log(a))
-    error("PORCO DIO LURIDO")
-  end
-
   id = push!(g.uf) # create new singleton eclass
 
   if v_isexpr(n)
