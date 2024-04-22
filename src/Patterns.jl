@@ -7,16 +7,12 @@ using Metatheory.VecExprModule
 
 import Metatheory: to_expr
 
+export AbstractPat, PatVar, PatExpr, PatSegment, patvars, setdebrujin!, isground, constants
+
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
 """
 abstract type AbstractPat end
-
-struct UnsupportedPatternException <: Exception
-  p::AbstractPat
-end
-
-Base.showerror(io::IO, e::UnsupportedPatternException) = print(io, "Pattern ", e.p, " is unsupported in this context")
 
 
 Base.:(==)(a::AbstractPat, b::AbstractPat) = false
@@ -119,7 +115,7 @@ TermInterface.iscall(p::PatExpr) = v_iscall(p.n)
 TermInterface.arity(p::PatExpr) = length(p.children)
 
 TermInterface.maketerm(::Type{PatExpr}, operation, arguments, type = Any, metadata = (iscall = true,)) =
-  PatExpr(iscall, operation, children...)
+  PatExpr(metadata.iscall, operation, arguments...)
 
 # ---------------------
 # # Pattern Variables.
@@ -167,17 +163,6 @@ function to_expr(x::PatExpr)
 end
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
-
-
-# include("rules/patterns.jl")
-export AbstractPat
-export PatVar
-export PatExpr
-export PatSegment
-export patvars
-export setdebrujin!
-export isground
-export UnsupportedPatternException
 
 
 end

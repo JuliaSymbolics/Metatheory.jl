@@ -295,7 +295,7 @@ end
     ~a * ~b --> ~b * ~a
   end
 
-  Base.iszero(ec::EClass) = in_same_class(g, zero_id, ec.id)
+  Base.iszero(g::EGraph, ec::EClass) = in_same_class(g, zero_id, ec.id)
 
   saturate!(g, some_theory)
 

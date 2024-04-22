@@ -104,9 +104,11 @@ with the EGraphs backend.
   right
   patvars::Vector{Symbol}
   ematcher!
+  ematcher_new_left!
+  ematcher_new_right!
 end
 
-function EqualityRule(l, r)
+function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
   pvars = patvars(l) ∪ patvars(r)
   extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
   if !isempty(extravars)
@@ -115,7 +117,7 @@ function EqualityRule(l, r)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
 
-  EqualityRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
+  EqualityRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)), ematcher_new_left!, ematcher_new_right!)
 end
 
 
@@ -140,9 +142,11 @@ backend. If two terms, corresponding to the left and right hand side of an
   right
   patvars::Vector{Symbol}
   ematcher!
+  ematcher_new_left!
+  ematcher_new_right!
 end
 
-function UnequalRule(l, r)
+function UnequalRule(l, r, ematcher_new_left!, ematcher_new_right!)
   pvars = patvars(l) ∪ patvars(r)
   extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
   if !isempty(extravars)
@@ -151,7 +155,7 @@ function UnequalRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  UnequalRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
+  UnequalRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)), ematcher_new_left!, ematcher_new_right!)
 end
 
 Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
