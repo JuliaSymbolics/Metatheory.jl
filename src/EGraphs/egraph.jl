@@ -168,12 +168,6 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 @inline make(::EGraph, ::VecExpr) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
 
-
-function maybelock!(f::Function, g::EGraph)
-  g.needslock ? lock(f, g.buffer_lock) : f()
-end
-
-
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
 

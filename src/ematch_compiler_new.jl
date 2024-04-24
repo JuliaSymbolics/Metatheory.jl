@@ -1,8 +1,8 @@
 # Full e-matcher
 function ematch_compile(p, pvars, direction)
-  dump(p)
+  # dump(p)
 
-  @show p
+  # @show p
 
   npvars = length(pvars)
 
@@ -32,29 +32,29 @@ function ematch_compile(p, pvars, direction)
 
       n_matches = 0
       # Backtracking stack
-      stack = Int[]
+      stack = Vector{UInt16}(undef, 0)
       # Instruction 0 is used to return when  the backtracking stack is empty. 
       # We start from 1.
-      push!(stack, 0)
-      pc = 1
+      push!(stack, 0x0000)
+      pc = 0x0001
 
       # We goto this label when:
       # 1) After backtracking, the pc is popped from the stack.
       # 2) When an instruction succeeds, the pc is incremented.  
       @label compute
       # Instruction 0 is used to return when  the backtracking stack is empty. 
-      pc == 0 && return n_matches
+      pc === 0x0000 && return n_matches
 
       # For each instruction in the program, create an if statement, 
       # Checking if the current value 
       $([:(
-        begin
-          # println("σ = ", [$([:($(Symbol(:σ, i))) for i in 1:memsize[]]...)])
-          # println("CURRENT PC = $pc")
-          if pc == $i
-            $code
-          end
+        # begin
+        # println("σ = ", [$([:($(Symbol(:σ, i))) for i in 1:memsize[]]...)])
+        # println("CURRENT PC = $pc")
+        if pc === $(UInt16(i))
+          $code
         end
+        # end
       ) for (i, code) in enumerate(program)]...)
 
       error("unreachable code!")
@@ -198,8 +198,8 @@ function bind_expr(addr, p::PatExpr, memrange)
       v_head(n) == $(v_head(p.n)) || (v_head(n) == $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr)))
 
       # Node has matched.
-      $([:($(Symbol(:σ, j)) = v_children(n)[$i]) for (i, j) in enumerate(memrange)]...)
-      pc += 1
+      $([:($(Symbol(:σ, j)) = n[$i + $VECEXPR_META_LENGTH]) for (i, j) in enumerate(memrange)]...)
+      pc += 0x0001
       $(Symbol(:enode_idx, addr)) += 1
       @goto compute
 
@@ -224,7 +224,7 @@ function check_var_expr(addr, predicate::typeof(alwaystrue))
         break
       end
     end
-    pc += 1
+    pc += 0x0001
     @goto compute
   end
 end
@@ -239,7 +239,7 @@ function check_var_expr(addr, predicate::Function)
           break
         end
       end
-      pc += 1
+      pc += 0x0001
       @goto compute
     end
     @goto backtrack
@@ -260,7 +260,7 @@ function check_var_expr(addr, T::Type)
         hn = Metatheory.EGraphs.get_constant(g, v_head(n))
         if hn isa $T
           $(Symbol(:enode_idx, addr)) += 1
-          pc += 1
+          pc += 0x0001
           @goto compute
         end
       end
@@ -285,7 +285,7 @@ backtracks otherwise.
 function check_eq_expr(addr_a, addr_b)
   quote
     if $(Symbol(:σ, addr_a)) == $(Symbol(:σ, addr_b))
-      pc += 1
+      pc += 0x0001
       @goto compute
     else
       @goto backtrack
@@ -299,7 +299,7 @@ function lookup_expr(addr, p)
     ecid = Metatheory.EGraphs.lookup_pat(g, $p)
     if ecid > 0
       $(Symbol(:σ, addr)) = ecid
-      pc += 1
+      pc += 0x0001
       @goto compute
     end
     @goto backtrack
@@ -312,15 +312,13 @@ function yield_expr(patvar_to_addr, direction)
     addr in patvar_to_addr
   ]
   quote
-    g.needslock && lock(g.buffer_lock)
-    b = Metatheory.Bindings()
-    # push!(g.buffer, Metatheory.assoc(b, 0, (root_id, rule_idx * $direction)))
+    g.needslock && lock(g.lock)
     push!(g.buffer_new, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
     $(push_exprs...)
     # Add delimiter to buffer. 
     push!(g.buffer_new, 0xffffffffffffffffffffffffffffffff)
     n_matches += 1
-    g.needslock && unlock(g.buffer_lock)
+    g.needslock && unlock(g.lock)
     @goto backtrack
   end
 end
