@@ -64,9 +64,10 @@ function eqsat_search!(
 )::Int
   n_matches = 0
 
-  maybelock!(g) do
-    empty!(g.buffer_new)
-  end
+  g.needslock && lock(g.lock)
+  empty!(g.buffer_new)
+  g.needslock && unlock(g.lock)
+
 
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
@@ -190,65 +191,66 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   @assert isempty(g.merges_buffer)
 
   @debug "APPLYING $(length(g.buffer_new)) matches"
-  maybelock!(g) do
-    while !isempty(g.buffer_new)
+  g.needslock && lock(g.lock)
+  while !isempty(g.buffer_new)
 
-      if params.goal(g)
-        @debug "Goal reached"
-        rep.reason = :goalreached
-        return
-      end
+    if params.goal(g)
+      @debug "Goal reached"
+      rep.reason = :goalreached
+      return
+    end
 
-      # @show g.buffer_new
+    # @show g.buffer_new
 
-      delimiter = g.buffer_new[end]
-      @assert delimiter == 0xffffffffffffffffffffffffffffffff
-      n = length(g.buffer_new) - 1
+    delimiter = g.buffer_new[end]
+    @assert delimiter == 0xffffffffffffffffffffffffffffffff
+    n = length(g.buffer_new) - 1
 
-      next_delimiter_idx = 0
-      n_elems = 0
-      for i in n:-1:1
-        n_elems += 1
-        if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
-          n_elems -= 1
-          next_delimiter_idx = i
-          break
-        end
-      end
-
-      match_info = g.buffer_new[next_delimiter_idx + 1]
-      id = v_pair_first(match_info)
-      rule_idx = reinterpret(Int, v_pair_last(match_info))
-      direction = sign(rule_idx)
-      # @show direction
-      rule_idx = abs(rule_idx)
-      rule = theory[rule_idx]
-
-      bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
-
-      halt_reason = apply_rule!(bindings, g, rule, id, direction)
-
-      resize!(g.buffer_new, next_delimiter_idx)
-
-      if !isnothing(halt_reason)
-        rep.reason = halt_reason
-        return
-      end
-
-      if params.enodelimit > 0 && length(g.memo) > params.enodelimit
-        @debug "Too many enodes"
-        rep.reason = :enodelimit
+    next_delimiter_idx = 0
+    n_elems = 0
+    for i in n:-1:1
+      n_elems += 1
+      if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
+        n_elems -= 1
+        next_delimiter_idx = i
         break
       end
     end
-  end
-  maybelock!(g) do
-    while !isempty(g.merges_buffer)
-      l = pop!(g.merges_buffer)
-      r = pop!(g.merges_buffer)
-      union!(g, l, r)
+
+    match_info = g.buffer_new[next_delimiter_idx + 1]
+    id = v_pair_first(match_info)
+    rule_idx = reinterpret(Int, v_pair_last(match_info))
+    direction = sign(rule_idx)
+    # @show direction
+    rule_idx = abs(rule_idx)
+    rule = theory[rule_idx]
+
+    bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
+
+    halt_reason = apply_rule!(bindings, g, rule, id, direction)
+
+    resize!(g.buffer_new, next_delimiter_idx)
+
+    if !isnothing(halt_reason)
+      rep.reason = halt_reason
+      return
+    end
+
+    if params.enodelimit > 0 && length(g.memo) > params.enodelimit
+      @debug "Too many enodes"
+      rep.reason = :enodelimit
+      break
     end
   end
+  g.needslock && unlock(g.lock)
+
+  g.needslock && lock(g.lock)
+  while !isempty(g.merges_buffer)
+    l = pop!(g.merges_buffer)
+    r = pop!(g.merges_buffer)
+    union!(g, l, r)
+  end
+  g.needslock && unlock(g.lock)
 end
 
 

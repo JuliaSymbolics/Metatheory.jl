@@ -3,7 +3,7 @@ module EMatchCompiler
 using TermInterface
 using ..Patterns
 using ..VecExprModule
-using Metatheory: assoc, lookup_pat, LL, maybelock!, has_constant, get_constant
+using Metatheory: assoc, lookup_pat, LL, has_constant, get_constant
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, eclass_id::Id, bindings)
@@ -128,11 +128,12 @@ function ematcher_yield(p, npvars::Int, direction::Int)
   function ematcher_yield(g, rule_idx, id)::Int
     n_matches = 0
     em(g, id, EMPTY_BINDINGS) do b, n
-      maybelock!(g) do
-        push!(g.buffer, assoc(b, 0, (id, rule_idx * direction)))
-        n_matches += 1
-      end
+      g.needslock && lock(g.lock)
+
+      push!(g.buffer, assoc(b, 0, (id, rule_idx * direction)))
+      n_matches += 1
     end
+    g.needslock && unlock(g.lock)
     n_matches
   end
 end

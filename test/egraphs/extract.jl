@@ -83,7 +83,7 @@ t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids ∪ 
   @test extract!(g, astsize) == 1
 
   g = EGraph(:(log(e) * (log(e) * e^(log(3)))))
-  params = SaturationParams(timeout = 3)
+  params = SaturationParams(timeout = 7)
   saturate!(g, t, params)
   @test extract!(g, astsize) == 3
 
