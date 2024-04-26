@@ -8,6 +8,7 @@ using Metatheory.Patterns: to_expr
 using Metatheory: cleanast, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
+const STACK_SIZE = 2048
 
 abstract type AbstractRule end
 # Must override
@@ -53,6 +54,7 @@ variables.
   patvars::Vector{Symbol}
   ematcher!
   ematcher_new!
+  ematcher_stack::Vector{UInt16}
 end
 
 function RewriteRule(l, r)
@@ -68,7 +70,8 @@ function RewriteRule(l, r, ematcher_new!)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new!)
+  ematcher_stack = Vector{UInt16}(undef, STACK_SIZE)
+  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new!, ematcher_stack)
 end
 
 Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
@@ -106,6 +109,7 @@ with the EGraphs backend.
   ematcher!
   ematcher_new_left!
   ematcher_new_right!
+  ematcher_stack::Vector{UInt16}
 end
 
 function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
@@ -116,8 +120,17 @@ function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
   end
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
+  ematcher_stack = Vector{UInt16}(undef, STACK_SIZE)
 
-  EqualityRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)), ematcher_new_left!, ematcher_new_right!)
+  EqualityRule(
+    l,
+    r,
+    pvars,
+    ematcher_yield_bidir(l, r, length(pvars)),
+    ematcher_new_left!,
+    ematcher_new_right!,
+    ematcher_stack,
+  )
 end
 
 
@@ -144,6 +157,7 @@ backend. If two terms, corresponding to the left and right hand side of an
   ematcher!
   ematcher_new_left!
   ematcher_new_right!
+  ematcher_stack::Vector{UInt16}
 end
 
 function UnequalRule(l, r, ematcher_new_left!, ematcher_new_right!)
@@ -155,7 +169,16 @@ function UnequalRule(l, r, ematcher_new_left!, ematcher_new_right!)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  UnequalRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)), ematcher_new_left!, ematcher_new_right!)
+  ematcher_stack = Vector{UInt16}(undef, STACK_SIZE)
+  UnequalRule(
+    l,
+    r,
+    pvars,
+    ematcher_yield_bidir(l, r, length(pvars)),
+    ematcher_new_left!,
+    ematcher_new_right!,
+    ematcher_stack,
+  )
 end
 
 Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
@@ -185,14 +208,16 @@ Dynamic rule
   patvars::Vector{Symbol} # useful set of pattern variables
   ematcher!
   ematcher_new!
+  ematcher_stack::Vector{UInt16}
 end
 
 function DynamicRule(l, r::Function, ematcher_new!, rhs_code = nothing)
   pvars = patvars(l)
   setdebrujin!(l, pvars)
   isnothing(rhs_code) && (rhs_code = repr(rhs_code))
+  ematcher_stack = Vector{UInt16}(undef, STACK_SIZE)
 
-  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new!)
+  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)), ematcher_new!, ematcher_stack)
 end
 
 

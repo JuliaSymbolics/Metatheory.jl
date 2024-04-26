@@ -47,7 +47,15 @@ function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
   end
 end
 
-function cached_ids(g::EGraph, p) # p is a literal
+function cached_ids(g::EGraph, p::PatLiteral) # p is a literal
+  id = lookup_pat(g, p)
+  id > 0 && return [id]
+  return []
+end
+
+
+function cached_ids(g::EGraph, p::PatVar)
+  error("Matches all e-graph!")
   id = lookup_pat(g, p)
   id > 0 && return [id]
   return []
@@ -92,18 +100,18 @@ function eqsat_search!(
       old_len = length(g.buffer_new)
       if rule isa BidirRule
         for i in ids
-          n_matches += rule.ematcher_new_left!(g, rule_idx, i)
-          n_matches += rule.ematcher_new_right!(g, rule_idx, i)
+          n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.ematcher_stack)
+          n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.ematcher_stack)
         end
       else
         for i in ids
-          n_matches += rule.ematcher_new!(g, rule_idx, i)
+          n_matches += rule.ematcher_new!(g, rule_idx, i, rule.ematcher_stack)
         end
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
-      if n_matches - prev_matches > 2 && rule_idx == 2
-        @debug buffer_readable(g, old_len)
-      end
+      # if n_matches - prev_matches > 2 && rule_idx == 2
+      #   @debug buffer_readable(g, old_len)
+      # end
       inform!(scheduler, rule_idx, n_matches)
     end
   end
@@ -150,10 +158,9 @@ function buffer_readable(g, limit)
 
 end
 
-function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::Any)::Id
-  # TODO avoid allocation
-  new_node_literal = Id[0, 0, 0, add_constant!(g, p)]
-  add!(g, new_node_literal, false)
+function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
+  add_constant!(g, p.value)
+  add!(g, p.n, true)
 end
 
 instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
