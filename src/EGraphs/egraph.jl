@@ -521,7 +521,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   id
 end
 
-function lookup_pat(g::EGraph, p::Any)::Id
-  h = hash(p)
-  has_constant(g, h) ? lookup(g, Id[0, 0, 0, h]) : 0
+function lookup_pat(g::EGraph, p::PatLiteral)::Id
+  h = last(p.n)
+  has_constant(g, h) ? lookup(g, p.n) : 0
 end

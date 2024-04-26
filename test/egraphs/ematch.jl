@@ -9,7 +9,7 @@ using Metatheory.Library
   g = EGraph(2)
   @test r.ematcher!(g, 0, g.root) == 1
 
-  @test r.ematcher_new!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
 end
 
 @testset "Composite Ground Terms" begin
@@ -19,18 +19,18 @@ end
   @test r.ematcher!(g, 0, Id(1)) == 0
   @test r.ematcher!(g, 0, Id(2)) == 0
 
-  @test r.ematcher_new!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, Id(1)) == 0
-  @test r.ematcher_new!(g, 0, Id(2)) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
 
   g = EGraph(:(f(2, 4)))
   @test r.ematcher!(g, 0, g.root) == 0
   @test r.ematcher!(g, 0, Id(1)) == 0
   @test r.ematcher!(g, 0, Id(2)) == 0
 
-  @test r.ematcher_new!(g, 0, g.root) == 0
-  @test r.ematcher_new!(g, 0, Id(1)) == 0
-  @test r.ematcher_new!(g, 0, Id(2)) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
 
 
   r = @rule f(2, h(3, 4)) --> true
@@ -39,9 +39,9 @@ end
   @test r.ematcher!(g, 0, Id(1)) == 0
   @test r.ematcher!(g, 0, Id(2)) == 0
 
-  @test r.ematcher_new!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, Id(1)) == 0
-  @test r.ematcher_new!(g, 0, Id(2)) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
 end
 
 @testset "Pattern Variables" begin
@@ -51,20 +51,20 @@ end
   @test r.ematcher!(g, 0, Id(1)) == 1
   @test r.ematcher!(g, 0, Id(2)) == 1
 
-  @test r.ematcher_new!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, Id(1)) == 1
-  @test r.ematcher_new!(g, 0, Id(2)) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 1
 end
 
 @testset "Type Assertions" begin
   r = @rule ~a::Int --> true
   g = EGraph(:(f(2, 1)))
   @test r.ematcher!(g, 0, g.root) == 0
-  @test r.ematcher_new!(g, 0, g.root) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
 
   g = EGraph(:3)
   @test r.ematcher!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
 
   new_id = addexpr!(g, :f)
   union!(g, g.root, new_id)
@@ -73,7 +73,7 @@ end
   union!(g, g.root, new_id)
 
   @test r.ematcher!(g, 0, g.root) == 2
-  @test r.ematcher_new!(g, 0, g.root) == 2
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 2
 end
 
 @testset "Predicate Assertions" begin
@@ -90,15 +90,15 @@ end
 
   g = EGraph(:(f(2, 1)))
   @test r.ematcher!(g, 0, g.root) == 0
-  @test r.ematcher_new!(g, 0, g.root) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
 
   g = EGraph(:2)
   @test r.ematcher!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
 
   g = EGraph(:3)
   @test r.ematcher!(g, 0, g.root) == 0
-  @test r.ematcher_new!(g, 0, g.root) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
 
   new_id = addexpr!(g, :f)
   union!(g, g.root, new_id)
@@ -107,7 +107,7 @@ end
   union!(g, g.root, new_id)
 
   @test r.ematcher!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
 end
 
 
@@ -118,21 +118,21 @@ end
   @test r.ematcher!(g, 0, Id(1)) == 0
   @test r.ematcher!(g, 0, Id(2)) == 0
 
-  @test r.ematcher_new!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, Id(1)) == 0
-  @test r.ematcher_new!(g, 0, Id(2)) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
 
   r = @rule f(~a, ~a) --> true
   @test r.ematcher!(g, 0, g.root) == 0
-  @test r.ematcher_new!(g, 0, g.root) == 0
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
 
   g = EGraph(:(f(2, 2)))
   @test r.ematcher!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
 
   g = EGraph(:(f(h(3, 4), h(3, 4))))
   @test r.ematcher!(g, 0, g.root) == 1
-  @test r.ematcher_new!(g, 0, g.root) == 1
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
 end
 
 

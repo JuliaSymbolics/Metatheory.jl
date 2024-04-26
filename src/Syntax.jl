@@ -85,12 +85,11 @@ end
 makeconsequent(x) = x
 # treat as a literal
 function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
-  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : x
+  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : PatLiteral(x)
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   h = head(ex)
-
 
   if iscall(ex)
     op = operation(ex)
@@ -352,7 +351,6 @@ macro rule(args...)
       lhs_pat = $lhs
       pvars = $(Patterns.patvars)(lhs_pat)
       setdebrujin!(lhs_pat, pvars)
-      # @show pvars
       DynamicRule($lhs, $rhs, $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)), $(QuoteNode(rhs_consequent)))
     end
   end
@@ -377,7 +375,6 @@ macro rule(args...)
       end
     end
   end
-
 
   quote
     $(__source__)

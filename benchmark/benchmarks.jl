@@ -6,7 +6,7 @@ const SUITE = BenchmarkGroup()
 
 function simplify(ex, theory, params = SaturationParams(), postprocess = identity)
   g = EGraph(ex)
-  println(saturate!(g, theory, params))
+  saturate!(g, theory, params)
   res = extract!(g, astsize)
   postprocess(res)
 end

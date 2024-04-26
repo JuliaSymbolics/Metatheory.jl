@@ -1,13 +1,9 @@
 # Full e-matcher
 function ematch_compile(p, pvars, direction)
-  # dump(p)
-
-  # @show p
-
   npvars = length(pvars)
 
   patvar_to_addr = fill(-1, npvars)
-  ground_terms_to_addr = Dict{Any,Int}()
+  ground_terms_to_addr = Dict{AbstractPat,Int}()
 
   program = Expr[]
   memsize = Ref(1)
@@ -23,7 +19,7 @@ function ematch_compile(p, pvars, direction)
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
   quote
-    function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id)::Int
+    function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id, stack::Vector{UInt16})::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
       # Copy and empty the memory 
@@ -32,10 +28,12 @@ function ematch_compile(p, pvars, direction)
 
       n_matches = 0
       # Backtracking stack
-      stack = Vector{UInt16}(undef, 0)
+      stack_idx = 0
+
       # Instruction 0 is used to return when  the backtracking stack is empty. 
       # We start from 1.
-      push!(stack, 0x0000)
+      stack_idx += 1
+      stack[stack_idx] = 0x0000
       pc = 0x0001
 
       # We goto this label when:
@@ -62,7 +60,9 @@ function ematch_compile(p, pvars, direction)
       @label backtrack
       # @show "BACKTRACKING"
       # @show stack
-      pc = pop!(stack)
+      pc = stack[stack_idx]
+      stack_idx -= 1
+
       @goto compute
 
       return -1
@@ -71,7 +71,7 @@ function ematch_compile(p, pvars, direction)
 end
 
 
-check_constant_exprs!(buf, p) = push!(buf, :(has_constant(g, $(hash(p))) || return 0))
+check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :(has_constant(g, $(last(p.n))) || return 0))
 check_constant_exprs!(buf, ::AbstractPat) = buf
 function check_constant_exprs!(buf, p::PatExpr)
   if !(p.head isa AbstractPat)
@@ -97,22 +97,10 @@ make_memory(n, first_nonground) = [:($(Symbol(:σ, i)) = $(i == first_nonground 
 # TODO explain what is a ground term
 # ==============================================================
 
-function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, p::Any)
-  if !haskey(ground_terms_to_addr, p)
-    # If the instruction for searching the constant literal
-    # has not already been inserted in the program: 
-    # Remember that it has been searched and its stored in σaddr
-    ground_terms_to_addr[p] = addr
-    # Add the lookup instruction to the program
-    push!(program, lookup_expr(addr, p))
-    memsize[] += 1
-  end
-end
-
-ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pattern::AbstractPat) = nothing
+ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, ::AbstractPat) = nothing
 
 # Ground e-matchers
-function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pattern::PatExpr)
+function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pattern::Union{PatExpr,PatLiteral})
   if haskey(ground_terms_to_addr, pattern)
     return
   end
@@ -175,7 +163,7 @@ function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, me
 end
 
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal)
+function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal::PatLiteral)
   push!(program, check_eq_expr(addr, ground_terms_to_addr[literal]))
 end
 
@@ -189,7 +177,9 @@ function bind_expr(addr, p::PatExpr, memrange)
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
     if $(Symbol(:enode_idx, addr)) <= eclass_length
-      push!(stack, pc)
+      stack_idx += 1
+      @assert stack_idx <= length(stack)
+      stack[stack_idx] = pc
 
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
@@ -252,7 +242,9 @@ function check_var_expr(addr, T::Type)
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
     if $(Symbol(:enode_idx, addr)) <= eclass_length
-      push!(stack, pc)
+      stack_idx += 1
+      @assert stack_idx <= length(stack)
+      stack[stack_idx] = pc
 
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
@@ -293,8 +285,7 @@ function check_eq_expr(addr_a, addr_b)
   end
 end
 
-lookup_expr(addr, p::Symbol) = lookup_expr(addr, QuoteNode(p))
-function lookup_expr(addr, p)
+function lookup_expr(addr, p::AbstractPat)
   quote
     ecid = Metatheory.EGraphs.lookup_pat(g, $p)
     if ecid > 0
