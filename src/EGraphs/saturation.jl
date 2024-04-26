@@ -87,8 +87,9 @@ function eqsat_search!(
         end
       end
 
-      @debug "Matching" rule ids
+      # @debug "Matching" rule ids
 
+      old_len = length(g.buffer_new)
       if rule isa BidirRule
         for i in ids
           n_matches += rule.ematcher_new_left!(g, rule_idx, i)
@@ -100,12 +101,53 @@ function eqsat_search!(
         end
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
+      if n_matches - prev_matches > 2 && rule_idx == 2
+        @debug buffer_readable(g, old_len)
+      end
       inform!(scheduler, rule_idx, n_matches)
     end
   end
 
 
   return n_matches
+end
+
+function buffer_readable(g, limit)
+  k = length(g.buffer_new)
+
+  while k > limit
+    delimiter = g.buffer_new[k]
+    @assert delimiter == 0xffffffffffffffffffffffffffffffff
+    n = k - 1
+
+    next_delimiter_idx = 0
+    n_elems = 0
+    for i in n:-1:1
+      n_elems += 1
+      if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
+        n_elems -= 1
+        next_delimiter_idx = i
+        break
+      end
+    end
+
+    match_info = g.buffer_new[next_delimiter_idx + 1]
+    id = v_pair_first(match_info)
+    rule_idx = reinterpret(Int, v_pair_last(match_info))
+    direction = sign(rule_idx)
+    # @show direction
+    rule_idx = abs(rule_idx)
+
+    # print("Direction: $direction ")
+
+    bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
+
+    print("$id E-Classes: ", map(x -> reinterpret(Int, v_pair_first(x)), bindings))
+    print(" Nodes: ", map(x -> reinterpret(Int, v_pair_last(x)), bindings), "\n")
+
+    k = next_delimiter_idx
+  end
+
 end
 
 function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::Any)::Id
@@ -190,7 +232,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   i = 0
   @assert isempty(g.merges_buffer)
 
-  @debug "APPLYING $(length(g.buffer_new)) matches"
+  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), g.buffer_new)) matches"
   g.needslock && lock(g.lock)
   while !isempty(g.buffer_new)
 
@@ -300,6 +342,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
     curr_iter += 1
 
     @debug "================ EQSAT ITERATION $curr_iter  ================"
+    @debug g
 
     report = eqsat_step!(g, theory, curr_iter, sched, params, report)
 
