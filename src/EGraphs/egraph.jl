@@ -171,7 +171,6 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
 
-using ..Patterns
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
   h = hash(c)
   get!(g.constants, h, c)

@@ -29,6 +29,8 @@ struct PatLiteral <: AbstractPat
   PatLiteral(val) = new(val, Id[0, 0, 0, hash(val)])
 end
 
+PatLiteral(p::AbstractPat) = throw(DomainError(p, "Cannot construct a pattern literal of another pattern object."))
+
 isground(x::PatLiteral) = true # literals
 
 
