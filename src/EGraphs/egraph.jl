@@ -39,7 +39,7 @@ The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, 
 means that without a reference to the [`EGraph`](@ref) object we cannot re-build human-readable terms
 they represent. The [`EGraph`](@ref) itself comes with pretty printing for humean-readable terms.
 """
-mutable struct EClass{D}
+struct EClass{D}
   id::Id
   nodes::Vector{VecExpr}
   parents::Vector{Pair{VecExpr,Id}}
@@ -68,21 +68,17 @@ function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
 end
 
 
-function merge_analysis_data!(@nospecialize(a::EClass), @nospecialize(b::EClass))::Tuple{Bool,Bool}
+function merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
   if !isnothing(a.data) && !isnothing(b.data)
     new_a_data = join(a.data, b.data)
-    merged_a = (a.data == new_a_data)
-    a.data = new_a_data
-    (merged_a, b.data == new_a_data)
+    (a.data == new_a_data, b.data == new_a_data, new_a_data)
   elseif isnothing(a.data) && !isnothing(b.data)
-    a.data = b.data
     # a merged, b not merged
-    (true, false)
+    (true, false, b.data)
   elseif !isnothing(a.data) && isnothing(b.data)
-    b.data = a.data
-    (false, true)
+    (false, true, a.data)
   else
-    (false, false)
+    (false, false, nothing)
   end
 end
 
@@ -339,7 +335,11 @@ end
 Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
 """
-function Base.union!(g::EGraph, enode_id1::Id, enode_id2::Id)::Bool
+function Base.union!(
+  g::EGraph{ExpressionType,AnalysisType},
+  enode_id1::Id,
+  enode_id2::Id,
+)::Bool where {ExpressionType,AnalysisType}
   g.clean = false
 
   id_1 = find(g, enode_id1)
@@ -359,13 +359,21 @@ function Base.union!(g::EGraph, enode_id1::Id, enode_id2::Id)::Bool
 
   append!(g.pending, eclass_2.parents)
 
-  (merged_1, merged_2) = merge_analysis_data!(eclass_1, eclass_2)
+  (merged_1, merged_2, new_data) = merge_analysis_data!(eclass_1, eclass_2)
   merged_1 && append!(g.analysis_pending, eclass_1.parents)
   merged_2 && append!(g.analysis_pending, eclass_2.parents)
 
 
-  append!(eclass_1.nodes, eclass_2.nodes)
-  append!(eclass_1.parents, eclass_2.parents)
+  new_eclass = EClass{AnalysisType}(
+    id_1,
+    append!(eclass_1.nodes, eclass_2.nodes),
+    append!(eclass_1.parents, eclass_2.parents),
+    new_data,
+  )
+
+  g.classes[id_1] = new_eclass
+  # new_a_data = join(a.data, b.data)
+
   return true
 end
 
@@ -406,7 +414,7 @@ function rebuild_classes!(g::EGraph)
   end
 end
 
-function process_unions!(@nospecialize(g::EGraph))::Int
+function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {ExpressionType,AnalysisType}
   n_unions = 0
 
   while !isempty(g.pending) || !isempty(g.analysis_pending)
@@ -434,12 +442,14 @@ function process_unions!(@nospecialize(g::EGraph))::Int
         joined_data = join(eclass.data, node_data)
 
         if joined_data != eclass.data
-          eclass.data = joined_data
+          g.classes[eclass_id] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
+          # eclass.data = joined_data
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
         end
       else
-        eclass.data = node_data
+        g.classes[eclass_id] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
+        # eclass.data = node_data
         modify!(g, eclass)
       end
 
