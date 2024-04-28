@@ -199,6 +199,7 @@ function bind_expr(addr, p::PatExpr, memrange)
       @goto backtrack
     end
 
+
     # # Restart from first option
     $(Symbol(:enode_idx, addr)) = 1
     @goto backtrack
