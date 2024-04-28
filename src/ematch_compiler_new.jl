@@ -183,9 +183,9 @@ function bind_expr(addr, p::PatExpr, memrange)
 
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
-      v_flags(n) == $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
-      v_signature(n) == $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
-      v_head(n) == $(v_head(p.n)) || (v_head(n) == $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr)))
+      v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
+      v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
+      v_head(n) === $(v_head(p.n)) || (v_head(n) === $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr)))
 
       # Node has matched.
       $([:($(Symbol(:σ, j)) = n[$i + $VECEXPR_META_LENGTH]) for (i, j) in enumerate(memrange)]...)
