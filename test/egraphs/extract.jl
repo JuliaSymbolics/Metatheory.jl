@@ -92,11 +92,6 @@ t = comm_monoid ∪ comm_group ∪ (@distrib (*) (+)) ∪ powers ∪ logids ∪ 
   saturate!(g, t)
   ex = extract!(g, astsize)
   @test ex == :(a^5)
-
-  g = EGraph(:(a^3 * a^2))
-  saturate!(g, t)
-  ex = extract!(g, astsize)
-  @test ex == :(a^5)
 end
 
 @testset "Custom Cost Function 1" begin

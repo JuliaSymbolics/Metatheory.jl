@@ -38,7 +38,7 @@ end
 negt = @theory p begin
   (p && !p) --> false
   (p || !(p)) --> true
-  !(!p) == p
+  !(!p) --> p
 end
 
 impl = @theory p q begin

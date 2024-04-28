@@ -8,9 +8,9 @@
 
 using Metatheory: islist, car, cdr, assoc, drop_n, take_n
 
-function matcher(val::Any)
+function matcher(p::PatLiteral)
   function literal_matcher(next, data, bindings)
-    islist(data) && isequal(car(data), val) ? next(bindings, 1) : nothing
+    islist(data) && isequal(car(data), p.value) ? next(bindings, 1) : nothing
   end
 end
 
@@ -105,7 +105,8 @@ function operation_matcher(f::Union{Function,DataType,UnionAll})
   end
 end
 
-operation_matcher(x) = matcher(x)
+operation_matcher(x::Any) = matcher(PatLiteral(x))
+operation_matcher(x::PatVar) = matcher(x)
 
 function is_call_matcher(pat_iscall::Bool)
   function is_call_matcher(next, data, bindings)
@@ -174,9 +175,8 @@ function instantiate(left::Expr, pat::PatExpr, mem)
 end
 
 instantiate_arg!(acc, left, parg::PatSegment, mem) = append!(acc, instantiate(left, parg, mem))
-instantiate_arg!(acc, left, parg, mem) = push!(acc, instantiate(left, parg, mem))
+instantiate_arg!(acc, left, parg::AbstractPat, mem) = push!(acc, instantiate(left, parg, mem))
 
-instantiate(_, pat::Any, mem) = pat
+instantiate(_, pat::PatLiteral, mem) = pat.value
 instantiate(_, pat::Union{PatVar,PatSegment}, mem) = mem[pat.idx]
-instantiate(_, pat::AbstractPat, mem) = error("Unsupported pattern ", pat)
 

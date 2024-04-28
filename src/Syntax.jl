@@ -3,7 +3,7 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
 
-using Metatheory: alwaystrue, cleanast
+using Metatheory: alwaystrue, cleanast, ematch_compile
 
 export @rule
 export @theory
@@ -85,12 +85,11 @@ end
 makeconsequent(x) = x
 # treat as a literal
 function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
-  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : x
+  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : :(PatLiteral($x))
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   h = head(ex)
-
 
   if iscall(ex)
     op = operation(ex)
@@ -339,7 +338,7 @@ macro rule(args...)
 
   l, r = iscall(e) ? arguments(e) : children(e)
   pvars = Symbol[]
-  lhs = makepattern(l, pvars, slots, __module__)
+  lhs = esc(makepattern(l, pvars, slots, __module__))
   rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
 
   if RuleType == DynamicRule
@@ -349,13 +348,40 @@ macro rule(args...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote
       $(__source__)
-      DynamicRule($(esc(lhs)), $rhs, $(QuoteNode(rhs_consequent)))
+      lhs_pat = $lhs
+      pvars = $(Patterns.patvars)(lhs_pat)
+      setdebrujin!(lhs_pat, pvars)
+      DynamicRule($lhs, $rhs, $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)), $(QuoteNode(rhs_consequent)))
+    end
+  end
+
+  if RuleType <: BidirRule
+    return quote
+      begin
+        $(__source__)
+        lhs_pat = $lhs
+        rhs_pat = $rhs
+        pvars = $(Patterns.patvars)(lhs_pat) ∪ $(Patterns.patvars)(rhs_pat)
+        setdebrujin!(lhs_pat, pvars)
+        setdebrujin!(rhs_pat, pvars)
+        ($RuleType)(
+          lhs_pat,
+          rhs_pat,
+          # Left-to-Right e-matcher
+          $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)),
+          # Right-to-Left e-matcher
+          $(__module__).eval(($ematch_compile)(rhs_pat, pvars, -1)),
+        )
+      end
     end
   end
 
   quote
     $(__source__)
-    ($RuleType)($(esc(lhs)), $rhs)
+    lhs_pat = $lhs
+    pvars = $(Patterns.patvars)(lhs_pat)
+    setdebrujin!(lhs_pat, pvars)
+    ($RuleType)(lhs_pat, $rhs, $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)))
   end
 end
 
@@ -386,7 +412,7 @@ julia> v = [
 ```
 """
 macro theory(args...)
-  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+  length(args) >= 1 || ArgumentError("@theory requires at least one argument")
   slots = args[1:(end - 1)]
   expr = args[end]
 

@@ -6,12 +6,11 @@ using TermInterface
 using TimerOutputs
 using Metatheory.Patterns
 using Metatheory.Rules
-using Metatheory.EMatchCompiler
 using Metatheory.VecExprModule
 
 using Metatheory: alwaystrue, cleanast, Bindings, UNDEF_ID_VEC, should_quote_operation
 
-import Metatheory: to_expr, maybelock!, lookup_pat, has_constant, get_constant
+import Metatheory: to_expr, lookup_pat, has_constant, get_constant
 
 
 include("unionfind.jl")

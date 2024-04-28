@@ -2,6 +2,114 @@ using Metatheory
 using Test
 using Metatheory.Library
 
+# Simple E-Matching
+
+@testset "Simple Literal" begin
+  r = @rule 2 --> true
+  g = EGraph(2)
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+end
+
+@testset "Composite Ground Terms" begin
+  r = @rule f(2, 3) --> true
+  g = EGraph(:(f(2, 3)))
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
+
+  g = EGraph(:(f(2, 4)))
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
+
+
+  r = @rule f(2, h(3, 4)) --> true
+  g = EGraph(:(f(2, h(3, 4))))
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
+end
+
+@testset "Pattern Variables" begin
+  g = EGraph(:(f(2, 1)))
+  r = @rule ~a --> true
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 1
+end
+
+@testset "Type Assertions" begin
+  r = @rule ~a::Int --> true
+  g = EGraph(:(f(2, 1)))
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
+
+  g = EGraph(:3)
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+
+  new_id = addexpr!(g, :f)
+  union!(g, g.root, new_id)
+
+  new_id = addexpr!(g, 4)
+  union!(g, g.root, new_id)
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 2
+end
+
+@testset "Predicate Assertions" begin
+  r = @rule ~a::iseven --> true
+  Base.iseven(g, ec::EClass) =
+    any(ec.nodes) do n
+      h = v_head(n)
+      if has_constant(g, h)
+        c = get_constant(g, h)
+        return c isa Number && iseven(c)
+      end
+      false
+    end
+
+  g = EGraph(:(f(2, 1)))
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
+
+  g = EGraph(:2)
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+
+  g = EGraph(:3)
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
+
+  new_id = addexpr!(g, :f)
+  union!(g, g.root, new_id)
+
+  new_id = addexpr!(g, 4)
+  union!(g, g.root, new_id)
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+end
+
+
+@testset "Non-Ground Terms" begin
+  g = EGraph(:(f(2, 1)))
+  r = @rule f(2, ~a) --> true
+
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+  @test r.ematcher_new!(g, 0, Id(1), r.ematcher_stack) == 0
+  @test r.ematcher_new!(g, 0, Id(2), r.ematcher_stack) == 0
+
+  r = @rule f(~a, ~a) --> true
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 0
+
+  g = EGraph(:(f(2, 2)))
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+
+  g = EGraph(:(f(h(3, 4), h(3, 4))))
+  @test r.ematcher_new!(g, 0, g.root, r.ematcher_stack) == 1
+end
+
+
 falseormissing(x) = x === missing || !x
 
 r = @theory begin
@@ -161,7 +269,7 @@ end
     ~a * ~b --> ~b * ~a
   end
 
-  Base.iszero(ec::EClass) = in_same_class(g, zero_id, ec.id)
+  Base.iszero(g::EGraph, ec::EClass) = in_same_class(g, zero_id, ec.id)
 
   saturate!(g, some_theory)
 
