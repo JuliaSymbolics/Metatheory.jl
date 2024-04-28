@@ -1,4 +1,3 @@
-# Full e-matcher
 function ematch_compile(p, pvars, direction)
   npvars = length(pvars)
 
@@ -55,8 +54,6 @@ function ematch_compile(p, pvars, direction)
       error("unreachable code!")
 
       @label backtrack
-      # @show "BACKTRACKING"
-      # @show stack
       pc = stack[stack_idx]
       stack_idx -= 1
 
