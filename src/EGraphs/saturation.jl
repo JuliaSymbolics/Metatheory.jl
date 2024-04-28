@@ -114,44 +114,6 @@ function eqsat_search!(
   return n_matches
 end
 
-function buffer_readable(g, limit)
-  k = length(g.buffer_new)
-
-  while k > limit
-    delimiter = g.buffer_new[k]
-    @assert delimiter == 0xffffffffffffffffffffffffffffffff
-    n = k - 1
-
-    next_delimiter_idx = 0
-    n_elems = 0
-    for i in n:-1:1
-      n_elems += 1
-      if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
-        n_elems -= 1
-        next_delimiter_idx = i
-        break
-      end
-    end
-
-    match_info = g.buffer_new[next_delimiter_idx + 1]
-    id = v_pair_first(match_info)
-    rule_idx = reinterpret(Int, v_pair_last(match_info))
-    direction = sign(rule_idx)
-    # @show direction
-    rule_idx = abs(rule_idx)
-
-    # print("Direction: $direction ")
-
-    bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
-
-    print("$id E-Classes: ", map(x -> reinterpret(Int, v_pair_first(x)), bindings))
-    print(" Nodes: ", map(x -> reinterpret(Int, v_pair_last(x)), bindings), "\n")
-
-    k = next_delimiter_idx
-  end
-
-end
-
 function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
   add_constant!(g, p.value)
   add!(g, p.n, true)
@@ -242,8 +204,6 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       rep.reason = :goalreached
       return
     end
-
-    # @show g.buffer_new
 
     delimiter = g.buffer_new[end]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff

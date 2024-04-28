@@ -373,7 +373,6 @@ function in_same_class(g::EGraph, ids::Id...)::Bool
   nids = length(ids)
   nids == 1 && return true
 
-  # @show map(x -> find(g, x), ids)
   first_id = find(g, ids[1])
   for i in 2:nids
     first_id == find(g, ids[i]) || return false
