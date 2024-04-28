@@ -3,19 +3,17 @@ module Metatheory
 using Base.Meta
 using Reexport
 
-@inline alwaystrue(x) = true
-
+@inline alwaystrue(x...) = true
 
 function to_expr end
 function has_constant end
 function get_constant end
 function lookup_pat end
-function maybelock! end
 export has_constant
 export get_constant
 
 # TODO: document
-function should_quote_operation end 
+function should_quote_operation end
 should_quote_operation(::Function) = true
 should_quote_operation(x) = false
 
@@ -69,8 +67,8 @@ export @timer
 include("Patterns.jl")
 @reexport using .Patterns
 
-include("ematch_compiler.jl")
-@reexport using .EMatchCompiler
+include("ematch_compiler_new.jl")
+export ematch_compile
 
 include("matchers.jl")
 include("Rules.jl")

@@ -1,4 +1,5 @@
 using Metatheory, TermInterface
+using Test
 
 @testset "Reduction Basics" begin
   t = @theory begin

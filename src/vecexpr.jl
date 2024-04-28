@@ -21,7 +21,10 @@ export Id,
   v_hash,
   v_unset_hash!,
   v_signature,
-  v_set_signature!
+  v_set_signature!,
+  v_pair,
+  v_pair_first,
+  v_pair_last
 
 const Id = UInt64
 
@@ -96,6 +99,11 @@ end
 end
 
 @inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n))
+
+
+v_pair(a::UInt64, b::UInt64) = UInt128(a) << 64 | b
+v_pair_first(p::UInt128)::UInt64 = UInt64(p >> 64)
+v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 
 
 end

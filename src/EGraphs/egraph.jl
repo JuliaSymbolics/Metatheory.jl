@@ -123,6 +123,7 @@ mutable struct EGraph{ExpressionType,Analysis}
   needslock::Bool
   "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
   buffer::Vector{Bindings}
+  buffer_new::Vector{UInt128}
   "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
   merges_buffer::Vector{Id}
   lock::ReentrantLock
@@ -146,6 +147,7 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     false,
     needslock,
     Bindings[],
+    UInt128[],
     Id[],
     ReentrantLock(),
   )
@@ -166,14 +168,9 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 @inline make(::EGraph, ::VecExpr) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
 
-
-function maybelock!(f::Function, g::EGraph)
-  g.needslock ? lock(f, g.buffer_lock) : f()
-end
-
-
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
+
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
   h = hash(c)
   get!(g.constants, h, c)
@@ -202,7 +199,7 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(collect(d)) do (k, vect)
+  cs = map(sort!(collect(d); by = first)) do (k, vect)
     "  $k => [$(Base.join(vect, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
@@ -270,7 +267,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   haskey(g.memo, h) && return g.memo[h]
 
-  if should_copy 
+  if should_copy
     n = copy(n)
   end
 
@@ -376,7 +373,6 @@ function in_same_class(g::EGraph, ids::Id...)::Bool
   nids = length(ids)
   nids == 1 && return true
 
-  # @show map(x -> find(g, x), ids)
   first_id = find(g, ids[1])
   for i in 2:nids
     first_id == find(g, ids[i]) || return false
@@ -523,7 +519,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   id
 end
 
-function lookup_pat(g::EGraph, p::Any)::Id
-  h = hash(p)
-  has_constant(g, h) ? lookup(g, Id[0, 0, 0, h]) : 0
+function lookup_pat(g::EGraph, p::PatLiteral)::Id
+  h = last(p.n)
+  has_constant(g, h) ? lookup(g, p.n) : 0
 end

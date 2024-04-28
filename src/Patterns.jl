@@ -7,16 +7,12 @@ using Metatheory.VecExprModule
 
 import Metatheory: to_expr
 
+export AbstractPat, PatLiteral, PatVar, PatExpr, PatSegment, patvars, setdebrujin!, isground, constants
+
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
 """
 abstract type AbstractPat end
-
-struct UnsupportedPatternException <: Exception
-  p::AbstractPat
-end
-
-Base.showerror(io::IO, e::UnsupportedPatternException) = print(io, "Pattern ", e.p, " is unsupported in this context")
 
 
 Base.:(==)(a::AbstractPat, b::AbstractPat) = false
@@ -26,7 +22,17 @@ A ground pattern contains no pattern variables and
 only literal values to match.
 """
 isground(p::AbstractPat) = false
-isground(x) = true # literals
+
+struct PatLiteral <: AbstractPat
+  value
+  n::VecExpr
+  PatLiteral(val) = new(val, Id[0, 0, 0, hash(val)])
+end
+
+PatLiteral(p::AbstractPat) = throw(DomainError(p, "Cannot construct a pattern literal of another pattern object."))
+
+isground(x::PatLiteral) = true # literals
+
 
 # PatVar is equivalent to SymbolicUtils's Slot
 """
@@ -79,19 +85,19 @@ struct PatExpr <: AbstractPat
   head_hash::UInt
   quoted_head
   quoted_head_hash::UInt
-  children::Vector
+  children::Vector{AbstractPat}
   isground::Bool
   """
   Behaves like an e-node to not re-allocate memory when doing e-graph lookups and instantiation 
   in case of cache hits in the e-graph hashcons
   """
-  n::VecExpr 
-  function PatExpr(iscall, op, args::Vector) 
+  n::VecExpr
+  function PatExpr(iscall, op, args::Vector)
     op_hash = hash(op)
-    qop, qop_hash = should_quote_operation(op) ? (nameof(op), hash(nameof(op))) : (op, op_hash) 
+    qop, qop_hash = should_quote_operation(op) ? (nameof(op), hash(nameof(op))) : (op, op_hash)
     ar = length(args)
     signature = hash(qop, hash(ar))
-    
+
     n = v_new(ar)
     v_set_flag!(n, VECEXPR_FLAG_ISTREE)
     iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
@@ -119,7 +125,7 @@ TermInterface.iscall(p::PatExpr) = v_iscall(p.n)
 TermInterface.arity(p::PatExpr) = length(p.children)
 
 TermInterface.maketerm(::Type{PatExpr}, operation, arguments, type = Any, metadata = (iscall = true,)) =
-  PatExpr(iscall, operation, children...)
+  PatExpr(metadata.iscall, operation, arguments...)
 
 # ---------------------
 # # Pattern Variables.
@@ -143,15 +149,14 @@ function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
 end
 
 # literal case
-setdebrujin!(p, pvars) = nothing
+setdebrujin!(::Any, pvars) = nothing
 
 function setdebrujin!(p::PatExpr, pvars)
   setdebrujin!(operation(p), pvars)
   foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
-
-to_expr(x) = x
+to_expr(x::PatLiteral) = x.value
 to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate_code))
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
@@ -167,17 +172,6 @@ function to_expr(x::PatExpr)
 end
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
-
-
-# include("rules/patterns.jl")
-export AbstractPat
-export PatVar
-export PatExpr
-export PatSegment
-export patvars
-export setdebrujin!
-export isground
-export UnsupportedPatternException
 
 
 end
