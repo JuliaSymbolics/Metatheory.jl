@@ -53,13 +53,7 @@ function cached_ids(g::EGraph, p::PatLiteral) # p is a literal
   return []
 end
 
-
-function cached_ids(g::EGraph, p::PatVar)
-  error("Matches all e-graph!")
-  id = lookup_pat(g, p)
-  id > 0 && return [id]
-  return []
-end
+cached_ids(g::EGraph, p::PatVar) = keys(g.classes)
 
 """
 Returns an iterator of `Match`es.

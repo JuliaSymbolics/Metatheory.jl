@@ -85,7 +85,7 @@ end
 makeconsequent(x) = x
 # treat as a literal
 function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
-  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : PatLiteral(x)
+  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : :(PatLiteral($x))
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
@@ -412,7 +412,7 @@ julia> v = [
 ```
 """
 macro theory(args...)
-  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+  length(args) >= 1 || ArgumentError("@theory requires at least one argument")
   slots = args[1:(end - 1)]
   expr = args[end]
 
