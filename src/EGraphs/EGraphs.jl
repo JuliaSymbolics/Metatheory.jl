@@ -6,7 +6,6 @@ using TermInterface
 using TimerOutputs
 using Metatheory.Patterns
 using Metatheory.Rules
-using Metatheory.EMatchCompiler
 using Metatheory.VecExprModule
 
 using Metatheory: alwaystrue, cleanast, Bindings, UNDEF_ID_VEC, should_quote_operation
