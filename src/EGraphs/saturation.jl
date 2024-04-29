@@ -189,25 +189,27 @@ function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::
   return nothing
 end
 
-
+const CHECK_GOAL_EVERY_N_MATCHES = 20
 
 function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
-  i = 0
   @assert isempty(g.merges_buffer)
+
+  n_matches = 0
+  k = length(g.buffer_new)
 
   @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), g.buffer_new)) matches"
   g.needslock && lock(g.lock)
-  while !isempty(g.buffer_new)
+  while k > 0
 
-    if params.goal(g)
+    if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
       @debug "Goal reached"
       rep.reason = :goalreached
       return
     end
 
-    delimiter = g.buffer_new[end]
+    delimiter = g.buffer_new[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
-    n = length(g.buffer_new) - 1
+    n = k - 1
 
     next_delimiter_idx = 0
     n_elems = 0
@@ -220,6 +222,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       end
     end
 
+    n_matches += 1
     match_info = g.buffer_new[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
@@ -232,8 +235,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
 
     halt_reason = apply_rule!(bindings, g, rule, id, direction)
 
-    resize!(g.buffer_new, next_delimiter_idx)
-
+    k = next_delimiter_idx
     if !isnothing(halt_reason)
       rep.reason = halt_reason
       return
@@ -245,6 +247,14 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       break
     end
   end
+  if params.goal(g)
+    @debug "Goal reached"
+    rep.reason = :goalreached
+    return
+  end
+
+  empty!(g.buffer_new)
+
   g.needslock && unlock(g.lock)
 
   g.needslock && lock(g.lock)
