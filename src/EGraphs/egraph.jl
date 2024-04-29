@@ -393,7 +393,7 @@ function rebuild_classes!(g::EGraph)
     empty!(v)
   end
 
-  for (eclass_id, eclass::EClass) in g.classes
+  for (eclass_id, eclass) in g.classes
     # old_len = length(eclass.nodes)
     for n in eclass.nodes
       canonicalize!(g, n)
