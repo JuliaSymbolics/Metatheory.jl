@@ -2,8 +2,7 @@ struct Extractor{CostFun,Cost}
   g::EGraph
   cost_function::CostFun
   costs::Dict{Id,Tuple{Cost,Int64}} # Cost and index in eclass
-  Extractor{CF,C}(g::EGraph, cf::CF, d::Dict{Id, Tuple{C, Int64}}) where {CF,C} = 
-    new{CF,C}(g,cf,d)
+  Extractor{CF,C}(g::EGraph, cf::CF, d::Dict{Id,Tuple{C,Int64}}) where {CF,C} = new{CF,C}(g, cf, d)
 end
 
 """
@@ -51,29 +50,35 @@ function find_best_node(extractor::Extractor, eclass_id::Id)
 end
 
 function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
-  function enode_cost(n::VecExpr)::CT
-    if all(x -> haskey(extractor.costs, x), v_children(n))
-      extractor.cost_function(
-        n,
-        get_constant(extractor.g, v_head(n)),
-        map(child_id -> extractor.costs[child_id][1], v_children(n)),
-      )
-    else
-      typemax(CT)
-    end
-  end
-
-
   did_something = true
   while did_something
     did_something = false
 
     for (id, eclass) in extractor.g.classes
-      costs = enode_cost.(eclass.nodes)
-      pass = (minimum(costs), argmin(costs))
+      min_cost = typemax(CT)
+      min_cost_node_idx = 0
 
-      if pass[1] != typemax(CT) && (!haskey(extractor.costs, id) || (pass[1] < extractor.costs[id][1]))
-        extractor.costs[id] = pass
+      for (idx, n) in enumerate(eclass.nodes)
+        has_all = true
+        for child_id in v_children(n)
+          has_all = has_all && haskey(extractor.costs, child_id)
+          has_all || break
+        end
+        if has_all
+          cost = extractor.cost_function(
+            n,
+            get_constant(extractor.g, v_head(n)),
+            map(child_id -> extractor.costs[child_id][1], v_children(n)),
+          )
+          if cost < min_cost
+            min_cost = cost
+            min_cost_node_idx = idx
+          end
+        end
+      end
+
+      if min_cost != typemax(CT) && (!haskey(extractor.costs, id) || (min_cost < extractor.costs[id][1]))
+        extractor.costs[id] = (min_cost, min_cost_node_idx)
         did_something = true
       end
     end
@@ -90,7 +95,7 @@ end
 A basic cost function, where the computed cost is the number 
 of expression tree nodes.
 """
-function astsize(n::VecExpr, op, costs::Vector{Float64})::Float64
+function astsize(n::VecExpr, op, costs)::Float64
   v_isexpr(n) || return 1
   cost = 1 + sum(costs)
 end
@@ -105,7 +110,7 @@ function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
   cost = -1 + sum(costs)
 end
 
-function extract!(g::EGraph, costfun, root=g.root, cost_type = Float64)
+function extract!(g::EGraph, costfun, root = g.root, cost_type = Float64)
   Extractor(g, costfun, cost_type)(root)
 end
 

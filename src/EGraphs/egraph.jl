@@ -172,6 +172,13 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
   get!(g.constants, h, c)
   h
 end
+
+@inline function add_constant_hashed!(@nospecialize(g::EGraph), @nospecialize(c), h::UInt64)::Id
+  g.constants[h] = c
+  h
+end
+
+
 function to_expr(g::EGraph, n::VecExpr)
   v_isexpr(n) || return get_constant(g, v_head(n))
   h = get_constant(g, v_head(n))
@@ -381,7 +388,6 @@ function in_same_class(g::EGraph, ids::Id...)::Bool
   nids = length(ids)
   nids == 1 && return true
 
-  # @show map(x -> find(g, x), ids)
   first_id = find(g, ids[1])
   for i in 2:nids
     first_id == find(g, ids[i]) || return false
@@ -395,7 +401,7 @@ function rebuild_classes!(g::EGraph)
     empty!(v)
   end
 
-  for (eclass_id, eclass::EClass) in g.classes
+  for (eclass_id, eclass) in g.classes
     # old_len = length(eclass.nodes)
     for n in eclass.nodes
       canonicalize!(g, n)

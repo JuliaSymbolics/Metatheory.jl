@@ -114,44 +114,6 @@ function eqsat_search!(
   return n_matches
 end
 
-function buffer_readable(g, limit)
-  k = length(g.buffer_new)
-
-  while k > limit
-    delimiter = g.buffer_new[k]
-    @assert delimiter == 0xffffffffffffffffffffffffffffffff
-    n = k - 1
-
-    next_delimiter_idx = 0
-    n_elems = 0
-    for i in n:-1:1
-      n_elems += 1
-      if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
-        n_elems -= 1
-        next_delimiter_idx = i
-        break
-      end
-    end
-
-    match_info = g.buffer_new[next_delimiter_idx + 1]
-    id = v_pair_first(match_info)
-    rule_idx = reinterpret(Int, v_pair_last(match_info))
-    direction = sign(rule_idx)
-    # @show direction
-    rule_idx = abs(rule_idx)
-
-    # print("Direction: $direction ")
-
-    bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
-
-    print("$id E-Classes: ", map(x -> reinterpret(Int, v_pair_first(x)), bindings))
-    print(" Nodes: ", map(x -> reinterpret(Int, v_pair_last(x)), bindings), "\n")
-
-    k = next_delimiter_idx
-  end
-
-end
-
 function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
   add_constant!(g, p.value)
   add!(g, p.n, true)
@@ -159,7 +121,7 @@ end
 
 instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
 function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
-  add_constant!(g, head(p))
+  add_constant_hashed!(g, p.head, p.head_hash)
 
   for i in v_children_range(p.n)
     @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
@@ -168,7 +130,7 @@ function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id
 end
 
 function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
-  add_constant!(g, p.quoted_head)
+  add_constant_hashed!(g, p.quoted_head, p.quoted_head_hash)
   v_set_head!(p.n, p.quoted_head_hash)
 
   for i in v_children_range(p.n)
@@ -227,27 +189,27 @@ function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::
   return nothing
 end
 
-
+const CHECK_GOAL_EVERY_N_MATCHES = 20
 
 function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
-  i = 0
   @assert isempty(g.merges_buffer)
+
+  n_matches = 0
+  k = length(g.buffer_new)
 
   @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), g.buffer_new)) matches"
   g.needslock && lock(g.lock)
-  while !isempty(g.buffer_new)
+  while k > 0
 
-    if params.goal(g)
+    if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
       @debug "Goal reached"
       rep.reason = :goalreached
       return
     end
 
-    # @show g.buffer_new
-
-    delimiter = g.buffer_new[end]
+    delimiter = g.buffer_new[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
-    n = length(g.buffer_new) - 1
+    n = k - 1
 
     next_delimiter_idx = 0
     n_elems = 0
@@ -260,6 +222,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       end
     end
 
+    n_matches += 1
     match_info = g.buffer_new[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
@@ -272,8 +235,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
 
     halt_reason = apply_rule!(bindings, g, rule, id, direction)
 
-    resize!(g.buffer_new, next_delimiter_idx)
-
+    k = next_delimiter_idx
     if !isnothing(halt_reason)
       rep.reason = halt_reason
       return
@@ -285,6 +247,14 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       break
     end
   end
+  if params.goal(g)
+    @debug "Goal reached"
+    rep.reason = :goalreached
+    return
+  end
+
+  empty!(g.buffer_new)
+
   g.needslock && unlock(g.lock)
 
   g.needslock && lock(g.lock)

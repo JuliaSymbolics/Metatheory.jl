@@ -5,7 +5,6 @@ using Reexport
 
 @inline alwaystrue(x...) = true
 
-
 function to_expr end
 function has_constant end
 function get_constant end
