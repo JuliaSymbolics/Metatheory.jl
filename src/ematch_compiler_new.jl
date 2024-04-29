@@ -1,4 +1,3 @@
-# Full e-matcher
 function ematch_compile(p, pvars, direction)
   npvars = length(pvars)
 
@@ -24,6 +23,7 @@ function ematch_compile(p, pvars, direction)
       $(pat_constants_checks...)
       # Copy and empty the memory 
       $(make_memory(memsize[], first_nonground)...)
+      # TODO not all of those are needed.
       $([:($(Symbol(:enode_idx, i)) = 1) for i in 1:memsize[]]...)
 
       n_matches = 0
@@ -46,20 +46,14 @@ function ematch_compile(p, pvars, direction)
       # For each instruction in the program, create an if statement, 
       # Checking if the current value 
       $([:(
-        # begin
-        # println("σ = ", [$([:($(Symbol(:σ, i))) for i in 1:memsize[]]...)])
-        # println("CURRENT PC = $pc")
         if pc === $(UInt16(i))
           $code
         end
-        # end
       ) for (i, code) in enumerate(program)]...)
 
       error("unreachable code!")
 
       @label backtrack
-      # @show "BACKTRACKING"
-      # @show stack
       pc = stack[stack_idx]
       stack_idx -= 1
 
