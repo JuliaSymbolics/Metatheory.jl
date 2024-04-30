@@ -29,7 +29,7 @@ Given an e-node `n`, `make` should return the corresponding analysis value.
 function make end
 
 
-# TODO parametrize metadata by M
+# TODO parametrize metadata by M?
 """
     EClass{D}
 
@@ -118,8 +118,7 @@ mutable struct EGraph{ExpressionType,Analysis}
   "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
   "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
-  buffer::Vector{Bindings}
-  buffer_new::Vector{UInt128}
+  buffer::Vector{UInt128}
   "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
   merges_buffer::Vector{Id}
   lock::ReentrantLock
@@ -142,7 +141,6 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     Dict{UInt,Vector{Id}}(),
     false,
     needslock,
-    Bindings[],
     UInt128[],
     Id[],
     ReentrantLock(),
@@ -379,7 +377,6 @@ function Base.union!(
   )
 
   g.classes[id_1] = new_eclass
-  # new_a_data = join(a.data, b.data)
 
   return true
 end

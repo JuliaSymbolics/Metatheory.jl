@@ -224,11 +224,6 @@ It must return a positive, non-complex number value and, must accept 3 arguments
 From those 3 parameters, one can access all the data needed to compute
 the cost of an e-node recursively.
 
-<!-- * Since e-node children always point to e-classes in the same e-graph, one can retrieve the [EClass](@ref) object for each child of the currently visited enode with `g[id] for id in children(n)` -->
-<!-- * One can inspect the analysis data for a given eclass and a given analysis name `an`, by using [hasdata](@ref) and [getdata](@ref). -->
-<!-- * Extraction analyses always associate a tuple of 2 values to a single e-class: which e-node is the one that minimizes the cost -->
-<!-- and its cost. More details can be found in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) in the *Analyses* section.  -->
-
 Here's an example:
 
 ```@example cost_function
@@ -236,19 +231,35 @@ using Metatheory
 # This is a cost function that behaves like `astsize` but increments the cost 
 # of nodes containing the `^` operation. This results in a tendency to avoid 
 # extraction of expressions containing '^'.
-# TODO: add example extraction
 function cost_function(n::VecExpr, op, children_costs::Vector{Float64})::Float64
     # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
     v_isexpr(n) || return 1
-
-    cost = 1 + arity(n)
-    # This is where the custom cost is computed
-    cost += op == :^ ? 2 : 0
-
+    cost = op == :^ ? 2 : 1
     cost + sum(children_costs)
 end
-
 ```
+
+We can now compare how the two cost functions behave. 
+
+```@example cost_function
+t = @theory begin
+  ~a * ~a --> (~a)^2
+  ~a --> (~a)^1
+  (~a)^~n * (~a)^~m --> (~a)^(~n + ~m)
+  log((~a)^~n) == ~n * log(~a)
+  log(~x * ~y) --> log(~x) + log(~y)
+  log(1) --> 0
+  log(:e) --> 1
+  :e^(log(~x)) --> ~x
+end
+expr = :(log(x^2))
+g = EGraph(expr)
+saturate!(g, t)
+extract!(g, astsize), extract!(g, cost_function)
+```
+
+We can see that our custom `cost_function` tends to avoid terms that 
+contain the `^` operator as it yields a higher cost for such terms.
 
 ## EGraph Analyses
 

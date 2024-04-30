@@ -1,5 +1,4 @@
-using Test
-using Metatheory
+using Metatheory, TermInterface, Test
 using Metatheory.Library
 using Metatheory.Schedulers
 
@@ -76,9 +75,29 @@ function ∂ end
 
 diff_t = @theory x y begin
   ∂(y, x::Symbol) => begin
-    z = extract!(_egraph, simplcost; root = y.id)
+    z = extract!(_egraph, simplcost, y.id)
     differentiate(z, x)
   end
+end
+
+diff_t_onearg = @theory begin
+  diff(sqrt(x), x::Symbol) --> 1 / 2 / sqrt(x)
+  diff(cbrt(x), x::Symbol) --> 1 / 3 / cbrt(x)^2
+  diff(abs2(x), x::Symbol) --> 1 * 2 * x
+  diff(inv(x), x::Symbol) --> -1 * abs2(inv(x))
+  diff(log(x), x::Symbol) --> 1 / x
+  diff(log10(x), x::Symbol) --> 1 / x / log(10)
+  diff(log2(x), x::Symbol) --> 1 / x / log(2)
+  diff(log1p(x), x::Symbol) --> 1 / (x + 1)
+  diff(exp(x), x::Symbol) --> exp(x)
+  diff(exp2(x), x::Symbol) --> log(2) * exp2(x)
+  diff(expm1(x), x::Symbol) --> exp(x)
+  diff(sin(x), x::Symbol) --> cos(x)
+  diff(cos(x), x::Symbol) --> -sin(x)
+  diff(tan(x), x::Symbol) --> (1 + tan(x)^2)
+  diff(sec(x), x::Symbol) --> sec(x) * tan(x)
+  diff(csc(x), x::Symbol) --> -csc(x) * cot(x)
+  diff(cot(x), x::Symbol) --> -(1 + cot(x)^2)
 end
 
 cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t ∪ pow_t ∪ div_t ∪ trig_t ∪ diff_t
@@ -115,39 +134,27 @@ canonical_t = @theory x y n xs ys begin
 end
 
 
-function simplcost(n::ENode, g::EGraph)
-  n.isexpr || return 0
-  cost = 0 + arity(n)
-  if operation(n) == :∂
-    cost += 20
-  end
-  for id in arguments(n)
-    eclass = g[id]
-    !hasdata(eclass, simplcost) && (cost += Inf; break)
-    cost += last(getdata(eclass, simplcost))
-  end
-  return cost
+function simplcost(n::VecExpr, op, costs)
+  v_isexpr(n) || return 0
+  1 + sum(costs) + (op == :∂ ? 20 : 0)
 end
 
 function simplify(ex; steps = 4)
   params = SaturationParams(
-    scheduler = ScoredScheduler,
+    # scheduler = ScoredScheduler,
     eclasslimit = 5000,
     timeout = 7,
-    schedulerparams = (1000, 5, Schedulers.exprsize),
+    # schedulerparams = (1000, 5),
     #stopwhen=stopwhen,
   )
   hist = UInt64[]
   push!(hist, hash(ex))
   for i in 1:steps
     g = EGraph(ex)
-    @profview_allocs saturate!(g, cas, params)
+    saturate!(g, cas, params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)
-    if !TermInterface.isexpr(ex)
-      return ex
-    end
-    if hash(ex) ∈ hist
+    if !isexpr(ex) || hash(ex) ∈ hist
       return ex
     end
     push!(hist, hash(ex))
@@ -175,11 +182,9 @@ end
 @test :(y + sec(x)^2) == simplify(:(1 + y + tan(x)^2))
 @test :(y + csc(x)^2) == simplify(:(1 + y + cot(x)^2))
 
+@test :(2x) == simplify(:(∂(x^2, x)))
 
-
-# simplify(:( ∂(x^2, x)))
-
-simplify(:(∂(x^(cos(x)), x)))
+@test :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x)) == simplify(:(∂(x^(cos(x)), x)))
 
 @test :(2x^3) == simplify(:(x * ∂(x^2, x) * x))
 
@@ -189,12 +194,6 @@ simplify(:(∂(x^(cos(x)), x)))
 
 # @simplify ∂(y^3, y) / y
 
-# # ex = :( ∂(x^(cos(x)), x) )
-# ex = :( (6 * x * x * y) )
-# g = EGraph(ex)
-# saturate!(g, cas)
-# g.classes
-# extract!(g, simplcost; root=g.root)
 
 # params = SaturationParams(
 #     scheduler=BackoffScheduler,
