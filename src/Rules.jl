@@ -51,17 +51,17 @@ variables.
   right
   matcher
   patvars::Vector{Symbol}
-  ematcher_new!
+  ematcher!
   ematcher_stack::Vector{UInt16}
 end
 
-function RewriteRule(l, r, ematcher_new!)
+function RewriteRule(l, r, ematcher!)
   pvars = patvars(l) ∪ patvars(r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
   ematcher_stack = Vector{UInt16}(undef, STACK_SIZE)
-  RewriteRule(l, r, matcher(l), pvars, ematcher_new!, ematcher_stack)
+  RewriteRule(l, r, matcher(l), pvars, ematcher!, ematcher_stack)
 end
 
 Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
@@ -178,17 +178,17 @@ Dynamic rule
   rhs_code
   matcher
   patvars::Vector{Symbol} # useful set of pattern variables
-  ematcher_new!
+  ematcher!
   ematcher_stack::Vector{UInt16}
 end
 
-function DynamicRule(l, r::Function, ematcher_new!, rhs_code = nothing)
+function DynamicRule(l, r::Function, ematcher!, rhs_code = nothing)
   pvars = patvars(l)
   setdebrujin!(l, pvars)
   isnothing(rhs_code) && (rhs_code = repr(rhs_code))
   ematcher_stack = Vector{UInt16}(undef, STACK_SIZE)
 
-  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_new!, ematcher_stack)
+  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher!, ematcher_stack)
 end
 
 

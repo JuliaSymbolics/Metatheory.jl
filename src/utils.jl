@@ -78,10 +78,10 @@ end
 
 "Useful for debugging: prints the content of the e-graph match buffer in readable format."
 function buffer_readable(g, limit)
-  k = length(g.buffer_new)
+  k = length(g.buffer)
 
   while k > limit
-    delimiter = g.buffer_new[k]
+    delimiter = g.buffer[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
     n = k - 1
 
@@ -89,19 +89,19 @@ function buffer_readable(g, limit)
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
+      if g.buffer[i] == 0xffffffffffffffffffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
       end
     end
 
-    match_info = g.buffer_new[next_delimiter_idx + 1]
+    match_info = g.buffer[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
     rule_idx = abs(rule_idx)
 
-    bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
+    bindings = @view g.buffer[(next_delimiter_idx + 2):n]
 
     print("$id E-Classes: ", map(x -> reinterpret(Int, v_pair_first(x)), bindings))
     print(" Nodes: ", map(x -> reinterpret(Int, v_pair_last(x)), bindings), "\n")

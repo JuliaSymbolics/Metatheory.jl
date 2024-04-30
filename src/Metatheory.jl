@@ -22,7 +22,6 @@ include("docstrings.jl")
 include("vecexpr.jl")
 @reexport using .VecExprModule
 
-const Bindings = Base.ImmutableDict{Int,Tuple{Id,Int}}
 const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
 using TermInterface
@@ -67,7 +66,7 @@ export @timer
 include("Patterns.jl")
 @reexport using .Patterns
 
-include("ematch_compiler_new.jl")
+include("ematch_compiler.jl")
 export ematch_compile
 
 include("matchers.jl")

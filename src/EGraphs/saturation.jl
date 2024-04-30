@@ -67,7 +67,7 @@ function eqsat_search!(
   n_matches = 0
 
   g.needslock && lock(g.lock)
-  empty!(g.buffer_new)
+  empty!(g.buffer)
   g.needslock && unlock(g.lock)
 
 
@@ -91,7 +91,7 @@ function eqsat_search!(
 
       # @debug "Matching" rule ids
 
-      old_len = length(g.buffer_new)
+      old_len = length(g.buffer)
       if rule isa BidirRule
         for i in ids
           n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.ematcher_stack)
@@ -99,7 +99,7 @@ function eqsat_search!(
         end
       else
         for i in ids
-          n_matches += rule.ematcher_new!(g, rule_idx, i, rule.ematcher_stack)
+          n_matches += rule.ematcher!(g, rule_idx, i, rule.ematcher_stack)
         end
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
@@ -195,9 +195,9 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
   @assert isempty(g.merges_buffer)
 
   n_matches = 0
-  k = length(g.buffer_new)
+  k = length(g.buffer)
 
-  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), g.buffer_new)) matches"
+  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), g.buffer)) matches"
   g.needslock && lock(g.lock)
   while k > 0
 
@@ -207,7 +207,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       return
     end
 
-    delimiter = g.buffer_new[k]
+    delimiter = g.buffer[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
     n = k - 1
 
@@ -215,7 +215,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if g.buffer_new[i] == 0xffffffffffffffffffffffffffffffff
+      if g.buffer[i] == 0xffffffffffffffffffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
@@ -223,7 +223,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     end
 
     n_matches += 1
-    match_info = g.buffer_new[next_delimiter_idx + 1]
+    match_info = g.buffer[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
     direction = sign(rule_idx)
@@ -231,7 +231,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
 
-    bindings = @view g.buffer_new[(next_delimiter_idx + 2):n]
+    bindings = @view g.buffer[(next_delimiter_idx + 2):n]
 
     halt_reason = apply_rule!(bindings, g, rule, id, direction)
 
@@ -253,7 +253,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     return
   end
 
-  empty!(g.buffer_new)
+  empty!(g.buffer)
 
   g.needslock && unlock(g.lock)
 

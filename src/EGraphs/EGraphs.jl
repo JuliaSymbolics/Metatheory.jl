@@ -8,7 +8,7 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using Metatheory.VecExprModule
 
-using Metatheory: alwaystrue, cleanast, Bindings, UNDEF_ID_VEC, should_quote_operation
+using Metatheory: alwaystrue, cleanast, UNDEF_ID_VEC, should_quote_operation
 
 import Metatheory: to_expr, lookup_pat, has_constant, get_constant
 
