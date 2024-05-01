@@ -46,18 +46,12 @@ jobs:
           # cargo bench -- "basic_maths/simpl1"
           cd ../
 
-      - name: Extract Package Name from Project.toml
-        id: extract-package-name
-        run: |
-          PACKAGE_NAME=$(grep "^name" Project.toml | sed 's/^name = "\(.*\)"$/\1/')
-          echo "::set-output name=package_name::$PACKAGE_NAME"
-
       - name: Run Metatheory benchmarks
         run: |
           echo $PATH
           ls -l ~/.julia/bin
           mkdir results
-          benchpkg ${{ steps.extract-package-name.outputs.package_name }} \
+          benchpkg Metatheory \
             --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" \
             --url=${{ github.event.repository.clone_url }} \
             --bench-on="${{github.event.pull_request.head.sha}}" \
@@ -66,7 +60,7 @@ jobs:
       # - name: Create plots from benchmarks
       #   run: |
       #     mkdir -p plots
-      #     benchpkgplot ${{ steps.extract-package-name.outputs.package_name }} \
+      #     benchpkgplot Metatheory \
       #       --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" \
       #       --npart=10 --format=png --input-dir=results/ --output-dir=plots/
 
