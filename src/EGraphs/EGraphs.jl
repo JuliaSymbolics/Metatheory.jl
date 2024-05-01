@@ -10,8 +10,7 @@ using Metatheory.VecExprModule
 
 using Metatheory: alwaystrue, cleanast, UNDEF_ID_VEC, should_quote_operation
 
-import Metatheory: to_expr, lookup_pat, has_constant, get_constant
-
+import Metatheory: to_expr
 
 include("unionfind.jl")
 export UnionFind
@@ -19,21 +18,11 @@ export UnionFind
 include("uniquequeue.jl")
 
 include("egraph.jl")
-export Id
-export EClass
-export find
-export lookup
-export arity
-export EGraph
-export merge!
-export in_same_class
-export addexpr!
-export rebuild!
+export Id,
+  EClass, find, lookup, arity, EGraph, merge!, in_same_class, addexpr!, rebuild!, has_constant, get_constant, lookup_pat
 
 include("extract.jl")
-export extract!
-export astsize
-export astsize_inv
+export extract!, astsize, astsize_inv
 
 
 include("Schedulers.jl")
@@ -41,10 +30,6 @@ export Schedulers
 using .Schedulers
 
 include("saturation.jl")
-export SaturationParams
-export saturate!
-export areequal
-export @areequal
-export @areequalg
+export SaturationParams, saturate!, areequal, @areequal, @areequalg
 
 end

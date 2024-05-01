@@ -282,7 +282,7 @@ end
 
 function lookup_expr(addr, p::AbstractPat)
   quote
-    ecid = Metatheory.EGraphs.lookup_pat(g, $p)
+    ecid = lookup_pat(g, $p)
     if ecid > 0
       $(Symbol(:σ, addr)) = ecid
       pc += 0x0001

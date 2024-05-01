@@ -40,7 +40,8 @@ using Test, Metatheory
 # For example, if a `σ::Mem` holds the value `σ[:a] = 2`, this means that at that given moment, in our program 
 # the variable `a` holds the value 2.
 
-Mem = Dict{Symbol,Union{Bool,Int}}
+const WhileLangValue = Union{Bool,Int}
+Mem = Dict{Symbol,WhileLangValue}
 
 # We are now ready to define our first rewrite rule. 
 # In WHILE, un-evaluated expressions are represented by a tuple of `(program, state)`. 
@@ -213,7 +214,7 @@ while_rules = @theory guard a b σ begin
   ((:skip; b), σ::Mem) --> (b, σ)
   (seq(a, b), σ::Mem) --> (b, merge((a, σ), σ))
   merge(a::Mem, σ::Mem) => merge(σ, a)
-  merge(a::Union{Bool,Int}, σ::Mem) --> σ
+  merge(a::WhileLangValue, σ::Mem) --> σ
   (loop(guard, a), σ::Mem) --> (cond(guard, seq(a, loop(guard, a)), :skip), σ)
 end
 
