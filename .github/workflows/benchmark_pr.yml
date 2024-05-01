@@ -1,7 +1,7 @@
-name: Benchmark a pull request
+name: Benchmark pull request
 
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - master
 
@@ -9,48 +9,80 @@ permissions:
   pull-requests: write
 
 jobs:
-  generate_plots:
+  Metatheory_vs_egg:
     runs-on: ubuntu-latest
 
     steps:
+
+      - uses: dtolnay/rust-toolchain@stable
+        name: Setup rust toolchain
+
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+
+      - uses: julia-actions/setup-julia@v2
         with:
-          version: "1.8"
-      - uses: julia-actions/cache@v1
+          version: "1"
+
+      - name: Clone egg-benchmark repo
+        run: git clone https://github.com/nmheim/egg-benchmark.git egg-benchmark
+
+      - name: Instantiate julia benchmark dependencies
+        env:
+          JULIA_NUM_THREADS: 2
+        run: |
+          # Lightweight build step, as sometimes the runner runs out of memory:
+          julia --project=./egg-benchmark/scripts \
+            -e 'ENV["JULIA_PKG_PRECOMPILE_AUTO"]=0; import Pkg; Pkg.instantiate()'
+
+      - name: Add ~/.julia/bin to PATH
+        run: |
+          echo "$HOME/.julia/bin" >> $GITHUB_PATH
+
+      - name: Run egg benchmarks
+        run: |
+          cd ./egg-benchmark
+          cargo bench
+          # cargo bench -- "basic_maths/simpl1"
+          cd ../
+
       - name: Extract Package Name from Project.toml
         id: extract-package-name
         run: |
           PACKAGE_NAME=$(grep "^name" Project.toml | sed 's/^name = "\(.*\)"$/\1/')
           echo "::set-output name=package_name::$PACKAGE_NAME"
-      - name: Build AirspeedVelocity
-        env:
-          JULIA_NUM_THREADS: 2
-        run: |
-          # Lightweight build step, as sometimes the runner runs out of memory:
-          julia -e 'ENV["JULIA_PKG_PRECOMPILE_AUTO"]=0; import Pkg; Pkg.add(;url="https://github.com/MilesCranmer/AirspeedVelocity.jl.git")'
-          julia -e 'ENV["JULIA_PKG_PRECOMPILE_AUTO"]=0; import Pkg; Pkg.build("AirspeedVelocity")'
-      - name: Add ~/.julia/bin to PATH
-        run: |
-          echo "$HOME/.julia/bin" >> $GITHUB_PATH
-      - name: Run benchmarks
+
+      - name: Run Metatheory benchmarks
         run: |
           echo $PATH
           ls -l ~/.julia/bin
           mkdir results
-          benchpkg ${{ steps.extract-package-name.outputs.package_name }} --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" --url=${{ github.event.repository.clone_url }} --bench-on="${{github.event.repository.default_branch}}" --output-dir=results/ --tune
+          benchpkg ${{ steps.extract-package-name.outputs.package_name }} \
+            --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" \
+            --url=${{ github.event.repository.clone_url }} \
+            --bench-on="${{github.event.pull_request.head.sha}}" \
+            --output-dir=results/ --tune
+
       - name: Create plots from benchmarks
         run: |
           mkdir -p plots
-          benchpkgplot ${{ steps.extract-package-name.outputs.package_name }} --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
+          benchpkgplot ${{ steps.extract-package-name.outputs.package_name }} \
+            --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" \
+            --npart=10 --format=png --input-dir=results/ --output-dir=plots/
+
       - name: Upload plot as artifact
         uses: actions/upload-artifact@v4
         with:
           name: plots
           path: plots
+
       - name: Create markdown table from benchmarks
         run: |
-          benchpkgtable ${{ steps.extract-package-name.outputs.package_name }} --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" --input-dir=results/ --ratio > table.md
+          ls
+          julia --project=egg-benchmark/scripts egg-benchmark/scripts/load_results.jl \
+            -b ${{github.event.pull_request.head.sha}} -b "${{github.event.repository.default_branch}}" \
+            --mt-results=results/ \
+            --egg-results=egg-benchmark/target/criterion \
+            -o table.md
           echo '### Benchmark Results' > body.md
           echo '' >> body.md
           echo '' >> body.md
