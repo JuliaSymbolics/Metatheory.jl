@@ -18,15 +18,15 @@ saturate!(g, fibo, params)</code></pre><pre class="documenter-example-output">Sa
  ────────────────────────────────────────────────────────────────────
                             Time                    Allocations      
                    ───────────────────────   ────────────────────────
- Tot / % measured:      388ms /  11.8%           21.6MiB /   8.8%    
+ Tot / % measured:      360ms /  12.0%           21.6MiB /   8.8%    
 
  Section   ncalls     time    %tot     avg     alloc    %tot      avg
  ────────────────────────────────────────────────────────────────────
- Search        16   30.2ms   65.9%  1.89ms   1.34MiB   70.2%  85.5KiB
-   2           16   30.1ms   65.6%  1.88ms   1.29MiB   67.8%  82.6KiB
-   1           16    113μs    0.2%  7.04μs   43.4KiB    2.2%  2.71KiB
- Apply         16   15.4ms   33.5%   961μs    511KiB   26.2%  32.0KiB
- Rebuild       16    255μs    0.6%  15.9μs   69.4KiB    3.6%  4.34KiB
+ Search        16   28.5ms   65.9%  1.78ms   1.34MiB   70.2%  85.5KiB
+   2           16   28.4ms   65.6%  1.77ms   1.29MiB   67.8%  82.6KiB
+   1           16    105μs    0.2%  6.55μs   43.4KiB    2.2%  2.71KiB
+ Apply         16   14.5ms   33.5%   905μs    511KiB   26.2%  32.0KiB
+ Rebuild       16    235μs    0.5%  14.7μs   69.4KiB    3.6%  4.34KiB
  ────────────────────────────────────────────────────────────────────
 </pre><p>That&#39;s fast!</p><pre><code class="language-julia">z = EGraph(:(fib(10)))
 saturate!(z, fibo, params)</code></pre><pre class="documenter-example-output">SaturationReport
@@ -37,16 +37,16 @@ saturate!(z, fibo, params)</code></pre><pre class="documenter-example-output">Sa
  ────────────────────────────────────────────────────────────────────
                             Time                    Allocations      
                    ───────────────────────   ────────────────────────
- Tot / % measured:     1.49ms /  80.8%            575KiB /  87.3%    
+ Tot / % measured:     1.41ms /  82.5%            575KiB /  87.3%    
 
  Section   ncalls     time    %tot     avg     alloc    %tot      avg
  ────────────────────────────────────────────────────────────────────
- Apply         16    832μs   69.3%  52.0μs    332KiB   66.1%  20.7KiB
- Rebuild       16    215μs   17.9%  13.5μs   69.4KiB   13.8%  4.34KiB
- Search        16    154μs   12.8%  9.60μs    101KiB   20.1%  6.30KiB
-   1           16   73.0μs    6.1%  4.56μs   43.4KiB    8.6%  2.71KiB
-   2           16   69.1μs    5.8%  4.32μs   53.2KiB   10.6%  3.33KiB
+ Apply         16    811μs   69.9%  50.7μs    332KiB   66.1%  20.7KiB
+ Rebuild       16    207μs   17.8%  12.9μs   69.4KiB   13.8%  4.34KiB
+ Search        16    144μs   12.4%  8.97μs    101KiB   20.1%  6.30KiB
+   1           16   66.3μs    5.7%  4.14μs   43.4KiB    8.6%  2.71KiB
+   2           16   65.7μs    5.7%  4.11μs   53.2KiB   10.6%  3.33KiB
  ────────────────────────────────────────────────────────────────────
 </pre><p>We can test that the result is correct.</p><pre><code class="language-julia">@testset &quot;Fibonacci&quot; begin
   @test 55 == extract!(g, astsize)
-end</code></pre><pre class="documenter-example-output">Test.DefaultTestSet(&quot;Fibonacci&quot;, Any[], 1, false, false, true, 1.712763133436037e9, 1.71276313345246e9, false, &quot;none&quot;)</pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../custom_types/">« Interfacing with Metatheory.jl</a><a class="docs-footer-nextpage" href="../mu/">The MU Puzzle »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 10 April 2024 15:32">Wednesday 10 April 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output">Test.DefaultTestSet(&quot;Fibonacci&quot;, Any[], 1, false, false, true, 1.714587369467328e9, 1.714587369482761e9, false, &quot;none&quot;)</pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../custom_types/">« Interfacing with Metatheory.jl</a><a class="docs-footer-nextpage" href="../mu/">The MU Puzzle »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 1 May 2024 18:16">Wednesday 1 May 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
