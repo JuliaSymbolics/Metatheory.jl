@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: dtolnay/rust-toolchain@stable
         name: Setup rust toolchain
 
