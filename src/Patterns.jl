@@ -49,15 +49,14 @@ boolean value. Such a slot will be considered a match only if `f` returns true.
 type assertion. Type assertions on a `PatVar`, will match if and only if 
 the type of the matched term for the pattern variable is a subtype of `T`. 
 """
-mutable struct PatVar{P} <: AbstractPat
+mutable struct PatVar{P<:Union{Function,Type}} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
-  predicate_code
 end
 Base.:(==)(a::PatVar, b::PatVar) = a.idx == b.idx
-PatVar(var) = PatVar(var, -1, alwaystrue, nothing)
-PatVar(var, i) = PatVar(var, i, alwaystrue, nothing)
+PatVar(var) = PatVar(var, -1, alwaystrue)
+PatVar(var, i) = PatVar(var, i, alwaystrue)
 
 """
 If you want to match a variable number of subexpressions at once, you will need
@@ -66,15 +65,14 @@ A segment pattern represents a vector of subexpressions matched.
 You can attach a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more 
 expressions and must return a boolean value. 
 """
-mutable struct PatSegment{P} <: AbstractPat
+mutable struct PatSegment{P<:Union{Function,Type}} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
-  predicate_code
 end
 
-PatSegment(v) = PatSegment(v, -1, alwaystrue, nothing)
-PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
+PatSegment(v) = PatSegment(v, -1, alwaystrue)
+PatSegment(v, i) = PatSegment(v, i, alwaystrue)
 
 
 """
@@ -157,8 +155,8 @@ function setdebrujin!(p::PatExpr, pvars)
 end
 
 to_expr(x::PatLiteral) = x.value
-to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate_code))
-to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
+to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate))
+to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
 function to_expr(x::PatExpr)

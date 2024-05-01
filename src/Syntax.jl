@@ -18,25 +18,25 @@ Remove LineNumberNode from quoted blocks of code
 rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
 rmlines(a) = a
 
-function_object_or_quote(op::Symbol, mod)::Expr = :(isdefined($mod, $(QuoteNode(op))) ? $op : $(QuoteNode(op)))
-function_object_or_quote(op, mod) = op
-
-function makesegment(s::Expr, pvars)
+function makesegment(s::Expr, pvars, mod)
   if s.head != :(::)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
   name, predicate = children(s)
+  if !(predicate isa Symbol) && isdefined(mod, predicate)
+    error("Invalid predicate in $s. Predicates must be names of functions or types defined in current module.")
+  end
   name ∉ pvars && push!(pvars, name)
-  return :($PatSegment($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
+  return PatSegment(name, -1, getfield(mod, predicate))
 end
 
-function makesegment(name::Symbol, pvars)
+function makesegment(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
   PatSegment(name)
 end
 
-function makevar(s::Expr, pvars)
+function makevar(s::Expr, pvars, mod)
   if s.head != :(::)
     throw(
       DomainError(
@@ -47,11 +47,14 @@ function makevar(s::Expr, pvars)
   end
 
   name, predicate = children(s)
+  if !(predicate isa Symbol) && isdefined(mod, predicate)
+    error("Invalid predicate in $s. Predicates must be names of functions or types defined in current module.")
+  end
   name ∉ pvars && push!(pvars, name)
-  return :($PatVar($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
+  return PatVar(name, -1, getfield(mod, predicate))
 end
 
-function makevar(name::Symbol, pvars)
+function makevar(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
   PatVar(name)
 end
@@ -84,8 +87,16 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
-function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
-  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : :(PatLiteral($x))
+function makepattern(x, pvars, slots, mod, splat = false)
+  if x in slots
+    splat ? makesegment(x, pvars, mod) : makevar(x, pvars, mod)
+  elseif x isa Symbol
+    PatLiteral(getfield(mod, x))
+  elseif x isa QuoteNode
+    PatLiteral(x.value)
+  else
+    PatLiteral(x)
+  end
 end
 
 function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
@@ -100,28 +111,36 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       let v = args[1]
         if v isa Expr && iscall(v) && operation(v) === :(~)
           # matches ~~x::predicate or ~~x::predicate...
-          makesegment(v.args[2], pvars)
+          makesegment(v.args[2], pvars, mod)
         elseif splat
           # matches ~x::predicate...
-          makesegment(v, pvars)
+          makesegment(v, pvars, mod)
         else
-          makevar(v, pvars)
+          makevar(v, pvars, mod)
         end
       end
-    else # Matches a term
+    else# Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatExpr($(iscall(ex)), $(function_object_or_quote(op, mod)), $(patargs...)))
+      op_obj = if op isa Symbol && isdefined(mod, op)
+        getfield(mod, op)
+      elseif op isa Expr
+        makepattern(op, pvars, slots, mod, false)
+      else
+        op
+      end
+      PatExpr(iscall(ex), op_obj, patargs)
     end
 
   elseif h === :...
     makepattern(ex.args[1], pvars, slots, mod, true)
   elseif h == :(::) && ex.args[1] in slots
-    splat ? makesegment(ex, pvars) : makevar(ex, pvars)
+    splat ? makesegment(ex, pvars) : makevar(ex, pvars, mod)
   elseif h === :$
     ex.args[1]
   else
+    # @show "PORCO DIO!"
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
-    :($PatExpr($false, $(QuoteNode(h)), $(patargs...)))
+    PatExpr(false, h, patargs)
   end
 end
 
@@ -338,8 +357,25 @@ macro rule(args...)
 
   l, r = iscall(e) ? arguments(e) : children(e)
   pvars = Symbol[]
-  lhs = esc(makepattern(l, pvars, slots, __module__))
-  rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
+  lhs::AbstractPat = makepattern(l, pvars, slots, __module__)
+  ppvars = Patterns.patvars(lhs)
+
+  ematcher_right_expr = nothing
+
+  rhs = RuleType <: SymbolicRule ? makepattern(r, [], slots, __module__) : r
+
+  if RuleType <: BidirRule
+    ppvars = ppvars ∪ Patterns.patvars(rhs)
+    setdebrujin!(lhs, pvars)
+    setdebrujin!(rhs, pvars)
+    ematcher_right_expr = esc(ematch_compile(rhs, ppvars, -1))
+  else
+    setdebrujin!(lhs, ppvars)
+  end
+  ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
+
+  # @show pvars
+  # @show ppvars
 
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
@@ -348,40 +384,20 @@ macro rule(args...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote
       $(__source__)
-      lhs_pat = $lhs
-      pvars = $(Patterns.patvars)(lhs_pat)
-      setdebrujin!(lhs_pat, pvars)
-      DynamicRule($lhs, $rhs, $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)), $(QuoteNode(rhs_consequent)))
+      DynamicRule($lhs, $rhs, $ematcher_left_expr, $(QuoteNode(rhs_consequent)))
     end
   end
 
   if RuleType <: BidirRule
     return quote
-      begin
-        $(__source__)
-        lhs_pat = $lhs
-        rhs_pat = $rhs
-        pvars = $(Patterns.patvars)(lhs_pat) ∪ $(Patterns.patvars)(rhs_pat)
-        setdebrujin!(lhs_pat, pvars)
-        setdebrujin!(rhs_pat, pvars)
-        ($RuleType)(
-          lhs_pat,
-          rhs_pat,
-          # Left-to-Right e-matcher
-          $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)),
-          # Right-to-Left e-matcher
-          $(__module__).eval(($ematch_compile)(rhs_pat, pvars, -1)),
-        )
-      end
+      $(__source__)
+      ($RuleType)($lhs, $rhs, $ematcher_left_expr, $ematcher_right_expr)
     end
   end
 
   quote
     $(__source__)
-    lhs_pat = $lhs
-    pvars = $(Patterns.patvars)(lhs_pat)
-    setdebrujin!(lhs_pat, pvars)
-    ($RuleType)(lhs_pat, $rhs, $(__module__).eval(($ematch_compile)(lhs_pat, pvars, 1)))
+    ($RuleType)($lhs, $rhs, $ematcher_left_expr)
   end
 end
 
@@ -456,15 +472,15 @@ macro capture(args...)
   lhs = rmlines(lhs)
 
   pvars = Symbol[]
-  lhs_term = makepattern(lhs, pvars, slots, __module__)
+  lhs = makepattern(lhs, pvars, slots, __module__)
   bind = Expr(
     :block,
     map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
   )
+  rule = DynamicRule(lhs, (_lhs_expr, _egraph, pvars...) -> pvars, (x...) -> nothing)
   quote
     $(__source__)
-    lhs_pattern = $(esc(lhs_term))
-    __MATCHES__ = DynamicRule(lhs_pattern, (_lhs_expr, _egraph, pvars...) -> pvars, nothing)($(esc(ex)))
+    __MATCHES__ = $(rule)($(esc(ex)))
     if __MATCHES__ !== nothing
       $bind
       true

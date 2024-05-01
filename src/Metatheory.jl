@@ -6,11 +6,6 @@ using Reexport
 @inline alwaystrue(x...) = true
 
 function to_expr end
-function has_constant end
-function get_constant end
-function lookup_pat end
-export has_constant
-export get_constant
 
 # TODO: document
 function should_quote_operation end

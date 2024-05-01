@@ -83,15 +83,8 @@ end
 diff_t_onearg = @theory begin
   diff(sqrt(x), x::Symbol) --> 1 / 2 / sqrt(x)
   diff(cbrt(x), x::Symbol) --> 1 / 3 / cbrt(x)^2
-  diff(abs2(x), x::Symbol) --> 1 * 2 * x
-  diff(inv(x), x::Symbol) --> -1 * abs2(inv(x))
   diff(log(x), x::Symbol) --> 1 / x
-  diff(log10(x), x::Symbol) --> 1 / x / log(10)
-  diff(log2(x), x::Symbol) --> 1 / x / log(2)
-  diff(log1p(x), x::Symbol) --> 1 / (x + 1)
   diff(exp(x), x::Symbol) --> exp(x)
-  diff(exp2(x), x::Symbol) --> log(2) * exp2(x)
-  diff(expm1(x), x::Symbol) --> exp(x)
   diff(sin(x), x::Symbol) --> cos(x)
   diff(cos(x), x::Symbol) --> -sin(x)
   diff(tan(x), x::Symbol) --> (1 + tan(x)^2)
