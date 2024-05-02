@@ -468,19 +468,23 @@ macro capture(args...)
   slots = args[1:(end - 2)]
   ex = args[end - 1]
   lhs = args[end]
+  @show lhs
   lhs = macroexpand(__module__, lhs)
   lhs = rmlines(lhs)
 
+  @show lhs
+
   pvars = Symbol[]
   lhs = makepattern(lhs, pvars, slots, __module__)
+  @show lhs
   bind = Expr(
     :block,
     map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
   )
-  rule = DynamicRule(lhs, (_lhs_expr, _egraph, pvars...) -> pvars, (x...) -> nothing)
-  quote
+  ret = quote
     $(__source__)
-    __MATCHES__ = $(rule)($(esc(ex)))
+    rule = DynamicRule($lhs, (_lhs_expr, _egraph, pvars...) -> pvars, (x...) -> nothing)
+    __MATCHES__ = rule($(esc(ex)))
     if __MATCHES__ !== nothing
       $bind
       true
@@ -488,6 +492,8 @@ macro capture(args...)
       false
     end
   end
+  @show ret
+  ret
 end
 
 

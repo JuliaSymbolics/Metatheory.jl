@@ -81,24 +81,19 @@ function eqsat_search!(
         @debug "$rule is banned"
         continue
       end
-      ids = let left = cached_ids(g, rule.left)
-        if rule isa BidirRule
-          Iterators.flatten((left, cached_ids(g, rule.right)))
-        else
-          left
-        end
-      end
+      ids_left = cached_ids(g, rule.left)
+      ids_right = rule isa BidirRule ? cached_ids(g, rule.right) : UNDEF_ID_VEC
 
-      # @debug "Matching" rule ids
 
-      old_len = length(g.buffer)
       if rule isa BidirRule
-        for i in ids
+        for i in ids_left
           n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.ematcher_stack)
+        end
+        for i in ids_right
           n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.ematcher_stack)
         end
       else
-        for i in ids
+        for i in ids_left
           n_matches += rule.ematcher!(g, rule_idx, i, rule.ematcher_stack)
         end
       end
