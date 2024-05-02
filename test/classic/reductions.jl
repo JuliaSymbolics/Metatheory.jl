@@ -195,43 +195,55 @@ using Metatheory.Syntax: @capture
   @test isnothing(f(:(b + b)))
 
   # FIXME TODO broken
-  # x = 1
-  # r = (@capture x ~x)
-  # @test r == true
+  x = 1
+  r = (@capture x ~x)
+  @test r == true
 end
 
-# TODO FIXME BROKEN
-# @testset "Matchable struct" begin
-#   struct Qux
-#     args
-#     Qux(args...) = new(args)
-#   end
-#   TermInterface.iscall(::Qux) = true
-#   TermInterface.isexpr(::Qux) = true
-#   TermInterface.head(::Qux) = Qux
-#   TermInterface.operation(::Qux) = Qux
-#   TermInterface.children(x::Qux) = [x.args...]
-#   TermInterface.arguments(x::Qux) = [x.args...]
+module QuxTest
+using Metatheory, Test, TermInterface
+struct Qux
+  args
+  Qux(args...) = new(args)
+end
+TermInterface.iscall(::Qux) = true
+TermInterface.isexpr(::Qux) = true
+TermInterface.head(::Qux) = Qux
+TermInterface.operation(::Qux) = Qux
+TermInterface.children(x::Qux) = [x.args...]
+TermInterface.arguments(x::Qux) = [x.args...]
+
+function test()
+  @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(1) === nothing
+  @test (@rule 1 => "hello")(1) == "hello"
+  @test (@rule 1 => "hello")(Qux(1, 2)) === nothing
+  @test (@capture Qux(1, 2) Qux(1, 2))
+  @test false == (@capture Qux(1, 2) Qux(3, 4))
+end
+end
 
 
-#   @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
-#   @test (@rule Qux(1, 2) => "hello")(1) === nothing
-#   @test (@rule 1 => "hello")(1) == "hello"
-#   @test (@rule 1 => "hello")(Qux(1, 2)) === nothing
-#   @test (@capture Qux(1, 2) Qux(1, 2))
-#   @test false == (@capture Qux(1, 2) Qux(3, 4))
+module LuxTest
+using Metatheory, Test, TermInterface
+using Metatheory: @matchable
 
+@matchable struct Lux
+  a
+  b
+end
 
-#   @matchable struct Lux
-#     a
-#     b
-#   end
+function test()
+  @test (@rule Lux(1, 2) => "hello")(Lux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(1) === nothing
+  @test (@rule 1 => "hello")(1) == "hello"
+  @test (@rule 1 => "hello")(Lux(1, 2)) === nothing
+  @test (@capture Lux(1, 2) Lux(1, 2))
+  @test false == (@capture Lux(1, 2) Lux(3, 4))
+end
+end
 
-
-#   @test (@rule Lux(1, 2) => "hello")(Lux(1, 2)) == "hello"
-#   @test (@rule Qux(1, 2) => "hello")(1) === nothing
-#   @test (@rule 1 => "hello")(1) == "hello"
-#   @test (@rule 1 => "hello")(Lux(1, 2)) === nothing
-#   @test (@capture Lux(1, 2) Lux(1, 2))
-#   @test false == (@capture Lux(1, 2) Lux(3, 4))
-# end
+@testset "Matchable struct" begin
+  QuxTest.test()
+  LuxTest.test()
+end
