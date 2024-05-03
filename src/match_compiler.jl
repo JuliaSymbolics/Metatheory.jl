@@ -11,7 +11,7 @@ function match_compile(p, pvars, direction)
   push!(program, :(return callback($(pvars...))))
 
   quote
-    function ($(gensym("matcher")))(t, callback::Function, stack::Vector{UInt16})
+    Base.@propagate_inbounds function ($(gensym("matcher")))(t, callback::Function, stack::Vector{UInt16})
       # Assign and empty the variables for patterns 
       $([:($var = nothing) for var in pvars]...)
       $([:($v = nothing) for v in term_coord_variables]...)
@@ -49,6 +49,7 @@ function match_compile(p, pvars, direction)
     end
   end
 end
+
 
 
 # ==============================================================
