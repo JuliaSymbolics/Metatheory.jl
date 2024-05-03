@@ -1,19 +1,38 @@
+Base.@kwdef mutable struct EMatchCompilerState
+  """
+  As ground terms are matched at the beginning. 
+  Store the index of the σ variable (address) that represents the first non-ground term.
+  """
+  first_nonground::Int = 0
+
+  "Ground terms e-class IDs can be stored in a single σ variable"
+  ground_terms_to_addr::Dict{AbstractPat,Int} = Dict{AbstractPat,Int}()
+
+  """
+  Given a pattern variable with Debrujin index i
+  This vector stores the σ variable index (address) for that variable at position i 
+  """
+  patvar_to_addr::Vector{Int} = Int[]
+
+  "List of actual e-matching instructions"
+  program::Vector{Expr} = Expr[]
+
+  "How many σ variables are needed to e-match"
+  memsize = 1
+end
+
 function ematch_compile(p, pvars, direction)
-  npvars = length(pvars)
+  # Create the compiler state with the right number of pattern variables
+  state = EMatchCompilerState(; patvar_to_addr = fill(-1, length(pvars)))
 
-  patvar_to_addr = fill(-1, npvars)
-  ground_terms_to_addr = Dict{AbstractPat,Int}()
+  ematch_compile_ground!(p, state, 1)
 
-  program = Expr[]
-  memsize = Ref(1)
+  state.first_nonground = state.memsize
+  state.memsize += 1
 
-  ematch_compile_ground!(1, ground_terms_to_addr, program, memsize, p)
-  first_nonground = memsize[]
-  memsize[] += 1
+  ematch_compile!(p, state, state.first_nonground)
 
-  ematch_compile!(first_nonground, ground_terms_to_addr, patvar_to_addr, program, memsize, p)
-
-  push!(program, yield_expr(patvar_to_addr, direction))
+  push!(state.program, yield_expr(state.patvar_to_addr, direction))
 
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
@@ -22,9 +41,9 @@ function ematch_compile(p, pvars, direction)
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
       # Copy and empty the memory 
-      $(make_memory(memsize[], first_nonground)...)
+      $(make_memory(state.memsize, state.first_nonground)...)
       # TODO not all of those are needed.
-      $([:($(Symbol(:enode_idx, i)) = 1) for i in 1:memsize[]]...)
+      $([:($(Symbol(:enode_idx, i)) = 1) for i in 1:(state.memsize)]...)
 
       n_matches = 0
       # Backtracking stack
@@ -49,7 +68,7 @@ function ematch_compile(p, pvars, direction)
         if pc === $(UInt16(i))
           $code
         end
-      ) for (i, code) in enumerate(program)]...)
+      ) for (i, code) in enumerate(state.program)]...)
 
       error("unreachable code!")
 
@@ -91,25 +110,24 @@ make_memory(n, first_nonground) = [:($(Symbol(:σ, i)) = $(i == first_nonground 
 # TODO explain what is a ground term
 # ==============================================================
 
-ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, ::AbstractPat) = nothing
+"Don't compile non-ground terms as ground terms"
+ematch_compile_ground!(::AbstractPat, ::EMatchCompilerState, ::Int) = nothing
 
 # Ground e-matchers
-function ematch_compile_ground!(addr, ground_terms_to_addr, program, memsize, pattern::Union{PatExpr,PatLiteral})
-  if haskey(ground_terms_to_addr, pattern)
-    return
-  end
+function ematch_compile_ground!(p::Union{PatExpr,PatLiteral}, state::EMatchCompilerState, addr::Int)
+  haskey(state.ground_terms_to_addr, p) && return nothing
 
-  if isground(pattern)
+  if isground(p)
     # Remember that it has been searched and its stored in σaddr
-    ground_terms_to_addr[pattern] = addr
+    state.ground_terms_to_addr[p] = addr
     # Add the lookup instruction to the program
-    push!(program, lookup_expr(addr, pattern))
+    push!(state.program, lookup_expr(addr, p))
     # Memory needs one more register 
-    memsize[] += 1
+    state.memsize += 1
   else
     # Search for ground patterns in the children.
-    for child_pattern in children(pattern)
-      ematch_compile_ground!(memsize[], ground_terms_to_addr, program, memsize, child_pattern)
+    for child_p in children(p)
+      ematch_compile_ground!(child_p, state, state.memsize)
     end
   end
 end
@@ -118,47 +136,51 @@ end
 # Term E-Matchers
 # ==============================================================
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, pattern::PatExpr)
-  if haskey(ground_terms_to_addr, pattern)
-    push!(program, check_eq_expr(addr, ground_terms_to_addr[pattern]))
+function ematch_compile!(p::PatExpr, state::EMatchCompilerState, addr::Int)
+  if haskey(state.ground_terms_to_addr, p)
+    push!(state.program, check_eq_expr(addr, state.ground_terms_to_addr[p]))
     return
   end
 
-  c = memsize[]
-  nargs = arity(pattern)
+  c = state.memsize
+  nargs = arity(p)
   memrange = c:(c + nargs - 1)
-  memsize[] += nargs
+  state.memsize += nargs
 
-  push!(program, bind_expr(addr, pattern, memrange))
-  for (i, child_pattern) in enumerate(arguments(pattern))
-    ematch_compile!(memrange[i], ground_terms_to_addr, patvar_to_addr, program, memsize, child_pattern)
+  push!(state.program, bind_expr(addr, p, memrange))
+  for (i, child_p) in enumerate(arguments(p))
+    ematch_compile!(child_p, state, memrange[i])
   end
 end
 
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, patvar::PatVar)
-  instruction = if patvar_to_addr[patvar.idx] != -1
+function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
+  instruction = if state.patvar_to_addr[p.idx] != -1
     # Pattern variable with the same Debrujin index has appeared in the  
     # pattern before this. Just check if the current e-class id matches the one 
     # That was already encountered.
-    check_eq_expr(addr, patvar_to_addr[patvar.idx])
+    check_eq_expr(addr, state.patvar_to_addr[p.idx])
   else
     # Variable has not been seen before. Store its memory address
-    patvar_to_addr[patvar.idx] = addr
+    state.patvar_to_addr[p.idx] = addr
     # insert instruction for checking predicates or type.
-    check_var_expr(addr, patvar.predicate)
+    check_var_expr(addr, p.predicate)
   end
-  push!(program, instruction)
+  push!(state.program, instruction)
 end
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, ::AbstractPat)
-  # Pattern not supported.
-  push!(program, :(println("NOT SUPPORTED"); return 0))
+# Pattern not supported.
+function ematch_compile!(p::AbstractPat, state::EMatchCompilerState, ::Int)
+  push!(
+    state.program,
+    :(throw(DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")); return 0),
+  )
 end
 
 
-function ematch_compile!(addr, ground_terms_to_addr, patvar_to_addr, program, memsize, literal::PatLiteral)
-  push!(program, check_eq_expr(addr, ground_terms_to_addr[literal]))
+
+function ematch_compile!(p::PatLiteral, state::EMatchCompilerState, addr::Int)
+  push!(state.program, check_eq_expr(addr, state.ground_terms_to_addr[p]))
 end
 
 
