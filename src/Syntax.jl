@@ -138,7 +138,6 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   elseif h === :$
     ex.args[1]
   else
-    # @show "PORCO DIO!"
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
     PatExpr(false, h, patargs)
   end
@@ -374,9 +373,6 @@ macro rule(args...)
   end
   ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
 
-  # @show pvars
-  # @show ppvars
-
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
     rhs_consequent = makeconsequent(rhs_rewritten)
@@ -468,15 +464,12 @@ macro capture(args...)
   slots = args[1:(end - 2)]
   ex = args[end - 1]
   lhs = args[end]
-  @show lhs
   lhs = macroexpand(__module__, lhs)
   lhs = rmlines(lhs)
 
-  @show lhs
 
   pvars = Symbol[]
   lhs = makepattern(lhs, pvars, slots, __module__)
-  @show lhs
   bind = Expr(
     :block,
     map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
@@ -492,7 +485,6 @@ macro capture(args...)
       false
     end
   end
-  @show ret
   ret
 end
 

@@ -222,7 +222,6 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
     direction = sign(rule_idx)
-    # @show direction
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
 
