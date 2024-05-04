@@ -6,12 +6,7 @@ include("docstrings.jl")
 
 module Library
 
-using Metatheory.Patterns
-using Metatheory.Rules
-using Metatheory.Syntax
-# These are needed to make the e-matchers compile correctly.
-using Metatheory.EGraphs
-using Metatheory.VecExprModule
+using Metatheory
 
 macro commutativity(op)
   :(@rule $(op)(~a, ~b) --> $(op)(~b, ~a))

@@ -17,6 +17,9 @@ include("docstrings.jl")
 include("vecexpr.jl")
 @reexport using .VecExprModule
 
+include("optbuffer.jl")
+export OptBuffer
+
 const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
 using TermInterface
