@@ -63,7 +63,7 @@ function eqsat_search!(
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
   report::SaturationReport,
-  ematch_buffer::Vector{UInt128},
+  ematch_buffer::OptBuffer{UInt128},
 )::Int
   n_matches = 0
 
@@ -134,13 +134,13 @@ function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add!(g, p.n, true)
 end
 
-function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction, merges_buffer::Vector{UInt128})
+function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction, merges_buffer::OptBuffer{UInt128})
   new_id::Id = instantiate_enode!(buf, g, rule.right)
   push!(merges_buffer, v_pair(new_id, id))
   nothing
 end
 
-function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int, merges_buffer::Vector{UInt128})
+function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int, merges_buffer::OptBuffer{UInt128})
   pat_to_inst = direction == 1 ? rule.right : rule.left
   new_id = instantiate_enode!(bindings, g, pat_to_inst)
   push!(merges_buffer, v_pair(new_id, id))
@@ -148,7 +148,7 @@ function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction:
 end
 
 
-function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int, ::Vector{UInt128})
+function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int, ::OptBuffer{UInt128})
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
@@ -174,7 +174,7 @@ function instantiate_actual_param!(bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int, merges_buffer::Vector{UInt128})
+function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int, merges_buffer::OptBuffer{UInt128})
   f = rule.rhs_fun
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
@@ -190,8 +190,8 @@ function eqsat_apply!(
   theory::Vector{<:AbstractRule},
   rep::SaturationReport,
   params::SaturationParams,
-  ematch_buffer::Vector{UInt128},
-  merges_buffer::Vector{UInt128},
+  ematch_buffer::OptBuffer{UInt128},
+  merges_buffer::OptBuffer{UInt128},
 )
   @assert isempty(merges_buffer)
 
@@ -208,7 +208,7 @@ function eqsat_apply!(
       return
     end
 
-    delimiter = ematch_buffer[k]
+    delimiter = ematch_buffer.v[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
     n = k - 1
 
@@ -216,7 +216,7 @@ function eqsat_apply!(
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if ematch_buffer[i] == 0xffffffffffffffffffffffffffffffff
+      if ematch_buffer.v[i] == 0xffffffffffffffffffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
@@ -224,14 +224,14 @@ function eqsat_apply!(
     end
 
     n_matches += 1
-    match_info = ematch_buffer[next_delimiter_idx + 1]
+    match_info = ematch_buffer.v[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
     direction = sign(rule_idx)
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
 
-    bindings = @view ematch_buffer[(next_delimiter_idx + 2):n]
+    bindings = @view ematch_buffer.v[(next_delimiter_idx + 2):n]
 
     halt_reason = apply_rule!(bindings, g, rule, id, direction, merges_buffer)
 
@@ -278,8 +278,8 @@ function eqsat_step!(
   scheduler::AbstractScheduler,
   params::SaturationParams,
   report,
-  ematch_buffer::Vector{UInt128},
-  merges_buffer::Vector{UInt128},
+  ematch_buffer::OptBuffer{UInt128},
+  merges_buffer::OptBuffer{UInt128},
 )
 
   setiter!(scheduler, curr_iter)
@@ -313,9 +313,9 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   params.timer || disable_timer!(report.to)
 
   # Buffer for e-matching. Use a local buffer for generated functions.
-  ematch_buffer = Vector{UInt128}()
+  ematch_buffer = OptBuffer{UInt128}(64)
   # Buffer for rule application. Use a local buffer for generated functions.
-  merges_buffer = Vector{UInt128}()
+  merges_buffer = OptBuffer{UInt128}(64)
 
   while true
     curr_iter += 1

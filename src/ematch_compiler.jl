@@ -42,7 +42,7 @@ function ematch_compile(p, pvars, direction)
       rule_idx::Int,
       root_id::Id,
       stack::Vector{UInt16},
-      ematch_buffer::Vector{UInt128},
+      ematch_buffer::OptBuffer{UInt128},
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
