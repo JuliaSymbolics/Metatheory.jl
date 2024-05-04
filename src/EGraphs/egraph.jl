@@ -82,6 +82,14 @@ function merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union
   end
 end
 
+"""
+There's no need of computing hash for dictionaries where keys are UInt64.
+Wrap them in an immutable struct that overrides `hash`.
+
+TODO: this is rather hacky. We need a more performant dict implementation.
+
+Trick from: https://discourse.julialang.org/t/dictionary-with-custom-hash-function/49168
+"""
 struct IdKey
   val::Id
 end
@@ -118,7 +126,7 @@ mutable struct EGraph{ExpressionType,Analysis}
   analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
   root::Id
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
-  classes_by_op::Dict{UInt,Vector{Id}}
+  classes_by_op::Dict{IdKey,Vector{Id}}
   clean::Bool
   "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
@@ -143,7 +151,7 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
     0,
-    Dict{UInt,Vector{Id}}(),
+    Dict{IdKey,Vector{Id}}(),
     false,
     needslock,
     UInt128[],
@@ -256,7 +264,7 @@ end
 
 
 function add_class_by_op(g::EGraph, n, eclass_id)
-  key = v_signature(n)
+  key = IdKey(v_signature(n))
   if haskey(g.classes_by_op, key)
     push!(g.classes_by_op[key], eclass_id)
   else
