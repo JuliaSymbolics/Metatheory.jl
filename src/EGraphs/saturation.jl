@@ -50,10 +50,10 @@ end
 function cached_ids(g::EGraph, p::PatLiteral) # p is a literal
   id = lookup_pat(g, p)
   id > 0 && return [id]
-  return []
+  return UNDEF_ID_VEC
 end
 
-cached_ids(g::EGraph, p::PatVar) = keys(g.classes)
+cached_ids(g::EGraph, p::PatVar) = Iterators.map(x -> x.val, keys(g.classes))
 
 """
 Returns an iterator of `Match`es.
@@ -83,7 +83,6 @@ function eqsat_search!(
       end
       ids_left = cached_ids(g, rule.left)
       ids_right = rule isa BidirRule ? cached_ids(g, rule.right) : UNDEF_ID_VEC
-
 
       if rule isa BidirRule
         for i in ids_left

@@ -82,6 +82,11 @@ function merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union
   end
 end
 
+struct IdKey
+  val::Id
+end
+Base.hash(a::IdKey, h::UInt) = xor(a.val, h)
+Base.:(==)(a::IdKey, b::IdKey) = a.val == b.val
 
 """
     EGraph{ExpressionType,Analysis}
@@ -103,9 +108,9 @@ mutable struct EGraph{ExpressionType,Analysis}
   "stores the equality relations over e-class ids"
   uf::UnionFind
   "map from eclass id to eclasses"
-  classes::Dict{Id,EClass{Analysis}}
+  classes::Dict{IdKey,EClass{Analysis}}
   "hashcons mapping e-node hashes to their e-class id"
-  memo::Dict{Id,Id}
+  memo::Dict{IdKey,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
@@ -132,8 +137,8 @@ Construct an EGraph from a starting symbolic expression `expr`.
 function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
-    Dict{Id,EClass{Analysis}}(),
-    Dict{Id,Id}(),
+    Dict{IdKey,EClass{Analysis}}(),
+    Dict{IdKey,Id}(),
     Dict{UInt64,Any}(),
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
@@ -191,7 +196,7 @@ end
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
-    d[class_id] = map(n -> to_expr(g, n), eclass.nodes)
+    d[class_id.val] = map(n -> to_expr(g, n), eclass.nodes)
   end
   d
 end
@@ -213,7 +218,7 @@ Returns the canonical e-class id for a given e-class.
 @inline find(g::EGraph, a::Id)::Id = find(g.uf, a)
 @inline find(@nospecialize(g::EGraph), @nospecialize(a::EClass))::Id = find(g, a.id)
 
-@inline Base.getindex(g::EGraph, i::Id) = g.classes[find(g, i)]
+@inline Base.getindex(g::EGraph, i::Id) = g.classes[IdKey(find(g, i))]
 
 # function canonicalize(g::EGraph, n::VecExpr)::VecExpr
 #   if !v_isexpr(n)
@@ -244,7 +249,7 @@ end
 
 function lookup(g::EGraph, n::VecExpr)::Id
   canonicalize!(g, n)
-  h = v_hash(n)
+  h = IdKey(v_hash(n))
 
   haskey(g.memo, h) ? find(g, g.memo[h]) : 0
 end
@@ -264,7 +269,7 @@ Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)::Id where {ExpressionType,Analysis}
   canonicalize!(g, n)
-  h = v_hash(n)
+  h = IdKey(v_hash(n))
 
   haskey(g.memo, h) && return g.memo[h]
 
@@ -276,7 +281,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   if v_isexpr(n)
     for c_id in v_children(n)
-      addparent!(g.classes[c_id], n, id)
+      addparent!(g.classes[IdKey(c_id)], n, id)
     end
   end
 
@@ -284,7 +289,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   add_class_by_op(g, n, id)
   eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
-  g.classes[id] = eclass
+  g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
   push!(g.pending, n => id)
 
@@ -347,8 +352,8 @@ function Base.union!(
 )::Bool where {ExpressionType,AnalysisType}
   g.clean = false
 
-  id_1 = find(g, enode_id1)
-  id_2 = find(g, enode_id2)
+  id_1 = IdKey(find(g, enode_id1))
+  id_2 = IdKey(find(g, enode_id2))
 
   id_1 == id_2 && return false
 
@@ -357,7 +362,7 @@ function Base.union!(
     id_1, id_2 = id_2, id_1
   end
 
-  union!(g.uf, id_1, id_2)
+  union!(g.uf, id_1.val, id_2.val)
 
   eclass_2 = pop!(g.classes, id_2)::EClass
   eclass_1 = g.classes[id_1]::EClass
@@ -370,7 +375,7 @@ function Base.union!(
 
 
   new_eclass = EClass{AnalysisType}(
-    id_1,
+    id_1.val,
     append!(eclass_1.nodes, eclass_2.nodes),
     append!(eclass_1.parents, eclass_2.parents),
     new_data,
@@ -407,7 +412,7 @@ function rebuild_classes!(g::EGraph)
     unique!(eclass.nodes)
 
     for n in eclass.nodes
-      add_class_by_op(g, n, eclass_id)
+      add_class_by_op(g, n, eclass_id.val)
     end
   end
 
@@ -424,7 +429,7 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     while !isempty(g.pending)
       (node::VecExpr, eclass_id::Id) = pop!(g.pending)
       canonicalize!(g, node)
-      h = v_hash(node)
+      h = IdKey(v_hash(node))
       if haskey(g.memo, h)
         old_class_id = g.memo[h]
         g.memo[h] = eclass_id
@@ -438,20 +443,21 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     while !isempty(g.analysis_pending)
       (node::VecExpr, eclass_id::Id) = pop!(g.analysis_pending)
       eclass_id = find(g, eclass_id)
-      eclass = g[eclass_id]
+      eclass_id_key = IdKey(eclass_id)
+      eclass = g.classes[eclass_id_key]
 
       node_data = make(g, node)
       if !isnothing(eclass.data)
         joined_data = join(eclass.data, node_data)
 
         if joined_data != eclass.data
-          g.classes[eclass_id] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
+          g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
           # eclass.data = joined_data
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
         end
       else
-        g.classes[eclass_id] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
+        g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
         # eclass.data = node_data
         modify!(g, eclass)
       end
@@ -464,19 +470,19 @@ end
 function check_memo(g::EGraph)::Bool
   test_memo = Dict{VecExpr,Id}()
   for (id, class) in g.classes
-    @assert id == class.id
+    @assert id.val == class.id
     for node in class.nodes
       if haskey(test_memo, node)
         old_id = test_memo[node]
-        test_memo[node] = id
-        @assert find(g, old_id) == find(g, id) "Unexpected equivalence $node $(g[find(g, id)].nodes) $(g[find(g, old_id)].nodes)"
+        test_memo[node] = id.val
+        @assert find(g, old_id) == find(g, id.val) "Unexpected equivalence $node $(g[find(g, id.val)].nodes) $(g[find(g, old_id)].nodes)"
       end
     end
   end
 
   for (node, id) in test_memo
     @assert id == find(g, id)
-    @assert id == find(g, g.memo[v_hash(node)])
+    @assert id == find(g, g.memo[IdKey(v_hash(node))])
   end
 
   true
