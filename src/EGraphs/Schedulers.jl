@@ -31,23 +31,31 @@ cansaturate(s::AbstractScheduler)
 function cansaturate end
 
 """
-Should return `false` if the rule `r` should be skipped
+Given a theory `t` and a rule `r` with index `i` in the theory,
+should return `false` if the search for rule with index `i` should be skipped
+for the current iteration.
 ```
-cansearch(s::AbstractScheduler, r::Rule)
+cansearch(s::AbstractScheduler, i::Int)
 ```
 """
 function cansearch end
 
 """
-This function is called **after** pattern matching on the e-graph,
-informs the scheduler about the yielded matches.
-Returns `false` if the matches should not be yielded and ignored. 
+Given a theory `t` and a rule `r` with index `i` in the theory,
+This function is called **after** pattern matching (searching) the e-graph,
+it informs the scheduler about the number of yielded matches.
 ```
-inform!(s::AbstractScheduler, r::AbstractRule, n_matches)
+inform!(s::AbstractScheduler, i::Int, n_matches)
 ```
 """
 function inform! end
 
+"""
+Inform a scheduler about the current iteration number.
+```
+setiter!(s::AbstractScheduler, i::Int)
+```
+"""
 function setiter! end
 
 # ===========================================================================
@@ -65,7 +73,7 @@ cansearch(s::SimpleScheduler, r::Int) = true
 function SimpleScheduler(G::EGraph, theory::Vector{<:AbstractRule})
   SimpleScheduler()
 end
-inform!(s::SimpleScheduler, r, n_matches) = true
+inform!(s::SimpleScheduler, r, n_matches) = nothing
 setiter!(s::SimpleScheduler, iteration) = nothing
 
 
@@ -88,7 +96,7 @@ mutable struct BackoffScheduler <: AbstractScheduler
   G::EGraph
   theory::Vector{<:AbstractRule}
   curr_iter::Int
-  match_limit::Int 
+  match_limit::Int
   ban_length::Int
 end
 
@@ -96,21 +104,19 @@ cansearch(s::BackoffScheduler, rule_idx::Int)::Bool = s.curr_iter > last(s.data[
 
 
 function BackoffScheduler(G::EGraph, theory::Vector{<:AbstractRule}, match_limit::Int = 1000, ban_length::Int = 5)
-  BackoffScheduler(fill((0,0), length(theory)), G, theory, 1, match_limit, ban_length)
+  BackoffScheduler(fill((0, 0), length(theory)), G, theory, 1, match_limit, ban_length)
 end
 
 # can saturate if there's no banned rule
 cansaturate(s::BackoffScheduler)::Bool = all((<)(s.curr_iter) ∘ last, s.data)
 
 
-function inform!(s::BackoffScheduler, rule_idx::Int, n_matches)
+function inform!(s::BackoffScheduler, rule_idx::Int, n_matches::Int)
   (times_banned, _) = s.data[rule_idx]
   treshold = s.match_limit << times_banned
   if n_matches > treshold
-    s.data[rule_idx] = (times_banned += 1,  s.curr_iter + (s.ban_length << times_banned))
-    false
+    s.data[rule_idx] = (times_banned += 1, s.curr_iter + (s.ban_length << times_banned))
   end
-  true
 end
 
 function setiter!(s::BackoffScheduler, curr_iter)
