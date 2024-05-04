@@ -77,11 +77,11 @@ macro timer(name, expr)
 end
 
 "Useful for debugging: prints the content of the e-graph match buffer in readable format."
-function buffer_readable(g, limit)
-  k = length(g.buffer)
+function buffer_readable(g, limit, ematch_buffer)
+  k = length(ematch_buffer)
 
   while k > limit
-    delimiter = g.buffer[k]
+    delimiter = ematch_buffer[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
     n = k - 1
 
@@ -89,19 +89,19 @@ function buffer_readable(g, limit)
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if g.buffer[i] == 0xffffffffffffffffffffffffffffffff
+      if ematch_buffer[i] == 0xffffffffffffffffffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
       end
     end
 
-    match_info = g.buffer[next_delimiter_idx + 1]
+    match_info = ematch_buffer[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
     rule_idx = abs(rule_idx)
 
-    bindings = @view g.buffer[(next_delimiter_idx + 2):n]
+    bindings = @view ematch_buffer[(next_delimiter_idx + 2):n]
 
     print("$id E-Classes: ", map(x -> reinterpret(Int, v_pair_first(x)), bindings))
     print(" Nodes: ", map(x -> reinterpret(Int, v_pair_last(x)), bindings), "\n")

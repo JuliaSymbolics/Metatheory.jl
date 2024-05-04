@@ -63,11 +63,12 @@ function eqsat_search!(
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
   report::SaturationReport,
+  ematch_buffer::Vector{UInt128},
 )::Int
   n_matches = 0
 
   g.needslock && lock(g.lock)
-  empty!(g.buffer)
+  empty!(ematch_buffer)
   g.needslock && unlock(g.lock)
 
 
@@ -86,14 +87,14 @@ function eqsat_search!(
 
       if rule isa BidirRule
         for i in ids_left
-          n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.ematcher_stack)
+          n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.ematcher_stack, ematch_buffer)
         end
         for i in ids_right
-          n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.ematcher_stack)
+          n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.ematcher_stack, ematch_buffer)
         end
       else
         for i in ids_left
-          n_matches += rule.ematcher!(g, rule_idx, i, rule.ematcher_stack)
+          n_matches += rule.ematcher!(g, rule_idx, i, rule.ematcher_stack, ematch_buffer)
         end
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
@@ -133,21 +134,21 @@ function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add!(g, p.n, true)
 end
 
-function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
-  push!(g.merges_buffer, id)
-  push!(g.merges_buffer, instantiate_enode!(buf, g, rule.right))
+function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction, merges_buffer::Vector{UInt128})
+  new_id::Id = instantiate_enode!(buf, g, rule.right)
+  push!(merges_buffer, v_pair(new_id, id))
   nothing
 end
 
-function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
+function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int, merges_buffer::Vector{UInt128})
   pat_to_inst = direction == 1 ? rule.right : rule.left
-  push!(g.merges_buffer, id)
-  push!(g.merges_buffer, instantiate_enode!(bindings, g, pat_to_inst))
+  new_id = instantiate_enode!(bindings, g, pat_to_inst)
+  push!(merges_buffer, v_pair(new_id, id))
   nothing
 end
 
 
-function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
+function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int, ::Vector{UInt128})
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
@@ -173,25 +174,31 @@ function instantiate_actual_param!(bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int)
+function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int, merges_buffer::Vector{UInt128})
   f = rule.rhs_fun
   r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
-  push!(g.merges_buffer, id)
-  push!(g.merges_buffer, rcid)
+  push!(merges_buffer, v_pair(rcid, id))
   return nothing
 end
 
 const CHECK_GOAL_EVERY_N_MATCHES = 20
 
-function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
-  @assert isempty(g.merges_buffer)
+function eqsat_apply!(
+  g::EGraph,
+  theory::Vector{<:AbstractRule},
+  rep::SaturationReport,
+  params::SaturationParams,
+  ematch_buffer::Vector{UInt128},
+  merges_buffer::Vector{UInt128},
+)
+  @assert isempty(merges_buffer)
 
   n_matches = 0
-  k = length(g.buffer)
+  k = length(ematch_buffer)
 
-  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), g.buffer)) matches"
+  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), ematch_buffer)) matches"
   g.needslock && lock(g.lock)
   while k > 0
 
@@ -201,7 +208,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
       return
     end
 
-    delimiter = g.buffer[k]
+    delimiter = ematch_buffer[k]
     @assert delimiter == 0xffffffffffffffffffffffffffffffff
     n = k - 1
 
@@ -209,7 +216,7 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if g.buffer[i] == 0xffffffffffffffffffffffffffffffff
+      if ematch_buffer[i] == 0xffffffffffffffffffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
@@ -217,16 +224,16 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     end
 
     n_matches += 1
-    match_info = g.buffer[next_delimiter_idx + 1]
+    match_info = ematch_buffer[next_delimiter_idx + 1]
     id = v_pair_first(match_info)
     rule_idx = reinterpret(Int, v_pair_last(match_info))
     direction = sign(rule_idx)
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
 
-    bindings = @view g.buffer[(next_delimiter_idx + 2):n]
+    bindings = @view ematch_buffer[(next_delimiter_idx + 2):n]
 
-    halt_reason = apply_rule!(bindings, g, rule, id, direction)
+    halt_reason = apply_rule!(bindings, g, rule, id, direction, merges_buffer)
 
     k = next_delimiter_idx
     if !isnothing(halt_reason)
@@ -246,14 +253,15 @@ function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::Saturation
     return
   end
 
-  empty!(g.buffer)
+  empty!(ematch_buffer)
 
   g.needslock && unlock(g.lock)
 
   g.needslock && lock(g.lock)
-  while !isempty(g.merges_buffer)
-    l = pop!(g.merges_buffer)
-    r = pop!(g.merges_buffer)
+  while !isempty(merges_buffer)
+    p = pop!(merges_buffer)
+    l = v_pair_first(p)
+    r = v_pair_last(p)
     union!(g, l, r)
   end
   g.needslock && unlock(g.lock)
@@ -270,13 +278,15 @@ function eqsat_step!(
   scheduler::AbstractScheduler,
   params::SaturationParams,
   report,
+  ematch_buffer::Vector{UInt128},
+  merges_buffer::Vector{UInt128},
 )
 
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
+  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
 
-  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
+  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer, merges_buffer)
 
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
@@ -302,13 +312,18 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
 
   params.timer || disable_timer!(report.to)
 
+  # Buffer for e-matching. Use a local buffer for generated functions.
+  ematch_buffer = Vector{UInt128}()
+  # Buffer for rule application. Use a local buffer for generated functions.
+  merges_buffer = Vector{UInt128}()
+
   while true
     curr_iter += 1
 
     @debug "================ EQSAT ITERATION $curr_iter  ================"
     @debug g
 
-    report = eqsat_step!(g, theory, curr_iter, sched, params, report)
+    report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer, merges_buffer)
 
     elapsed = time_ns() - start_time
 

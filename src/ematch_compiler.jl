@@ -37,7 +37,13 @@ function ematch_compile(p, pvars, direction)
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
   quote
-    function ($(gensym("ematcher")))(g::EGraph, rule_idx::Int, root_id::Id, stack::Vector{UInt16})::Int
+    function ($(gensym("ematcher")))(
+      g::EGraph,
+      rule_idx::Int,
+      root_id::Id,
+      stack::Vector{UInt16},
+      ematch_buffer::Vector{UInt128},
+    )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
       # Copy and empty the memory 
@@ -316,15 +322,15 @@ end
 
 function yield_expr(patvar_to_addr, direction)
   push_exprs = [
-    :(push!(g.buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
+    :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
     addr in patvar_to_addr
   ]
   quote
     g.needslock && lock(g.lock)
-    push!(g.buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
+    push!(ematch_buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
     $(push_exprs...)
     # Add delimiter to buffer. 
-    push!(g.buffer, 0xffffffffffffffffffffffffffffffff)
+    push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
     n_matches += 1
     g.needslock && unlock(g.lock)
     @goto backtrack
