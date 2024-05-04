@@ -15,7 +15,7 @@ end
 function Base.push!(b::OptBuffer{T}, el::T) where {T}
   b.i += 1
   if b.i === b.cap
-    delta = ceil(Int, b.cap * b.growth)
+    delta = ceil(Int, b.cap * b.growth) + 1
     Base._growend!(b.v, delta)
     b.cap += delta
   end
@@ -33,4 +33,4 @@ end
 
 Base.isempty(b::OptBuffer{T}) where {T} = b.i === 0
 Base.empty!(b::OptBuffer{T}) where {T} = (b.i = 0)
-@inline Base.@length(b::OptBuffer{T}) where {T} = b.i
+@inline Base.length(b::OptBuffer{T}) where {T} = b.i
