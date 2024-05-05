@@ -237,13 +237,13 @@ end
 
 function check_var_expr(addr, predicate::typeof(alwaystrue))
   quote
-    eclass = g[$(Symbol(:σ, addr))]
-    for (j, n) in enumerate(eclass.nodes)
-      if !v_isexpr(n)
-        $(Symbol(:enode_idx, addr)) = j + 1
-        break
-      end
-    end
+    # eclass = g[$(Symbol(:σ, addr))]
+    # for (j, n) in enumerate(eclass.nodes)
+    #   if !v_isexpr(n)
+    #     $(Symbol(:enode_idx, addr)) = j + 1
+    #     break
+    #   end
+    # end
     pc += 0x0001
     @goto compute
   end

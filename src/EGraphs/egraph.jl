@@ -419,6 +419,7 @@ function rebuild_classes!(g::EGraph)
   end
 
   for v in values(g.classes_by_op)
+    sort!(v)
     unique!(v)
   end
 end
