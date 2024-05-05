@@ -23,6 +23,8 @@ function extract_expr_recursive(g::EGraph{T}, n::VecExpr, get_node::Function) wh
   maketerm(T, h, children)
 end
 
+extract_expr_recursive(g::EGraph{T}, h::Id, get_node::Function) where {T} = get_constant(g, h)
+
 function extract_expr_recursive(g::EGraph{Expr}, n::VecExpr, get_node::Function)
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return h
@@ -46,7 +48,11 @@ end
 function find_best_node(extractor::Extractor, eclass_id::Id)
   eclass = extractor.g[eclass_id]
   (_, node_index) = extractor.costs[IdKey(eclass.id)]
-  eclass.nodes[node_index]
+  nlit = length(eclass.literals)
+  if node_index <= nlit
+    return eclass.literals[node_index]
+  end
+  eclass.nodes[node_index - nlit]
 end
 
 function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
@@ -57,6 +63,15 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
     for (id, eclass) in extractor.g.classes
       min_cost = typemax(CT)
       min_cost_node_idx = 0
+
+      nlit = length(eclass.literals)
+      for (idx, h) in enumerate(eclass.literals)
+        cost = extractor.cost_function(get_constant(extractor.g, h))
+        if cost < min_cost
+          min_cost = cost
+          min_cost_node_idx = idx
+        end
+      end
 
       for (idx, n) in enumerate(eclass.nodes)
         has_all = true
@@ -72,7 +87,7 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
           )
           if cost < min_cost
             min_cost = cost
-            min_cost_node_idx = idx
+            min_cost_node_idx = nlit + idx
           end
         end
       end
@@ -95,20 +110,16 @@ end
 A basic cost function, where the computed cost is the number 
 of expression tree nodes.
 """
-function astsize(n::VecExpr, op, costs)::Float64
-  v_isexpr(n) || return 1
-  cost = 1 + sum(costs)
-end
+astsize(n::VecExpr, op, costs)::Float64 = cost = 1 + sum(costs)
+astsize(x) = 1
 
 """
 A basic cost function, where the computed cost is the number
 of expression tree nodes times -1.
 Strives to get the largest expression. This may lead to stack overflow for egraphs with loops.
 """
-function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
-  v_isexpr(n) || return -1
-  cost = -1 + sum(costs)
-end
+astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64 = cost = -1 + sum(costs)
+astsize_inv(x) = -1
 
 function extract!(g::EGraph, costfun, root = g.root, cost_type = Float64)
   Extractor(g, costfun, cost_type)(root)

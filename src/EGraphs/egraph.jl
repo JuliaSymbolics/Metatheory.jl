@@ -286,7 +286,7 @@ function add_literal!(g::EGraph{ExpressionType,Analysis}, c, hashed::UInt64) whe
   id = push!(g.uf)
   g.memo[h] = id
   # TODO add_class_by_op?
-  eclass = EClass{Analysis}(id, VecExpr[], [hashed], Pair{VecExpr,Id}[], make(g, c))
+  eclass = EClass{Analysis}(id, VecExpr[], [hashed], Pair{VecExpr,Id}[], make(g, get_constant(g, hashed)))
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
   id
@@ -491,7 +491,8 @@ end
 function check_analysis(g)
   for (id, eclass) in g.classes
     isnothing(eclass.data) && continue
-    pass = mapreduce(x -> make(g, x), (x, y) -> join(x, y), eclass)
+    lits = map(x -> get_constant(g, x), eclass.literals)
+    pass = mapreduce(x -> make(g, x), (x, y) -> join(x, y), [lits; eclass.nodes])
     @assert eclass.data == pass
   end
   true

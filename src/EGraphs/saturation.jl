@@ -161,11 +161,9 @@ Instantiate argument for dynamic rule application in e-graph
 function instantiate_actual_param!(g::EGraph, ecid::Id, i::Int, pred) # TODO PatSegment not supported
   eclass = g[ecid]
   if pred isa Type
-    for (j, n) in enumerate(eclass.nodes)
-      if !v_isexpr(n)
-        lit = get_constant(g, v_head(n))
-        lit isa pred && return lit
-      end
+    for (j, h) in enumerate(eclass.literals)
+      lit = get_constant(g, h)
+      lit isa pred && return lit
     end
     error("does not contain literal")
   end

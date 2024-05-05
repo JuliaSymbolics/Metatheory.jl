@@ -107,7 +107,6 @@ function match_term_expr(pattern::PatExpr, coordinate)
     :($(Symbol(t, :_op)) == $(QuoteNode(pattern.head)) || @goto backtrack)
   end
 
-  @show pattern
   quote
     $t = $(get_coord(coordinate))
 

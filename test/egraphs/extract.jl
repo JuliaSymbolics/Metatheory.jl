@@ -96,7 +96,6 @@ end
 
 @testset "Custom Cost Function 1" begin
   function cust_astsize(n::VecExpr, head, children_costs::Vector{Float64})::Float64
-    v_isexpr(n) || return 1
     cost = 1 + v_arity(n)
 
     if head == :^
@@ -105,6 +104,7 @@ end
 
     cost + sum(children_costs)
   end
+  cust_astsize(x) = 1
 
   g = EGraph(:((log(e) * log(e)) * (log(a^3 * a^2))))
   saturate!(g, t)
@@ -119,12 +119,12 @@ end
   a_id = addexpr!(g, :a)
 
   function costfun(n::VecExpr, op, children_costs::Vector{Float64})::Float64
-    v_isexpr(n) || return 1
     v_arity(n) == 2 || return 1
 
     left = v_children(n)[1]
     in_same_class(g, left, a_id) ? 1 : 100
   end
+  costfun(x) = 1
 
 
   moveright = @theory begin
@@ -180,4 +180,30 @@ end
   g = EGraph(ex)
   saturate!(g, t)
   @test extract!(g, astsize) == 2
+end
+
+@testset "Infinite Loops analysis" begin
+  boson = @theory begin
+    1 * ~x --> ~x
+  end
+
+
+  g = EGraph(:(1 * x))
+  params = SaturationParams(timeout = 100)
+  saturate!(g, boson, params)
+  ex = extract!(g, astsize)
+
+
+  boson = @theory begin
+    (:c * :cdag) --> :cdag * :c + 1
+    ~a * (~b + ~c) --> (~a * ~b) + (~a * ~c)
+    (~b + ~c) * ~a --> (~b * ~a) + (~c * ~a)
+    # 1 * x => x
+    (~a * ~b) * ~c --> ~a * (~b * ~c)
+    ~a * (~b * ~c) --> (~a * ~b) * ~c
+  end
+
+  g = EGraph(:(c * c * cdag * cdag))
+  saturate!(g, boson)
+  ex = extract!(g, astsize_inv)
 end
