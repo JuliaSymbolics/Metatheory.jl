@@ -5,7 +5,7 @@ using Metatheory.Library
 
 # Simple E-Matching
 
-b = OptBuffer{UInt128}(10)
+b = OptBuffer{Id}(10)
 
 @testset "Simple Literal" begin
   r = @rule 2 --> true
@@ -60,19 +60,15 @@ end
   new_id = addexpr!(g, 4)
   union!(g, g.root, new_id)
 
-  @test r.ematcher!(g, 0, g.root, r.ematcher_stack, b) == 2
+  @test r.ematcher!(g, 0, g.root, r.ematcher_stack, b) == 1
 end
 
 @testset "Predicate Assertions" begin
   r = @rule ~a::iseven --> true
   Base.iseven(g, ec::EClass) =
-    any(ec.nodes) do n
-      h = v_head(n)
-      if has_constant(g, h)
-        c = get_constant(g, h)
-        return c isa Number && iseven(c)
-      end
-      false
+    any(ec.literals) do h
+      c = get_constant(g, h)
+      c isa Number && iseven(c)
     end
 
   g = EGraph(:(f(2, 1)))
@@ -277,6 +273,15 @@ end
   saturate!(g, some_theory)
 
   @test true == areequal(g, some_theory, :(a * b * 0), 0)
+end
+
+@testset "Bindings Vector works with a single outer pvar" begin
+  t = @theory p begin
+    p == f(p)
+  end
+  g = EGraph(:x)
+  saturate!(g, t)
+  g
 end
 
 @testset "Inequalities" begin

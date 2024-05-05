@@ -42,13 +42,14 @@ function ematch_compile(p, pvars, direction)
 
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
+  any((<)(0), state.patvar_to_addr) && error("PORCO DIO LURIDO $p")
   quote
     function ($(gensym("ematcher")))(
       g::EGraph,
       rule_idx::Int,
       root_id::Id,
       stack::Vector{UInt16},
-      ematch_buffer::OptBuffer{UInt128},
+      ematch_buffer::OptBuffer{UInt64},
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
@@ -95,7 +96,7 @@ function ematch_compile(p, pvars, direction)
 end
 
 
-check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :(has_constant(g, $(last(p.n))) || return 0))
+check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :(has_constant(g, $(p.h)) || return 0))
 check_constant_exprs!(buf, ::AbstractPat) = buf
 function check_constant_exprs!(buf, p::PatExpr)
   if !(p.head isa AbstractPat)
@@ -153,6 +154,10 @@ function ematch_compile!(p::PatExpr, state::EMatchCompilerState, addr::Int)
     return
   end
 
+  if operation(p) isa PatVar
+    state.patvar_to_addr[operation(p).idx] = 0
+  end
+
   c = state.memsize
   nargs = arity(p)
   memrange = c:(c + nargs - 1)
@@ -184,6 +189,7 @@ end
 
 # Pattern not supported.
 function ematch_compile!(p::AbstractPat, state::EMatchCompilerState, ::Int)
+  p isa PatSegment && (state.patvar_to_addr[p.idx] = 0)
   push!(
     state.program,
     :(throw(DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")); return 0),
@@ -235,30 +241,11 @@ function bind_expr(addr, p::PatExpr, memrange)
   end
 end
 
-function check_var_expr(addr, predicate::typeof(alwaystrue))
-  quote
-    # eclass = g[$(Symbol(:σ, addr))]
-    # for (j, n) in enumerate(eclass.nodes)
-    #   if !v_isexpr(n)
-    #     $(Symbol(:enode_idx, addr)) = j + 1
-    #     break
-    #   end
-    # end
-    pc += 0x0001
-    @goto compute
-  end
-end
 
 function check_var_expr(addr, predicate::Function)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
-      for (j, n) in enumerate(eclass.nodes)
-        if !v_isexpr(n)
-          $(Symbol(:enode_idx, addr)) = j + 1
-          break
-        end
-      end
       pc += 0x0001
       @goto compute
     end
@@ -270,30 +257,15 @@ end
 function check_var_expr(addr, T::Type)
   quote
     eclass = g[$(Symbol(:σ, addr))]
-    eclass_length = length(eclass.nodes)
-    if $(Symbol(:enode_idx, addr)) <= eclass_length
-      stack_idx += 1
-      @assert stack_idx <= length(stack)
-      stack[stack_idx] = pc
 
-      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
-
-      if !v_isexpr(n)
-        hn = Metatheory.EGraphs.get_constant(g, v_head(n))
-        if hn isa $T
-          $(Symbol(:enode_idx, addr)) += 1
-          pc += 0x0001
-          @goto compute
-        end
+    for n in eclass.literals
+      hn = Metatheory.EGraphs.get_constant(g, n)
+      if hn isa $T
+        pc += 0x0001
+        @goto compute
       end
-
-      # This node did not match. Try next node and backtrack.
-      $(Symbol(:enode_idx, addr)) += 1
-      @goto backtrack
     end
 
-    # Restart from first option
-    $(Symbol(:enode_idx, addr)) = 1
     @goto backtrack
   end
 end
@@ -328,16 +300,19 @@ function lookup_expr(addr, p::AbstractPat)
 end
 
 function yield_expr(patvar_to_addr, direction)
-  push_exprs = [
-    :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
-    addr in patvar_to_addr
-  ]
+  push_exprs = [:(push!(ematch_buffer, $(Symbol(:σ, addr)))) for addr in patvar_to_addr]
   quote
     g.needslock && lock(g.lock)
-    push!(ematch_buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
+    push!(ematch_buffer, root_id)
+    rule_idx_directed = reinterpret(UInt64, rule_idx * $direction)
+    # WORKAROUND: If rule is 1 and direction -1, then 
+    # reinterpret(UInt64, -1) is delimiter 0xffffffffffffffff
+    # Use 0 instead.
+    rule_idx_directed = rule_idx_directed == 0xffffffffffffffff ? UInt(0) : rule_idx_directed
+    push!(ematch_buffer, rule_idx_directed)
     $(push_exprs...)
     # Add delimiter to buffer. 
-    push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
+    push!(ematch_buffer, 0xffffffffffffffff)
     n_matches += 1
     g.needslock && unlock(g.lock)
     @goto backtrack

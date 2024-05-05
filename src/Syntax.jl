@@ -355,28 +355,27 @@ macro rule(args...)
   RuleType = rule_sym_map(e)
 
   l, r = iscall(e) ? arguments(e) : children(e)
-  pvars = Symbol[]
-  lhs::AbstractPat = makepattern(l, pvars, slots, __module__)
-  ppvars = Patterns.patvars(lhs)
+  lhs::AbstractPat = makepattern(l, Symbol[], slots, __module__)
+  pvars = Patterns.patvars(lhs)
 
   ematcher_right_expr = nothing
 
-  rhs = RuleType <: SymbolicRule ? makepattern(r, [], slots, __module__) : r
+  rhs = RuleType <: SymbolicRule ? makepattern(r, Symbol[], slots, __module__) : r
 
   if RuleType <: BidirRule
-    ppvars = ppvars ∪ Patterns.patvars(rhs)
+    pvars = Patterns.union_patvars!(pvars, Patterns.patvars(rhs))
     setdebrujin!(lhs, pvars)
     setdebrujin!(rhs, pvars)
-    ematcher_right_expr = esc(ematch_compile(rhs, ppvars, -1))
+    ematcher_right_expr = esc(ematch_compile(rhs, pvars, -1))
   else
-    setdebrujin!(lhs, ppvars)
+    setdebrujin!(lhs, pvars)
   end
-  ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
+  ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
 
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
     rhs_consequent = makeconsequent(rhs_rewritten)
-    params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, nameof.(pvars)...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote
       $(__source__)

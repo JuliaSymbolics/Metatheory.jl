@@ -63,7 +63,7 @@ function eqsat_search!(
   theory::Vector{<:AbstractRule},
   scheduler::AbstractScheduler,
   report::SaturationReport,
-  ematch_buffer::OptBuffer{UInt128},
+  ematch_buffer::OptBuffer{UInt64},
 )::Int
   n_matches = 0
 
@@ -109,12 +109,8 @@ function eqsat_search!(
   return n_matches
 end
 
-function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
-  add_constant!(g, p.value)
-  add!(g, p.n, true)
-end
-
-instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
+instantiate_enode!(bindings, g::EGraph, p::PatLiteral)::Id = add_literal!(g, p.value, p.h)
+instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = bindings[p.idx]
 function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   add_constant_hashed!(g, p.head, p.head_hash)
 
@@ -162,21 +158,23 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(bindings, g::EGraph, i)
-  ecid = v_pair_first(bindings[i])
-  literal_position = reinterpret(Int, v_pair_last(bindings[i]))
-  ecid <= 0 && error("unbound pattern variable")
+function instantiate_actual_param!(g::EGraph, ecid::Id, i::Int, pred) # TODO PatSegment not supported
   eclass = g[ecid]
-  if literal_position > 0
-    @assert !v_isexpr(eclass[literal_position])
-    return get_constant(g, v_head(eclass[literal_position]))
+  if pred isa Type
+    for (j, n) in enumerate(eclass.nodes)
+      if !v_isexpr(n)
+        lit = get_constant(g, v_head(n))
+        lit isa pred && return lit
+      end
+    end
+    error("does not contain literal")
   end
   return eclass
 end
 
 function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int, merges_buffer::OptBuffer{UInt128})
   f = rule.rhs_fun
-  r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
+  r = f(id, g, (instantiate_actual_param!(g, bindings[pvar.idx], pvar.idx, pvar.predicate) for pvar in rule.patvars)...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
   push!(merges_buffer, v_pair(rcid, id))
@@ -190,7 +188,7 @@ function eqsat_apply!(
   theory::Vector{<:AbstractRule},
   rep::SaturationReport,
   params::SaturationParams,
-  ematch_buffer::OptBuffer{UInt128},
+  ematch_buffer::OptBuffer{UInt64},
   merges_buffer::OptBuffer{UInt128},
 )
   @assert isempty(merges_buffer)
@@ -198,7 +196,7 @@ function eqsat_apply!(
   n_matches = 0
   k = length(ematch_buffer)
 
-  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), ematch_buffer)) matches"
+  @debug "APPLYING $(count((==)(0xffffffffffffffff), ematch_buffer)) matches"
   g.needslock && lock(g.lock)
   while k > 0
 
@@ -209,14 +207,14 @@ function eqsat_apply!(
     end
 
     delimiter = ematch_buffer.v[k]
-    @assert delimiter == 0xffffffffffffffffffffffffffffffff
+    @assert delimiter == 0xffffffffffffffff
     n = k - 1
 
     next_delimiter_idx = 0
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if ematch_buffer.v[i] == 0xffffffffffffffffffffffffffffffff
+      if ematch_buffer.v[i] == 0xffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
@@ -224,14 +222,18 @@ function eqsat_apply!(
     end
 
     n_matches += 1
-    match_info = ematch_buffer.v[next_delimiter_idx + 1]
-    id = v_pair_first(match_info)
-    rule_idx = reinterpret(Int, v_pair_last(match_info))
+    id = ematch_buffer.v[next_delimiter_idx + 1]
+    # WORKAROUND: If rule is 1 and direction -1, then 
+    # reinterpret(UInt64, -1) is delimiter 0xffffffffffffffff
+    # Use 0 instead.
+    rule_idx_directed = ematch_buffer.v[next_delimiter_idx + 2]
+    rule_idx_directed = rule_idx_directed == UInt64(0) ? reinterpret(UInt64, -1) : rule_idx_directed
+    rule_idx = reinterpret(Int, rule_idx_directed)
     direction = sign(rule_idx)
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
 
-    bindings = @view ematch_buffer.v[(next_delimiter_idx + 2):n]
+    bindings = @view ematch_buffer.v[(next_delimiter_idx + 3):n]
 
     halt_reason = apply_rule!(bindings, g, rule, id, direction, merges_buffer)
 
@@ -278,7 +280,7 @@ function eqsat_step!(
   scheduler::AbstractScheduler,
   params::SaturationParams,
   report,
-  ematch_buffer::OptBuffer{UInt128},
+  ematch_buffer::OptBuffer{UInt64},
   merges_buffer::OptBuffer{UInt128},
 )
 
@@ -313,7 +315,7 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   params.timer || disable_timer!(report.to)
 
   # Buffer for e-matching. Use a local buffer for generated functions.
-  ematch_buffer = OptBuffer{UInt128}(64)
+  ematch_buffer = OptBuffer{UInt64}(64)
   # Buffer for rule application. Use a local buffer for generated functions.
   merges_buffer = OptBuffer{UInt128}(64)
 

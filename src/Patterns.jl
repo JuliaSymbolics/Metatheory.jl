@@ -7,7 +7,7 @@ using Metatheory.VecExprModule
 
 import Metatheory: to_expr
 
-export AbstractPat, PatLiteral, PatVar, PatExpr, PatSegment, patvars, setdebrujin!, isground, constants
+export AbstractPat, PatLiteral, PatVar, PatExpr, PatSegment, patvars, union_patvars!, setdebrujin!, isground, constants
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
@@ -25,8 +25,8 @@ isground(p::AbstractPat) = false
 
 struct PatLiteral <: AbstractPat
   value
-  n::VecExpr
-  PatLiteral(val) = new(val, Id[0, 0, 0, hash(val)])
+  h::UInt64
+  PatLiteral(val) = new(val, hash(val))
 end
 
 PatLiteral(p::AbstractPat) = throw(DomainError(p, "Cannot construct a pattern literal of another pattern object."))
@@ -74,6 +74,7 @@ end
 PatSegment(v) = PatSegment(v, -1, alwaystrue)
 PatSegment(v, i) = PatSegment(v, i, alwaystrue)
 
+@inline Base.nameof(p::Union{PatVar,PatSegment}) = p.name
 
 """
 Term patterns will match on terms of the same `arity` and with the same `operation`.
@@ -131,11 +132,23 @@ TermInterface.maketerm(::Type{PatExpr}, operation, arguments, type = Any, metada
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
 """
-patvars(p::PatVar, s) = push!(s, p.name)
-patvars(p::PatSegment, s) = push!(s, p.name)
+function patvars(p::Union{PatVar,PatSegment}, s)
+  for pp in s
+    pp.name == p.name && return
+  end
+  push!(s, p)
+end
 patvars(p::PatExpr, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
 patvars(::Any, s) = s
-patvars(p) = unique!(patvars(p, Symbol[]))
+patvars(p) = patvars(p, Union{PatVar,PatSegment}[])
+
+function union_patvars!(pvars, new_pvars)
+  names = nameof.(pvars)
+  for p in new_pvars
+    any((==)(p.name), names) || push!(pvars, p)
+  end
+  pvars
+end
 
 
 # ---------------------
@@ -143,7 +156,8 @@ patvars(p) = unique!(patvars(p, Symbol[]))
 
 
 function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
-  p.idx = findfirst((==)(p.name), pvars)
+  p.idx = findfirst((==)(p.name), nameof.(pvars))
+  pvars[p.idx].idx = p.idx
 end
 
 # literal case

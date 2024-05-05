@@ -42,21 +42,16 @@ they represent. The [`EGraph`](@ref) itself comes with pretty printing for humea
 struct EClass{D}
   id::Id
   nodes::Vector{VecExpr}
+  literals::Vector{Id}
   parents::Vector{Pair{VecExpr,Id}}
   data::Union{D,Nothing}
 end
-
-# Interface for indexing EClass
-Base.getindex(a::EClass, i) = a.nodes[i]
-
-# Interface for iterating EClass
-Base.iterate(a::EClass) = iterate(a.nodes)
-Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
 # Showing
 function Base.show(io::IO, a::EClass)
   println(io, "$(typeof(a)) %$(a.id) with $(length(a.nodes)) e-nodes:")
   println(io, " data: $(a.data)")
+  println(io, " literals: $(a.literals)")
   println(io, " nodes:")
   for n in a.nodes
     println(io, "    $n")
@@ -166,7 +161,7 @@ EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionT
 EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 
 # Fallback implementation for analysis methods make and modify
-@inline make(::EGraph, ::VecExpr) = nothing
+@inline make(::EGraph, ::Any) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
 
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
@@ -198,7 +193,7 @@ end
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
-    d[class_id.val] = map(n -> to_expr(g, n), eclass.nodes)
+    d[class_id.val] = [map(h -> get_constant(g, h), eclass.literals); map(n -> to_expr(g, n), eclass.nodes)]
   end
   d
 end
@@ -221,22 +216,6 @@ Returns the canonical e-class id for a given e-class.
 @inline find(@nospecialize(g::EGraph), @nospecialize(a::EClass))::Id = find(g, a.id)
 
 @inline Base.getindex(g::EGraph, i::Id) = g.classes[IdKey(find(g, i))]
-
-# function canonicalize(g::EGraph, n::VecExpr)::VecExpr
-#   if !v_isexpr(n)
-#     v_hash!(n)
-#     return n
-#   end
-#   l = v_arity(n)
-#   new_n = v_new(l)
-#   v_set_flag!(new_n, v_flags(n))
-#   v_set_head!(new_n, v_head(n))
-#   for i in v_children_range(n)
-#     @inbounds new_n[i] = find(g, n[i])
-#   end
-#   v_hash!(new_n)
-#   new_n
-# end
 
 function canonicalize!(g::EGraph, n::VecExpr)
   v_isexpr(n) || @goto ret
@@ -290,7 +269,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   g.memo[h] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[n], [], Pair{VecExpr,Id}[], make(g, n))
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
   push!(g.pending, n => id)
@@ -298,6 +277,20 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   return id
 end
 
+
+function add_literal!(g::EGraph{ExpressionType,Analysis}, c, hashed::UInt64) where {ExpressionType,Analysis}
+  add_constant_hashed!(g, c, hashed)
+  h = IdKey(hashed)
+  haskey(g.memo, h) && return g.memo[h]
+
+  id = push!(g.uf)
+  g.memo[h] = id
+  # TODO add_class_by_op?
+  eclass = EClass{Analysis}(id, VecExpr[], [hashed], Pair{VecExpr,Id}[], make(g, c))
+  g.classes[IdKey(id)] = eclass
+  modify!(g, eclass)
+  id
+end
 
 """
 Extend this function on your types to do preliminary
@@ -319,7 +312,7 @@ function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
 
-  n = if isexpr(e)
+  if isexpr(e)
     args = iscall(e) ? arguments(e) : children(e)
     ar = length(args)
     n = v_new(ar)
@@ -335,12 +328,10 @@ function addexpr!(g::EGraph, se)::Id
     for i in v_children_range(n)
       @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
     end
-    n
+    add!(g, n, false)
   else # constant enode
-    Id[Id(0), Id(0), Id(0), add_constant!(g, e)]
+    add_literal!(g, e, hash(e))
   end
-  id = add!(g, n, false)
-  return id
 end
 
 """
@@ -348,10 +339,10 @@ Given an [`EGraph`](@ref) and two e-class ids, set
 the two e-classes as equal.
 """
 function Base.union!(
-  g::EGraph{ExpressionType,AnalysisType},
+  g::EGraph{ExpressionType,Analysis},
   enode_id1::Id,
   enode_id2::Id,
-)::Bool where {ExpressionType,AnalysisType}
+)::Bool where {ExpressionType,Analysis}
   g.clean = false
 
   id_1 = IdKey(find(g, enode_id1))
@@ -376,9 +367,10 @@ function Base.union!(
   merged_2 && append!(g.analysis_pending, eclass_2.parents)
 
 
-  new_eclass = EClass{AnalysisType}(
+  new_eclass = EClass{Analysis}(
     id_1.val,
     append!(eclass_1.nodes, eclass_2.nodes),
+    append!(eclass_1.literals, eclass_2.literals),
     append!(eclass_1.parents, eclass_2.parents),
     new_data,
   )
@@ -453,13 +445,15 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
         joined_data = join(eclass.data, node_data)
 
         if joined_data != eclass.data
-          g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
+          g.classes[eclass_id_key] =
+            EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.literals, eclass.parents, joined_data)
           # eclass.data = joined_data
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
         end
       else
-        g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
+        g.classes[eclass_id_key] =
+          EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.literals, eclass.parents, node_data)
         # eclass.data = node_data
         modify!(g, eclass)
       end
@@ -479,6 +473,10 @@ function check_memo(g::EGraph)::Bool
         test_memo[node] = id.val
         @assert find(g, old_id) == find(g, id.val) "Unexpected equivalence $node $(g[find(g, id.val)].nodes) $(g[find(g, old_id)].nodes)"
       end
+    end
+
+    for h in class.literals
+      @assert has_constant(g, h)
     end
   end
 
@@ -508,8 +506,8 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
-  # @assert check_analysis(g)
+  @assert check_memo(g)
+  @assert check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
@@ -541,7 +539,4 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   id
 end
 
-function lookup_pat(g::EGraph, p::PatLiteral)::Id
-  h = last(p.n)
-  has_constant(g, h) ? lookup(g, p.n) : 0
-end
+lookup_pat(g::EGraph, p::PatLiteral)::Id = get(g.memo, IdKey(p.h), UInt(0))

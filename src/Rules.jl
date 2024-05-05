@@ -50,7 +50,7 @@ variables.
   left
   right
   matcher
-  patvars::Vector{Symbol}
+  patvars::Vector{Union{PatVar,PatSegment}}
   ematcher!
   ematcher_stack::Vector{UInt16}
 end
@@ -95,15 +95,17 @@ with the EGraphs backend.
 @auto_hash_equals struct EqualityRule <: BidirRule
   left
   right
-  patvars::Vector{Symbol}
+  patvars::Vector{Union{PatVar,PatSegment}}
   ematcher_new_left!
   ematcher_new_right!
   ematcher_stack::Vector{UInt16}
 end
 
 function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
-  pvars = patvars(l) ∪ patvars(r)
-  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
+  pvars = patvars(l)
+  union_patvars!(pvars, patvars(r))
+
+  extravars = setdiff(nameof.(pvars), nameof.(patvars(l)) ∩ nameof.(patvars(r)))
   if !isempty(extravars)
     error("unbound pattern variables $extravars when creating bidirectional rule")
   end
@@ -113,7 +115,6 @@ function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
 
   EqualityRule(l, r, pvars, ematcher_new_left!, ematcher_new_right!, ematcher_stack)
 end
-
 
 Base.show(io::IO, r::EqualityRule) = print(io, :($(r.left) == $(r.right)))
 
@@ -134,15 +135,17 @@ backend. If two terms, corresponding to the left and right hand side of an
 @auto_hash_equals struct UnequalRule <: BidirRule
   left
   right
-  patvars::Vector{Symbol}
+  patvars::Vector{Union{PatVar,PatSegment}}
   ematcher_new_left!
   ematcher_new_right!
   ematcher_stack::Vector{UInt16}
 end
 
 function UnequalRule(l, r, ematcher_new_left!, ematcher_new_right!)
-  pvars = patvars(l) ∪ patvars(r)
-  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
+  pvars = patvars(l)
+  union_patvars!(pvars, patvars(r))
+
+  extravars = setdiff(nameof.(pvars), nameof.(patvars(l)) ∩ nameof.(patvars(r)))
   if !isempty(extravars)
     error("unbound pattern variables $extravars when creating bidirectional rule")
   end
@@ -177,7 +180,7 @@ Dynamic rule
   rhs_fun::Function
   rhs_code
   matcher
-  patvars::Vector{Symbol} # useful set of pattern variables
+  patvars::Vector{Union{PatVar,PatSegment}} # useful set of pattern variables
   ematcher!
   ematcher_stack::Vector{UInt16}
 end
@@ -202,11 +205,7 @@ function (r::DynamicRule)(term)
       return r.rhs_fun(term, nothing, bvals...)
     end
 
-  try
-    return r.matcher(success, (term,), EMPTY_DICT)
-  catch err
-    throw(RuleRewriteError(r, term, err))
-  end
+  return r.matcher(success, (term,), EMPTY_DICT)
 end
 
 export SymbolicRule
