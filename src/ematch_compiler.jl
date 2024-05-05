@@ -14,6 +14,12 @@ Base.@kwdef mutable struct EMatchCompilerState
   """
   patvar_to_addr::Vector{Int} = Int[]
 
+  """
+  Addresses of σ variables that should iterate e-nodes in an e-class, 
+  used to generate `enode_idx` variables
+  """
+  enode_idx_addresses::Vector{Int} = Int[]
+
   "List of actual e-matching instructions"
   program::Vector{Expr} = Expr[]
 
@@ -46,10 +52,9 @@ function ematch_compile(p, pvars, direction)
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
-      # Copy and empty the memory 
+      # Initialize σ variables (e-classes memory) and enode iteration indexes
       $(make_memory(state.memsize, state.first_nonground)...)
-      # TODO not all of those are needed.
-      $([:($(Symbol(:enode_idx, i)) = 1) for i in 1:(state.memsize)]...)
+      $([:($(Symbol(:enode_idx, i)) = 1) for i in state.enode_idx_addresses]...)
 
       n_matches = 0
       # Backtracking stack
@@ -153,6 +158,7 @@ function ematch_compile!(p::PatExpr, state::EMatchCompilerState, addr::Int)
   memrange = c:(c + nargs - 1)
   state.memsize += nargs
 
+  push!(state.enode_idx_addresses, addr)
   push!(state.program, bind_expr(addr, p, memrange))
   for (i, child_p) in enumerate(arguments(p))
     ematch_compile!(child_p, state, memrange[i])
@@ -170,6 +176,7 @@ function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
     # Variable has not been seen before. Store its memory address
     state.patvar_to_addr[p.idx] = addr
     # insert instruction for checking predicates or type.
+    push!(state.enode_idx_addresses, addr)
     check_var_expr(addr, p.predicate)
   end
   push!(state.program, instruction)

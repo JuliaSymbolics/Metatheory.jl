@@ -418,7 +418,6 @@ function rebuild_classes!(g::EGraph)
     end
   end
 
-  # TODO is this needed?
   for v in values(g.classes_by_op)
     unique!(v)
   end
