@@ -12,7 +12,7 @@ function OptBuffer{T}(cap::Int, growth = 0.4) where {T<:Unsigned}
   OptBuffer{T}(v, 0, cap, growth)
 end
 
-function Base.push!(b::OptBuffer{T}, el::T) where {T}
+Base.@inline function Base.push!(b::OptBuffer{T}, el::T) where {T}
   b.i += 1
   if b.i === b.cap
     delta = ceil(Int, b.cap * b.growth) + 1
@@ -23,7 +23,7 @@ function Base.push!(b::OptBuffer{T}, el::T) where {T}
   b
 end
 
-function Base.pop!(b::OptBuffer{T})::T where {T}
+Base.@inline function Base.pop!(b::OptBuffer{T})::T where {T}
   # THIS IS UNSAFE! ASSUMES ALWAYS THAT b.i is > 1
   val = @inbounds b.v[b.i]
   b.i -= 1
