@@ -1,20 +1,31 @@
 using Metatheory: alwaystrue
 using TermInterface
 
+@kwdef mutable struct MatchCompilerState
+  pvars_bound::Vector{Bool}
+  program::Vector{Expr} = Expr[]
+  term_coord_variables = Symbol[]
+end
+
 function match_compile(p, pvars, direction)
   npvars = length(pvars)
-  pvars_bound = fill(false, npvars)
-  program = Expr[]
-  term_coord_variables = Symbol[]
 
-  match_compile!(pvars_bound, term_coord_variables, program, p, Int[])
-  push!(program, :(return callback($(pvars...))))
+  state = MatchCompilerState(; pvars_bound = fill(false, npvars))
+
+  # Tree cordinates are a vector of integers.
+  # Each index `i` in the vector corresponds to the depth of the term 
+  # Each value `n` at index `i` selects the `n`-th children of the term at depth i
+  # Example: in f(x, g(y, k, h(z))), to get z the coordinate is [2,3,1]
+  coordinate = Int[]
+
+  match_compile!(p, state, coordinate)
+  push!(state.program, :(return callback($(pvars...))))
 
   quote
     Base.@propagate_inbounds function ($(gensym("matcher")))(t, callback::Function, stack::Vector{UInt16})
       # Assign and empty the variables for patterns 
       $([:($var = nothing) for var in pvars]...)
-      $([:($v = nothing) for v in term_coord_variables]...)
+      $([:($v = nothing) for v in state.term_coord_variables]...)
 
       # Backtracking stack
       stack_idx = 0
@@ -38,7 +49,7 @@ function match_compile(p, pvars, direction)
         if pc === $(UInt16(i))
           $code
         end
-      ) for (i, code) in enumerate(program)]...)
+      ) for (i, code) in enumerate(state.program)]...)
 
       error("unreachable code!")
 
@@ -50,42 +61,45 @@ function match_compile(p, pvars, direction)
   end
 end
 
-
-
 # ==============================================================
-# Term E-Matchers
+# Term Matchers
 # ==============================================================
 
-function match_compile!(pvars_bound, term_coord_variables, program, pattern::PatExpr, coordinate)
-  push!(program, match_term_expr(pattern, coordinate))
+function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate::Vector{Int})
+  push!(state.program, match_term_expr(pattern, coordinate))
   t_sym = make_coord_symbol(coordinate)
-  !isempty(coordinate) && push!(term_coord_variables, t_sym)
-  push!(term_coord_variables, Symbol(t_sym, :_op))
-  push!(term_coord_variables, Symbol(t_sym, :_args))
+  !isempty(coordinate) && push!(state.term_coord_variables, t_sym)
+  push!(state.term_coord_variables, Symbol(t_sym, :_op))
+  push!(state.term_coord_variables, Symbol(t_sym, :_args))
 
   for (i, child_pattern) in enumerate(arguments(pattern))
-    match_compile!(pvars_bound, program, child_pattern, [coordinate; i])
+    match_compile!(child_pattern, state, [coordinate; i])
   end
 end
 
 
-function match_compile!(pvars_bound, term_coord_variables, program, patvar::PatVar, coordinate)
-  instruction = if pvars_bound[patvar.idx]
+function match_compile!(patvar::PatVar, state::MatchCompilerState, coordinate::Vector{Int})
+  instruction = if state.pvars_bound[patvar.idx]
     # Pattern variable with the same Debrujin index has appeared in the  
-    # pattern before this (is bound). Just check for equality
+    # pattern before this (is bound). Just check for equality.
     match_eq_expr(patvar, coordinate)
   else
     # Variable has not been seen before. Store it
-    pvars_bound[patvar.idx] = true
+    state.pvars_bound[patvar.idx] = true
     # insert instruction for checking predicates or type.
     match_var_expr(patvar, coordinate)
   end
-  push!(program, instruction)
+  push!(state.program, instruction)
 end
 
-function match_compile!(pvars_bound, term_coord_variables, program, pat::AbstractPat, coordinate)
+function match_compile!(p::PatLiteral, state::MatchCompilerState, coordinate::Vector{Int})
+  push!(state.program, match_eq_expr(p, coordinate))
+end
+
+function match_compile!(p::AbstractPat, state::MatchCompilerState, coordinate::Vector{Int})
   # Pattern not supported.
-  push!(program, :(error("NOT SUPPORTED"); return 0))
+  @show p
+  push!(state.program, :(error("NOT SUPPORTED"); return 0))
 end
 
 
@@ -119,10 +133,8 @@ function match_term_expr(pattern::PatExpr, coordinate)
 
     $op_guard
 
-
     pc += 0x0001
     @goto compute
-
   end
 end
 
@@ -152,9 +164,20 @@ function get_coord(coordinate)
   :($(Symbol(make_coord_symbol(coordinate[1:(end - 1)]), :_args))[$(last(coordinate))])
 end
 
-function match_eq_expr(patvar, coordinate)
+function match_eq_expr(patvar::PatVar, coordinate)
   quote
     if $(patvar.name) == $(get_coord(coordinate))
+      pc += 0x0001
+      @goto compute
+    else
+      @goto backtrack
+    end
+  end
+end
+
+function match_eq_expr(pat::PatLiteral, coordinate)
+  quote
+    if $(pat.value) == $(get_coord(coordinate))
       pc += 0x0001
       @goto compute
     else
