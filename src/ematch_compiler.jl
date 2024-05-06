@@ -47,7 +47,7 @@ function ematch_compile(p, pvars, direction)
       g::EGraph,
       rule_idx::Int,
       root_id::Id,
-      stack::Vector{UInt16},
+      stack::OptBuffer{UInt16},
       ematch_buffer::OptBuffer{UInt128},
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
@@ -62,8 +62,7 @@ function ematch_compile(p, pvars, direction)
 
       # Instruction 0 is used to return when  the backtracking stack is empty. 
       # We start from 1.
-      stack_idx += 1
-      stack[stack_idx] = 0x0000
+      push!(stack, 0x0000)
       pc = 0x0001
 
       # We goto this label when:
@@ -84,8 +83,7 @@ function ematch_compile(p, pvars, direction)
       error("unreachable code!")
 
       @label backtrack
-      pc = stack[stack_idx]
-      stack_idx -= 1
+      pc = pop!(stack)
 
       @goto compute
 
@@ -206,9 +204,7 @@ function bind_expr(addr, p::PatExpr, memrange)
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
     if $(Symbol(:enode_idx, addr)) <= eclass_length
-      stack_idx += 1
-      @assert stack_idx <= length(stack)
-      stack[stack_idx] = pc
+      push!(stack, pc)
 
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
@@ -272,10 +268,7 @@ function check_var_expr(addr, T::Type)
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
     if $(Symbol(:enode_idx, addr)) <= eclass_length
-      stack_idx += 1
-      @assert stack_idx <= length(stack)
-      stack[stack_idx] = pc
-
+      push!(stack, pc)
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       if !v_isexpr(n)

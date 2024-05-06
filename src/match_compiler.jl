@@ -5,6 +5,8 @@ using TermInterface
   pvars_bound::Vector{Bool}
   program::Vector{Expr} = Expr[]
   term_coord_variables = Symbol[]
+  segments::Vector{Symbol} = Symbol[]
+  current_term_has_segment = false
 end
 
 function match_compile(p, pvars, direction)
@@ -22,7 +24,7 @@ function match_compile(p, pvars, direction)
   push!(state.program, :(return callback($(pvars...))))
 
   quote
-    Base.@propagate_inbounds function ($(gensym("matcher")))(t, callback::Function, stack::Vector{UInt16})
+    Base.@propagate_inbounds function ($(gensym("matcher")))(t, callback::Function, stack::OptBuffer{UInt16})
       # Assign and empty the variables for patterns 
       $([:($var = nothing) for var in pvars]...)
       $([:($v = nothing) for v in state.term_coord_variables]...)
@@ -32,8 +34,7 @@ function match_compile(p, pvars, direction)
 
       # Instruction 0 is used to return when  the backtracking stack is empty. 
       # We start from 1.
-      stack_idx += 1
-      stack[stack_idx] = 0x0000
+      push!(stack, 0x0000)
       pc = 0x0001
 
       # We goto this label when:
@@ -54,8 +55,7 @@ function match_compile(p, pvars, direction)
       error("unreachable code!")
 
       @label backtrack
-      pc = stack[stack_idx]
-      stack_idx -= 1
+      pc = pop!(stack)
       @goto compute
     end
   end
@@ -65,35 +65,63 @@ end
 # Term Matchers
 # ==============================================================
 
+function make_coord_symbol(coordinate)
+  isempty(coordinate) && return :t
+  Symbol("t_", join(coordinate, "_"))
+end
+
+function get_coord(coordinate, current_term_has_segment = false)
+  isempty(coordinate) && return :t
+
+  tsym = make_coord_symbol(coordinate[1:(end - 1)])
+  idx = if current_term_has_segment
+    offset_sym = Symbol(tsym, :_offset)
+    :($(last(coordinate)) + $offset_sym)
+  else
+    last(coordinate)
+  end
+  :($(Symbol(tsym, :_args))[$idx])
+end
+
 function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate::Vector{Int})
-  push!(state.program, match_term_expr(pattern, coordinate))
+  push!(state.program, match_term_expr(pattern, coordinate, state.current_term_has_segment))
   t_sym = make_coord_symbol(coordinate)
   !isempty(coordinate) && push!(state.term_coord_variables, t_sym)
   push!(state.term_coord_variables, Symbol(t_sym, :_op))
   push!(state.term_coord_variables, Symbol(t_sym, :_args))
+  # The sum of how many terms have been taken by segments
+
+  state.current_term_has_segment = false
 
   for (i, child_pattern) in enumerate(arguments(pattern))
     match_compile!(child_pattern, state, [coordinate; i])
   end
+
+  state.current_term_has_segment && push!(state.term_coord_variables, Symbol(t_sym, :_offset))
+
+  state.current_term_has_segment = false
 end
 
 
-function match_compile!(patvar::PatVar, state::MatchCompilerState, coordinate::Vector{Int})
+function match_compile!(patvar::Union{PatVar,PatSegment}, state::MatchCompilerState, coordinate::Vector{Int})
+  # Mark that the current term has a segment variable
   instruction = if state.pvars_bound[patvar.idx]
     # Pattern variable with the same Debrujin index has appeared in the  
     # pattern before this (is bound). Just check for equality.
-    match_eq_expr(patvar, coordinate)
+    match_eq_expr(patvar, coordinate, state.current_term_has_segment)
   else
     # Variable has not been seen before. Store it
     state.pvars_bound[patvar.idx] = true
     # insert instruction for checking predicates or type.
-    match_var_expr(patvar, coordinate)
+    match_var_expr(patvar, coordinate, state.current_term_has_segment)
   end
+  patvar isa PatSegment && (state.current_term_has_segment = true)
   push!(state.program, instruction)
 end
 
+
 function match_compile!(p::PatLiteral, state::MatchCompilerState, coordinate::Vector{Int})
-  push!(state.program, match_eq_expr(p, coordinate))
+  push!(state.program, match_eq_expr(p, coordinate, state.current_term_has_segment))
 end
 
 function match_compile!(p::AbstractPat, state::MatchCompilerState, coordinate::Vector{Int})
@@ -109,7 +137,7 @@ end
 # Actual Instructions
 # ==============================================================
 
-function match_term_expr(pattern::PatExpr, coordinate)
+function match_term_expr(pattern::PatExpr, coordinate, current_term_has_segment)
   t = make_coord_symbol(coordinate)
   op_fun = iscall(pattern) ? :operation : :head
   args_fun = iscall(pattern) ? :arguments : :children
@@ -123,7 +151,7 @@ function match_term_expr(pattern::PatExpr, coordinate)
 
   @show pattern
   quote
-    $t = $(get_coord(coordinate))
+    $t = $(get_coord(coordinate, current_term_has_segment))
 
     isexpr($t) || @goto backtrack
     iscall($t) == $(iscall(pattern)) || @goto backtrack
@@ -143,9 +171,9 @@ match_var_expr_if_guard(patvar::PatVar, predicate::typeof(alwaystrue)) = true
 match_var_expr_if_guard(patvar::PatVar, T::Type) = :($(patvar.name) isa $T)
 
 
-function match_var_expr(patvar::PatVar, coordinate)
+function match_var_expr(patvar::PatVar, coordinate, current_term_has_segment)
   quote
-    $(patvar.name) = $(get_coord(coordinate))
+    $(patvar.name) = $(get_coord(coordinate, current_term_has_segment))
     if $(match_var_expr_if_guard(patvar, patvar.predicate))
       pc += 0x0001
       @goto compute
@@ -154,19 +182,43 @@ function match_var_expr(patvar::PatVar, coordinate)
   end
 end
 
-function make_coord_symbol(coordinate)
-  isempty(coordinate) && return :t
-  Symbol("t_", join(coordinate, "_"))
-end
+function match_var_expr(patvar::PatSegment, coordinate, current_term_has_segment)
+  tsym = make_coord_symbol(coordinate[1:(end - 1)])
+  tsym_args = Symbol(tsym, :_args)
+  offset_sym = Symbol(tsym, :_offset)
 
-function get_coord(coordinate)
-  isempty(coordinate) && return :t
-  :($(Symbol(make_coord_symbol(coordinate[1:(end - 1)]), :_args))[$(last(coordinate))])
-end
+  remaining
 
-function match_eq_expr(patvar::PatVar, coordinate)
+  start_idx = if current_term_has_segment
+    :($(last(coordinate)) + $offset_sym)
+  else
+    last(coordinate)
+  end
+
+
   quote
-    if $(patvar.name) == $(get_coord(coordinate))
+    push!(stack, pc)
+
+    start_idx = $start_idx
+
+    for end_idx in ((length($tsym_args) - $remaining)):-1:(start_idx)
+      $(patvar.name) = view($tsym_args, start_idx:end_idx)
+
+      if $(match_var_expr_if_guard(patvar, patvar.predicate))
+        pc += 0x0001
+        @goto compute
+      end
+    end
+
+    @goto backtrack
+  end
+end
+
+
+
+function match_eq_expr(patvar::PatVar, coordinate, current_term_has_segment)
+  quote
+    if $(patvar.name) == $(get_coord(coordinate, current_term_has_segment))
       pc += 0x0001
       @goto compute
     else
@@ -175,9 +227,9 @@ function match_eq_expr(patvar::PatVar, coordinate)
   end
 end
 
-function match_eq_expr(pat::PatLiteral, coordinate)
+function match_eq_expr(pat::PatLiteral, coordinate, current_term_has_segment)
   quote
-    if $(pat.value) == $(get_coord(coordinate))
+    if $(pat.value) == $(get_coord(coordinate, current_term_has_segment))
       pc += 0x0001
       @goto compute
     else
