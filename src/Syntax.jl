@@ -3,7 +3,7 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
 
-using Metatheory: alwaystrue, cleanast, ematch_compile
+using Metatheory: alwaystrue, cleanast, ematch_compile, match_compile
 
 export @rule
 export @theory
@@ -373,6 +373,8 @@ macro rule(args...)
   end
   ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
 
+  matcher_left_expr = esc(match_compile(lhs, pvars))
+
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
     rhs_consequent = makeconsequent(rhs_rewritten)
@@ -393,7 +395,7 @@ macro rule(args...)
 
   quote
     $(__source__)
-    ($RuleType)($lhs, $rhs, $ematcher_left_expr)
+    ($RuleType)($lhs, $rhs, $matcher_left_expr, $ematcher_left_expr)
   end
 end
 
