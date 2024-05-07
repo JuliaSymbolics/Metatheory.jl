@@ -25,7 +25,7 @@ function match_compile(p::AbstractPat, pvars)
   push!(state.program, :(return callback($(pvars...))))
 
   quote
-    Base.@propagate_inbounds function ($(gensym("matcher")))(t, callback::Function, stack::OptBuffer{UInt16})
+    function ($(gensym("matcher")))(t, callback::Function, stack::OptBuffer{UInt16})
       # Assign and empty the variables for patterns 
       $([:($var = nothing) for var in pvars]...)
 
@@ -123,7 +123,7 @@ function match_compile!(
   instruction = if state.pvars_bound[patvar.idx]
     # Pattern variable with the same Debrujin index has appeared in the  
     # pattern before this (is bound). Just check for equality.
-    match_eq_expr(patvar, coordinate, state.current_term_has_segment)
+    match_eq_expr(patvar, state, coordinate, parent_segments)
   else
     # Variable has not been seen before. Store it
     state.pvars_bound[patvar.idx] = true
@@ -139,18 +139,9 @@ function match_compile!(
 end
 
 
-function match_compile!(p::PatLiteral, state::MatchCompilerState, coordinate::Vector{Int}, parent_segments)
-  push!(state.program, match_eq_expr(p, coordinate, state.current_term_has_segment))
+function match_compile!(p::PatLiteral, state::MatchCompilerState, coordinate::Vector{Int}, segments_so_far)
+  push!(state.program, match_eq_expr(p, state, coordinate, segments_so_far))
 end
-
-function match_compile!(p::AbstractPat, state::MatchCompilerState, coordinate::Vector{Int}, parent_segments)
-  # Pattern not supported.
-  @show p
-  push!(state.program, :(error("NOT SUPPORTED"); return 0))
-end
-
-
-
 
 # ==============================================================
 # Actual Instructions
@@ -172,10 +163,10 @@ function match_term_expr(pattern::PatExpr, coordinate, current_term_has_segment)
   quote
     $t = $(get_coord(coordinate, current_term_has_segment))
 
-    @show t
+    # @show t
     isexpr($t) || @goto backtrack
 
-    @show "DAJE"
+    # @show "DAJE"
     iscall($t) === $(iscall(pattern)) || @goto backtrack
 
     $(Symbol(t, :_op)) = $(op_fun)($t)
@@ -216,39 +207,43 @@ function match_var_expr(patvar::PatSegment, state::MatchCompilerState, coordinat
     last(coordinate)
   end
 
-  offset_so_far = foldl((x, y) -> :($x + $y), map(n -> :(length($n)), segments_so_far); init = 0)
+  # Counts how many terms have been matched by segments in the current variable.
+  # TODO optimize, move to function
+  offset_so_far = foldl((x, y) -> :($x + $y), map(n -> :(length($n) - 1), segments_so_far); init = 0)
 
   @show offset_so_far
 
   quote
+    @show "matching $($(patvar))"
+    @show $(start_idx)
+    $offset_sym = max(0, $offset_so_far)
+
     start_idx = $start_idx
     end_idx = length($tsym_args) - $(state.current_term_n_remaining)
 
-    @show $(state.current_term_n_remaining)
-    @show length($tsym_args)
+    # @show $(state.current_term_n_remaining)
+    # @show length($tsym_args)
 
-    @show $offset_sym
-    @show start_idx end_idx $n_dropped_sym
+    # @show $offset_sym
+    # @show start_idx end_idx $n_dropped_sym
 
     if end_idx - $n_dropped_sym >= start_idx - 1
       push!(stack, pc)
 
       $(patvar.name) = view($tsym_args, start_idx:(end_idx - $n_dropped_sym))
 
-      @show start_idx
-      @show $tsym_args
-      @show $(patvar.name)
+      @show start_idx $tsym_args $(patvar.name) length($(patvar.name))
 
-      @show length($(patvar.name))
-      $offset_sym = length($(patvar.name)) + $offset_so_far - 1
 
-      @show $offset_sym
-
-      $n_dropped_sym += 1
-
+      $offset_sym = max(0, length($(patvar.name)) + $offset_so_far - 1)
+      # $offset_sym = end_idx - 1
       if $offset_sym + $(state.current_term_n_remaining) >= length($tsym_args)
         @goto backtrack
       end
+
+
+      $n_dropped_sym += 1
+
 
       if $(match_var_expr_if_guard(patvar, patvar.predicate))
         pc += 0x0001
@@ -266,9 +261,9 @@ end
 
 
 
-function match_eq_expr(patvar::PatVar, coordinate, current_term_has_segment)
+function match_eq_expr(patvar::PatVar, state::MatchCompilerState, coordinate, segments_so_far)
   quote
-    if $(patvar.name) == $(get_coord(coordinate, current_term_has_segment))
+    if $(patvar.name) == $(get_coord(coordinate, state.current_term_has_segment))
       pc += 0x0001
       @goto compute
     else
@@ -277,10 +272,57 @@ function match_eq_expr(patvar::PatVar, coordinate, current_term_has_segment)
   end
 end
 
-function match_eq_expr(pat::PatLiteral, coordinate, current_term_has_segment)
+
+function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, coordinate, segments_so_far)
+  # This method should be called only when a PatSegment is already bound.
+  # Get parent term variable name
+  # TODO reuse in function, duplicate from get_coord 
+  tsym = make_coord_symbol(coordinate[1:(end - 1)])
+  tsym_args = Symbol(tsym, :_args)
+  offset_sym = Symbol(tsym, :_offset)
+
+  start_idx = if state.current_term_has_segment
+    :($(last(coordinate)) + $(Symbol(tsym, :_offset)))
+  else
+    last(coordinate)
+  end
+
+  # Counts how many terms have been matched by segments in the current variable.
+  # TODO optimize, move to function
+  offset_so_far = foldl((x, y) -> :($x + $y), map(n -> :(length($n) - 1), segments_so_far); init = 0)
+
   quote
-    @show $(QuoteNode(get_coord(coordinate, current_term_has_segment)))
-    if $(pat.value) == $(get_coord(coordinate, current_term_has_segment))
+    $offset_sym = max(0, $offset_so_far)
+
+    @show "matching APPEARED AGAIN $($(patvar.name))"
+    if $offset_sym + $(state.current_term_n_remaining) >= length($tsym_args)
+      @goto backtrack
+    end
+
+    @show $tsym_args
+
+    for i in 1:length($(patvar.name))
+      @show i
+      @show ($tsym_args)[$start_idx + i - 1]
+      @show $(patvar.name)[i]
+      @show $offset_sym
+      @show $start_idx + i - 1
+      @show ($tsym_args)[$start_idx + i - 1] == $(patvar.name)[i]
+      ($tsym_args)[$start_idx + i - 1] == $(patvar.name)[i] || @goto backtrack
+    end
+
+    $offset_sym = max(0, length($(patvar.name)) + $offset_so_far - 1)
+
+    pc += 0x0001
+    @goto compute
+  end
+end
+
+function match_eq_expr(pat::PatLiteral, state::MatchCompilerState, coordinate, segments_so_far)
+  quote
+    # @show $(QuoteNode(get_coord(coordinate, state.current_term_has_segment)))
+    if $(pat.value isa Union{Symbol,Expr} ? QuoteNode(pat.value) : pat.value) ==
+       $(get_coord(coordinate, state.current_term_has_segment))
       pc += 0x0001
       @goto compute
     else
