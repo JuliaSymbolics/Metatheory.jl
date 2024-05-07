@@ -168,7 +168,7 @@ end
 @testset "Multiple PatSegments" begin
   r = @rule f(~~x, ~~y) --> ok(~~x, yeah(~~y))
   sf = r(:(f(1, 2, 3, 4)))
-  @test sf == :(ok(1, 2, 3, yeah(4)))
+  @test sf == :(ok(1, 2, 3, 4, yeah()))
 
   r = @rule f(~~x, 3, ~~y) --> ok(~~x, yeah(~~y))
   sf = r(:(f(1, 2, 3, 4, 5)))
@@ -184,19 +184,25 @@ end
 end
 
 @testset "Multiple Repeated PatSegments" begin
-  r = @rule f(~~x, ~~x) --> ok(~~x)
-  sf = r(:(f(1, 2, 1, 2)))
-  @test sf == :(ok(1, 2))
-
-  sf = r(:(f(1, 2, 3, 4)))
-  @test isnothing(sf)
-
   r = @rule f(~~x, ~~x, 4) --> ok(~~x)
   sf = r(:(f(1, 2, 1, 2, 4)))
   @test sf == :(ok(1, 2))
 
   sf = r(:(f(1, 2, 3, 4)))
   @test isnothing(sf)
+
+  sf = r(:(f(4)))
+  @test sf == :(ok())
+
+
+  r = @rule f(~~x, ~~x) --> ok(~~x)
+  sf = r(:(f(1, 2, 1, 2)))
+  @test sf == :(ok(1, 2))
+
+  # TODO why?
+  sf = r(:(f(1, 2, 3, 4)))
+  @test isnothing(sf)
+
 
 
   r = @rule f(~~x, 3, ~~x) --> ok(~~x)
@@ -208,13 +214,17 @@ end
 
   # Appears 3 times, doesn't work because of `offset_so_far` not counting how many times 
   # a variable appears
-  r = @rule f(~~x, 3, ~~x, 5, ~~x) --> ok(~~x, yeah(~~y), ~~z)
+  r = @rule f(~~x, 3, ~~x, 5, ~~x) --> ok(~~x)
   sf = r(:(f(1, 2, 3, 1, 2, 5, 1, 2)))
-  @test sf == :(ok(1, 2, yeah(4), 6))
+  @test sf == :(ok(1, 2))
 
-  r = @rule f(~~x, 3, ~~y, 5, ~~z, 7) --> ok(~~x, yeah(~~y), ~~z)
-  sf = r(:(f(1, 2, 2, 3, 4, 4, 5, 6, 7, 7)))
-  @test sf == :(ok(1, 2, 2, yeah(4, 4), 6))
+  sf = r(:(f(1, 2, 3, 3, 1, 2, 5, 1, 2)))
+  @test isnothing(sf)
+
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~x, ~~z, 7, ~~y) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 2, 3, 4, 4, 5, 1, 2, 2, 6, 7, 7, 4, 4)))
+  @test sf == :(ok(1, 2, 2, yeah(4, 4), 6, 7))
 end
 
 
