@@ -64,6 +64,10 @@ export @timer
 include("Patterns.jl")
 @reexport using .Patterns
 
+include("match_compiler.jl")
+export match_compile
+
+
 include("ematch_compiler.jl")
 export ematch_compile
 

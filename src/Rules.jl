@@ -53,15 +53,15 @@ variables.
   matcher
   patvars::Vector{Symbol}
   ematcher!
-  ematcher_stack::OptBuffer{UInt16}
+  stack::OptBuffer{UInt16}
 end
 
-function RewriteRule(l, r, ematcher!)
+function RewriteRule(l, r, matcher!, ematcher!)
   pvars = patvars(l) ∪ patvars(r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher(l), pvars, ematcher!, OptBuffer{UInt16}(STACK_SIZE))
+  RewriteRule(l, r, matcher!, pvars, ematcher!, OptBuffer{UInt16}(STACK_SIZE))
 end
 
 Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
@@ -69,10 +69,10 @@ Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
 
 function (r::RewriteRule)(term)
   # n == 1 means that exactly one term of the input (term,) was matched
-  success(bindings, n) = n == 1 ? instantiate(term, r.right, bindings) : nothing
+  success(pvars...) = instantiate(term, r.right, pvars)
 
   try
-    r.matcher(success, (term,), EMPTY_DICT)
+    r.matcher(term, success, r.stack)
   catch err
     rethrow(err)
     throw(RuleRewriteError(r, term, err))
