@@ -111,25 +111,112 @@ end
   @test df == "doesnt_fly"
 end
 
-@testset "Segment Variables" begin
-  t = @theory begin
-    f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
-  end
-  sf = rewrite(:(f(1, 2, 3, 4)), t)
+@testset "PatSegment as tail" begin
+  r = @rule f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
+  sf = r(:(f(1, 2, 3, 4)))
   @test sf == :(ok(2, 3, 4))
 
-  t = @theory x y begin
-    f(x, y...) => Expr(:call, :ok, y...)
-  end
-  sf = rewrite(:(f(1, 2, 3, 4)), t)
-  @test sf == :(ok(2, 3, 4))
+  r = @rule x y f(x, 2, y...) => Expr(:call, :ok, y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(3, 4))
 
-  t = @theory x y begin
-    f(x, y...) --> ok(y...)
-  end
-  sf = rewrite(:(f(1, 2, 3, 4)), t)
-  @test sf == :(ok(2, 3, 4))
+  sf = r(:(f(1, 2, 3)))
+  @test sf == :(ok(3))
+
+  # Empty vector
+  r = @rule x y f(x, 2, 3, 4, y...) --> ok(y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok())
+
+  # Entire vector
+  r = @rule x f(x...) --> ok(x...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2, 3, 4))
+
+  # Nested inside
+  r = @rule x y g(1, f(x, 2, y...), 3) => Expr(:call, :ok, x, y...)
+  sf = r(:(g(1, f(1, 2, 3, 4), 3)))
+  @test sf == :(ok(1, 3, 4))
+
+  sf = r(:(g(1, f(1, 2, 3), 3)))
+  @test sf == :(ok(1, 3))
+
+  sf = r(:(g(1, f(1, 2, 3, h(4, 5), 6), 3)))
+  @test sf == :(ok(1, 3, h(4, 5), 6))
 end
+
+@testset "PatSegment as head" begin
+  r = @rule f(~~x, ~y) => Expr(:call, :ok, (~~x)...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2, 3))
+
+  r = @rule x y f(x..., 3, 4) => Expr(:call, :ok, x...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2))
+
+  # Single element
+  r = @rule x y f(x, 2, 3, y...) --> ok(y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(4))
+
+  # Empty vector
+  r = @rule x y f(x, 2, 3, 4, y...) --> ok(y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok())
+end
+
+@testset "Multiple PatSegments" begin
+  r = @rule f(~~x, ~~y) --> ok(~~x, yeah(~~y))
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2, 3, yeah(4)))
+
+  r = @rule f(~~x, 3, ~~y) --> ok(~~x, yeah(~~y))
+  sf = r(:(f(1, 2, 3, 4, 5)))
+  @test sf == :(ok(1, 2, yeah(4, 5)))
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~z) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 3, 4, 5, 6)))
+  @test sf == :(ok(1, 2, yeah(4), 6))
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~z, 7) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 2, 3, 4, 4, 5, 6, 7, 7)))
+  @test sf == :(ok(1, 2, 2, yeah(4, 4), 6, 7))
+end
+
+@testset "Multiple Repeated PatSegments" begin
+  r = @rule f(~~x, ~~x) --> ok(~~x)
+  sf = r(:(f(1, 2, 1, 2)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 4)))
+  @test isnothing(sf)
+
+  r = @rule f(~~x, ~~x, 4) --> ok(~~x)
+  sf = r(:(f(1, 2, 1, 2, 4)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 4)))
+  @test isnothing(sf)
+
+
+  r = @rule f(~~x, 3, ~~x) --> ok(~~x)
+  sf = r(:(f(1, 2, 3, 1, 2)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 4, 5)))
+  @test isnothing(sf)
+
+  # Appears 3 times, doesn't work because of `offset_so_far` not counting how many times 
+  # a variable appears
+  r = @rule f(~~x, 3, ~~x, 5, ~~x) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 3, 1, 2, 5, 1, 2)))
+  @test sf == :(ok(1, 2, yeah(4), 6))
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~z, 7) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 2, 3, 4, 4, 5, 6, 7, 7)))
+  @test sf == :(ok(1, 2, 2, yeah(4, 4), 6))
+end
+
 
 
 module NonCall

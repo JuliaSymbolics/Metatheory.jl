@@ -177,30 +177,24 @@ Dynamic rule
   matcher
   patvars::Vector{Symbol} # useful set of pattern variables
   ematcher!
-  ematcher_stack::OptBuffer{UInt16}
+  stack::OptBuffer{UInt16}
 end
 
-function DynamicRule(l, r::Function, ematcher!, rhs_code = nothing)
+function DynamicRule(l, r::Function, matcher, ematcher!, rhs_code = nothing)
   pvars = patvars(l)
   setdebrujin!(l, pvars)
   isnothing(rhs_code) && (rhs_code = repr(rhs_code))
 
-  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher!, OptBuffer{UInt16}(512))
+  DynamicRule(l, r, rhs_code, matcher, pvars, ematcher!, OptBuffer{UInt16}(512))
 end
 
 
 Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_code)))
 
 function (r::DynamicRule)(term)
-  # n == 1 means that exactly one term of the input (term,) was matched
-  success(bindings, n) =
-    if n == 1
-      bvals = [bindings[i] for i in 1:length(r.patvars)]
-      return r.rhs_fun(term, nothing, bvals...)
-    end
-
+  success(bindings...) = r.rhs_fun(term, nothing, bindings...)
   try
-    return r.matcher(success, (term,), EMPTY_DICT)
+    return r.matcher(term, success, r.stack)
   catch err
     throw(RuleRewriteError(r, term, err))
   end
