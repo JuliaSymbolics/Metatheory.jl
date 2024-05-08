@@ -98,7 +98,7 @@ with the EGraphs backend.
   patvars::Vector{Symbol}
   ematcher_new_left!
   ematcher_new_right!
-  ematcher_stack::OptBuffer{UInt16}
+  stack::OptBuffer{UInt16}
 end
 
 function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
@@ -136,7 +136,7 @@ backend. If two terms, corresponding to the left and right hand side of an
   patvars::Vector{Symbol}
   ematcher_new_left!
   ematcher_new_right!
-  ematcher_stack::OptBuffer{UInt16}
+  stack::OptBuffer{UInt16}
 end
 
 function UnequalRule(l, r, ematcher_new_left!, ematcher_new_right!)

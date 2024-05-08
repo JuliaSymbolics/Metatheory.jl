@@ -373,7 +373,8 @@ macro rule(args...)
   end
   ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
 
-  matcher_left_expr = esc(match_compile(lhs, pvars))
+  matcher_left_expr = match_compile(lhs, pvars)
+
 
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
@@ -472,16 +473,24 @@ macro capture(args...)
 
   pvars = Symbol[]
   lhs = makepattern(lhs, pvars, slots, __module__)
-  bind = Expr(
-    :block,
-    map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
-  )
+  bind_exprs = Expr[]
+
+  for key in pvars
+    idx = findfirst((==)(key), pvars)
+    push!(bind_exprs, :($(esc(key)) = __MATCHES__[$idx]))
+  end
+
+  setdebrujin!(lhs, pvars)
+
+  matcher_left_expr = match_compile(lhs, pvars)
+
+
   ret = quote
     $(__source__)
-    rule = DynamicRule($lhs, (_lhs_expr, _egraph, pvars...) -> pvars, (x...) -> nothing)
+    rule = DynamicRule($lhs, (_lhs_expr, _egraph, pvars...) -> pvars, $matcher_left_expr, nothing)
     __MATCHES__ = rule($(esc(ex)))
-    if __MATCHES__ !== nothing
-      $bind
+    if !isnothing(__MATCHES__)
+      $(bind_exprs...)
       true
     else
       false

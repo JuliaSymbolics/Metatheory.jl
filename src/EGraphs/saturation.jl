@@ -87,14 +87,14 @@ function eqsat_search!(
 
       if rule isa BidirRule
         for i in ids_left
-          n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.ematcher_stack, ematch_buffer)
+          n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.stack, ematch_buffer)
         end
         for i in ids_right
-          n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.ematcher_stack, ematch_buffer)
+          n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.stack, ematch_buffer)
         end
       else
         for i in ids_left
-          n_matches += rule.ematcher!(g, rule_idx, i, rule.ematcher_stack, ematch_buffer)
+          n_matches += rule.ematcher!(g, rule_idx, i, rule.stack, ematch_buffer)
         end
       end
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
