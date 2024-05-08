@@ -1,5 +1,7 @@
 # # Rewriting 
 
+using Metatheory, TermInterface
+
 fold = @theory p q begin
   (p::Bool == q::Bool) => (p == q)
   (p::Bool || q::Bool) => (p || q)
@@ -74,7 +76,7 @@ function prove(
     params.goal = (g::EGraph) -> in_same_class(g, ids...)
     saturate!(g, t, params)
     ex = extract!(g, astsize)
-    if !Metatheory.isexpr(ex)
+    if !TermInterface.isexpr(ex)
       return ex
     end
     if hash(ex) ∈ hist

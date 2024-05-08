@@ -330,7 +330,7 @@ function addexpr!(g::EGraph, se)::Id
     v_set_head!(n, add_constant!(g, h))
 
     # get the signature from op and arity 
-    v_set_signature!(n, hash(should_quote_operation(h) ? nameof(h) : h, hash(ar)))
+    v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
 
     for i in v_children_range(n)
       @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])

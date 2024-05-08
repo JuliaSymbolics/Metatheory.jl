@@ -8,9 +8,8 @@ using Reexport
 function to_expr end
 
 # TODO: document
-function should_quote_operation end
-should_quote_operation(::Function) = true
-should_quote_operation(x) = false
+Base.@inline maybe_quote_operation(x::Union{Function,DataType}) = nameof(x)
+Base.@inline maybe_quote_operation(x) = x
 
 include("docstrings.jl")
 
@@ -22,8 +21,7 @@ export OptBuffer
 
 const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
-using TermInterface
-using TermInterface: isexpr
+@reexport using TermInterface
 
 """ 
   @matchable struct Foo fields... end [HeadType]
@@ -63,6 +61,10 @@ export @timer
 
 include("Patterns.jl")
 @reexport using .Patterns
+
+include("match_compiler.jl")
+export match_compile
+
 
 include("ematch_compiler.jl")
 export ematch_compile

@@ -111,29 +111,127 @@ end
   @test df == "doesnt_fly"
 end
 
-@testset "Segment Variables" begin
-  t = @theory begin
-    f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
-  end
-  sf = rewrite(:(f(1, 2, 3, 4)), t)
-  @test sf == :(ok(2, 3, 4))
-
-  t = @theory x y begin
-    f(x, y...) => Expr(:call, :ok, y...)
-  end
-  sf = rewrite(:(f(1, 2, 3, 4)), t)
-  @test sf == :(ok(2, 3, 4))
-
-  t = @theory x y begin
-    f(x, y...) --> ok(y...)
-  end
-  sf = rewrite(:(f(1, 2, 3, 4)), t)
-  @test sf == :(ok(2, 3, 4))
+@testset "New compiled pattern matcher" begin
+  r = @rule f(1, 2) --> ok()
+  @test isnothing(r(:(f(1, 2, 3))))
+  @test r(:(f(1, 2))) == :(ok())
 end
 
+@testset "PatSegment as tail" begin
+  r = @rule f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(2, 3, 4))
+
+  r = @rule x y f(x, 2, y...) => Expr(:call, :ok, y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(3, 4))
+
+  sf = r(:(f(1, 2, 3)))
+  @test sf == :(ok(3))
+
+  # Empty vector
+  r = @rule x y f(x, 2, 3, 4, y...) --> ok(y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok())
+
+  # Entire vector
+  r = @rule x f(x...) --> ok(x...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2, 3, 4))
+
+  # Nested inside
+  r = @rule x y g(1, f(x, 2, y...), 3) => Expr(:call, :ok, x, y...)
+  sf = r(:(g(1, f(1, 2, 3, 4), 3)))
+  @test sf == :(ok(1, 3, 4))
+
+  sf = r(:(g(1, f(1, 2, 3), 3)))
+  @test sf == :(ok(1, 3))
+
+  sf = r(:(g(1, f(1, 2, 3, h(4, 5), 6), 3)))
+  @test sf == :(ok(1, 3, h(4, 5), 6))
+end
+
+@testset "PatSegment as head" begin
+  r = @rule f(~~x, ~y) => Expr(:call, :ok, (~~x)...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2, 3))
+
+  r = @rule x y f(x..., 3, 4) => Expr(:call, :ok, x...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2))
+
+  # Single element
+  r = @rule x y f(x, 2, 3, y...) --> ok(y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(4))
+
+  # Empty vector
+  r = @rule x y f(x, 2, 3, 4, y...) --> ok(y...)
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok())
+end
+
+@testset "Multiple PatSegments" begin
+  r = @rule f(~~x, ~~y) --> ok(~~x, yeah(~~y))
+  sf = r(:(f(1, 2, 3, 4)))
+  @test sf == :(ok(1, 2, 3, 4, yeah()))
+
+  r = @rule f(~~x, 3, ~~y) --> ok(~~x, yeah(~~y))
+  sf = r(:(f(1, 2, 3, 4, 5)))
+  @test sf == :(ok(1, 2, yeah(4, 5)))
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~z) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 3, 4, 5, 6)))
+  @test sf == :(ok(1, 2, yeah(4), 6))
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~z, 7) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 2, 3, 4, 4, 5, 6, 7, 7)))
+  @test sf == :(ok(1, 2, 2, yeah(4, 4), 6, 7))
+end
+
+@testset "Multiple Repeated PatSegments" begin
+  r = @rule f(~~x, ~~x, 4) --> ok(~~x)
+  sf = r(:(f(1, 2, 1, 2, 4)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 4)))
+  @test isnothing(sf)
+
+  sf = r(:(f(4)))
+  @test sf == :(ok())
+
+
+  r = @rule f(~~x, ~~x) --> ok(~~x)
+  sf = r(:(f(1, 2, 1, 2)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 4)))
+  @test isnothing(sf)
+
+  r = @rule f(~~x, 3, ~~x) --> ok(~~x)
+  sf = r(:(f(1, 2, 3, 1, 2)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 4, 5)))
+  @test isnothing(sf)
+
+  # Appears 3 times, doesn't work because of `offset_so_far` not counting how many times 
+  # a variable appears
+  r = @rule f(~~x, 3, ~~x, 5, ~~x) --> ok(~~x)
+  sf = r(:(f(1, 2, 3, 1, 2, 5, 1, 2)))
+  @test sf == :(ok(1, 2))
+
+  sf = r(:(f(1, 2, 3, 3, 1, 2, 5, 1, 2)))
+  @test isnothing(sf)
+
+
+  r = @rule f(~~x, 3, ~~y, 5, ~~x, ~~z, 7, ~~y) --> ok(~~x, yeah(~~y), ~~z)
+  sf = r(:(f(1, 2, 2, 3, 4, 4, 5, 1, 2, 2, 6, 7, 7, 4, 4)))
+  @test sf == :(ok(1, 2, 2, yeah(4, 4), 6, 7))
+end
 
 module NonCall
-using Metatheory
+using Metatheory, TermInterface
 t = [@rule a b (a, b) --> ok(a, b)]
 
 test() = rewrite(:(x, y), t)
@@ -145,12 +243,11 @@ end
 
 
 @testset "Pattern matcher can match on both function object references and name symbols" begin
-  ex = :($(+)($(sin)(x)^2, $(cos)(x)^2))
   r = @rule(sin(~x)^2 + cos(~x)^2 --> 1)
+  ex = :($(+)($(sin)(x)^2, $(cos)(x)^2))
 
   @test r(ex) == 1
 end
-
 
 
 @testset "Pattern variable as pattern term head" begin
@@ -194,7 +291,6 @@ using Metatheory.Syntax: @capture
   @test f(:(b^b)) == :b
   @test isnothing(f(:(b + b)))
 
-  # FIXME TODO broken
   x = 1
   r = (@capture x ~x)
   @test r == true
@@ -215,6 +311,7 @@ TermInterface.arguments(x::Qux) = [x.args...]
 
 function test()
   @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(Qux(3, 4)) === nothing
   @test (@rule Qux(1, 2) => "hello")(1) === nothing
   @test (@rule 1 => "hello")(1) == "hello"
   @test (@rule 1 => "hello")(Qux(1, 2)) === nothing
@@ -235,6 +332,7 @@ end
 
 function test()
   @test (@rule Lux(1, 2) => "hello")(Lux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(Lux(3, 4)) === nothing
   @test (@rule Qux(1, 2) => "hello")(1) === nothing
   @test (@rule 1 => "hello")(1) == "hello"
   @test (@rule 1 => "hello")(Lux(1, 2)) === nothing

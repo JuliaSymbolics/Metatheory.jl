@@ -1,6 +1,6 @@
 module Patterns
 
-using Metatheory: cleanast, alwaystrue, should_quote_operation
+using Metatheory: cleanast, alwaystrue, maybe_quote_operation
 using AutoHashEquals
 using TermInterface
 using Metatheory.VecExprModule
@@ -92,7 +92,9 @@ struct PatExpr <: AbstractPat
   n::VecExpr
   function PatExpr(iscall, op, args::Vector)
     op_hash = hash(op)
-    qop, qop_hash = should_quote_operation(op) ? (nameof(op), hash(nameof(op))) : (op, op_hash)
+    # Should call `nameof` on op if Function or DataType. Identity otherwise
+    qop = maybe_quote_operation(op)
+    qop_hash = hash(qop)
     ar = length(args)
     signature = hash(qop, hash(ar))
 

@@ -3,7 +3,7 @@ using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
 
-using Metatheory: alwaystrue, cleanast, ematch_compile
+using Metatheory: alwaystrue, cleanast, ematch_compile, match_compile
 
 export @rule
 export @theory
@@ -373,6 +373,9 @@ macro rule(args...)
   end
   ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
 
+  matcher_left_expr = match_compile(lhs, pvars)
+
+
   if RuleType == DynamicRule
     rhs_rewritten = rewrite_rhs(r)
     rhs_consequent = makeconsequent(rhs_rewritten)
@@ -380,7 +383,7 @@ macro rule(args...)
     rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
     return quote
       $(__source__)
-      DynamicRule($lhs, $rhs, $ematcher_left_expr, $(QuoteNode(rhs_consequent)))
+      DynamicRule($lhs, $rhs, $matcher_left_expr, $ematcher_left_expr, $(QuoteNode(rhs_consequent)))
     end
   end
 
@@ -393,7 +396,7 @@ macro rule(args...)
 
   quote
     $(__source__)
-    ($RuleType)($lhs, $rhs, $ematcher_left_expr)
+    ($RuleType)($lhs, $rhs, $matcher_left_expr, $ematcher_left_expr)
   end
 end
 
@@ -470,16 +473,24 @@ macro capture(args...)
 
   pvars = Symbol[]
   lhs = makepattern(lhs, pvars, slots, __module__)
-  bind = Expr(
-    :block,
-    map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
-  )
+  bind_exprs = Expr[]
+
+  for key in pvars
+    idx = findfirst((==)(key), pvars)
+    push!(bind_exprs, :($(esc(key)) = __MATCHES__[$idx]))
+  end
+
+  setdebrujin!(lhs, pvars)
+
+  matcher_left_expr = match_compile(lhs, pvars)
+
+
   ret = quote
     $(__source__)
-    rule = DynamicRule($lhs, (_lhs_expr, _egraph, pvars...) -> pvars, (x...) -> nothing)
+    rule = DynamicRule($lhs, (_lhs_expr, _egraph, pvars...) -> pvars, $matcher_left_expr, nothing)
     __MATCHES__ = rule($(esc(ex)))
-    if __MATCHES__ !== nothing
-      $bind
+    if !isnothing(__MATCHES__)
+      $(bind_exprs...)
       true
     else
       false
