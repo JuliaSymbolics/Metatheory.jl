@@ -1,6 +1,7 @@
 # # Rewriting 
 
-using Metatheory, TermInterface
+using Metatheory
+using Metatheory.TermInterface
 
 fold = @theory p q begin
   (p::Bool == q::Bool) => (p == q)
