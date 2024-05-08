@@ -27,20 +27,20 @@ function match_compile(p::AbstractPat, pvars)
   push!(state.program, match_yield_expr(state, pvars))
 
   quote
-    function ($(gensym("matcher")))(t, callback::Function, stack::$(OptBuffer{UInt16}))
+    function ($(gensym("matcher")))(_term_being_matched, _callback::Function, stack::$(OptBuffer{UInt16}))
       # Assign and empty the variables for patterns 
-      $([:($var = nothing) for var in setdiff(pvars, first.(state.segments))]...)
+      $([:($(varname(var)) = nothing) for var in setdiff(pvars, first.(state.segments))]...)
 
       # Initialize the variables needed in the outermost scope (accessible by instruction blocks)
-      $([:($(Symbol(k)) = $v) for (k, v) in state.term_coord_variables]...)
+      $([:(local $(Symbol(k)) = $v) for (k, v) in state.term_coord_variables]...)
 
       # Backtracking stack
-      stack_idx = 0
+      local stack_idx = 0
 
       # Instruction 0 is used to return when  the backtracking stack is empty. 
       # We start from 1.
       push!(stack, 0x0000)
-      pc = 0x0001
+      local pc = 0x0001
 
       # We goto this label when:
       # 1) After backtracking, the pc is popped from the stack.
@@ -69,11 +69,11 @@ end
 function match_yield_expr(state::MatchCompilerState, pvars)
   steps = Expr[]
   for (pvar, local_args) in state.segments
-    start_idx = Symbol(pvar, :_start)
-    end_idx = Symbol(pvar, :_end)
-    push!(steps, :($pvar = view($local_args, ($start_idx):($end_idx))))
+    start_idx = Symbol(varname(pvar), :_start)
+    end_idx = Symbol(varname(pvar), :_end)
+    push!(steps, :($(varname(pvar)) = view($local_args, ($start_idx):($end_idx))))
   end
-  push!(steps, :(return callback($(pvars...))))
+  push!(steps, :(return _callback($(map(varname, pvars)...))))
   Expr(:block, steps...)
 end
 
@@ -82,25 +82,38 @@ end
 # ==============================================================
 
 function make_coord_symbol(coordinate)
-  isempty(coordinate) && return :t
-  Symbol("t_", join(coordinate, "_"))
+  isempty(coordinate) && return :_term_being_matched
+  Symbol("_term_being_matched_", join(coordinate, "_"))
 end
 
 offset_so_far(segments) = foldl(
   (x, y) -> :($x + $y),
-  map(n -> :(length(($(Symbol(n, :_start))):($(Symbol(n, :_end)))) - 1), segments);
+  map(n -> :(length(($(Symbol(varname(n), :_start))):($(Symbol(varname(n), :_end)))) - 1), segments);
   init = 0,
 )
 
 
 function get_coord(coordinate, segments_so_far)
-  isempty(coordinate) && return :t
+  isempty(coordinate) && return :_term_being_matched
 
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
   :(@inbounds $(Symbol(tsym, :_args))[$(get_idx(coordinate, segments_so_far))])
 end
 
 get_idx(coordinate, segments_so_far) = :($(last(coordinate)) + $(offset_so_far(segments_so_far)))
+
+# TODO FIXME Report on Julialang ? 
+# This workaround is needed because otherwise pattern variables named `val`
+# Are going to clash with @inbounds generated val. 
+# See this: 
+# julia> @macroexpand @inbounds fuck[my:life]
+# quote
+#     $(Expr(:inbounds, true))
+#     local var"#11517#val" = fuck[my:life]
+#     $(Expr(:inbounds, :pop))
+#     var"#11517#val"
+# end
+varname(patvarname::Symbol) = Symbol(:_pvar_, patvarname)
 
 function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate::Vector{Int}, parent_segments)
   tsym = make_coord_symbol(coordinate)
@@ -123,7 +136,6 @@ function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate:
   segments_so_far = Symbol[]
 
   for (i, child_pattern) in enumerate(p_args)
-    # @show p_arity i
     state.current_term_n_remaining = p_arity - i - count(x -> (x isa PatSegment), @view(p_args[(i + 1):end]))
     match_compile!(child_pattern, state, [coordinate; i], segments_so_far)
   end
@@ -160,9 +172,9 @@ function match_compile!(
   if patvar isa PatSegment
     push!(parent_segments, patvar.name)
     push!(state.segments, patvar.name => tsym_args)
-    push!(state.term_coord_variables, Symbol(patvar.name, :_start) => -1)
-    push!(state.term_coord_variables, Symbol(patvar.name, :_end) => -2)
-    push!(state.term_coord_variables, Symbol(patvar.name, :_n_dropped) => 0)
+    push!(state.term_coord_variables, Symbol(varname(patvar.name), :_start) => -1)
+    push!(state.term_coord_variables, Symbol(varname(patvar.name), :_end) => -2)
+    push!(state.term_coord_variables, Symbol(varname(patvar.name), :_n_dropped) => 0)
   end
   push!(state.program, instruction)
 end
@@ -185,24 +197,25 @@ end
 match_term_op(pattern, tsym, ::Union{Symbol,Expr}) =
   :($(Symbol(tsym, :_op)) == $(QuoteNode(pattern.head)) || @goto backtrack)
 
-match_term_op(::AbstractPat, tsym, op::PatVar) = :($(Symbol(tsym, :_op)) == $(op.name) || @goto backtrack)
+match_term_op(::AbstractPat, tsym, patvar::PatVar) =
+  :($(Symbol(tsym, :_op)) == $(varname(patvar.name)) || @goto backtrack)
 
 
 function match_term_expr(pattern::PatExpr, coordinate, segments_so_far)
-  t = make_coord_symbol(coordinate)
+  tsym = make_coord_symbol(coordinate)
   op_fun = iscall(pattern) ? :operation : :head
   args_fun = iscall(pattern) ? :arguments : :children
 
-  op_guard = match_term_op(pattern, t, operation(pattern))
+  op_guard = match_term_op(pattern, tsym, operation(pattern))
 
   quote
-    $t = $(get_coord(coordinate, segments_so_far))
+    $tsym = $(get_coord(coordinate, segments_so_far))
 
-    isexpr($t) || @goto backtrack
-    iscall($t) === $(iscall(pattern)) || @goto backtrack
+    isexpr($tsym) || @goto backtrack
+    iscall($tsym) === $(iscall(pattern)) || @goto backtrack
 
-    $(Symbol(t, :_op)) = $(op_fun)($t)
-    $(Symbol(t, :_args)) = $(args_fun)($t)
+    $(Symbol(tsym, :_op)) = $(op_fun)($tsym)
+    $(Symbol(tsym, :_args)) = $(args_fun)($tsym)
 
     $op_guard
 
@@ -224,14 +237,15 @@ function match_term_expr_closing(pattern, state, coordinate, segments_so_far)
   end
 end
 
-match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, predicate::Function) = :($(predicate)($patvar.name))
+match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, predicate::Function) =
+  :($(predicate)($(varname(patvar.name))))
 match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, predicate::typeof(alwaystrue)) = true
-match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, T::Type) = :($(patvar.name) isa $T)
+match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, T::Type) = :($(varname(patvar.name)) isa $T)
 
 
 function match_var_expr(patvar::PatVar, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   quote
-    $(patvar.name) = $to_compare
+    $(varname(patvar.name)) = $to_compare
     if $(match_var_expr_if_guard(patvar, patvar.predicate))
       pc += 0x0001
       @goto compute
@@ -244,7 +258,7 @@ end
 function match_var_expr(patvar::PatSegment, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
   tsym_args = Symbol(tsym, :_args)
-  n_dropped_sym = Symbol(patvar.name, :_n_dropped)
+  n_dropped_sym = Symbol(varname(patvar.name), :_n_dropped)
 
 
   quote
@@ -255,8 +269,8 @@ function match_var_expr(patvar::PatSegment, state::MatchCompilerState, to_compar
       push!(stack, pc)
 
       # $(patvar.name) = view($tsym_args, start_idx:(end_idx - $n_dropped_sym))
-      $(Symbol(patvar.name, :_start)) = start_idx
-      $(Symbol(patvar.name, :_end)) = end_idx - $n_dropped_sym
+      $(Symbol(varname(patvar.name), :_start)) = start_idx
+      $(Symbol(varname(patvar.name), :_end)) = end_idx - $n_dropped_sym
 
 
       $n_dropped_sym += 1
@@ -279,7 +293,7 @@ end
 
 function match_eq_expr(patvar::PatVar, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   quote
-    if $(patvar.name) == $to_compare
+    if $(varname(patvar.name)) == $to_compare
       pc += 0x0001
       @goto compute
     else
@@ -305,13 +319,13 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
     end
   end
   @assert !isnothing(previous_local_args)
-  previous_start_idx = Symbol(patvar.name, :_start)
+  previous_start_idx = Symbol(varname(patvar.name), :_start)
 
 
   quote
     $start_idx <= length($tsym_args) || @goto backtrack
 
-    for i in 1:length(($(Symbol(patvar.name, :_start))):($(Symbol(patvar.name, :_end))))
+    for i in 1:length(($(Symbol(varname(patvar.name), :_start))):($(Symbol(varname(patvar.name), :_end))))
       # ($tsym_args)[$start_idx + i - 1] == $(patvar.name)[i] || @goto backtrack
       ($tsym_args)[$start_idx + i - 1] == $previous_local_args[$previous_start_idx + i - 1] || @goto backtrack
     end
