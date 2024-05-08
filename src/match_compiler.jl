@@ -1,7 +1,7 @@
 using Metatheory: alwaystrue
 using TermInterface
 
-@kwdef mutable struct MatchCompilerState
+Base.@kwdef mutable struct MatchCompilerState
   pvars_bound::Vector{Bool}
   program::Vector{Expr} = Expr[]
   term_coord_variables = Pair{Symbol,Any}[]
