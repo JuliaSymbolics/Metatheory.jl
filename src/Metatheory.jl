@@ -22,8 +22,7 @@ export OptBuffer
 
 const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
-using TermInterface
-using TermInterface: isexpr
+@reexport using TermInterface
 
 """ 
   @matchable struct Foo fields... end [HeadType]

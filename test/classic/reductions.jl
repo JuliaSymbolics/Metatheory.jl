@@ -111,6 +111,12 @@ end
   @test df == "doesnt_fly"
 end
 
+@testset "New compiled pattern matcher" begin
+  r = @rule f(1, 2) --> ok()
+  @test isnothing(r(:(f(1, 2, 3))))
+  @test r(:(f(1, 2))) == :(ok())
+end
+
 @testset "PatSegment as tail" begin
   r = @rule f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
   sf = r(:(f(1, 2, 3, 4)))
@@ -199,11 +205,8 @@ end
   sf = r(:(f(1, 2, 1, 2)))
   @test sf == :(ok(1, 2))
 
-  # TODO why?
   sf = r(:(f(1, 2, 3, 4)))
   @test isnothing(sf)
-
-
 
   r = @rule f(~~x, 3, ~~x) --> ok(~~x)
   sf = r(:(f(1, 2, 3, 1, 2)))
@@ -227,10 +230,8 @@ end
   @test sf == :(ok(1, 2, 2, yeah(4, 4), 6, 7))
 end
 
-
-
 module NonCall
-using Metatheory
+using Metatheory, TermInterface
 t = [@rule a b (a, b) --> ok(a, b)]
 
 test() = rewrite(:(x, y), t)
@@ -242,8 +243,8 @@ end
 
 
 @testset "Pattern matcher can match on both function object references and name symbols" begin
-  ex = :($(+)($(sin)(x)^2, $(cos)(x)^2))
   r = @rule(sin(~x)^2 + cos(~x)^2 --> 1)
+  ex = :($(+)($(sin)(x)^2, $(cos)(x)^2))
 
   @test r(ex) == 1
 end
@@ -291,7 +292,6 @@ using Metatheory.Syntax: @capture
   @test f(:(b^b)) == :b
   @test isnothing(f(:(b + b)))
 
-  # FIXME TODO broken
   x = 1
   r = (@capture x ~x)
   @test r == true
@@ -312,6 +312,7 @@ TermInterface.arguments(x::Qux) = [x.args...]
 
 function test()
   @test (@rule Qux(1, 2) => "hello")(Qux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(Qux(3, 4)) === nothing
   @test (@rule Qux(1, 2) => "hello")(1) === nothing
   @test (@rule 1 => "hello")(1) == "hello"
   @test (@rule 1 => "hello")(Qux(1, 2)) === nothing
@@ -332,6 +333,7 @@ end
 
 function test()
   @test (@rule Lux(1, 2) => "hello")(Lux(1, 2)) == "hello"
+  @test (@rule Qux(1, 2) => "hello")(Lux(3, 4)) === nothing
   @test (@rule Qux(1, 2) => "hello")(1) === nothing
   @test (@rule 1 => "hello")(1) == "hello"
   @test (@rule 1 => "hello")(Lux(1, 2)) === nothing
