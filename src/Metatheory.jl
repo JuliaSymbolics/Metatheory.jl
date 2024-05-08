@@ -8,9 +8,8 @@ using Reexport
 function to_expr end
 
 # TODO: document
-function should_quote_operation end
-should_quote_operation(::Function) = true
-should_quote_operation(x) = false
+Base.@inline maybe_quote_operation(x::Union{Function,DataType}) = nameof(x)
+Base.@inline maybe_quote_operation(x) = x
 
 include("docstrings.jl")
 
