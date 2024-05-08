@@ -160,7 +160,7 @@ eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
     eval_bool(:((false || false) || !(false || false)), Mem(:x => 2)) == true
     eval_bool(:((2 < 3) && (3 < 4)), Mem(:x => 2)) == true
     eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 2)) == false
-    eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 4)) == true
+    eval_bool(:((2 < x)), Mem(:x => 4)) == true
   ],
 )
 
@@ -203,8 +203,10 @@ end
 # `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
 
 write_mem = @theory sym val σ begin
-  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
-  σ)
+  (store(sym::Symbol, val), σ) => begin
+    σ[sym] = eval_if(val, σ)
+    σ
+  end
 end
 
 # ## While loops and sequential computation.

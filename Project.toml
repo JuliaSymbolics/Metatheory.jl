@@ -10,12 +10,18 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
+[weakdeps]
+GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
+
+[extensions]
+Plotting = ["GraphViz"]
+
 [compat]
 AutoHashEquals = "2.1.0"
 DocStringExtensions = "0.8, 0.9"
 Reexport = "0.2, 1"
-TimerOutputs = "0.5"
 TermInterface = "0.4.1"
+TimerOutputs = "0.5"
 julia = "1.9"
 
 [extras]
@@ -26,9 +32,3 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "Documenter", "SafeTestsets", "Literate"]
-
-[weakdeps]
-GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
-
-[extensions]
-Plotting = ["GraphViz"]

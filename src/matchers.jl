@@ -149,34 +149,34 @@ function matcher(term::PatExpr)
   end
 end
 
-function instantiate(left, pat::PatExpr, mem)
+function instantiate(left, pat::PatExpr, bindings)
   ntail = []
   for parg in arguments(pat)
-    instantiate_arg!(ntail, left, parg, mem)
+    instantiate_arg!(ntail, left, parg, bindings)
   end
   maketerm(typeof(left), operation(pat), ntail)
 end
 
-function instantiate(left::Expr, pat::PatExpr, mem)
+function instantiate(left::Expr, pat::PatExpr, bindings)
   ntail = []
   if iscall(pat)
     for parg in arguments(pat)
-      instantiate_arg!(ntail, left, parg, mem)
+      instantiate_arg!(ntail, left, parg, bindings)
     end
     op = operation(pat)
     op_name = op isa Union{Function,DataType} ? nameof(op) : op
     maketerm(Expr, :call, [op_name; ntail])
   else
     for parg in children(pat)
-      instantiate_arg!(ntail, left, parg, mem)
+      instantiate_arg!(ntail, left, parg, bindings)
     end
     maketerm(Expr, head(pat), ntail)
   end
 end
 
-instantiate_arg!(acc, left, parg::PatSegment, mem) = append!(acc, instantiate(left, parg, mem))
-instantiate_arg!(acc, left, parg::AbstractPat, mem) = push!(acc, instantiate(left, parg, mem))
+instantiate_arg!(acc, left, parg::PatSegment, bindings) = append!(acc, instantiate(left, parg, bindings))
+instantiate_arg!(acc, left, parg::AbstractPat, bindings) = push!(acc, instantiate(left, parg, bindings))
 
-instantiate(_, pat::PatLiteral, mem) = pat.value
-instantiate(_, pat::Union{PatVar,PatSegment}, mem) = mem[pat.idx]
+instantiate(_, pat::PatLiteral, bindings) = pat.value
+instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 
