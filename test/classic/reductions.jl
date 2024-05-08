@@ -250,7 +250,6 @@ end
 end
 
 
-
 @testset "Pattern variable as pattern term head" begin
   foo(x) = x + 2
   ex = :(($foo)(bar, 2, pazz))

@@ -70,7 +70,6 @@ Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
 function (r::RewriteRule)(term)
   # n == 1 means that exactly one term of the input (term,) was matched
   success(pvars...) = instantiate(term, r.right, pvars)
-
   try
     r.matcher(term, success, r.stack)
   catch err

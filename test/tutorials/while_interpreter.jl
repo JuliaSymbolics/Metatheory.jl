@@ -203,8 +203,10 @@ end
 # `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
 
 write_mem = @theory sym val σ begin
-  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
-  σ)
+  (store(sym::Symbol, val), σ) => begin
+    σ[sym] = eval_if(val, σ)
+    σ
+  end
 end
 
 # ## While loops and sequential computation.
