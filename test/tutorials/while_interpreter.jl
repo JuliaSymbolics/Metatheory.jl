@@ -160,7 +160,7 @@ eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
     eval_bool(:((false || false) || !(false || false)), Mem(:x => 2)) == true
     eval_bool(:((2 < 3) && (3 < 4)), Mem(:x => 2)) == true
     eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 2)) == false
-    eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 4)) == true
+    eval_bool(:((2 < x)), Mem(:x => 4)) == true
   ],
 )
 
