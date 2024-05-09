@@ -12,6 +12,7 @@ function simplify(ex, theory, params = SaturationParams(), postprocess = identit
 end
 
 
+include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/basic_maths_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_theory.jl"))
