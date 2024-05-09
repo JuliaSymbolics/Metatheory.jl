@@ -7,17 +7,26 @@
   !(p::Bool)           =&gt; (!p)
 end
 
-calc = @theory p q r begin</code></pre><p>Associativity of ==:</p><pre><code class="language-">  ((p == q) == r) == (p == (q == r))</code></pre><p>Symmetry of ==:</p><pre><code class="language-">  (p == q) == (q == p)</code></pre><p>Identity of ==:</p><pre><code class="language-">  (q == q) --&gt; true</code></pre><p>Excluded middle Distributivity of !:</p><pre><code class="language-">  !(p == q) == (!(p) == q)</code></pre><p>Definition of !=:</p><pre><code class="language-">  (p != q) == !(p == q)
-  #Associativity of ||:
-  ((p || q) || r) == (p || (q || r))</code></pre><p>Symmetry of ||:</p><pre><code class="language-">  (p || q) == (q || p)</code></pre><p>Idempotency of ||:</p><pre><code class="language-">  (p || p) --&gt; p</code></pre><p>Distributivity of ||:</p><pre><code class="language-">  (p || (q == r)) == (p || q == p || r)</code></pre><p>Excluded Middle:</p><pre><code class="language-">  (p || !(p)) --&gt; true</code></pre><p>DeMorgan</p><pre><code class="language-">  !(p || q) == (!p &amp;&amp; !q)
+calc = @theory p q r begin
+  ((p == q) == r) == (p == (q == r))      # Associativity of ==:
+  (p == q) == (q == p)                    # Symmetry of ==:
+  (q == q) --&gt; true                       # Identity of ==:
+  !(p == q) == (!(p) == q)                # Distributivity of !:
+  (p != q) == !(p == q)                   # Definition of !=:
+  ((p || q) || r) == (p || (q || r))      # Associativity of ||:
+  (p || q) == (q || p)                    # Symmetry of ||:
+  (p || p) --&gt; p                          # Idempotency of ||:
+  (p || (q == r)) == ((p || q) == (p || r))   # Distributivity of ||:
+  (p || !(p)) --&gt; true                    # Excluded Middle:
+  !(p || q) == (!p &amp;&amp; !q)                 # DeMorgan
   !(p &amp;&amp; q) == (!p || !q)
-
-  (p &amp;&amp; q) == ((p == q) == p || q)
-
+  (p &amp;&amp; q) == ((p == q) == (p || q))
   (p ⟹ q) == ((p || q) == q)
 end
 
+
 calculational_logic_theory = calc ∪ fold
+
 
 
 @testset &quot;Calculational Logic&quot; begin
@@ -32,4 +41,4 @@ calculational_logic_theory = calc ∪ fold
   params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (1000, 5))
 
   @test areequal(calculational_logic_theory, true, :(((p ⟹ (p || p)) == ((!(p) &amp;&amp; q) ⟹ q)) == true); params = params)</code></pre><p>Frege&#39;s theorem</p><pre><code class="language-">  @test areequal(calculational_logic_theory, true, :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))); params = params)</code></pre><p>Demorgan&#39;s</p><pre><code class="language-">  @test @areequal calculational_logic_theory true (!(p || q) == (!p &amp;&amp; !q))</code></pre><p>Consensus theorem</p><pre><code class="language-">  areequal(calculational_logic_theory, :((x &amp;&amp; y) || (!x &amp;&amp; z) || (y &amp;&amp; z)), :((x &amp;&amp; y) || (!x &amp;&amp; z)); params = params)
-end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../api/">« API Documentation</a><a class="docs-footer-nextpage" href="../custom_types/">Interfacing with Metatheory.jl »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 9 May 2024 19:30">Thursday 9 May 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../api/">« API Documentation</a><a class="docs-footer-nextpage" href="../custom_types/">Interfacing with Metatheory.jl »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 9 May 2024 19:33">Thursday 9 May 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
