@@ -12,8 +12,8 @@ function prove(
     timer = false,
   ),
 )
-  hist = UInt64[]
-  push!(hist, hash(ex))
+  # hist = UInt64[]
+  # push!(hist, hash(ex))
   for i in 1:steps
     g = EGraph(ex)
 
@@ -25,10 +25,10 @@ function prove(
     if !TermInterface.isexpr(ex)
       return ex
     end
-    if hash(ex) ∈ hist
-      return ex
-    end
-    push!(hist, hash(ex))
+    # if hash(ex) ∈ hist
+    #   return ex
+    # end
+    # push!(hist, hash(ex))
   end
   return ex
 end
