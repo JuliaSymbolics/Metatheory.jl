@@ -73,8 +73,7 @@ SUITE["prop_logic"]["freges_theorem"] = @benchmarkable (@assert prove($propositi
 SUITE["calc_logic"] = BenchmarkGroup(["egraph", "logic"])
 
 SUITE["calc_logic"]["demorgan"] = @benchmarkable (@assert prove($calculational_logic_theory, $ex_demorgan))
-SUITE["calc_logic"]["freges_theorem"] =
-  @benchmarkable (@assert prove($calculational_logic_theory, $ex_frege, 2, 10))
+SUITE["calc_logic"]["freges_theorem"] = @benchmarkable (@assert prove($calculational_logic_theory, $ex_frege, 2, 10))
 
 # ==================================================================
 
