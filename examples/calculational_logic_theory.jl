@@ -22,35 +22,21 @@ fold = @theory p q begin
 end
 
 calc = @theory p q r begin
-  # Associativity of ==: 
-  ((p == q) == r) == (p == (q == r))
-  # Symmetry of ==: 
-  (p == q) == (q == p)
-  # Identity of ==:
-  (q == q) --> true
-  # Excluded middle 
-  # Distributivity of !:
-  !(p == q) == (!(p) == q)
-  # Definition of !=: 
-  (p != q) == !(p == q)
-  #Associativity of ||:
-  ((p || q) || r) == (p || (q || r))
-  # Symmetry of ||: 
-  (p || q) == (q || p)
-  # Idempotency of ||:
-  (p || p) --> p
-  # Distributivity of ||: 
-  (p || (q == r)) == (p || q == p || r)
-  # Excluded Middle:
-  (p || !(p)) --> true
-
-  # DeMorgan
-  !(p || q) == (!p && !q)
+  ((p == q) == r) == (p == (q == r))      # Associativity of ==: 
+  (p == q) == (q == p)                    # Symmetry of ==: 
+  (q == q) --> true                       # Identity of ==: 
+  !(p == q) == (!(p) == q)                # Distributivity of !:
+  (p != q) == !(p == q)                   # Definition of !=: 
+  ((p || q) || r) == (p || (q || r))      # Associativity of ||:
+  (p || q) == (q || p)                    # Symmetry of ||: 
+  (p || p) --> p                          # Idempotency of ||:
+  (p || (q == r)) == ((p || q) == (p || r))   # Distributivity of ||: 
+  (p || !(p)) --> true                    # Excluded Middle:
+  !(p || q) == (!p && !q)                 # DeMorgan
   !(p && q) == (!p || !q)
-
-  (p && q) == ((p == q) == p || q)
-
+  (p && q) == ((p == q) == (p || q))
   (p ⟹ q) == ((p || q) == q)
 end
+
 
 calculational_logic_theory = calc ∪ fold
