@@ -30,12 +30,13 @@ calc = @theory p q r begin
   ((p || q) || r) == (p || (q || r))      # Associativity of ||:
   (p || q) == (q || p)                    # Symmetry of ||: 
   (p || p) --> p                          # Idempotency of ||:
-  (p || (q == r)) == (p || q == p || r)   # Distributivity of ||: 
+  (p || (q == r)) == ((p || q) == (p || r))   # Distributivity of ||: 
   (p || !(p)) --> true                    # Excluded Middle:
   !(p || q) == (!p && !q)                 # DeMorgan
   !(p && q) == (!p || !q)
-  (p && q) == ((p == q) == p || q)
+  (p && q) == ((p == q) == (p || q))
   (p ⟹ q) == ((p || q) == q)
 end
+
 
 calculational_logic_theory = calc ∪ fold

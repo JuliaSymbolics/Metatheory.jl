@@ -2,6 +2,7 @@
 
 using Metatheory, Test
 
+include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 
 @testset "Prop logic" begin
