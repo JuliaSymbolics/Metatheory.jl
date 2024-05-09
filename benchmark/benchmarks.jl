@@ -12,6 +12,7 @@ function simplify(ex, theory, params = SaturationParams(), postprocess = identit
 end
 
 
+include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/basic_maths_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_theory.jl"))
@@ -38,9 +39,18 @@ SUITE["egraph"]["addexpr"] = @benchmarkable EGraph($(nested_expr(2000)))
 SUITE["basic_maths"] = BenchmarkGroup(["egraphs"])
 
 
-ex_math = :(a + b + (0 * c) + d)
-SUITE["basic_maths"]["simpl1"] =
-  @benchmarkable (@assert :(a + b + d) == simplify($ex_math, $maths_theory, $(SaturationParams(;timer=false)), postprocess_maths))
+simpl1_math = :(a + b + (0 * c) + d)
+SUITE["basic_maths"]["simpl1"] = @benchmarkable (@assert :(a + b + d) == simplify(
+  $simpl1_math,
+  $maths_theory,
+  $(SaturationParams(; timer = false)),
+  postprocess_maths,
+))
+
+simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
+SUITE["basic_maths"]["simpl2"] =
+  @benchmarkable (@assert :a == simplify($simpl2_math, $maths_theory, $(SaturationParams()), postprocess_maths))
+
 
 # ==================================================================
 
@@ -63,8 +73,7 @@ SUITE["prop_logic"]["freges_theorem"] = @benchmarkable (@assert prove($propositi
 SUITE["calc_logic"] = BenchmarkGroup(["egraph", "logic"])
 
 SUITE["calc_logic"]["demorgan"] = @benchmarkable (@assert prove($calculational_logic_theory, $ex_demorgan))
-# SUITE["calc_logic"]["freges_theorem"] =
-#   @benchmarkable (@assert prove($calculational_logic_theory, $ex_frege, 1, 10, 10000))
+SUITE["calc_logic"]["freges_theorem"] = @benchmarkable (@assert prove($calculational_logic_theory, $ex_frege, 2, 10))
 
 # ==================================================================
 
