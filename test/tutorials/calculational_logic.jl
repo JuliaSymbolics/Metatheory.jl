@@ -24,5 +24,11 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_t
 
   @test @areequal calculational_logic_theory (!(p || q) == (!p && !q)) true   # Demorgan's
 
-  # @test prove(calculational_logic_theory, :((x && y) || (!x && z) || (y && z)), :((x && y) || (!x && z)), 2, 10, params)   # Consensus theorem
+  @test_broken prove(
+    calculational_logic_theory,
+    :(((x && y) || (!x && z) || (y && z)) == ((x && y) || (!x && z)))),
+    2,
+    10,
+    params,
+  )   # Consensus theorem
 end

@@ -97,7 +97,7 @@ function get_coord(coordinate, segments_so_far)
   isempty(coordinate) && return :_term_being_matched
 
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
-  :(@inbounds $(Symbol(tsym, :_args))[$(get_idx(coordinate, segments_so_far))])
+  :($(Symbol(tsym, :_args))[$(get_idx(coordinate, segments_so_far))])
 end
 
 get_idx(coordinate, segments_so_far) = :($(last(coordinate)) + $(offset_so_far(segments_so_far)))
@@ -106,10 +106,10 @@ get_idx(coordinate, segments_so_far) = :($(last(coordinate)) + $(offset_so_far(s
 # This workaround is needed because otherwise pattern variables named `val`
 # Are going to clash with @inbounds generated val. 
 # See this: 
-# julia> @macroexpand @inbounds fuck[my:life]
+# julia> @macroexpand @inbounds v[i:j]
 # quote
 #     $(Expr(:inbounds, true))
-#     local var"#11517#val" = fuck[my:life]
+#     local var"#11517#val" = v[i:j]
 #     $(Expr(:inbounds, :pop))
 #     var"#11517#val"
 # end
