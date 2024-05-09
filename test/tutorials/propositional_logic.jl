@@ -2,6 +2,7 @@
 
 using Metatheory, Test
 
+include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 
 @testset "Prop logic" begin
@@ -23,4 +24,5 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
 end
 
 # Consensus theorem
+# TODO: fix this one too
 # @test_broken @areequal propositional_logic_theory ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z)) true
