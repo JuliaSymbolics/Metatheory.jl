@@ -42,30 +42,29 @@ G = Mid ∪ Massoc ∪ T
 
 astsize_prefer_empty(n::VecExpr, op, costs)::Float64 = op == :ε ? 0 : astsize(n, op, costs)
 
-another_expr = :(b * B)
-g = EGraph(another_expr)
-saturate!(g, G)
-ex = extract!(g, astsize_prefer_empty)
-@test ex == :ε
+function test_kb(expr, params = SaturationParams())
+  g = EGraph(expr)
+  saturate!(g, G, params)
+  ex = extract!(g, astsize_prefer_empty)
+  ex == :ε
+end
 
-another_expr = :(a * a * a * a)
-g = EGraph(another_expr)
-some_eclass = addexpr!(g, another_expr)
-saturate!(g, G)
-ex = extract!(g, astsize_prefer_empty)
-@test ex == :ε
+@test test_kb(:(b * B))
+@test test_kb(:(a * a * a * a))
+@test test_kb(:(((((((a * b) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)))
+@test test_kb(
+  :(a * b * a * a * a * b * b * b * a * B * B * B * B * a),
+  SaturationParams(timeout = 5, scheduler = SimpleScheduler),
+)
 
-another_expr = :(((((((a * b) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b))
-g = EGraph(another_expr)
-some_eclass = addexpr!(g, another_expr)
-saturate!(g, G)
-ex = extract!(g, astsize_prefer_empty)
-@test ex == :ε
+@test !test_kb(:(((((((a * b) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (b * a)))
+@test !test_kb(:(a * a * b * a))
+@test !test_kb(
+  :(a * b * b * a * a * b * b * b * a * B * B * B * B * a),
+  SaturationParams(timeout = 5, scheduler = SimpleScheduler),
+)
 
 
-expr = :(a * b * a * a * a * b * b * b * a * B * B * B * B * a)
-g = EGraph(expr)
-params = SaturationParams(timeout = 5, scheduler = SimpleScheduler)
-report = saturate!(g, G, params)
-ex = extract!(g, astsize_prefer_empty)
-@test ex == :ε
+
+
+
