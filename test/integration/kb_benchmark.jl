@@ -32,7 +32,7 @@ end
 T = [
   @rule :b * :B --> :ε
   @rule :a * :a --> :ε
-  @rule :b * :b * :b --> :ε
+  @rule (:b * :b) * :b --> :ε
   @rule :B * :B --> :B
   @rule (@rep (:a * :b) (*) 7) --> :ε
   @rule (@rep (:a * :b * :a * :B) (*) 7) --> :ε
@@ -40,33 +40,32 @@ T = [
 
 G = Mid ∪ Massoc ∪ T
 
+astsize_prefer_empty(n::VecExpr, op, costs)::Float64 = op == :ε ? 0 : astsize(n, op, costs)
 
 another_expr = :(b * B)
 g = EGraph(another_expr)
 saturate!(g, G)
-ex = extract!(g, astsize)
+ex = extract!(g, astsize_prefer_empty)
 @test ex == :ε
 
 another_expr = :(a * a * a * a)
 g = EGraph(another_expr)
 some_eclass = addexpr!(g, another_expr)
 saturate!(g, G)
-ex = extract!(g, astsize)
+ex = extract!(g, astsize_prefer_empty)
 @test ex == :ε
 
 another_expr = :(((((((a * b) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b)) * (a * b))
 g = EGraph(another_expr)
 some_eclass = addexpr!(g, another_expr)
 saturate!(g, G)
-ex = extract!(g, astsize)
+ex = extract!(g, astsize_prefer_empty)
 @test ex == :ε
 
 
 expr = :(a * b * a * a * a * b * b * b * a * B * B * B * B * a)
 g = EGraph(expr)
-params = SaturationParams(timeout = 9, scheduler = BackoffScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
-# params = SaturationParams(timeout = 9, scheduler = SimpleScheduler)# , schedulerparams=(128,4))#, scheduler=SimpleScheduler)
+params = SaturationParams(timeout = 5, scheduler = SimpleScheduler)
 report = saturate!(g, G, params)
-ex = extract!(g, astsize)
-@test_broken ex == :ε
-
+ex = extract!(g, astsize_prefer_empty)
+@test ex == :ε
