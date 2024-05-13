@@ -71,16 +71,6 @@ fold_t = @theory a b begin
   a::Number / b::Number => a / b
 end
 
-using Calculus: differentiate
-function ∂ end
-
-diff_t = @theory x y begin
-  ∂(y, x::Symbol) => begin
-    z = extract!(_egraph, simplcost, y.id)
-    differentiate(z, x)
-  end
-end
-
 diff_t_onearg = @theory x begin
   diff(sqrt(x), x) --> 1 / 2 / sqrt(x)
   diff(cbrt(x), x) --> 1 / 3 / cbrt(x)^2
