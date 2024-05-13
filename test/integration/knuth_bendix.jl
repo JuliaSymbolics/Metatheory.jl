@@ -40,7 +40,7 @@ macro kb_theory_237_abab(n)
       @rule (@rep (:a * :b * :a * :B) (*) $n) --> :ε
     ]
     group_theory = Mid ∪ Massoc ∪ T
-  end
+  end |> esc
 end
 
 @kb_theory_237_abab 5
@@ -52,7 +52,7 @@ function test_kb(expr, t, params = SaturationParams())
   saturate!(g, t, params)
   ex = extract!(g, astsize_prefer_empty)
 
-  # Check if group is trivial
+  # TODO: Check if group is trivial
   # a = addexpr!(g, :a)
   # b = addexpr!(g, :b)
   # B = addexpr!(g, :B)
@@ -62,8 +62,6 @@ function test_kb(expr, t, params = SaturationParams())
   # @show in_same_class(g, B, ε)
   ex == :ε
 end
-
-
 
 
 for n in 5:8
