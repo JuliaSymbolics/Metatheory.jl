@@ -146,7 +146,7 @@ end
 function rule_sym_map(ex::Expr)
   h = iscall(ex) ? operation(ex) : head(ex)
   if h == :(-->) || h == :(→)
-    RewriteRule
+    DirectedRule
   elseif h == :(=>)
     DynamicRule
   elseif h == :(==)
@@ -214,7 +214,7 @@ end
 """
     @rule [SLOTS...] LHS operator RHS
 
-Creates an `AbstractRule` object. A rule object is callable, and takes an
+Creates a `NewRewriteRule` object. A rule object is callable, and takes an
 expression and rewrites it if it matches the LHS pattern to the RHS pattern,
 returns `nothing` otherwise. The rule language is described below.
 
@@ -232,8 +232,8 @@ matches found for these variables in the LHS.
 
 **Rule operators**:
 - `LHS => RHS`: create a `DynamicRule`. The RHS is *evaluated* on rewrite.
-- `LHS --> RHS`: create a `RewriteRule`. The RHS is **not** evaluated but *symbolically substituted* on rewrite.
-- `LHS == RHS`: create a `EqualityRule`. In e-graph rewriting, this rule behaves like `RewriteRule` but can go in both directions. Doesn't work in classical rewriting
+- `LHS --> RHS`: create a `DirectedRule`. The RHS is **not** evaluated but *symbolically substituted* on rewrite.
+- `LHS == RHS`: create a `EqualityRule`. In e-graph rewriting, this rule behaves like `DirectedRule` but can go in both directions. Doesn't work in classical rewriting
 - `LHS ≠ RHS`: create a `UnequalRule`. Can only be used in e-graphs, and is used to eagerly stop the process of rewriting if LHS is found to be equal to RHS.
 
 **Slot**:
@@ -350,53 +350,64 @@ macro rule(args...)
   slots = args[1:(end - 1)]
   expr = args[end]
 
-  e = macroexpand(__module__, expr)
-  e = rmlines(e)
-  RuleType = rule_sym_map(e)
+  ex = macroexpand(__module__, expr)
+  ex = rmlines(ex)
 
-  l, r = iscall(e) ? arguments(e) : children(e)
+  op = iscall(ex) ? operation(ex) : head(ex)
+
+  l, r = iscall(ex) ? arguments(ex) : children(ex)
   pvars = Symbol[]
   lhs::AbstractPat = makepattern(l, pvars, slots, __module__)
   ppvars = Patterns.patvars(lhs)
 
-  ematcher_right_expr = nothing
+  @assert pvars == ppvars
 
-  rhs = RuleType <: SymbolicRule ? makepattern(r, [], slots, __module__) : r
+  ematcher_right_expr = :nothing
 
-  if RuleType <: BidirRule
-    ppvars = ppvars ∪ Patterns.patvars(rhs)
-    setdebrujin!(lhs, pvars)
-    setdebrujin!(rhs, pvars)
-    ematcher_right_expr = esc(ematch_compile(rhs, ppvars, -1))
+  rhs = rhs_original = :(println("replace me"))
+
+  if op == :(=>) # Dynamic Rule
+    rhs_rewritten = rewrite_rhs(r)
+    rhs_original = makeconsequent(rhs_rewritten)
+    params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
+    rhs = :($(esc(params)) -> $(esc(rhs_original)))
   else
-    setdebrujin!(lhs, ppvars)
+    rhs = makepattern(r, pvars, slots, __module__)
+    setdebrujin!(rhs, pvars)
+    rhs_original = r
   end
-  ematcher_left_expr = esc(ematch_compile(lhs, ppvars, 1))
+
+  setdebrujin!(lhs, pvars)
+
+
+  ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
+
+  if op in (:(==), :(!=)) # Bidirectional rule
+    ematcher_right_expr = esc(ematch_compile(rhs, pvars, -1))
+    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs))
+    if !isempty(extravars)
+      error("unbound pattern variables $extravars when creating bidirectional rule")
+    end
+  end
 
   matcher_left_expr = match_compile(lhs, pvars)
 
-
-  if RuleType == DynamicRule
-    rhs_rewritten = rewrite_rhs(r)
-    rhs_consequent = makeconsequent(rhs_rewritten)
-    params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
-    rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
-    return quote
-      $(__source__)
-      DynamicRule($lhs, $rhs, $matcher_left_expr, $ematcher_left_expr, $(QuoteNode(rhs_consequent)))
-    end
-  end
-
-  if RuleType <: BidirRule
-    return quote
-      $(__source__)
-      ($RuleType)($lhs, $rhs, $ematcher_left_expr, $ematcher_right_expr)
-    end
-  end
+  # FIXME => is not a function we have to use |>
+  op = (op == :(=>)) ? :(|>) : op
 
   quote
     $(__source__)
-    ($RuleType)($lhs, $rhs, $matcher_left_expr, $ematcher_left_expr)
+    NewRewriteRule(;
+      op = $op,
+      left = $lhs,
+      right = $rhs,
+      patvars = $ppvars,
+      ematcher_left! = $ematcher_left_expr,
+      ematcher_right! = $ematcher_right_expr,
+      matcher_left = $matcher_left_expr,
+      lhs_original = $(QuoteNode(l)),
+      rhs_original = $(QuoteNode(rhs_original)),
+    )
   end
 end
 
@@ -436,7 +447,7 @@ macro theory(args...)
   # e = interp_dollar(e, __module__)
 
   if e.head == :block
-    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), children(e))...)
+    ee = Expr(:ref, NewRewriteRule, map(x -> addslots(:(@rule($x)), slots), children(e))...)
     esc(ee)
   else
     error("theory is not in form begin a => b; ... end")
@@ -466,13 +477,13 @@ macro capture(args...)
   length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
   slots = args[1:(end - 2)]
   ex = args[end - 1]
-  lhs = args[end]
-  lhs = macroexpand(__module__, lhs)
-  lhs = rmlines(lhs)
+  l = args[end]
+  l = macroexpand(__module__, l)
+  l = rmlines(l)
 
 
   pvars = Symbol[]
-  lhs = makepattern(lhs, pvars, slots, __module__)
+  lhs = makepattern(l, pvars, slots, __module__)
   bind_exprs = Expr[]
 
   for key in pvars
@@ -487,7 +498,14 @@ macro capture(args...)
 
   ret = quote
     $(__source__)
-    rule = DynamicRule($lhs, (_lhs_expr, _egraph, pvars...) -> pvars, $matcher_left_expr, nothing)
+    rule = DynamicRule(;
+      op = (|>),
+      patvars = $pvars,
+      left = $lhs,
+      right = (_lhs_expr, _egraph, pvars...) -> pvars,
+      matcher_left = $matcher_left_expr,
+      ematcher_left! = () -> (),
+    )
     __MATCHES__ = rule($(esc(ex)))
     if !isnothing(__MATCHES__)
       $(bind_exprs...)
