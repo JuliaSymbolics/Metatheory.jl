@@ -91,7 +91,6 @@ function eqsat_search!(
       end
 
       if is_bidirectional(rule)
-        @show rule
         for i in ids_right
           n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
         end

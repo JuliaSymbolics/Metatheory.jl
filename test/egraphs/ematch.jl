@@ -281,7 +281,7 @@ end
 
 @testset "Inequalities" begin
   failme = @theory p begin
-    p ≠ !p
+    p != !p
     :foo == !:foo
     :foo --> :bazoo
     :bazoo --> :wazoo

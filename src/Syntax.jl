@@ -143,22 +143,6 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   end
 end
 
-function rule_sym_map(ex::Expr)
-  h = iscall(ex) ? operation(ex) : head(ex)
-  if h == :(-->) || h == :(→)
-    DirectedRule
-  elseif h == :(=>)
-    DynamicRule
-  elseif h == :(==)
-    EqualityRule
-  elseif h == :(!=) || h == :(≠)
-    UnequalRule
-  else
-    error("Cannot parse rule with operator '$h'")
-  end
-end
-rule_sym_map(ex) = error("Cannot parse rule from $ex")
-
 """
     rewrite_rhs(expr::Expr)
 
@@ -354,6 +338,8 @@ macro rule(args...)
   ex = rmlines(ex)
 
   op = iscall(ex) ? operation(ex) : head(ex)
+
+  @assert op in (:(==), :(=>), :(-->), :(!=))
 
   l, r = iscall(ex) ? arguments(ex) : children(ex)
   pvars = Symbol[]

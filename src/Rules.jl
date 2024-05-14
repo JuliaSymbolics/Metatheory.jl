@@ -25,6 +25,14 @@ Base.@kwdef struct NewRewriteRule{Op<:Union{Function}}
   rhs_original = nothing
 end
 
+function --> end
+const DirectedRule = NewRewriteRule{typeof(-->)}
+const EqualityRule = NewRewriteRule{typeof(==)}
+const UnequalRule = NewRewriteRule{typeof(!=)}
+# FIXME => is not a function we have to use |>
+const DynamicRule = NewRewriteRule{typeof(|>)}
+
+
 is_bidirectional(r::NewRewriteRule) = r.op in (==, !=)
 
 # TODO equivalence up-to debrujin index
@@ -36,13 +44,6 @@ Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_original)))
 
 (r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
 (r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
-
-function --> end
-const DirectedRule = NewRewriteRule{typeof(-->)}
-const EqualityRule = NewRewriteRule{typeof(==)}
-const UnequalRule = NewRewriteRule{typeof(!=)}
-# FIXME => is not a function we have to use |>
-const DynamicRule = NewRewriteRule{typeof(|>)}
 
 
 
