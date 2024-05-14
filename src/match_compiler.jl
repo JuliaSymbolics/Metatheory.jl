@@ -2,13 +2,22 @@ using Metatheory: alwaystrue
 using TermInterface
 
 Base.@kwdef mutable struct MatchCompilerState
+  "For each pattern variable, store if it has already been encountered or not"
   pvars_bound::Vector{Bool}
+  "List of actual instructions"
   program::Vector{Expr} = Expr[]
-  term_coord_variables = Pair{Symbol,Any}[]
+  "Pair of variables needed by the pattern matcher and their initial value"
+  variables = Pair{Symbol,Any}[]
+  """
+  For each segment pattern variable, store the reference to the vector
+  that will be used to construct the view.
+  """
   segments::Vector{Pair{Symbol,Symbol}} = Pair{Symbol,Symbol}[]
-  current_term_has_segment::Bool = false
+  """
+  When matching segment variables, we can count how many non-segment terms 
+  are remaining in the tail of the pattern term, to avoid matching extra terms 
+  """
   current_term_n_remaining::Int = 0
-  is_term_operation_patvar = false
 end
 
 function match_compile(p::AbstractPat, pvars)
@@ -32,7 +41,7 @@ function match_compile(p::AbstractPat, pvars)
       $([:($(varname(var)) = nothing) for var in setdiff(pvars, first.(state.segments))]...)
 
       # Initialize the variables needed in the outermost scope (accessible by instruction blocks)
-      $([:(local $(Symbol(k)) = $v) for (k, v) in state.term_coord_variables]...)
+      $([:(local $(Symbol(k)) = $v) for (k, v) in state.variables]...)
 
       # Backtracking stack
       local stack_idx = 0
@@ -117,15 +126,13 @@ varname(patvarname::Symbol) = Symbol(:_pvar_, patvarname)
 
 function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate::Vector{Int}, parent_segments)
   tsym = make_coord_symbol(coordinate)
-  !isempty(coordinate) && push!(state.term_coord_variables, tsym => nothing)
-  push!(state.term_coord_variables, Symbol(tsym, :_op) => nothing)
-  push!(state.term_coord_variables, Symbol(tsym, :_args) => nothing)
+  !isempty(coordinate) && push!(state.variables, tsym => nothing)
+  push!(state.variables, Symbol(tsym, :_op) => nothing)
+  push!(state.variables, Symbol(tsym, :_args) => nothing)
 
   pat_op = operation(pattern)
   if pat_op isa PatVar
-    state.is_term_operation_patvar = true
-    match_compile!(pat_op, state, coordinate, parent_segments)
-    state.is_term_operation_patvar = false
+    match_compile!(pat_op, state, coordinate, parent_segments, true)
   end
   push!(state.program, match_term_expr(pattern, coordinate, parent_segments))
 
@@ -148,12 +155,13 @@ function match_compile!(
   state::MatchCompilerState,
   coordinate::Vector{Int},
   parent_segments,
+  is_term_operation_patvar = false,
 )
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
   tsym_args = Symbol(tsym, :_args)
 
-  to_compare = if state.is_term_operation_patvar && patvar isa PatVar
-    to_compare = :(operation($tsym))
+  to_compare = if is_term_operation_patvar && patvar isa PatVar
+    :(operation($tsym))
   else
     get_coord(coordinate, parent_segments)
   end
@@ -172,9 +180,9 @@ function match_compile!(
   if patvar isa PatSegment
     push!(parent_segments, patvar.name)
     push!(state.segments, patvar.name => tsym_args)
-    push!(state.term_coord_variables, Symbol(varname(patvar.name), :_start) => -1)
-    push!(state.term_coord_variables, Symbol(varname(patvar.name), :_end) => -2)
-    push!(state.term_coord_variables, Symbol(varname(patvar.name), :_n_dropped) => 0)
+    push!(state.variables, Symbol(varname(patvar.name), :_start) => -1)
+    push!(state.variables, Symbol(varname(patvar.name), :_end) => -2)
+    push!(state.variables, Symbol(varname(patvar.name), :_n_dropped) => 0)
   end
   push!(state.program, instruction)
 end
