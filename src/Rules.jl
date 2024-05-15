@@ -11,6 +11,48 @@ export NewRewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->
 
 const STACK_SIZE = 512
 
+"""
+Rules in Metatheory can be defined with the `@rule` macro.
+
+Rules defined as with the --> are
+called *directed rewrite* rules. Application of a *directed rewrite* rule
+is a replacement of the `left` pattern with
+the `right` substitution, with the correct instantiation
+of pattern variables. 
+
+```julia
+@rule ~a * ~b --> ~b * ~a
+```
+
+An `EqualityRule` is a symbolic substitution rule with operator `==` that 
+can be rewritten bidirectionally. Therefore, it can only be used 
+with the EGraphs backend.
+
+```julia
+@rule ~a * ~b == ~b * ~a
+```
+
+Rules defined with the `!=` act as  *anti*-rules for checking contradictions in e-graph
+rewriting. If two terms, corresponding to the left and right hand side of an
+*anti-rule* are found in an `EGraph`, saturation is halted immediately. 
+
+```julia
+!a != a
+````
+
+Rules defined with the `=>` operator are
+called dynamic rules. Dynamic rules behave like anonymous functions.
+Instead of a symbolic substitution, the right hand of
+a dynamic `=>` rule is evaluated during rewriting:
+matched values are bound to pattern variables as in a
+regular function call. This allows for dynamic computation
+of right hand sides.
+
+Dynamic rule
+```julia
+@rule ~a::Number * ~b::Number => ~a*~b
+```
+"""
 Base.@kwdef struct NewRewriteRule{Op<:Union{Function}}
   op::Op
   left::AbstractPat
