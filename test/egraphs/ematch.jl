@@ -11,48 +11,48 @@ b = OptBuffer{UInt128}(10)
   r = @rule 2 --> true
   g = EGraph(2)
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
 end
 
 @testset "Composite Ground Terms" begin
   r = @rule f(2, 3) --> true
   g = EGraph(:(f(2, 3)))
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
-  @test r.ematcher!(g, 0, Id(1), r.stack, b) == 0
-  @test r.ematcher!(g, 0, Id(2), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, Id(1), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, Id(2), r.stack, b) == 0
 
   g = EGraph(:(f(2, 4)))
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 0
-  @test r.ematcher!(g, 0, Id(1), r.stack, b) == 0
-  @test r.ematcher!(g, 0, Id(2), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, Id(1), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, Id(2), r.stack, b) == 0
 
 
   r = @rule f(2, h(3, 4)) --> true
   g = EGraph(:(f(2, h(3, 4))))
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
-  @test r.ematcher!(g, 0, Id(1), r.stack, b) == 0
-  @test r.ematcher!(g, 0, Id(2), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, Id(1), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, Id(2), r.stack, b) == 0
 end
 
 @testset "Pattern Variables" begin
   g = EGraph(:(f(2, 1)))
   r = @rule ~a --> true
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
-  @test r.ematcher!(g, 0, Id(1), r.stack, b) == 1
-  @test r.ematcher!(g, 0, Id(2), r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, Id(1), r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, Id(2), r.stack, b) == 1
 end
 
 @testset "Type Assertions" begin
   r = @rule ~a::Int --> true
   g = EGraph(:(f(2, 1)))
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 0
 
   g = EGraph(:3)
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
 
   new_id = addexpr!(g, :f)
   union!(g, g.root, new_id)
@@ -60,7 +60,7 @@ end
   new_id = addexpr!(g, 4)
   union!(g, g.root, new_id)
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 2
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 2
 end
 
 @testset "Predicate Assertions" begin
@@ -76,13 +76,13 @@ end
     end
 
   g = EGraph(:(f(2, 1)))
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 0
 
   g = EGraph(:2)
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
 
   g = EGraph(:3)
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 0
 
   new_id = addexpr!(g, :f)
   union!(g, g.root, new_id)
@@ -90,7 +90,7 @@ end
   new_id = addexpr!(g, 4)
   union!(g, g.root, new_id)
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
 end
 
 
@@ -98,18 +98,18 @@ end
   g = EGraph(:(f(2, 1)))
   r = @rule f(2, ~a) --> true
 
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
-  @test r.ematcher!(g, 0, Id(1), r.stack, b) == 0
-  @test r.ematcher!(g, 0, Id(2), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, Id(1), r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, Id(2), r.stack, b) == 0
 
   r = @rule f(~a, ~a) --> true
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 0
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 0
 
   g = EGraph(:(f(2, 2)))
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
 
   g = EGraph(:(f(h(3, 4), h(3, 4))))
-  @test r.ematcher!(g, 0, g.root, r.stack, b) == 1
+  @test r.ematcher_left!(g, 0, g.root, r.stack, b) == 1
 end
 
 
@@ -133,10 +133,10 @@ end
 
 
 r = @theory begin
-  ~a * 1 → :foo
-  ~a * 2 → :bar
-  1 * ~a → :baz
-  2 * ~a → :mag
+  ~a * 1 --> :foo
+  ~a * 2 --> :bar
+  1 * ~a --> :baz
+  2 * ~a --> :mag
 end
 
 @testset "Matching Literals" begin
@@ -281,7 +281,7 @@ end
 
 @testset "Inequalities" begin
   failme = @theory p begin
-    p ≠ !p
+    p != !p
     :foo == !:foo
     :foo --> :bazoo
     :bazoo --> :wazoo

@@ -60,7 +60,7 @@ Returns an iterator of `Match`es.
 """
 function eqsat_search!(
   g::EGraph,
-  theory::Vector{<:AbstractRule},
+  theory::Vector{RewriteRule},
   scheduler::AbstractScheduler,
   report::SaturationReport,
   ematch_buffer::OptBuffer{UInt128},
@@ -83,20 +83,19 @@ function eqsat_search!(
         continue
       end
       ids_left = cached_ids(g, rule.left)
-      ids_right = rule isa BidirRule ? cached_ids(g, rule.right) : UNDEF_ID_VEC
+      ids_right = is_bidirectional(rule) ? cached_ids(g, rule.right) : UNDEF_ID_VEC
 
-      if rule isa BidirRule
-        for i in ids_left
-          n_matches += rule.ematcher_new_left!(g, rule_idx, i, rule.stack, ematch_buffer)
-        end
+
+      for i in ids_left
+        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
+      end
+
+      if is_bidirectional(rule)
         for i in ids_right
-          n_matches += rule.ematcher_new_right!(g, rule_idx, i, rule.stack, ematch_buffer)
-        end
-      else
-        for i in ids_left
-          n_matches += rule.ematcher!(g, rule_idx, i, rule.stack, ematch_buffer)
+          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
         end
       end
+
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
       # if n_matches - prev_matches > 2 && rule_idx == 2
       #   @debug buffer_readable(g, old_len)
@@ -134,7 +133,7 @@ function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add!(g, p.n, true)
 end
 
-function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction, merges_buffer::OptBuffer{UInt128})
+function apply_rule!(buf, g::EGraph, rule::DirectedRule, id, direction, merges_buffer::OptBuffer{UInt128})
   new_id::Id = instantiate_enode!(buf, g, rule.right)
   push!(merges_buffer, v_pair(new_id, id))
   nothing
@@ -175,8 +174,7 @@ function instantiate_actual_param!(bindings, g::EGraph, i)
 end
 
 function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int, merges_buffer::OptBuffer{UInt128})
-  f = rule.rhs_fun
-  r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
+  r = rule.right(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
   isnothing(r) && return nothing
   rcid = addexpr!(g, r)
   push!(merges_buffer, v_pair(rcid, id))
@@ -187,7 +185,7 @@ const CHECK_GOAL_EVERY_N_MATCHES = 20
 
 function eqsat_apply!(
   g::EGraph,
-  theory::Vector{<:AbstractRule},
+  theory::Vector{RewriteRule},
   rep::SaturationReport,
   params::SaturationParams,
   ematch_buffer::OptBuffer{UInt128},
@@ -273,7 +271,7 @@ Core algorithm of the library: the equality saturation step.
 """
 function eqsat_step!(
   g::EGraph,
-  theory::Vector{<:AbstractRule},
+  theory::Vector{RewriteRule},
   curr_iter,
   scheduler::AbstractScheduler,
   params::SaturationParams,
@@ -302,7 +300,7 @@ end
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = SaturationParams())
+function saturate!(g::EGraph, theory::Vector{RewriteRule}, params = SaturationParams())
   curr_iter = 0
 
   sched = params.scheduler(g, theory, params.schedulerparams...)
@@ -366,7 +364,7 @@ function areequal(theory::Vector, exprs...; params = SaturationParams())
   areequal(g, theory, exprs...; params)
 end
 
-function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = SaturationParams())
+function areequal(g::EGraph, t::Vector{RewriteRule}, exprs...; params = SaturationParams())
   n = length(exprs)
   n == 1 && return true
 

@@ -55,9 +55,9 @@ comm_monoid = @commutative_monoid (*) 1
 comm_group = @commutative_group (+) 0 inv
 
 powers = @theory begin
-  ~a * ~a → (~a)^2
-  ~a → (~a)^1
-  (~a)^~n * (~a)^~m → (~a)^(~n + ~m)
+  ~a * ~a --> (~a)^2
+  ~a --> (~a)^1
+  (~a)^~n * (~a)^~m --> (~a)^(~n + ~m)
 end
 logids = @theory begin
   log((~a)^~n) --> ~n * log(~a)
@@ -176,7 +176,7 @@ end
 
 @testset "Symbol or function object operators in expressions in EGraphs" begin
   ex = :(($+)(x, y))
-  t = [@rule a b a + b => 2]
+  t = RewriteRule[@rule a b a + b => 2]
   g = EGraph(ex)
   saturate!(g, t)
   @test extract!(g, astsize) == 2

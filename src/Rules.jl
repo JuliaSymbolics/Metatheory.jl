@@ -7,157 +7,41 @@ using Metatheory.Patterns: to_expr
 using Metatheory: cleanast, matcher, instantiate
 using Metatheory: OptBuffer
 
-const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
+export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional
+
 const STACK_SIZE = 512
 
-abstract type AbstractRule end
-# Must override
-Base.:(==)(a::AbstractRule, b::AbstractRule) = false
-
-abstract type SymbolicRule <: AbstractRule end
-
-abstract type BidirRule <: SymbolicRule end
-
-struct RuleRewriteError
-  rule
-  expr
-  err
-end
-
-
-@noinline function Base.showerror(io::IO, err::RuleRewriteError)
-  print(io, "Failed to apply rule $(err.rule) on expression ")
-  print(io, Base.show(IOContext(io, :simplify => false), err.expr))
-  Base.showerror(io, err.err)
-end
-
-
 """
-Rules defined as `left_hand --> right_hand` are
-called *symbolic rewrite* rules. Application of a *rewrite* Rule
-is a replacement of the `left_hand` pattern with
-the `right_hand` substitution, with the correct instantiation
-of pattern variables. Function call symbols are not treated as pattern
-variables, all other identifiers are treated as pattern variables.
-Literals such as `5, :e, "hello"` are not treated as pattern
-variables.
+Rules in Metatheory can be defined with the `@rule` macro.
 
+Rules defined as with the --> are
+called *directed rewrite* rules. Application of a *directed rewrite* rule
+is a replacement of the `left` pattern with
+the `right` substitution, with the correct instantiation
+of pattern variables. 
 
 ```julia
 @rule ~a * ~b --> ~b * ~a
 ```
-"""
-@auto_hash_equals fields = (left, right) struct RewriteRule <: SymbolicRule
-  left
-  right
-  matcher
-  patvars::Vector{Symbol}
-  ematcher!
-  stack::OptBuffer{UInt16}
-end
 
-function RewriteRule(l, r, matcher!, ematcher!)
-  pvars = patvars(l) ∪ patvars(r)
-  # sort!(pvars)
-  setdebrujin!(l, pvars)
-  setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher!, pvars, ematcher!, OptBuffer{UInt16}(STACK_SIZE))
-end
-
-Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
-
-
-function (r::RewriteRule)(term)
-  # n == 1 means that exactly one term of the input (term,) was matched
-  success(pvars...) = instantiate(term, r.right, pvars)
-  try
-    r.matcher(term, success, r.stack)
-  catch err
-    rethrow(err)
-    throw(RuleRewriteError(r, term, err))
-  end
-end
-
-# ============================================================
-# EqualityRule
-# ============================================================
-
-"""
-An `EqualityRule` can is a symbolic substitution rule that 
-can be rewritten bidirectional. Therefore, it should only be used 
+An `EqualityRule` is a symbolic substitution rule with operator `==` that 
+can be rewritten bidirectionally. Therefore, it can only be used 
 with the EGraphs backend.
 
 ```julia
 @rule ~a * ~b == ~b * ~a
 ```
-"""
-@auto_hash_equals struct EqualityRule <: BidirRule
-  left
-  right
-  patvars::Vector{Symbol}
-  ematcher_new_left!
-  ematcher_new_right!
-  stack::OptBuffer{UInt16}
-end
 
-function EqualityRule(l, r, ematcher_new_left!, ematcher_new_right!)
-  pvars = patvars(l) ∪ patvars(r)
-  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
-  if !isempty(extravars)
-    error("unbound pattern variables $extravars when creating bidirectional rule")
-  end
-  setdebrujin!(l, pvars)
-  setdebrujin!(r, pvars)
-
-  EqualityRule(l, r, pvars, ematcher_new_left!, ematcher_new_right!, OptBuffer{UInt16}(STACK_SIZE))
-end
-
-
-Base.show(io::IO, r::EqualityRule) = print(io, :($(r.left) == $(r.right)))
-
-# ============================================================
-# UnequalRule
-# ============================================================
-
-"""
-This type of *anti*-rules is used for checking contradictions in the EGraph
-backend. If two terms, corresponding to the left and right hand side of an
-*anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
+Rules defined with the `!=` act as  *anti*-rules for checking contradictions in e-graph
+rewriting. If two terms, corresponding to the left and right hand side of an
+*anti-rule* are found in an `EGraph`, saturation is halted immediately. 
 
 ```julia
-!a ≠ a
-```
+!a != a
+````
 
-"""
-@auto_hash_equals struct UnequalRule <: BidirRule
-  left
-  right
-  patvars::Vector{Symbol}
-  ematcher_new_left!
-  ematcher_new_right!
-  stack::OptBuffer{UInt16}
-end
-
-function UnequalRule(l, r, ematcher_new_left!, ematcher_new_right!)
-  pvars = patvars(l) ∪ patvars(r)
-  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
-  if !isempty(extravars)
-    error("unbound pattern variables $extravars when creating bidirectional rule")
-  end
-  # sort!(pvars)
-  setdebrujin!(l, pvars)
-  setdebrujin!(r, pvars)
-  UnequalRule(l, r, pvars, ematcher_new_left!, ematcher_new_right!, OptBuffer{UInt16}(STACK_SIZE))
-end
-
-Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
-
-# ============================================================
-# DynamicRule
-# ============================================================
-"""
-Rules defined as `left_hand => right_hand` are
-called `dynamic` rules. Dynamic rules behave like anonymous functions.
+Rules defined with the `=>` operator are
+called dynamic rules. Dynamic rules behave like anonymous functions.
 Instead of a symbolic substitution, the right hand of
 a dynamic `=>` rule is evaluated during rewriting:
 matched values are bound to pattern variables as in a
@@ -169,42 +53,40 @@ Dynamic rule
 @rule ~a::Number * ~b::Number => ~a*~b
 ```
 """
-@auto_hash_equals struct DynamicRule <: AbstractRule
-  left
-  rhs_fun::Function
-  rhs_code
-  matcher
-  patvars::Vector{Symbol} # useful set of pattern variables
-  ematcher!
-  stack::OptBuffer{UInt16}
+Base.@kwdef struct RewriteRule{Op<:Union{Function}}
+  op::Op
+  left::AbstractPat
+  right::Union{Function,AbstractPat}
+  patvars::Vector{Symbol}
+  ematcher_left!::Function
+  ematcher_right!::Union{Nothing,Function} = nothing
+  matcher_left::Function
+  matcher_right::Union{Nothing,Function} = nothing
+  stack::OptBuffer{UInt16} = OptBuffer{UInt16}(STACK_SIZE)
+  lhs_original = nothing
+  rhs_original = nothing
 end
 
-function DynamicRule(l, r::Function, matcher, ematcher!, rhs_code = nothing)
-  pvars = patvars(l)
-  setdebrujin!(l, pvars)
-  isnothing(rhs_code) && (rhs_code = repr(rhs_code))
+function --> end
+const DirectedRule = RewriteRule{typeof(-->)}
+const EqualityRule = RewriteRule{typeof(==)}
+const UnequalRule = RewriteRule{typeof(!=)}
+# FIXME => is not a function we have to use |>
+const DynamicRule = RewriteRule{typeof(|>)}
 
-  DynamicRule(l, r, rhs_code, matcher, pvars, ematcher!, OptBuffer{UInt16}(512))
-end
+
+is_bidirectional(r::RewriteRule) = r.op in (==, !=)
+
+# TODO equivalence up-to debrujin index
+Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
+
+Base.show(io::IO, r::RewriteRule) = print(io, :($(nameof(r.op))($(r.left), $(r.right))))
+Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_original)))
 
 
-Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_code)))
+(r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
+(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
 
-function (r::DynamicRule)(term)
-  success(bindings...) = r.rhs_fun(term, nothing, bindings...)
-  try
-    return r.matcher(term, success, r.stack)
-  catch err
-    throw(RuleRewriteError(r, term, err))
-  end
-end
 
-export SymbolicRule
-export RewriteRule
-export BidirRule
-export EqualityRule
-export UnequalRule
-export DynamicRule
-export AbstractRule
 
 end
