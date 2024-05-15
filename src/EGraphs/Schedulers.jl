@@ -70,7 +70,7 @@ struct SimpleScheduler <: AbstractScheduler end
 
 cansaturate(s::SimpleScheduler) = true
 cansearch(s::SimpleScheduler, r::Int) = true
-function SimpleScheduler(::EGraph, ::Vector{NewRewriteRule})
+function SimpleScheduler(::EGraph, ::Vector{RewriteRule})
   SimpleScheduler()
 end
 inform!(::SimpleScheduler, r, n_matches) = nothing
@@ -94,7 +94,7 @@ associativity from taking an unfair amount of resources.
 mutable struct BackoffScheduler <: AbstractScheduler
   data::Vector{Tuple{Int,Int}} # TimesBanned ⊗ BannedUntil
   G::EGraph
-  theory::Vector{NewRewriteRule}
+  theory::Vector{RewriteRule}
   curr_iter::Int
   match_limit::Int
   ban_length::Int
@@ -103,7 +103,7 @@ end
 cansearch(s::BackoffScheduler, rule_idx::Int)::Bool = s.curr_iter > last(s.data[rule_idx])
 
 
-function BackoffScheduler(G::EGraph, theory::Vector{NewRewriteRule}, match_limit::Int = 1000, ban_length::Int = 5)
+function BackoffScheduler(G::EGraph, theory::Vector{RewriteRule}, match_limit::Int = 1000, ban_length::Int = 5)
   BackoffScheduler(fill((0, 0), length(theory)), G, theory, 1, match_limit, ban_length)
 end
 

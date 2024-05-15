@@ -60,7 +60,7 @@ Returns an iterator of `Match`es.
 """
 function eqsat_search!(
   g::EGraph,
-  theory::Vector{NewRewriteRule},
+  theory::Vector{RewriteRule},
   scheduler::AbstractScheduler,
   report::SaturationReport,
   ematch_buffer::OptBuffer{UInt128},
@@ -185,7 +185,7 @@ const CHECK_GOAL_EVERY_N_MATCHES = 20
 
 function eqsat_apply!(
   g::EGraph,
-  theory::Vector{NewRewriteRule},
+  theory::Vector{RewriteRule},
   rep::SaturationReport,
   params::SaturationParams,
   ematch_buffer::OptBuffer{UInt128},
@@ -271,7 +271,7 @@ Core algorithm of the library: the equality saturation step.
 """
 function eqsat_step!(
   g::EGraph,
-  theory::Vector{NewRewriteRule},
+  theory::Vector{RewriteRule},
   curr_iter,
   scheduler::AbstractScheduler,
   params::SaturationParams,
@@ -300,7 +300,7 @@ end
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-function saturate!(g::EGraph, theory::Vector{NewRewriteRule}, params = SaturationParams())
+function saturate!(g::EGraph, theory::Vector{RewriteRule}, params = SaturationParams())
   curr_iter = 0
 
   sched = params.scheduler(g, theory, params.schedulerparams...)
@@ -364,7 +364,7 @@ function areequal(theory::Vector, exprs...; params = SaturationParams())
   areequal(g, theory, exprs...; params)
 end
 
-function areequal(g::EGraph, t::Vector{NewRewriteRule}, exprs...; params = SaturationParams())
+function areequal(g::EGraph, t::Vector{RewriteRule}, exprs...; params = SaturationParams())
   n = length(exprs)
   n == 1 && return true
 

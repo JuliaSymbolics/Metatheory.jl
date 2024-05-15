@@ -176,7 +176,7 @@ end
 
 @testset "Symbol or function object operators in expressions in EGraphs" begin
   ex = :(($+)(x, y))
-  t = NewRewriteRule[@rule a b a + b => 2]
+  t = RewriteRule[@rule a b a + b => 2]
   g = EGraph(ex)
   saturate!(g, t)
   @test extract!(g, astsize) == 2

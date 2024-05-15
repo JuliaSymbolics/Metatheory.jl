@@ -7,7 +7,7 @@ using Metatheory.Patterns: to_expr
 using Metatheory: cleanast, matcher, instantiate
 using Metatheory: OptBuffer
 
-export NewRewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional
+export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional
 
 const STACK_SIZE = 512
 
@@ -53,7 +53,7 @@ Dynamic rule
 @rule ~a::Number * ~b::Number => ~a*~b
 ```
 """
-Base.@kwdef struct NewRewriteRule{Op<:Union{Function}}
+Base.@kwdef struct RewriteRule{Op<:Union{Function}}
   op::Op
   left::AbstractPat
   right::Union{Function,AbstractPat}
@@ -68,19 +68,19 @@ Base.@kwdef struct NewRewriteRule{Op<:Union{Function}}
 end
 
 function --> end
-const DirectedRule = NewRewriteRule{typeof(-->)}
-const EqualityRule = NewRewriteRule{typeof(==)}
-const UnequalRule = NewRewriteRule{typeof(!=)}
+const DirectedRule = RewriteRule{typeof(-->)}
+const EqualityRule = RewriteRule{typeof(==)}
+const UnequalRule = RewriteRule{typeof(!=)}
 # FIXME => is not a function we have to use |>
-const DynamicRule = NewRewriteRule{typeof(|>)}
+const DynamicRule = RewriteRule{typeof(|>)}
 
 
-is_bidirectional(r::NewRewriteRule) = r.op in (==, !=)
+is_bidirectional(r::RewriteRule) = r.op in (==, !=)
 
 # TODO equivalence up-to debrujin index
-Base.:(==)(a::NewRewriteRule, b::NewRewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
+Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
 
-Base.show(io::IO, r::NewRewriteRule) = print(io, :($(nameof(r.op))($(r.left), $(r.right))))
+Base.show(io::IO, r::RewriteRule) = print(io, :($(nameof(r.op))($(r.left), $(r.right))))
 Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_original)))
 
 

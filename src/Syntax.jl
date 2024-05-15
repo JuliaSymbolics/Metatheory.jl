@@ -198,7 +198,7 @@ end
 """
     @rule [SLOTS...] LHS operator RHS
 
-Creates a `NewRewriteRule` object. A rule object is callable, and takes an
+Creates a `RewriteRule` object. A rule object is callable, and takes an
 expression and rewrites it if it matches the LHS pattern to the RHS pattern,
 returns `nothing` otherwise. The rule language is described below.
 
@@ -383,7 +383,7 @@ macro rule(args...)
 
   quote
     $(__source__)
-    NewRewriteRule(;
+    RewriteRule(;
       op = $op,
       left = $lhs,
       right = $rhs,
@@ -433,7 +433,7 @@ macro theory(args...)
   # e = interp_dollar(e, __module__)
 
   if e.head == :block
-    ee = Expr(:ref, NewRewriteRule, map(x -> addslots(:(@rule($x)), slots), children(e))...)
+    ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots), children(e))...)
     esc(ee)
   else
     error("theory is not in form begin a => b; ... end")

@@ -38,14 +38,14 @@ end
 
 macro associativity(op)
   esc(quote
-    NewRewriteRule[(@left_associative $op), (@right_associative $op)]
+    RewriteRule[(@left_associative $op), (@right_associative $op)]
   end)
 end
 
 macro monoid(op, id)
   esc(
     quote
-      NewRewriteRule[
+      RewriteRule[
         (@left_associative($op)),
         (@right_associative($op)),
         (@identity_left($op, $id)),
@@ -56,11 +56,9 @@ macro monoid(op, id)
 end
 
 macro commutative_monoid(op, id)
-  esc(
-    quote
-      NewRewriteRule[(@commutativity $op), (@left_associative $op), (@right_associative $op), (@identity_left $op $id)]
-    end,
-  )
+  esc(quote
+    RewriteRule[(@commutativity $op), (@left_associative $op), (@right_associative $op), (@identity_left $op $id)]
+  end)
 end
 
 # constructs a semantic theory about a an abelian group
