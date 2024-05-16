@@ -7,7 +7,7 @@ using Metatheory.Patterns: to_expr
 using Metatheory: cleanast, matcher, instantiate
 using Metatheory: OptBuffer
 
-export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional
+export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory
 
 const STACK_SIZE = 512
 
@@ -53,7 +53,8 @@ Dynamic rule
 @rule ~a::Number * ~b::Number => ~a*~b
 ```
 """
-Base.@kwdef struct RewriteRule{Op<:Union{Function}}
+Base.@kwdef struct RewriteRule{Op<:Function}
+  name::String = ""
   op::Op
   left::AbstractPat
   right::Union{Function,AbstractPat}
@@ -80,13 +81,31 @@ is_bidirectional(r::RewriteRule) = r.op in (==, !=)
 # TODO equivalence up-to debrujin index
 Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
 
-Base.show(io::IO, r::RewriteRule) = print(io, :($(nameof(r.op))($(r.left), $(r.right))))
-Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_original)))
+function Base.show(io::IO, r::RewriteRule)
+  if r.op == (|>) # Is dynamic rule, replace with =>
+    print(io, :($(r.left) => $(r.rhs_original)))
+  else
+    print(io, :($(nameof(r.op))($(r.left), $(r.right))))
+  end
+
+  if !isempty(r.name)
+    print("\t#= $(r.name) =#")
+  end
+end
 
 
 (r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
 (r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
 
+# ---------------------
+# Theories
+
+
+const Theory = Vector{RewriteRule}
+# struct Theory
+#   name::String
+#   rules::Vector{RewriteRule}
+# end
 
 
 end
