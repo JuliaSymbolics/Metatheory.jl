@@ -89,7 +89,7 @@ function Base.show(io::IO, r::RewriteRule)
   end
 
   if !isempty(r.name)
-    print("\t#= $(r.name) =#")
+    print(io, "\t#= $(r.name) =#")
   end
 end
 
