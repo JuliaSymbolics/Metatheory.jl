@@ -477,7 +477,6 @@ macro theory(args...)
     end
   end
   # ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots))...)
-  @show rules
   ee = Expr(:ref, RewriteRule, rules...)
 
   esc(ee)
