@@ -469,13 +469,8 @@ macro theory(args...)
   e.head == :block || error("theory is not in form begin a => b; ... end")
 
   rules = children(e)
-  @show rules
   rules = map(rules) do r
-    # @show r.head
-    # @show r
-    # @show r.args[1]
     if r.head == :macrocall && r.args[1] == Symbol("@rule") && r.args[2] isa Union{LineNumberNode,Nothing}
-      # @show "BALUBU"
       addslots(r, slots)
     else
       addslots(:(@rule($r)), slots)
