@@ -67,7 +67,7 @@ comm_monoid = @commutative_monoid (*) 1
 
 # output
 
-4-element Vector{RewriteRule}:
+Theory with 4 rules:
  ~a * ~b --> ~b * ~a
  (~a * ~b) * ~c --> ~a * (~b * ~c)
  ~a * (~b * ~c) --> (~a * ~b) * ~c
