@@ -84,8 +84,10 @@ Base.show(io::IO, r::RewriteRule) = print(io, :($(nameof(r.op))($(r.left), $(r.r
 Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_original)))
 
 
-(r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
-(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
+(r::DirectedRule)(term)::Union{Nothing,Some} =
+  r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
+(r::DynamicRule)(term)::Union{Nothing,Some} =
+  r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
 
 
 

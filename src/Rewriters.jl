@@ -62,12 +62,24 @@ If(f, x) = IfElse(f, x, Empty())
 
 struct Chain
   rws
+  stop_on_match::Bool
 end
 
-function (rw::Chain)(x)
+Chain(rws) = Chain(rws, false)
+
+maybesomething(x::Some) = x
+maybesomething(x) = Some(x)
+
+function (rw::Chain)(x)::Union{Nothing,Some}
+  x = maybesomething(x)
   for f in rw.rws
-    y = @timer cached_repr(f) f(x)
+    y = @timer cached_repr(f) f(something(x))
+
     if y !== nothing
+      y = maybesomething(y)
+      if rw.stop_on_match && !isequal(y, x)
+        return y
+      end
       x = y
     end
   end
@@ -116,10 +128,13 @@ instrument(x::Fixpoint, f) = Fixpoint(instrument(x.rw, f))
 function (rw::Fixpoint)(x)
   f = rw.rw
   y = @timer cached_repr(f) f(x)
-  while x !== y && !isequal(x, y)
-    y === nothing && return x
-    x = y
+  y === nothing && return x
+  y_smth = something(y)
+  while x !== y_smth && !isequal(x, y_smth)
+    x = y_smth
     y = @timer cached_repr(f) f(x)
+    y === nothing && return x
+    y_smth = something(y)
   end
   return x
 end
@@ -140,10 +155,11 @@ end
 
 instrument(x::FixpointNoCycle, f) = Fixpoint(instrument(x.rw, f))
 
-function (rw::FixpointNoCycle)(x)
+function (rw::FixpointNoCycle)(x)::Union{Nothing,Some}
+  x = maybesomething(x)
   f = rw.rw
   push!(rw.hist, hash(x))
-  y = @timer cached_repr(f) f(x)
+  y = @timer cached_repr(f) f(something(x))
   while x !== y && hash(x) ∉ rw.hist
     if y === nothing
       empty!(rw.hist)
@@ -153,9 +169,9 @@ function (rw::FixpointNoCycle)(x)
     x = y
     y = @timer cached_repr(f) f(x)
   end
-  empty!(rw.hist)
   return x
 end
+
 
 struct Walk{ord,C,F,threaded}
   rw::C
@@ -186,18 +202,19 @@ instrument(x::PassThrough, f) = PassThrough(instrument(x.rw, f))
 (p::PassThrough)(x) = (y = p.rw(x); y === nothing ? x : y)
 
 passthrough(x, default) = x === nothing ? default : x
+
 function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
   @assert ord === :pre || ord === :post
   if isexpr(x)
     if ord === :pre
-      x = p.rw(x)
+      x = p.rw(something(x))
     end
     if isexpr(x)
-      x = p.maketerm(typeof(x), head(x), map(PassThrough(p), children(x)))
+      x = p.maketerm(typeof(x), head(x), map(something ∘ PassThrough(p), children(x)), symtype(x), metadata(x))
     end
-    return ord === :post ? p.rw(x) : x
+    return ord === :post ? p.rw(something(x)) : x
   else
-    return p.rw(x)
+    return p.rw(something(x))
   end
 end
 
@@ -205,7 +222,7 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
   @assert ord === :pre || ord === :post
   if isexpr(x)
     if ord === :pre
-      x = p.rw(x)
+      x = p.rw(something(x))
     end
     if isexpr(x)
       _args = map(children(x)) do arg
@@ -215,12 +232,12 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
           p(arg)
         end
       end
-      ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, children(x))
-      t = p.maketerm(typeof(x), head(x), ntail)
+      ntail = map((t, a) -> something(passthrough(t isa Task ? fetch(t) : t, a)), _args, children(x))
+      t = p.maketerm(typeof(x), head(x), ntail, symtype(x), metadata = metadata(x))
     end
-    return ord === :post ? p.rw(t) : t
+    return ord === :post ? p.rw(something(t)) : t
   else
-    return p.rw(x)
+    return p.rw(something(x))
   end
 end
 

@@ -36,7 +36,11 @@ function match_compile(p::AbstractPat, pvars)
   push!(state.program, match_yield_expr(state, pvars))
 
   quote
-    function ($(gensym("matcher")))(_term_being_matched, _callback::Function, stack::$(OptBuffer{UInt16}))
+    function ($(gensym("matcher")))(
+      _term_being_matched,
+      _callback::Function,
+      stack::$(OptBuffer{UInt16}),
+    )::Union{Nothing,Some}
       # Assign and empty the variables for patterns 
       $([:($(varname(var)) = nothing) for var in setdiff(pvars, first.(state.segments))]...)
 
@@ -82,7 +86,7 @@ function match_yield_expr(state::MatchCompilerState, pvars)
     end_idx = Symbol(varname(pvar), :_end)
     push!(steps, :($(varname(pvar)) = view($local_args, ($start_idx):($end_idx))))
   end
-  push!(steps, :(return _callback($(map(varname, pvars)...))))
+  push!(steps, :(return Some(_callback($(map(varname, pvars)...)))))
   Expr(:block, steps...)
 end
 

@@ -492,12 +492,14 @@ macro capture(args...)
       matcher_left = $matcher_left_expr,
       ematcher_left! = () -> (),
     )
-    __MATCHES__ = rule($(esc(ex)))
-    if !isnothing(__MATCHES__)
+    __RES__ = rule($(esc(ex)))
+
+    if isnothing(__RES__)
+      false
+    else
+      __MATCHES__ = something(__RES__)
       $(bind_exprs...)
       true
-    else
-      false
     end
   end
   ret
