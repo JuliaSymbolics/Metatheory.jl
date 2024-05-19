@@ -411,7 +411,8 @@ function rebuild_classes!(g::EGraph)
       canonicalize!(g, n)
     end
     # Sort to go in order?
-    unique!(eclass.nodes)
+    sort!(eclass.nodes; by = v_hash)
+    custom_unique!(eclass.nodes)
 
     for n in eclass.nodes
       add_class_by_op(g, n, eclass_id.val)
@@ -423,6 +424,27 @@ function rebuild_classes!(g::EGraph)
     unique!(v)
   end
 end
+
+function custom_unique!(A::Vector{VecExpr})
+  @assert issorted(A; by = v_hash)
+  isempty(A) && return A
+  idxs = eachindex(A)
+  y = first(A)
+  # We always keep the first element
+  T = NTuple{2,Any} # just to eliminate `iterate(idxs)::Nothing` candidate
+  it = iterate(idxs, (iterate(idxs)::T)[2])
+  count = 1
+  for x in Iterators.drop(A, 1)
+    if v_hash(x) !== v_hash(y)
+      it = it::T
+      y = A[it[1]] = x
+      count += 1
+      it = iterate(idxs, it[2])
+    end
+  end
+  resize!(A, count)::typeof(A)
+end
+
 
 function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {ExpressionType,AnalysisType}
   n_unions = 0
