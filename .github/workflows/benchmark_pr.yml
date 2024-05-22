@@ -21,7 +21,7 @@ jobs:
 
       - uses: julia-actions/setup-julia@v2
         with:
-          version: "beta"
+          version: "nightly"
 
       - name: Clone egg-benchmark repo
         run: git clone https://github.com/nmheim/egg-benchmark.git egg-benchmark
