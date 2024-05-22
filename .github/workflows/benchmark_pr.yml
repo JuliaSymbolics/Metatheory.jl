@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - master
+      - ale/3.0 # TODO: remove before merge
 
 permissions:
   pull-requests: write
