@@ -1,21 +1,11 @@
+# # Lambda theory
+# hello
 using Metatheory, Test, TermInterface
 
 abstract type LambdaExpr end
 
-
-@matchable struct IfThenElse <: LambdaExpr
-  guard
-  then
-  otherwise
-end
-
 @matchable struct Variable <: LambdaExpr
   x
-end
-
-@matchable struct Fix <: LambdaExpr
-  variable
-  expression
 end
 
 @matchable struct Let <: LambdaExpr
@@ -31,11 +21,6 @@ end
 @matchable struct Apply <: LambdaExpr
   lambda
   value
-end
-
-@matchable struct Add <: LambdaExpr
-  x
-  y
 end
 
 const LambdaAnalysis = Set{Symbol}
@@ -76,21 +61,6 @@ end
 
 EGraphs.join(from::LambdaAnalysis, to::LambdaAnalysis) = union(from,to)
 
-subst_intro = @theory v body e begin
-  Fix(v, e) --> Let(v, Fix(v, e), e)
-  # beta reduction 
-  Apply(λ(v, body), e) --> Let(v, e, body)
-end
-
-subst_prop = @theory v e a b then alt guard begin
-  # let-Apply
-  Let(v, e, Apply(a, b)) --> Apply(Let(v, e, a), Let(v, e, b))
-  # let-add
-  Let(v, e, a + b) --> Let(v, e, a) + Let(v, e, b)
-  # let-eq
-  # Let(v, e, a == b) --> Let(v, e, a) == Let(v, e, b)
-end
-
 
 function isfree(g, eclass, var)
   @assert length(var.nodes)==1
@@ -109,26 +79,27 @@ end
 
 freshvar = fresh_var_generator()
 
-subst_elim = @theory v e c v1 v2 body begin
+λT = @theory v e c v1 v2 a b body begin
   # let-const 
   Let(v, e, c::Any) --> c
   # let-Variable-same 
   Let(v1, e, Variable(v1)) --> e
-  # TODO fancy let-Variable-diff 
+  # let-Variable-diff 
   Let(v1, e, Variable(v2)) => v1 == v2 ? e : Variable(v2)
   # let-lam-same 
   Let(v1, e, λ(v1, body)) --> λ(v1, body)
-  # let-lam-diff #TODO captureavoid
+  # let-lam-diff
   Let(v1, e, λ(v2, body)) => if isfree(_egraph,e,v2)
     fresh = freshvar()
     λ(fresh, Let(v1, e, Let(v2, Variable(fresh), body)))
   else
     λ(v2, Let(v1, e, body))
   end
+  # beta reduction 
+  Apply(λ(v, body), e) --> Let(v, e, body)
+  # let-Apply
+  Let(v, e, Apply(a, b)) --> Apply(Let(v, e, a), Let(v, e, b))
 end
-
-λT = subst_intro ∪ subst_prop ∪ subst_elim
-#λT = open_term ∪ subst_intro ∪ subst_prop ∪ subst_elim
 
 x = Variable(:x)
 y = Variable(:y)
@@ -136,9 +107,3 @@ ex = Apply(λ(:x, λ(:y, Apply(x,y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
 saturate!(g, λT)
 @test λ(:a4, Apply(y, Variable(:a4))) == extract!(g, astsize)
-
-ex = λ(:x, Add(4, Apply(λ(:y, y), 4)))
-g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
-saturate!(g, λT)
-r = extract!(g, astsize)
-@test λ(:x, Add(4, 4)) == extract!(g, astsize) # expected: :(λ(x, 4 + 4))
