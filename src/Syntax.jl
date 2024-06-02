@@ -110,7 +110,8 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
 
   if iscall(ex)
     op = operation(ex)
-    isexpr(op) && (op = makepattern(op, pvars, slots, mod))
+    # If operation is a pattern variable
+    iscall(op) && operation(op) == :(~) && (op = makepattern(op, pvars, slots, mod))
     # Optionally quote function objects
     args = arguments(ex)
     if op === :(~) # is a variable or segment
@@ -192,23 +193,6 @@ function addslots(expr, slots)
     expr
   end
 end
-
-# function addslots(expr, slots, name = nothing)
-#   if expr isa Expr
-#     if expr.head === :macrocall
-#       if expr.args[1] == Symbol("@rule") && !isnothing(name)
-#         Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
-#       elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
-#         Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
-#       end
-#     else
-#       Expr(expr.head, addslots.(expr.args, (slots,))...)
-#     end
-#   else
-#     expr
-#   end
-# end
-
 
 """
     @slots [SLOTS...] ex
