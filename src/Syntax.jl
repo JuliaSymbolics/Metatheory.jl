@@ -13,9 +13,15 @@ export @capture
 
 # FIXME this thing eats up macro calls!
 """
-Remove LineNumberNode from quoted blocks of code
+Remove LineNumberNode from quoted blocks of code. Not on macros.
 """
-rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
+function rmlines(e::Expr)
+  if e.head == :macrocall
+    Expr(e.head, e.args[1], map(rmlines, e.args[2:end])...)
+  else
+    Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
+  end
+end
 rmlines(a) = a
 
 function makesegment(s::Expr, pvars, mod)
@@ -172,9 +178,13 @@ rewrite_rhs(x) = x
 
 function addslots(expr, slots)
   if expr isa Expr
-    if expr.head === :macrocall &&
-       expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
-      Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+    if expr.head === :macrocall
+      if expr.args[1] == Symbol("@rule")
+        name = expr.args[3] isa String ? expr.args[3] : ""
+        Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
+      elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+        Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+      end
     else
       Expr(expr.head, addslots.(expr.args, (slots,))...)
     end
@@ -182,6 +192,22 @@ function addslots(expr, slots)
     expr
   end
 end
+
+# function addslots(expr, slots, name = nothing)
+#   if expr isa Expr
+#     if expr.head === :macrocall
+#       if expr.args[1] == Symbol("@rule") && !isnothing(name)
+#         Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
+#       elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+#         Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+#       end
+#     else
+#       Expr(expr.head, addslots.(expr.args, (slots,))...)
+#     end
+#   else
+#     expr
+#   end
+# end
 
 
 """
@@ -341,7 +367,15 @@ Segment variables may still be written as (`~~x`), and slot (`~x`) and segment (
 See also: [`@capture`](@ref), [`@slots`](@ref)
 """
 macro rule(args...)
-  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+  length(args) >= 1 || throw(ArgumentError("@rule requires at least one argument"))
+  rule_name = if args[1] isa String
+    str = args[1]
+    args = args[2:end]
+    str
+  else
+    ""
+  end
+
   slots = args[1:(end - 1)]
   expr = args[end]
 
@@ -395,6 +429,7 @@ macro rule(args...)
   quote
     $(__source__)
     RewriteRule(;
+      name = $rule_name,
       op = $op,
       left = $lhs,
       right = $rhs,
@@ -439,16 +474,23 @@ macro theory(args...)
   slots = args[1:(end - 1)]
   expr = args[end]
 
-  e = macroexpand(__module__, expr)
-  e = rmlines(e)
+  e = rmlines(expr)
   # e = interp_dollar(e, __module__)
 
-  if e.head == :block
-    ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots), children(e))...)
-    esc(ee)
-  else
-    error("theory is not in form begin a => b; ... end")
+  e.head == :block || error("theory is not in form begin a => b; ... end")
+
+  rules = children(e)
+  rules = map(rules) do r
+    if r.head == :macrocall && r.args[1] == Symbol("@rule") && r.args[2] isa Union{LineNumberNode,Nothing}
+      addslots(r, slots)
+    else
+      addslots(:(@rule($r)), slots)
+    end
   end
+  # ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots))...)
+  ee = Expr(:ref, RewriteRule, rules...)
+
+  esc(ee)
 end
 
 
