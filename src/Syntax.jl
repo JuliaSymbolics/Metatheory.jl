@@ -123,6 +123,9 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
       op_obj = if op isa Symbol && isdefined(mod, op)
         getfield(mod, op)
+      elseif op isa Expr && op.head === :.
+        # Resolve chains of dots.
+        getfield_nested(mod, op)
       elseif op isa Expr
         makepattern(op, pvars, slots, mod, false)
       else
@@ -141,6 +144,14 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
     PatExpr(false, h, patargs)
   end
+end
+
+getfield_nested(mod, ex::Symbol) = getfield(mod, ex)
+function getfield_nested(mod, ex::Expr)
+  @assert ex.head === :.
+  r_unquoted = ex.args[2]
+  r = r_unquoted isa QuoteNode ? r_unquoted.value : r_unquoted
+  getfield(getfield_nested(mod, ex.args[1]), r)
 end
 
 """
