@@ -83,6 +83,7 @@ EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo))
 # and additionally, `metadata` and `type`, in case you are recomposing an `Expr`.
 TermInterface.maketerm(::Type{MyExpr}, h, c, metadata) = MyExpr(h, c, isnothing(metadata) ? "" : metadata)
 
+
 # ## Theory Example
 
 # Note that terms in the RHS will inherit the type of terms in the LHS.
