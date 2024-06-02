@@ -81,8 +81,7 @@ EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo))
 # Given an existing head `h`, it is used to  instruct Metatheory how to recompose 
 # a similar expression, given some children in `c` 
 # and additionally, `metadata` and `type`, in case you are recomposing an `Expr`.
-TermInterface.maketerm(::Type{MyExpr}, h, c, type = nothing, metadata = nothing) =
-  MyExpr(h, c, isnothing(metadata) ? "" : metadata)
+TermInterface.maketerm(::Type{MyExpr}, h, c, metadata) = MyExpr(h, c, isnothing(metadata) ? "" : metadata)
 
 # ## Theory Example
 

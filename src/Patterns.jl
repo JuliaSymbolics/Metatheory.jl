@@ -124,8 +124,10 @@ TermInterface.iscall(p::PatExpr) = v_iscall(p.n)
 
 TermInterface.arity(p::PatExpr) = length(p.children)
 
-TermInterface.maketerm(::Type{PatExpr}, operation, arguments, type = Any, metadata = (iscall = true,)) =
-  PatExpr(metadata.iscall, operation, arguments...)
+function TermInterface.maketerm(::Type{PatExpr}, operation, arguments, metadata)
+  iscall = isnothing(metadata) ? true : metadata.iscall
+  PatExpr(iscall, operation, arguments...)
+end
 
 # ---------------------
 # # Pattern Variables.
@@ -165,9 +167,9 @@ function to_expr(x::PatExpr)
   if iscall(x)
     op = operation(x)
     op_name = op isa Union{Function,DataType} ? nameof(op) : op
-    maketerm(Expr, :call, [op_name; to_expr.(arguments(x))])
+    maketerm(Expr, :call, [op_name; to_expr.(arguments(x))], nothing)
   else
-    maketerm(Expr, operation(x), to_expr.(arguments(x)))
+    maketerm(Expr, operation(x), to_expr.(arguments(x)), nothing)
   end
 end
 

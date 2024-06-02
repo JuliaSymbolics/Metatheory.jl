@@ -189,9 +189,9 @@ function to_expr(g::EGraph, n::VecExpr)
   h = get_constant(g, v_head(n))
   args = Core.SSAValue.(Int.(v_children(n)))
   if v_iscall(n)
-    maketerm(Expr, :call, [h; args])
+    maketerm(Expr, :call, [h; args], nothing)
   else
-    maketerm(Expr, h, args)
+    maketerm(Expr, h, args, nothing)
   end
 end
 
