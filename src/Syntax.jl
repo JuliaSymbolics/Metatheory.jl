@@ -110,7 +110,8 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
 
   if iscall(ex)
     op = operation(ex)
-    isexpr(op) && (op = makepattern(op, pvars, slots, mod))
+    # If operation is a pattern variable
+    iscall(op) && operation(op) == :(~) && (op = makepattern(op, pvars, slots, mod))
     # Optionally quote function objects
     args = arguments(ex)
     if op === :(~) # is a variable or segment
@@ -129,6 +130,9 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
       op_obj = if op isa Symbol && isdefined(mod, op)
         getfield(mod, op)
+      elseif op isa Expr && op.head === :.
+        # Resolve chains of dots.
+        getfield_nested(mod, op)
       elseif op isa Expr
         makepattern(op, pvars, slots, mod, false)
       else
@@ -147,6 +151,14 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
     PatExpr(false, h, patargs)
   end
+end
+
+getfield_nested(mod, ex::Symbol) = getfield(mod, ex)
+function getfield_nested(mod, ex::Expr)
+  @assert ex.head === :.
+  r_unquoted = ex.args[2]
+  r = r_unquoted isa QuoteNode ? r_unquoted.value : r_unquoted
+  getfield(getfield_nested(mod, ex.args[1]), r)
 end
 
 """
@@ -181,23 +193,6 @@ function addslots(expr, slots)
     expr
   end
 end
-
-# function addslots(expr, slots, name = nothing)
-#   if expr isa Expr
-#     if expr.head === :macrocall
-#       if expr.args[1] == Symbol("@rule") && !isnothing(name)
-#         Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
-#       elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
-#         Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
-#       end
-#     else
-#       Expr(expr.head, addslots.(expr.args, (slots,))...)
-#     end
-#   else
-#     expr
-#   end
-# end
-
 
 """
     @slots [SLOTS...] ex

@@ -154,7 +154,7 @@ function instantiate(left, pat::PatExpr, bindings)
   for parg in arguments(pat)
     instantiate_arg!(ntail, left, parg, bindings)
   end
-  maketerm(typeof(left), operation(pat), ntail)
+  maketerm(typeof(left), operation(pat), ntail, nothing)
 end
 
 function instantiate(left::Expr, pat::PatExpr, bindings)
@@ -165,12 +165,12 @@ function instantiate(left::Expr, pat::PatExpr, bindings)
     end
     op = operation(pat)
     op_name = op isa Union{Function,DataType} ? nameof(op) : op
-    maketerm(Expr, :call, [op_name; ntail])
+    maketerm(Expr, :call, [op_name; ntail], nothing)
   else
     for parg in children(pat)
       instantiate_arg!(ntail, left, parg, bindings)
     end
-    maketerm(Expr, head(pat), ntail)
+    maketerm(Expr, head(pat), ntail, nothing)
   end
 end
 

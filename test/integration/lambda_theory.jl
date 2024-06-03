@@ -39,7 +39,7 @@ end
 end
 
 
-function TermInterface.maketerm(::Type{LambdaExpr}, head, children; type = nothing, metadata = nothing)
+function TermInterface.maketerm(::Type{LambdaExpr}, head, children, metadata)
   head(children...)
 end
 
