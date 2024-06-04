@@ -202,7 +202,9 @@ params = SaturationParams(
   timer = false,
 )
 saturate!(g, λT, params)
-extract!(g, astsize)
+two_ = extract!(g, astsize)
+@test two_ == λ(:a₁, λ(:a₇, Apply(Variable(:a₁),Apply(Variable(:a₁),Variable(:a₇)))))
+two_
 
 # which is the same as `two` up to $\alpha$-conversion:
 
