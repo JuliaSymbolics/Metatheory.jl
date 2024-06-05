@@ -40,7 +40,7 @@ end
 # With the above we can construct arbitrary lambda expressions:
 
 x = Variable(:x)
-λ(:x, Apply(x,x))
+λ(:x, Apply(x, x))
 
 # The $\beta$-reduction can be implemented via an additional type `Let`. To get started we can ignore
 # the cases where we need $\alpha$-conversion and already implement 
@@ -64,7 +64,7 @@ end
 
 x = Variable(:x)
 y = Variable(:y)
-ex = Apply(λ(:x, λ(:y, Apply(x,y))), y)
+ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph(ex)
 saturate!(g, λT)
 extract!(g, astsize)
@@ -90,7 +90,7 @@ extract!(g, astsize)
 # In the more basic implementation here we just want to be able to check if a variable is free:
 
 function isfree(g::EGraph, eclass, var)
-  @assert length(var.nodes)==1
+  @assert length(var.nodes) == 1
   var_sym = get_constant(g, v_head(var.nodes[1]))
   @assert var_sym isa Symbol
   var_sym ∈ getdata(eclass)
@@ -104,7 +104,7 @@ const LambdaAnalysis = Set{Symbol}
 
 getdata(eclass) = isnothing(eclass.data) ? LambdaAnalysis() : eclass.data
 
-function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr) where ExprType
+function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr) where {ExprType}
   v_isexpr(n) || LambdaAnalysis()
   if v_iscall(n)
     h = v_head(n)
@@ -142,7 +142,7 @@ function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr) where Expr
   end
 end
 
-EGraphs.join(from::LambdaAnalysis, to::LambdaAnalysis) = union(from,to)
+EGraphs.join(from::LambdaAnalysis, to::LambdaAnalysis) = union(from, to)
 
 function fresh_var_generator()
   idx = 0
@@ -165,7 +165,7 @@ freshvar = fresh_var_generator()
   Let(v1, e, λ(v1, body)) --> λ(v1, body)
   Apply(λ(v, body), e) --> Let(v, e, body)
   Let(v, e, Apply(a, b)) --> Apply(Let(v, e, a), Let(v, e, b))
-  Let(v1, e, λ(v2, body)) => if isfree(_egraph,e,v2)
+  Let(v1, e, λ(v2, body)) => if isfree(_egraph, e, v2)
     fresh = freshvar()
     λ(fresh, Let(v1, e, Let(v2, Variable(fresh), body)))
   else
@@ -175,7 +175,7 @@ end
 
 x = Variable(:x)
 y = Variable(:y)
-ex = Apply(λ(:x, λ(:y, Apply(x,y))), y)
+ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
 saturate!(g, λT)
 @test λ(:a₄, Apply(y, Variable(:a₄))) == extract!(g, astsize)
@@ -187,23 +187,19 @@ s = Variable(:s)
 z = Variable(:z)
 n = Variable(:n)
 zero = λ(:s, λ(:z, z))
-one = λ(:s, λ(:z, Apply(s,z)))
-two = λ(:s, λ(:z, Apply(s,Apply(s,z))))
-suc = λ(:n, λ(:x, λ(:y, Apply(x, Apply(Apply(n,x),y)))))
+one = λ(:s, λ(:z, Apply(s, z)))
+two = λ(:s, λ(:z, Apply(s, Apply(s, z))))
+suc = λ(:n, λ(:x, λ(:y, Apply(x, Apply(Apply(n, x), y)))))
 
 # Compute the successor of `one`:
 
 freshvar = fresh_var_generator()
 g = EGraph{LambdaExpr,LambdaAnalysis}(Apply(suc, one))
-params = SaturationParams(
-  timeout = 20,
-  scheduler = Schedulers.BackoffScheduler,
-  schedulerparams = (6000, 5),
-  timer = false,
-)
+params =
+  SaturationParams(timeout = 20, scheduler = Schedulers.BackoffScheduler, schedulerparams = (6000, 5), timer = false)
 saturate!(g, λT, params)
 two_ = extract!(g, astsize)
-@test two_ == λ(:a₁, λ(:a₇, Apply(Variable(:a₁),Apply(Variable(:a₁),Variable(:a₇)))))
+@test two_ == λ(:a₁, λ(:a₇, Apply(Variable(:a₁), Apply(Variable(:a₁), Variable(:a₇)))))
 two_
 
 # which is the same as `two` up to $\alpha$-conversion:
