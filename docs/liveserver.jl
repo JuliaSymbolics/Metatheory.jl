@@ -6,11 +6,10 @@ const repo_root = dirname(@__DIR__)
 # Make sure docs environment is active
 import Pkg
 Pkg.activate(@__DIR__)
+using Metatheory
 
 # Communicate with docs/make.jl that we are running in live mode
 push!(ARGS, "liveserver")
-
-const OUTDIR = abspath(joinpath(@__DIR__, "src", "tutorials"))
 
 # Run LiveServer.servedocs(...)
 import LiveServer
@@ -20,7 +19,9 @@ LiveServer.servedocs(;
     skip_dirs = [
         # exclude assets folder because it is modified by docs/make.jl
         joinpath(repo_root, "docs", "src", "assets"),
-        OUTDIR
+        # exclude tutorial .md files (auto-generated via Literate.jl)
+        abspath(joinpath(@__DIR__, "src", "tutorials"))
     ],
-    include_files=["../test/tutorials/lambda_theory_copy.jl"]
+    # include tutorial .jl files (generate .md files)
+    include_dirs=[joinpath(dirname(pathof(Metatheory)), "..", "test", "tutorials")]
 )

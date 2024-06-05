@@ -1,4 +1,3 @@
-# TODO: should this go in MT itself?
 # Sketch function for basic iterative saturation and extraction 
 function prove(
   t,
@@ -12,9 +11,7 @@ function prove(
     timer = false,
   ),
 )
-  # hist = UInt64[]
-  # push!(hist, hash(ex))
-  for i in 1:steps
+  for _ in 1:steps
     g = EGraph(ex)
 
     ids = [addexpr!(g, true), g.root]
@@ -25,10 +22,6 @@ function prove(
     if !TermInterface.isexpr(ex)
       return ex
     end
-    # if hash(ex) ∈ hist
-    #   return ex
-    # end
-    # push!(hist, hash(ex))
   end
   return ex
 end
