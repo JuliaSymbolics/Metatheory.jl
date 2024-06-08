@@ -1,10 +1,14 @@
 using Metatheory, Test
 
-@testset "Fully Qualified Function name" begin
+@testset "Fully Qualified Function names" begin
   r = @rule Main.identity(~a) --> ~a
 
   @test operation(r.left) == identity
   @test r.right == PatVar(:a, 1)
+
+  expr = :(Main.test(11, 12))
+  rule = @rule Main.test(~a, ~b) --> ~b
+  @test rule(expr) == 12
 end
 
 @testset begin

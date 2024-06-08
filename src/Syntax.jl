@@ -128,12 +128,15 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else# Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      op_obj = if isdefined_nested(mod, op)
-        getfield_nested(mod, op)
+      isdef = isdefined_nested(mod, op)
+      op_obj = isdef ? getfield_nested(mod, op) : op
+
+      if isdef && op isa Expr || op isa Symbol
+        # Support fully qualified function symbols such as `Main.foo`
+        PatExpr(iscall(ex), op_obj, op, patargs)
       else
-        op
+        PatExpr(iscall(ex), op_obj, patargs)
       end
-      PatExpr(iscall(ex), op_obj, patargs)
     end
 
   elseif h === :...

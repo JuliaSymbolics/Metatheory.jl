@@ -90,10 +90,8 @@ struct PatExpr <: AbstractPat
   in case of cache hits in the e-graph hashcons
   """
   n::VecExpr
-  function PatExpr(iscall, op, args::Vector)
+  function PatExpr(iscall, op, qop, args::Vector)
     op_hash = hash(op)
-    # Should call `nameof` on op if Function or DataType. Identity otherwise
-    qop = maybe_quote_operation(op)
     qop_hash = hash(qop)
     ar = length(args)
     signature = hash(qop, hash(ar))
@@ -111,6 +109,9 @@ struct PatExpr <: AbstractPat
     new(op, op_hash, qop, qop_hash, args, all(isground, args), n)
   end
 end
+
+# Should call `nameof` on op if Function or DataType. Identity otherwise
+PatExpr(iscall, op, args::Vector) = PatExpr(iscall, op, maybe_quote_operation(op), args)
 
 isground(p::PatExpr)::Bool = p.isground
 
@@ -164,9 +165,7 @@ to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
 function to_expr(x::PatExpr)
   if iscall(x)
-    op = operation(x)
-    op_name = op isa Union{Function,DataType} ? nameof(op) : op
-    maketerm(Expr, :call, [op_name; to_expr.(arguments(x))], nothing)
+    maketerm(Expr, :call, [x.quoted_head; to_expr.(arguments(x))], nothing)
   else
     maketerm(Expr, operation(x), to_expr.(arguments(x)), nothing)
   end
