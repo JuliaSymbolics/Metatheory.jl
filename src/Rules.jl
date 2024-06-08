@@ -4,7 +4,6 @@ using TermInterface
 using AutoHashEquals
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: cleanast, matcher, instantiate
 using Metatheory: OptBuffer
 
 export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory
@@ -106,6 +105,41 @@ const Theory = Vector{RewriteRule}
 #   name::String
 #   rules::Vector{RewriteRule}
 # end
+
+# ---------------------
+# Instantiation
+
+function instantiate(left, pat::PatExpr, bindings)
+  ntail = []
+  for parg in arguments(pat)
+    instantiate_arg!(ntail, left, parg, bindings)
+  end
+  maketerm(typeof(left), operation(pat), ntail, nothing)
+end
+
+function instantiate(left::Expr, pat::PatExpr, bindings)
+  ntail = []
+  if iscall(pat)
+    for parg in arguments(pat)
+      instantiate_arg!(ntail, left, parg, bindings)
+    end
+    op = operation(pat)
+    op_name = op isa Union{Function,DataType} ? nameof(op) : op
+    maketerm(Expr, :call, [op_name; ntail], nothing)
+  else
+    for parg in children(pat)
+      instantiate_arg!(ntail, left, parg, bindings)
+    end
+    maketerm(Expr, head(pat), ntail, nothing)
+  end
+end
+
+instantiate_arg!(acc, left, parg::PatSegment, bindings) = append!(acc, instantiate(left, parg, bindings))
+instantiate_arg!(acc, left, parg::AbstractPat, bindings) = push!(acc, instantiate(left, parg, bindings))
+
+instantiate(_, pat::PatLiteral, bindings) = pat.value
+instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
+
 
 
 end
