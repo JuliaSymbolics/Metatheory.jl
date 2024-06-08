@@ -128,13 +128,8 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
       end
     else# Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      op_obj = if op isa Symbol && isdefined(mod, op)
-        getfield(mod, op)
-      elseif op isa Expr && op.head === :.
-        # Resolve chains of dots.
+      op_obj = if isdefined_nested(mod, op)
         getfield_nested(mod, op)
-      elseif op isa Expr
-        makepattern(op, pvars, slots, mod, false)
       else
         op
       end
@@ -153,6 +148,20 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
   end
 end
 
+# If it's not a symbol or expr, it's defined.
+isdefined_nested(mod, ex) = true
+isdefined_nested(mod, ex::Symbol) = isdefined(mod, ex)
+function isdefined_nested(mod, ex::Expr)
+  @assert ex.head === :.
+  r_unquoted = ex.args[2]
+  r = r_unquoted isa QuoteNode ? r_unquoted.value : r_unquoted
+  isdefined_nested(mod, ex.args[1]) || return false
+
+  isdefined_nested(getfield_nested(mod, ex.args[1]), r)
+end
+
+# If it's not a symbol or expr, it's defined.
+getfield_nested(mod, ex) = ex
 getfield_nested(mod, ex::Symbol) = getfield(mod, ex)
 function getfield_nested(mod, ex::Expr)
   @assert ex.head === :.

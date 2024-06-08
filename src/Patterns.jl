@@ -111,7 +111,6 @@ struct PatExpr <: AbstractPat
     new(op, op_hash, qop, qop_hash, args, all(isground, args), n)
   end
 end
-PatExpr(iscall, op, children...) = PatExpr(iscall, op, collect(children))
 
 isground(p::PatExpr)::Bool = p.isground
 
