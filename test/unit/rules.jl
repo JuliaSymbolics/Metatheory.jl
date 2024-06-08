@@ -22,3 +22,12 @@ end
   @test arguments(r.left) == [PatVar(:x, 1)]
   @test r.right == PatVar(:x, 1)
 end
+
+
+@testset "String representation" begin
+  r = @rule f(~x) --> ~x
+  r == eval(:(@rule $(Meta.parse(repr(r)))))
+
+  r = @rule Main.f(~~x) --> ~x
+  r == eval(:(@rule $(Meta.parse(repr(r)))))
+end

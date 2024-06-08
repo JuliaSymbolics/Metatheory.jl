@@ -80,7 +80,12 @@ function makeconsequent(expr::Expr)
           @assert n isa Symbol
           n
         else
-          throw(DomainError(v, "Could not parse RHS, unknown expression"))
+          throw(
+            DomainError(
+              v,
+              "Wrong usage of `~` in patterns. Must be a pattern variable `~x` or a segment variable `~~x`",
+            ),
+          )
         end
       end
     else
