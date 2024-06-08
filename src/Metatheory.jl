@@ -69,7 +69,6 @@ export match_compile
 include("ematch_compiler.jl")
 export ematch_compile
 
-include("matchers.jl")
 include("Rules.jl")
 @reexport using .Rules
 
