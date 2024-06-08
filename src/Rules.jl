@@ -23,7 +23,7 @@ of pattern variables.
 @rule ~a * ~b --> ~b * ~a
 ```
 
-An `EqualityRule` is a symbolic substitution rule with operator `==` that 
+An *equational rule* is a symbolic substitution rule with operator `==` that 
 can be rewritten bidirectionally. Therefore, it can only be used 
 with the EGraphs backend.
 
@@ -40,14 +40,13 @@ rewriting. If two terms, corresponding to the left and right hand side of an
 ````
 
 Rules defined with the `=>` operator are
-called dynamic rules. Dynamic rules behave like anonymous functions.
+called *dynamic rules*. Dynamic rules behave like anonymous functions.
 Instead of a symbolic substitution, the right hand of
 a dynamic `=>` rule is evaluated during rewriting:
 matched values are bound to pattern variables as in a
 regular function call. This allows for dynamic computation
 of right hand sides.
 
-Dynamic rule
 ```julia
 @rule ~a::Number * ~b::Number => ~a*~b
 ```
@@ -101,6 +100,7 @@ end
 
 
 const Theory = Vector{RewriteRule}
+
 # struct Theory
 #   name::String
 #   rules::Vector{RewriteRule}
