@@ -1,5 +1,5 @@
 # 3.0
-- Updated TermInterface to 0.4.1
+- Updated TermInterface to 1.0.1
 
 # 2.0
 - No longer dispatch against types, but instead dispatch against objects.
