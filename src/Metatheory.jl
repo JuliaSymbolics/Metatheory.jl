@@ -1,6 +1,6 @@
 module Metatheory
 
-using Base.Meta
+using TermInterface: isexpr
 using Reexport
 
 @inline alwaystrue(x...) = true
