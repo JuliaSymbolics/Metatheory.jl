@@ -301,7 +301,7 @@ end
 
 function match_eq_expr(patvar::PatVar, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   quote
-    if $(varname(patvar.name)) == $to_compare
+    if isequal($(varname(patvar.name)), $to_compare)
       pc += 0x0001
       @goto compute
     else
