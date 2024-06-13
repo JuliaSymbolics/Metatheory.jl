@@ -335,7 +335,7 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
 
     for i in 1:length(($(Symbol(varname(patvar.name), :_start))):($(Symbol(varname(patvar.name), :_end))))
       # ($tsym_args)[$start_idx + i - 1] == $(patvar.name)[i] || @goto backtrack
-      ($tsym_args)[$start_idx + i - 1] == $previous_local_args[$previous_start_idx + i - 1] || @goto backtrack
+      isequal(($tsym_args)[$start_idx + i - 1], $previous_local_args[$previous_start_idx + i - 1]) || @goto backtrack
     end
 
 
@@ -346,7 +346,7 @@ end
 
 function match_eq_expr(pat::PatLiteral, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   quote
-    if $(pat.value isa Union{Symbol,Expr} ? QuoteNode(pat.value) : pat.value) == $to_compare
+    if isequal($(pat.value isa Union{Symbol,Expr} ? QuoteNode(pat.value) : pat.value), $to_compare)
       pc += 0x0001
       @goto compute
     else
