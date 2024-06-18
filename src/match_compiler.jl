@@ -332,8 +332,10 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
 
   quote
     $start_idx <= length($tsym_args) || @goto backtrack
+    len = length($(previous_start_idx):($(Symbol(varname(patvar.name), :_end))))
+    $start_idx + len - 1 <= length($tsym_args) || @goto backtrack
 
-    for i in 1:length(($(Symbol(varname(patvar.name), :_start))):($(Symbol(varname(patvar.name), :_end))))
+    for i in 1:len
       # ($tsym_args)[$start_idx + i - 1] == $(patvar.name)[i] || @goto backtrack
       isequal(($tsym_args)[$start_idx + i - 1], $previous_local_args[$previous_start_idx + i - 1]) || @goto backtrack
     end

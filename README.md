@@ -4,6 +4,7 @@
 
 # Metatheory.jl
 
+
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliasymbolics.github.io/Metatheory.jl/dev/)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliasymbolics.github.io/Metatheory.jl/stable/)
 ![CI](https://github.com/juliasymbolics/Metatheory.jl/workflows/CI/badge.svg)
