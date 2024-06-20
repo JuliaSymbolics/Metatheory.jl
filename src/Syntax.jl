@@ -395,6 +395,7 @@ macro rule(args...)
   @assert pvars == ppvars
 
   ematcher_right_expr = :nothing
+  matcher_right_expr = :nothing
 
   rhs = rhs_original = :(println("replace me"))
 
@@ -416,6 +417,7 @@ macro rule(args...)
 
   if op in (:(==), :(!=)) # Bidirectional rule
     ematcher_right_expr = esc(ematch_compile(rhs, pvars, -1))
+    matcher_right_expr = esc(match_compile(rhs, pvars))
     extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs))
     if !isempty(extravars)
       error("unbound pattern variables $extravars when creating bidirectional rule")
@@ -438,6 +440,7 @@ macro rule(args...)
       ematcher_left! = $ematcher_left_expr,
       ematcher_right! = $ematcher_right_expr,
       matcher_left = $matcher_left_expr,
+      matcher_right = $matcher_right_expr,
       lhs_original = $(QuoteNode(l)),
       rhs_original = $(QuoteNode(rhs_original)),
     )

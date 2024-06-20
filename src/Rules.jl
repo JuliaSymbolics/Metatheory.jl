@@ -4,9 +4,9 @@ using TermInterface
 using AutoHashEquals
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: OptBuffer
+using Metatheory: OptBuffer, match_compile
 
-export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory
+export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory, direct
 
 const STACK_SIZE = 512
 
@@ -140,6 +140,25 @@ instantiate_arg!(acc, left, parg::AbstractPat, bindings) = push!(acc, instantiat
 instantiate(_, pat::PatLiteral, bindings) = pat.value
 instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 
-
+function direct_right_to_left(r::EqualityRule)
+  RewriteRule(
+    name = r.name,
+    op = -->,
+    left = r.right,
+    right = r.left,
+    patvars = r.patvars,
+    ematcher_left! = r.ematcher_right!,
+    ematcher_right! = r.ematcher_left!,
+    matcher_left = r.matcher_right,
+    matcher_right = r.matcher_left,
+    lhs_original = r.rhs_original,
+    rhs_original = r.lhs_original,
+  )
+end
+function direct_left_to_right(r::EqualityRule)
+  RewriteRule(r.name, -->, (getfield(r,k) for k in fieldnames(DirectedRule)[3:end])...)
+end
+direct(r::EqualityRule) = (direct_left_to_right(r), direct_right_to_left(r))
+direct(r::RewriteRule) = (r,)
 
 end
