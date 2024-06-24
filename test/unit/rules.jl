@@ -31,3 +31,16 @@ end
   r = @rule Main.f(~~x) --> ~x
   r == eval(:(@rule $(Meta.parse(repr(r)))))
 end
+
+
+#@testset "EqualityRule to DirectedRule(s)" begin
+  r = @rule "distributive" x y z x*(y + z) == x*y + x*z
+  r1 = direct(r)
+  r2 = Metatheory.direct_right_to_left(r)
+
+  @test r1 isa DirectedRule
+  @test r2 isa DirectedRule
+  @test r1 == @rule "distributive" x y z x * (y + z) --> x*y + x*z
+  @test r2 == @rule "distributive" x y z x*y + x*z --> x * (y + z)
+#end
+

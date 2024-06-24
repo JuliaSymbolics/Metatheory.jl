@@ -295,17 +295,6 @@ using Metatheory.Syntax: @capture
   r = (@capture x ~x)
   @test r == true
 end
-
-@testset "EqualityRule to DirectedRule(s)" begin
-  r = @rule "distributive" x y z x*(y + z) == x*y + x*z
-  (r1, r2) = direct(r)
-
-  @test r1 isa DirectedRule
-  @test r2 isa DirectedRule
-  @test r1 == @rule "distributive" x y z x * (y + z) --> x*y + x*z
-  @test r2 == @rule "distributive" x y z x*y + x*z --> x * (y + z)
-end
-
 module QuxTest
 using Metatheory, Test, TermInterface
 struct Qux
