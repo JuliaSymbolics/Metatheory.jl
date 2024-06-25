@@ -4,6 +4,11 @@
 
 # Metatheory.jl
 
+## The 3.0 version is in-development and close to release! 
+
+## If you want to use Metatheory.jl, please use the `ale/3.0` [branch](https://github.com/JuliaSymbolics/Metatheory.jl/pull/185).
+
+## It's a lot more stable, and up to [~200x faster than 2.0](https://github.com/JuliaSymbolics/Metatheory.jl/pull/185#issuecomment-1890910789)
 
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliasymbolics.github.io/Metatheory.jl/dev/)
 [![Docs](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliasymbolics.github.io/Metatheory.jl/stable/)
