@@ -157,10 +157,24 @@ function invert(r::RewriteRule)
   )
 end
 
-"Turns an EqualityRule into a DirectedRule"
+"""
+Turns an EqualityRule into a DirectedRule. For example, 
+
+```julia
+direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x) 
+```
+"""
 function direct(r::EqualityRule)
   RewriteRule(r.name, -->, (getfield(r,k) for k in fieldnames(DirectedRule)[3:end])...)
 end
+
+"""
+Turns an EqualityRule into a DirectedRule, but right to left. For example, 
+
+```julia
+direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x) 
+```
+"""
 direct_right_to_left(r::EqualityRule) = invert(direct(r))
 direct_left_to_right(r::EqualityRule) = direct(r)
 
