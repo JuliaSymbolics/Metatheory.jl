@@ -295,7 +295,6 @@ using Metatheory.Syntax: @capture
   r = (@capture x ~x)
   @test r == true
 end
-
 module QuxTest
 using Metatheory, Test, TermInterface
 struct Qux

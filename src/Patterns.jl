@@ -115,6 +115,10 @@ PatExpr(iscall, op, args::Vector) = PatExpr(iscall, op, maybe_quote_operation(op
 
 isground(p::PatExpr)::Bool = p.isground
 
+function Base.isequal(x::PatExpr, y::PatExpr)
+  x.head_hash === y.head_hash && v_signature(x.n)===v_signature(y.n) && all(x.children .== y.children)
+end
+
 TermInterface.isexpr(::PatExpr) = true
 TermInterface.head(p::PatExpr) = p.head
 TermInterface.operation(p::PatExpr) = p.head

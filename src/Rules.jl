@@ -4,9 +4,9 @@ using TermInterface
 using AutoHashEquals
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: OptBuffer
+using Metatheory: OptBuffer, match_compile
 
-export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory
+export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory, direct, direct_left_to_right, direct_right_to_left
 
 const STACK_SIZE = 512
 
@@ -140,6 +140,42 @@ instantiate_arg!(acc, left, parg::AbstractPat, bindings) = push!(acc, instantiat
 instantiate(_, pat::PatLiteral, bindings) = pat.value
 instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 
+"Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
+function invert(r::RewriteRule)
+  RewriteRule(
+    name = r.name,
+    op = r.op,
+    left = r.right,
+    right = r.left,
+    patvars = r.patvars,
+    ematcher_left! = r.ematcher_right!,
+    ematcher_right! = r.ematcher_left!,
+    matcher_left = r.matcher_right,
+    matcher_right = r.matcher_left,
+    lhs_original = r.rhs_original,
+    rhs_original = r.lhs_original,
+  )
+end
 
+"""
+Turns an EqualityRule into a DirectedRule. For example, 
+
+```julia
+direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x) 
+```
+"""
+function direct(r::EqualityRule)
+  RewriteRule(r.name, -->, (getfield(r,k) for k in fieldnames(DirectedRule)[3:end])...)
+end
+
+"""
+Turns an EqualityRule into a DirectedRule, but right to left. For example, 
+
+```julia
+direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x) 
+```
+"""
+direct_right_to_left(r::EqualityRule) = invert(direct(r))
+direct_left_to_right(r::EqualityRule) = direct(r)
 
 end
