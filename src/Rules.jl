@@ -140,6 +140,7 @@ instantiate_arg!(acc, left, parg::AbstractPat, bindings) = push!(acc, instantiat
 instantiate(_, pat::PatLiteral, bindings) = pat.value
 instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 
+"Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
 function invert(r::RewriteRule)
   RewriteRule(
     name = r.name,
