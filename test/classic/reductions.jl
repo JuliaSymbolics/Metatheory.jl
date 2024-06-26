@@ -212,6 +212,10 @@ end
   sf = r(:(f(1, 2, 3, 1, 2)))
   @test sf == :(ok(1, 2))
 
+  r = @rule f(~~x, 3, ~~x) --> ok(~~x)
+  sf = r(:(f(3)))
+  @test sf == :(ok())
+
   sf = r(:(f(1, 2, 3, 4, 5)))
   @test isnothing(sf)
 

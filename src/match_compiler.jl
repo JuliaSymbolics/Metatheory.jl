@@ -327,12 +327,24 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
     end
   end
   @assert !isnothing(previous_local_args)
+  # Start and end indexes in the vector of term arguments that 
+  # matched on the previous occurrence of the segment variable. 
   previous_start_idx = Symbol(varname(patvar.name), :_start)
-
+  previous_end_idx = Symbol(varname(patvar.name), :_end)
 
   quote
-    $start_idx <= length($tsym_args) || @goto backtrack
-    len = length($(previous_start_idx):($(Symbol(varname(patvar.name), :_end))))
+    len = length(($previous_start_idx):($previous_end_idx))
+    if $start_idx > length($tsym_args)
+      # We're checking a segment variable that was previously bound.
+      # We start checking from arguments of term at index `start_idx`.
+      # `tsym_args` are the arguments of the term.
+      # If `start_idx` is > than the length of the terms, we mean that 
+      # we have no more space to match. 
+      # This means that if the previously bound segment variable was empty, 
+      # and contains no matches, then we can safely proceed.
+      # Otherwise we need to fail.  
+      len == 0 || @goto backtrack
+    end
     $start_idx + len - 1 <= length($tsym_args) || @goto backtrack
 
     for i in 1:len
