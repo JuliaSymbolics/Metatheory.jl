@@ -5,6 +5,8 @@
 using Metatheory
 using Metatheory.Library
 
+include("../../examples/prove.jl")
+
 struct NumberFoldAnalysis
   n::Number
 end
@@ -55,17 +57,16 @@ g = EGraph{Expr,NumberFoldAnalysis}(:(3 * 4))
 
 
 @testset "Basic Constant Folding Example - Commutative Monoid" begin
-  @test (true == @areequalg g comm_monoid 3 * 4 12)
-
-  @test (true == @areequalg g comm_monoid 3 * 4 12 4 * 3 6 * 2)
+  @test test_equality(comm_monoid, :(3 * 4), 12; g)
+  @test test_equality(comm_monoid, :(3 * 4), 12, :(4 * 3), :(6 * 2); g)
 end
 
 @testset "Basic Constant Folding Example 2 - Commutative Monoid" begin
   ex = :(a * 3 * b * 4)
   g = EGraph{Expr,NumberFoldAnalysis}(ex)
   addexpr!(g, :(12 * a))
-  @test (true == @areequalg g comm_monoid (12 * a) * b ((6 * 2) * b) * a)
-  @test (true == @areequalg g comm_monoid (3 * a) * (4 * b) (12 * a) * b ((6 * 2) * b) * a)
+  @test test_equality(comm_monoid, :((12 * a) * b), :(((6 * 2) * b) * a); g)
+  @test test_equality(comm_monoid, :((3 * a) * (4 * b)), :((12 * a) * b), :(((6 * 2) * b) * a); g)
 end
 
 @testset "Basic Constant Folding Example - Adding analysis after saturation" begin
@@ -75,12 +76,12 @@ end
   addexpr!(g, :(a * 2))
   saturate!(g, comm_monoid)
 
-  @test (true == areequal(g, comm_monoid, :(3 * 4), 12, :(4 * 3), :(6 * 2)))
+  @test test_equality(comm_monoid, :(3 * 4), 12, :(4 * 3), :(6 * 2); g)
 
   ex = :(a * 3 * b * 4)
   g = EGraph{Expr,NumberFoldAnalysis}(ex)
   params = SaturationParams(timeout = 15)
-  @test areequal(g, comm_monoid, :((3 * a) * (4 * b)), :((12 * a) * b), :(((6 * 2) * b) * a); params = params)
+  @test test_equality(comm_monoid, :((3 * a) * (4 * b)), :((12 * a) * b), :(((6 * 2) * b) * a); params, g)
 end
 
 @testset "Infinite Loops analysis" begin

@@ -30,6 +30,6 @@ export Schedulers
 using .Schedulers
 
 include("saturation.jl")
-export SaturationParams, saturate!, areequal, @areequal, @areequalg
+export SaturationParams, saturate!
 
 end

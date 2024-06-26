@@ -26,3 +26,17 @@ function prove(
   return ex
 end
 
+function test_equality(t, exprs...; params = SaturationParams(), g = EGraph())
+  length(exprs) == 1 && return true
+  ids = [addexpr!(g, ex) for ex in exprs]
+  params = deepcopy(params)
+  params.goal = (g::EGraph) -> in_same_class(g, ids...)
+
+  report = saturate!(g, t, params)
+  goal_reached = params.goal(g)
+
+  if !(report.reason === :saturated) && !goal_reached
+    return false # failed to prove
+  end
+  return goal_reached
+end

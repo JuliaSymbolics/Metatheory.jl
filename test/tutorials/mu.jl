@@ -6,6 +6,8 @@
 
 using Metatheory, Test
 
+include("../../examples/prove.jl")
+
 # Here are the axioms of MU:
 # * Composition of the string monoid is associative
 # * Add a uf to the end of any string ending in I
@@ -26,7 +28,5 @@ end
 # MU is not a theorem of the MIU system 
 params = SaturationParams(timeout = 12, eclasslimit = 8000)
 start = :(M ⋅ I ⋅ END)
-g = EGraph(start)
-saturate!(g, miu)
-@test false == areequal(g, miu, start, :(M ⋅ U ⋅ END); params = params)
+@test false == test_equality(miu, start, :(M ⋅ U ⋅ END); params)
 

@@ -10,17 +10,19 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_t
   saturate!(g, calculational_logic_theory)
   extract!(g, astsize)
 
-  @test @areequal calculational_logic_theory ((!p == p) == false) true
-  @test @areequal calculational_logic_theory ((!p == !p) == true) true
-  @test @areequal calculational_logic_theory ((!p || !p) == !p) (!p || p) !(!p && p) true
-  @test @areequal calculational_logic_theory ((p ⟹ (p || p)) == true) true
+  @test test_equality(calculational_logic_theory, :((!p || !p) == !p), :(!p || p), :(!(!p && p)))
+
+
+  @test prove(calculational_logic_theory, :((!p == p) == false))
+  @test prove(calculational_logic_theory, :((!p == !p) == true))
+  @test prove(calculational_logic_theory, :((p ⟹ (p || p)) == true))
 
   params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (1000, 5))
-  @test areequal(calculational_logic_theory, :(((p ⟹ (p || p)) == ((!(p) && q) ⟹ q))), true; params = params)
+  @test prove(calculational_logic_theory, :(((p ⟹ (p || p)) == ((!(p) && q) ⟹ q))), 1, 10, params)
 
   ex = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))   # Frege's theorem
   params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (6000, 5))
   @test prove(calculational_logic_theory, ex, 2, 10, params)
 
-  @test @areequal calculational_logic_theory (!(p || q) == (!p && !q)) true   # Demorgan's
+  @test prove(calculational_logic_theory, :(!(p || q) == (!p && !q)))   # Demorgan's
 end

@@ -10,18 +10,22 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
   @test prove(propositional_logic_theory, ex, 5, 10)
 
 
-  @test @areequal propositional_logic_theory ((!p == p) == false) true
-  @test @areequal propositional_logic_theory ((!p == !p) == true) true
-  @test @areequal propositional_logic_theory ((!p || !p) == !p) (!p || p) !(!p && p) true
-  @test @areequal propositional_logic_theory (p || p) p
-  @test @areequal propositional_logic_theory ((p ⟹ (p || p))) true
-  @test @areequal propositional_logic_theory ((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true true
+  @test prove(propositional_logic_theory, :((!p == p) == false))
+  @test prove(propositional_logic_theory, :((!p == !p) == true))
+  @test test_equality(propositional_logic_theory, :((!p || !p) == !p), :(!p || p), :(!(!p && p)))
+  @test prove(propositional_logic_theory, :((p || p) == p))
+  @test prove(propositional_logic_theory, :((p ⟹ (p || p))))
+  @test prove(propositional_logic_theory, :((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)))
 
+  @test prove(propositional_logic_theory, :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))))# Frege's theorem
 
-  @test @areequal propositional_logic_theory (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)) true # Frege's theorem
-
-  @test @areequal propositional_logic_theory (!(p || q) == (!p && !q)) true # Demorgan's
+  @test prove(propositional_logic_theory, :(!(p || q) == (!p && !q))) # Demorgan's
 end
 
 # Consensus theorem
-# @test_broken @areequal propositional_logic_theory ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z)) true
+# @test_broken test_equality(
+#   propositional_logic_theory,
+#   :((x && y) || (!x && z) || (y && z)),
+#   :((x && y) || (!x && z)),
+#   true,
+# )

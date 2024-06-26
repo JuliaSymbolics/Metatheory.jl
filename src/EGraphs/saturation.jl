@@ -358,34 +358,3 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
 
   return report
 end
-
-function areequal(theory::Vector, exprs...; params = SaturationParams())
-  g = EGraph(exprs[1])
-  areequal(g, theory, exprs...; params)
-end
-
-function areequal(g::EGraph, t::Theory, exprs...; params = SaturationParams())
-  n = length(exprs)
-  n == 1 && return true
-
-  ids = [addexpr!(g, ex) for ex in exprs]
-  params = deepcopy(params)
-  params.goal = (g::EGraph) -> in_same_class(g, ids...)
-
-  report = saturate!(g, t, params)
-
-  goal_reached = params.goal(g)
-
-  if !(report.reason === :saturated) && !goal_reached
-    return missing # failed to prove
-  end
-  return goal_reached
-end
-
-macro areequal(theory, exprs...)
-  esc(:(areequal($theory, $exprs...)))
-end
-
-macro areequalg(G, theory, exprs...)
-  esc(:(areequal($G, $theory, $exprs...)))
-end
