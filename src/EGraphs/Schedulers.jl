@@ -61,6 +61,16 @@ This is called by equality saturation after e-graph `rebuild!`
 """
 function rebuild! end
 
+# ===========================================================================
+# Defaults
+# ===========================================================================
+
+@inline inform!(::AbstractScheduler, ::Int, ::Int) = nothing
+@inline inform!(::AbstractScheduler, ::Int, ::Id, ::Int) = nothing
+@inline setiter!(::AbstractScheduler, ::Int) = nothing
+@inline rebuild!(::AbstractScheduler) = nothing
+
+
 
 # ===========================================================================
 # SimpleScheduler
@@ -72,17 +82,11 @@ A simple Rewrite Scheduler that applies every rule every time
 """
 struct SimpleScheduler <: AbstractScheduler end
 
-cansaturate(s::SimpleScheduler) = true
+SimpleScheduler(::EGraph, ::Theory) = SimpleScheduler()
+
+@inline cansaturate(s::SimpleScheduler) = true
 @inline cansearch(s::SimpleScheduler, ::Int) = true
 @inline cansearch(s::SimpleScheduler, ::Int, ::Id) = true
-
-function SimpleScheduler(::EGraph, ::Theory)
-  SimpleScheduler()
-end
-@inline inform!(::SimpleScheduler, ::Int, ::Int) = nothing
-@inline inform!(::SimpleScheduler, ::Int, ::Id, ::Int) = nothing
-@inline setiter!(::SimpleScheduler, ::Int) = nothing
-@inline rebuild!(::SimpleScheduler, ::EGraph) = nothing
 
 # ===========================================================================
 # BackoffScheduler
@@ -125,13 +129,10 @@ function inform!(s::BackoffScheduler, rule_idx::Int, n_matches::Int)
   end
 end
 
-@inline inform!(::BackoffScheduler, ::Int, ::Id, ::Int) = nothing
-
-function setiter!(s::BackoffScheduler, curr_iter)
+function setiter!(s::BackoffScheduler, curr_iter::Int)
   s.curr_iter = curr_iter
 end
 
-@inline rebuild!(::BackoffScheduler, ::EGraph) = nothing
 
 # ===========================================================================
 # FreezingScheduler
@@ -165,13 +166,11 @@ function Base.getindex(s::FreezingScheduler, id::Id)
   nid = find(s.g, id)
   haskey(s.data, nid) && return s.data[nid]
 
-  data[id] = FreezingSchedulerStat(0, 0, s.default_eclass_size_limit, s.default_eclass_ban_length)
+  s.data[id] = FreezingSchedulerStat(0, 0, s.default_eclass_size_limit, s.default_eclass_ban_length)
 end
 
 # can saturate if there's no banned rule
 cansaturate(s::FreezingScheduler)::Bool = all(stat -> stat.banned_until < s.curr_iter, values(s.data))
-
-@inline inform!(::FreezingScheduler, ::Int, ::Id) = nothing
 
 function inform!(s::FreezingScheduler, rule_idx::Int, n_matches::Int, eclass_id::Id)
   stats = s[eclass_id]
@@ -185,7 +184,7 @@ function inform!(s::FreezingScheduler, rule_idx::Int, n_matches::Int, eclass_id:
   end
 end
 
-function setiter!(s::FreezingScheduler, curr_iter)
+function setiter!(s::FreezingScheduler, curr_iter::Int)
   s.curr_iter = curr_iter
 end
 

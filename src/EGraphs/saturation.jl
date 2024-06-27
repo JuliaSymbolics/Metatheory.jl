@@ -33,16 +33,15 @@ Base.@kwdef mutable struct SaturationParams
   enodelimit::Int = 15000
   goal::Function = (g::EGraph) -> false
   scheduler::Type{<:AbstractScheduler} = BackoffScheduler
-  # scheduler::Type{<:AbstractScheduler} = FreezingScheduler
   schedulerparams::NamedTuple = (;)
-  threaded::Bool              = false
-  timer::Bool                 = true
+  threaded::Bool = false
+  timer::Bool = true
 end
 
 function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
   if isground(p)
     id = lookup_pat(g, p)
-    !isnothing(id) && return [id]
+    iszero(id) ? UNDEF_ID_VEC : [id]
   else
     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
   end
@@ -85,7 +84,6 @@ function eqsat_search!(
       end
       ids_left = cached_ids(g, rule.left)
       ids_right = is_bidirectional(rule) ? cached_ids(g, rule.right) : UNDEF_ID_VEC
-
 
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
