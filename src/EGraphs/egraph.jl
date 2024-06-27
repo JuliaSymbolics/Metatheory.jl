@@ -29,7 +29,6 @@ Given an e-node `n`, `make` should return the corresponding analysis value.
 function make end
 
 
-# TODO parametrize metadata by M?
 """
     EClass{D}
 

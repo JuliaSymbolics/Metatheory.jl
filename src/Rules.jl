@@ -6,7 +6,17 @@ using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
 using Metatheory: OptBuffer, match_compile
 
-export RewriteRule, DirectedRule, EqualityRule, UnequalRule, DynamicRule, -->, is_bidirectional, Theory, direct, direct_left_to_right, direct_right_to_left
+export RewriteRule,
+  DirectedRule,
+  EqualityRule,
+  UnequalRule,
+  DynamicRule,
+  -->,
+  is_bidirectional,
+  Theory,
+  direct,
+  direct_left_to_right,
+  direct_right_to_left
 
 const STACK_SIZE = 512
 
@@ -141,7 +151,7 @@ instantiate(_, pat::PatLiteral, bindings) = pat.value
 instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 
 "Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
-function invert(r::RewriteRule)
+function Base.invert(r::RewriteRule)
   RewriteRule(
     name = r.name,
     op = r.op,
@@ -165,7 +175,7 @@ direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x)
 ```
 """
 function direct(r::EqualityRule)
-  RewriteRule(r.name, -->, (getfield(r,k) for k in fieldnames(DirectedRule)[3:end])...)
+  RewriteRule(r.name, -->, (getfield(r, k) for k in fieldnames(DirectedRule)[3:end])...)
 end
 
 """
