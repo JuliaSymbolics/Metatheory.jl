@@ -231,6 +231,17 @@ function Base.show(io::IO, g::EGraph)
 end
 
 
+function print_proof(g::EGraph)
+  # Print memo 
+  println("explain_find:")
+  println.(g.proof.explain_find)
+  println("uncanon_memo: ")
+  for (n, id) in g.proof.uncanon_memo
+    println("\t", to_expr(g, n), " => ", reinterpret(Int, id))
+  end
+end
+export print_proof
+
 """
 Returns the canonical e-class id for a given e-class.
 """

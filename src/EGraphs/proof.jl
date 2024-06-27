@@ -8,23 +8,34 @@ mutable struct ProofConnection
   - Negative integer is same as above, applied right-to-left.
   The absolute value is thus the rule id.
   """
-  justification::UInt64
+  justification::Int
   # Next is equal to itself on leaves of the proof tree 
   # i.e. only the identity (congruence) is a valid proof 
   next::Id
   current::Id
 end
 
-mutable struct ProofNode
-  # Includes parent ??????
-  neighbours::Vector{ProofConnection}
-  # TODO is this the parent in the unionfind?
-  parent_connection::ProofConnection
-  existence_node::Id
+function Base.show(io::IO, p::ProofConnection)
+  j = abs(p.justification)
+  p.justification == 0 && return print(io, "($(p.current) ≡ $(p.next))")
+  p.justification < 0 && return print(io, "($(p.current) <-$j- $(p.next))")
+  print(io, "($(p.current) -$j-> $(p.next))")
 end
 
-function Base.show(io::IO, a::ProofNode)
 
+mutable struct ProofNode
+  existence_node::Id
+  # TODO is this the parent in the unionfind?
+  parent_connection::ProofConnection
+  # Includes parent ??????
+  neighbours::Vector{ProofConnection}
+end
+
+function Base.show(io::IO, p::ProofNode)
+  print(io, "ProofNode(")
+  print(io, p.existence_node, ", ")
+  print(io, p.parent_connection, ", ")
+  print(io, p.neighbours, ")")
 end
 
 
@@ -41,7 +52,7 @@ function add!(proof::EGraphProof, n::VecExpr, set::Id, existence_node::Id)
 
   # New proof node does not have any neighbours
   # Parent connection is by congruence, to the same id 
-  proof_node = ProofNode(ProofConnection[], ProofConnection(0, set, set), existence_node)
+  proof_node = ProofNode(existence_node, ProofConnection(0, set, set), ProofConnection[])
   push!(proof.explain_find, proof_node)
   set
 end
@@ -66,7 +77,7 @@ function make_leader(proof::EGraphProof, node::Id)::Bool
   proof.explain_find[next].parent_connection = new_parent_connection
 end
 
-function union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
+function Base.union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
   # TODO maybe should have extra argument called `rhs_new` in egg that is true when called from 
   # application of rules where the instantiation of the rhs creates new e-classes
   # TODO if new_rhs set_existance_reason of node2 to node1
@@ -87,6 +98,6 @@ function union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
   push!(proof_node2.neighbours, other_pconnection)
 
   # TODO WAT???
-  proof_node1.pconnection = pconnection
+  proof_node1.parent_connection = pconnection
 end
 
