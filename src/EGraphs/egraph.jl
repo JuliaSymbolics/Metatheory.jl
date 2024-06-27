@@ -52,6 +52,8 @@ Base.getindex(a::EClass, i) = a.nodes[i]
 Base.iterate(a::EClass) = iterate(a.nodes)
 Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
+Base.length(a::EClass) = length(a.nodes)
+
 # Showing
 function Base.show(io::IO, a::EClass)
   println(io, "$(typeof(a)) %$(a.id) with $(length(a.nodes)) e-nodes:")

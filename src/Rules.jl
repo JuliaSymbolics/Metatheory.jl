@@ -151,7 +151,7 @@ instantiate(_, pat::PatLiteral, bindings) = pat.value
 instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 
 "Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
-function Base.invert(r::RewriteRule)
+function Base.inv(r::RewriteRule)
   RewriteRule(
     name = r.name,
     op = r.op,
@@ -185,7 +185,7 @@ Turns an EqualityRule into a DirectedRule, but right to left. For example,
 direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x) 
 ```
 """
-direct_right_to_left(r::EqualityRule) = invert(direct(r))
+direct_right_to_left(r::EqualityRule) = inv(direct(r))
 direct_left_to_right(r::EqualityRule) = direct(r)
 
 end

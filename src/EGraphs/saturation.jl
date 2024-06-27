@@ -29,13 +29,14 @@ Base.@kwdef mutable struct SaturationParams
   "Timeout in nanoseconds"
   timelimit::UInt64 = 0
   "Maximum number of eclasses allowed"
-  eclasslimit::Int                     = 5000
-  enodelimit::Int                      = 15000
-  goal::Function                       = (g::EGraph) -> false
+  eclasslimit::Int = 5000
+  enodelimit::Int = 15000
+  goal::Function = (g::EGraph) -> false
   scheduler::Type{<:AbstractScheduler} = BackoffScheduler
-  schedulerparams::Tuple               = ()
-  threaded::Bool                       = false
-  timer::Bool                          = true
+  # scheduler::Type{<:AbstractScheduler} = FreezingScheduler
+  schedulerparams::NamedTuple = (;)
+  threaded::Bool              = false
+  timer::Bool                 = true
 end
 
 function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
@@ -87,12 +88,16 @@ function eqsat_search!(
 
 
       for i in ids_left
+        cansearch(scheduler, rule_idx, i) || continue
         n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
+        inform!(scheduler, rule_idx, i, n_matches)
       end
 
       if is_bidirectional(rule)
         for i in ids_right
+          cansearch(scheduler, rule_idx, i) || continue
           n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
+          inform!(scheduler, rule_idx, i, n_matches)
         end
       end
 
@@ -291,6 +296,8 @@ function eqsat_step!(
   end
   @timeit report.to "Rebuild" rebuild!(g)
 
+  Schedulers.rebuild!(scheduler)
+
   @debug "Smallest expression is" extract!(g, astsize)
 
   return report
@@ -303,7 +310,7 @@ execute the equality saturation algorithm.
 function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
   curr_iter = 0
 
-  sched = params.scheduler(g, theory, params.schedulerparams...)
+  sched = params.scheduler(g, theory; params.schedulerparams...)
   report = SaturationReport(g)
 
   start_time = time_ns()

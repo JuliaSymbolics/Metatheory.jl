@@ -7,7 +7,7 @@ function prove(
   params = SaturationParams(
     timeout = timeout,
     scheduler = Schedulers.BackoffScheduler,
-    schedulerparams = (6000, 5),
+    schedulerparams = (match_limit = 6000, ban_length = 5),
     timer = false,
   ),
 )

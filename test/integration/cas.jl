@@ -148,7 +148,7 @@ function simplify(ex; steps = 4)
   # scheduler = ScoredScheduler,
   # eclasslimit = 5000,
   # timeout = 7,
-  # schedulerparams = (1000, 5),
+  # schedulerparams = (match_limit = 1000, ban_length = 5),
   #stopwhen=stopwhen,
   )
   hist = UInt64[]
@@ -203,7 +203,7 @@ end
 #     scheduler=BackoffScheduler,
 #     eclasslimit=5000,
 #     timeout=7,
-#     schedulerparams=(1000,5),
+#     (match_limit = 1000, ban_length = 5),
 #     #stopwhen=stopwhen,
 # )
 

@@ -195,8 +195,12 @@ suc = λ(:n, λ(:x, λ(:y, Apply(x, Apply(Apply(n, x), y)))))
 
 freshvar = fresh_var_generator()
 g = EGraph{LambdaExpr,LambdaAnalysis}(Apply(suc, one))
-params =
-  SaturationParams(timeout = 20, scheduler = Schedulers.BackoffScheduler, schedulerparams = (6000, 5), timer = false)
+params = SaturationParams(
+  timeout = 20,
+  scheduler = Schedulers.BackoffScheduler,
+  schedulerparams = (match_limit = 6000, ban_length = 5),
+  timer = false,
+)
 saturate!(g, λT, params)
 two_ = extract!(g, astsize)
 @test two_ == λ(:a₁, λ(:a₇, Apply(Variable(:a₁), Apply(Variable(:a₁), Variable(:a₇)))))
