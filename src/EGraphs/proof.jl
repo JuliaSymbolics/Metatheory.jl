@@ -27,7 +27,7 @@ mutable struct ProofNode
   existence_node::Id
   # TODO is this the parent in the unionfind?
   parent_connection::ProofConnection
-  # Includes parent ??????
+  # TODO Always includes parent ??????
   neighbours::Vector{ProofConnection}
 end
 
