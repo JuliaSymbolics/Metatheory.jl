@@ -1,4 +1,4 @@
-export ProofConnection, ProofNode, EGraphProof
+export ProofConnection, ProofNode, EGraphProof, find_flat_proof
 
 mutable struct ProofConnection
   """
@@ -71,10 +71,12 @@ function make_leader(proof::EGraphProof, node::Id)::Bool
   # TODO adrian please expand.
   proof_node = proof.explain_find[node]
   old_parent_connection = proof_node.parent_connection
-  new_parent_connection =
-    ProofConnection(-old_parent_connection.justification, old_parent_connection.node, old_parent_conneection.next)
+  # Reverse the justification
+  new_parent_connection = ProofConnection(-old_parent_connection.justification, node, old_parent_connection.next)
 
   proof.explain_find[next].parent_connection = new_parent_connection
+
+  true
 end
 
 function Base.union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
@@ -90,8 +92,8 @@ function Base.union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
 
   proof.explain_find[node1].parent_connection.next = node2
 
-  pconnection = ProofConnection(rule_idx, node2, node1)
-  other_pconnection = ProofConnection(-rule_idx, node2, node1)
+  pconnection = ProofConnection(abs(rule_idx), node2, node1)
+  other_pconnection = ProofConnection(-(abs(rule_idx)), node1, node2)
 
 
   push!(proof_node1.neighbours, pconnection)
@@ -101,3 +103,56 @@ function Base.union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
   proof_node1.parent_connection = pconnection
 end
 
+@inline isroot(pn::ProofNode) = isroot(pn.parent_connection)
+@inline isroot(pc::ProofConnection) = pc.current === pc.next
+
+function find_flat_proof(proof::EGraphProof, node1::Id, node2::Id)
+  # We're doing a lowest common ancestor search.
+  # We cache the IDs we have seen
+  seen_set = Set{Id}()
+  # Store the nodes seen from node1 and node2 in order
+  walk_from1 = ProofNode[]
+  walk_from2 = ProofNode[]
+
+  # No existence_node would ever have id 0
+  lca = UInt(0)
+  curr = proof.explain_find[node1]
+
+  # Walk up to the root
+  while true
+    push!(seen_set, curr.existence_node)
+    isroot(curr) ? break : push!(walk_from1, curr)
+    curr = proof.explain_find[curr.parent_connection.next]
+  end
+
+  curr = proof.explain_find[node2]
+  @show curr
+  # Walks up until an element of seen_set or root is found.
+  while true
+    println("WALKING 2")
+    @show curr.existence_node
+    @show seen_set
+    if curr.existence_node in seen_set
+      lca = curr.existence_node
+      @show lca
+      break
+    end
+
+    isroot(curr) ? break : push!(walk_from2, curr)
+    curr = proof.explain_find[curr.parent_connection.next]
+  end
+
+  ret = ProofNode[]
+  @show lca
+  # There's no LCA => there's no proof.
+  lca == 0 && return ret
+
+  for w in walk_from1
+    push!(ret, w)
+    w.existence_node == lca && break
+  end
+
+  # TODO maybe reverse
+  append!(ret, walk_from2)
+  ret
+end
