@@ -40,7 +40,8 @@ using Test, Metatheory
 # For example, if a `σ::Mem` holds the value `σ[:a] = 2`, this means that at that given moment, in our program 
 # the variable `a` holds the value 2.
 
-Mem = Dict{Symbol,Union{Bool,Int}}
+const WhileLangValue = Union{Bool,Int}
+Mem = Dict{Symbol,WhileLangValue}
 
 # We are now ready to define our first rewrite rule. 
 # In WHILE, un-evaluated expressions are represented by a tuple of `(program, state)`. 
@@ -159,7 +160,7 @@ eval_bool(ex, mem) = strategy(bool_rules)(:($ex, $mem))
     eval_bool(:((false || false) || !(false || false)), Mem(:x => 2)) == true
     eval_bool(:((2 < 3) && (3 < 4)), Mem(:x => 2)) == true
     eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 2)) == false
-    eval_bool(:((2 < x) || !(3 < 4)), Mem(:x => 4)) == true
+    eval_bool(:((2 < x)), Mem(:x => 4)) == true
   ],
 )
 
@@ -202,8 +203,10 @@ end
 # `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
 
 write_mem = @theory sym val σ begin
-  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
-  σ)
+  (store(sym::Symbol, val), σ) => begin
+    σ[sym] = eval_if(val, σ)
+    σ
+  end
 end
 
 # ## While loops and sequential computation.
@@ -213,7 +216,7 @@ while_rules = @theory guard a b σ begin
   ((:skip; b), σ::Mem) --> (b, σ)
   (seq(a, b), σ::Mem) --> (b, merge((a, σ), σ))
   merge(a::Mem, σ::Mem) => merge(σ, a)
-  merge(a::Union{Bool,Int}, σ::Mem) --> σ
+  merge(a::WhileLangValue, σ::Mem) --> σ
   (loop(guard, a), σ::Mem) --> (cond(guard, seq(a, loop(guard, a)), :skip), σ)
 end
 
