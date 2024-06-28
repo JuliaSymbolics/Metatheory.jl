@@ -23,6 +23,7 @@ end
   extr = extract!(g, astsize)
   @test extr == :((12 * a) * b) ||
         extr == :(12 * (a * b)) ||
+        extr == :(12 * (b * a)) ||
         extr == :(a * (b * 12)) ||
         extr == :((a * b) * 12) ||
         extr == :((12a) * b) ||

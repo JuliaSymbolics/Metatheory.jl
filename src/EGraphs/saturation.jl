@@ -136,29 +136,27 @@ function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add!(g, p.n, true)
 end
 
-function apply_rule!(buf, g::EGraph, rule::DirectedRule, id, direction, merges_buffer::OptBuffer{UInt128})
+function apply_rule!(buf, g::EGraph, rule::DirectedRule, id, ::Int)::Tuple{Union{Symbol,Nothing},Id,Id}
   new_id::Id = instantiate_enode!(buf, g, rule.right)
-  push!(merges_buffer, v_pair(new_id, id))
-  nothing
+  nothing, new_id, id
 end
 
-function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int, merges_buffer::OptBuffer{UInt128})
+function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   new_id = instantiate_enode!(bindings, g, pat_to_inst)
-  push!(merges_buffer, v_pair(new_id, id))
-  nothing
+  nothing, new_id, id
 end
 
 
-function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int, ::OptBuffer{UInt128})
+function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
   pat_to_inst = direction == 1 ? rule.right : rule.left
   other_id = instantiate_enode!(bindings, g, pat_to_inst)
 
   if find(g, id) == find(g, other_id)
     @debug "$rule produced a contradiction!"
-    return :contradiction
+    return :contradiction, 0, 0
   end
-  nothing
+  nothing, 0, 0
 end
 
 """
@@ -176,12 +174,11 @@ function instantiate_actual_param!(bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, direction::Int, merges_buffer::OptBuffer{UInt128})
+function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, ::Int)
   r = rule.right(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
-  isnothing(r) && return nothing
+  isnothing(r) && return (nothing, 0, 0)
   rcid = addexpr!(g, r)
-  push!(merges_buffer, v_pair(rcid, id))
-  return nothing
+  nothing, rcid, id
 end
 
 const CHECK_GOAL_EVERY_N_MATCHES = 20
@@ -192,10 +189,7 @@ function eqsat_apply!(
   rep::SaturationReport,
   params::SaturationParams,
   ematch_buffer::OptBuffer{UInt128},
-  merges_buffer::OptBuffer{UInt128},
 )
-  @assert isempty(merges_buffer)
-
   n_matches = 0
   k = length(ematch_buffer)
 
@@ -234,7 +228,7 @@ function eqsat_apply!(
 
     bindings = @view ematch_buffer.v[(next_delimiter_idx + 2):n]
 
-    halt_reason = apply_rule!(bindings, g, rule, id, direction, merges_buffer)
+    halt_reason, l_id, r_id = apply_rule!(bindings, g, rule, id, direction)
 
     k = next_delimiter_idx
     if !isnothing(halt_reason)
@@ -247,6 +241,8 @@ function eqsat_apply!(
       rep.reason = :enodelimit
       break
     end
+
+    l_id !== 0 && r_id !== 0 && union!(g, l_id, r_id)
   end
   if params.goal(g)
     @debug "Goal reached"
@@ -256,15 +252,6 @@ function eqsat_apply!(
 
   empty!(ematch_buffer)
 
-  g.needslock && unlock(g.lock)
-
-  g.needslock && lock(g.lock)
-  while !isempty(merges_buffer)
-    p = pop!(merges_buffer)
-    l = v_pair_first(p)
-    r = v_pair_last(p)
-    union!(g, l, r)
-  end
   g.needslock && unlock(g.lock)
 end
 
@@ -280,14 +267,13 @@ function eqsat_step!(
   params::SaturationParams,
   report,
   ematch_buffer::OptBuffer{UInt128},
-  merges_buffer::OptBuffer{UInt128},
 )
 
   setiter!(scheduler, curr_iter)
 
   @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
 
-  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer, merges_buffer)
+  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer)
 
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
@@ -317,8 +303,6 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
 
   # Buffer for e-matching. Use a local buffer for generated functions.
   ematch_buffer = OptBuffer{UInt128}(64)
-  # Buffer for rule application. Use a local buffer for generated functions.
-  merges_buffer = OptBuffer{UInt128}(64)
 
   while true
     curr_iter += 1
@@ -326,7 +310,7 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
     @debug "================ EQSAT ITERATION $curr_iter  ================"
     @debug g
 
-    report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer, merges_buffer)
+    report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer)
 
     elapsed = time_ns() - start_time
 
