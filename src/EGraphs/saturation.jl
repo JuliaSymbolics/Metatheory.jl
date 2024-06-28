@@ -303,8 +303,6 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
 
   # Buffer for e-matching. Use a local buffer for generated functions.
   ematch_buffer = OptBuffer{UInt128}(64)
-  # # Buffer for rule application. Use a local buffer for generated functions.
-  # merges_buffer = OptBuffer{UInt128}(64)
 
   while true
     curr_iter += 1
