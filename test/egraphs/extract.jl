@@ -21,6 +21,7 @@ end
   params = SaturationParams(timeout = 15)
   saturate!(g, t, params)
   extr = extract!(g, astsize)
+  @show extr
   @test extr == :((12 * a) * b) ||
         extr == :(12 * (a * b)) ||
         extr == :(12 * (b * a)) ||
