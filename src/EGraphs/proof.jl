@@ -1,4 +1,4 @@
-export ProofConnection, ProofNode, EGraphProof, find_flat_proof
+export ProofConnection, ProofNode, EGraphProof, find_flat_proof, rewrite_to_leader
 
 mutable struct ProofConnection
   """
@@ -24,6 +24,7 @@ end
 
 
 mutable struct ProofNode
+  # TODO: Explain
   existence_node::Id
   # TODO is this the parent in the unionfind?
   parent_connection::ProofConnection
@@ -79,6 +80,7 @@ function make_leader(proof::EGraphProof, node::Id)::Bool
   true
 end
 
+
 function Base.union!(proof::EGraphProof, node1::Id, node2::Id, rule_idx::Int)
   # TODO maybe should have extra argument called `rhs_new` in egg that is true when called from 
   # application of rules where the instantiation of the rhs creates new e-classes
@@ -106,7 +108,11 @@ end
 @inline isroot(pn::ProofNode) = isroot(pn.parent_connection)
 @inline isroot(pc::ProofConnection) = pc.current === pc.next
 
-function find_flat_proof(proof::EGraphProof, node1::Id, node2::Id)
+
+
+
+
+function find_flat_proof(proof::EGraphProof, node1::Id, node2::Id)::Vector{ProofNode}
   # We're doing a lowest common ancestor search.
   # We cache the IDs we have seen
   seen_set = Set{Id}()
@@ -117,6 +123,9 @@ function find_flat_proof(proof::EGraphProof, node1::Id, node2::Id)
   # No existence_node would ever have id 0
   lca = UInt(0)
   curr = proof.explain_find[node1]
+  if (node1 == node2) 
+    return [curr]
+  end
 
   # Walk up to the root
   while true
@@ -155,4 +164,25 @@ function find_flat_proof(proof::EGraphProof, node1::Id, node2::Id)
   # TODO maybe reverse
   append!(ret, walk_from2)
   ret
+end
+
+struct LeaderProof
+  leader::Id
+  proof::Vector{ProofNode}
+end 
+
+function rewrite_to_leader(proof::EGraphProof, node::Id)::LeaderProof
+  # Returns the leader of e-class and a proof to transform node into said leader
+  curr_proof = proof.explain_find[node]  
+  proofs = []
+  final_id = node
+  if curr_proof.parent_connection.current == curr_proof.parent_connection.next
+    return LeaderProof(node, [curr_proof]) # Special case to report congruence
+  end
+  while curr_proof.parent_connection.current != curr_proof.parent_connection.next
+    push!(proofs, curr_proof) 
+    final_id = curr_proof.parent_connection.next
+    curr_proof = proof.explain_find[curr_proof.parent_connection.next]
+  end
+  return LeaderProof(final_id, proofs)
 end
