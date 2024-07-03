@@ -123,7 +123,7 @@ function find_flat_proof(proof::EGraphProof, node1::Id, node2::Id)::Vector{Proof
   # No existence_node would ever have id 0
   lca = UInt(0)
   curr = proof.explain_find[node1]
-  if (node1 == node2) 
+  if (node1 == node2)
     return [curr]
   end
 
@@ -169,18 +169,18 @@ end
 struct LeaderProof
   leader::Id
   proof::Vector{ProofNode}
-end 
+end
 
 function rewrite_to_leader(proof::EGraphProof, node::Id)::LeaderProof
   # Returns the leader of e-class and a proof to transform node into said leader
-  curr_proof = proof.explain_find[node]  
+  curr_proof = proof.explain_find[node]
   proofs = []
   final_id = node
   if curr_proof.parent_connection.current == curr_proof.parent_connection.next
     return LeaderProof(node, [curr_proof]) # Special case to report congruence
   end
   while curr_proof.parent_connection.current != curr_proof.parent_connection.next
-    push!(proofs, curr_proof) 
+    push!(proofs, curr_proof)
     final_id = curr_proof.parent_connection.next
     curr_proof = proof.explain_find[curr_proof.parent_connection.next]
   end
