@@ -32,4 +32,7 @@ using .Schedulers
 include("saturation.jl")
 export SaturationParams, saturate!
 
+include("exprproof.jl")
+export PositionedProof, find_node_proof
+
 end

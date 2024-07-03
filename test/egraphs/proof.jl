@@ -1,8 +1,12 @@
 using Metatheory, Test
+using Metatheory.Library
+
 
 g = EGraph(; proof = true)
 
 id_a = addexpr!(g, :a)
+println(find_flat_proof(g.proof, id_a, id_a))
+@test length(find_flat_proof(g.proof, id_a, id_a)) == 1
 
 # print_proof(g)
 
@@ -31,10 +35,34 @@ id_d = addexpr!(g, :d)
 
 union!(g, id_a, id_d, 3)
 print_proof(g)
-
+println(find_flat_proof(g.proof, id_c, id_d))
 # Takes 4 steps
-@test length(find_flat_proof(g.proof, id_a, id_d)) == 4
+@test length(find_flat_proof(g.proof, id_c, id_d)) == 3
+
+# TODO: Why doesn't d have a its leader
+for id in [id_a, id_b, id_c, id_d]
+  leader = rewrite_to_leader(g.proof, id)
+  @test leader.leader == id_d
+  @test length(leader.proof) == length(find_flat_proof(g.proof, id, id_a))
+end
+
 
 
 id_e = addexpr!(g, :e)
 @test isempty(find_flat_proof(g.proof, id_a, id_e))
+
+comm_monoid = @commutative_monoid (*) 1
+
+fold_mul = @theory begin
+  ~a::Number * ~b::Number => ~a * ~b
+end
+
+ex = :(a * 4)
+id_ex = addexpr!(g, ex)
+ex_to = :(e * 4)
+id_ex_to = addexpr!(g, ex_to)
+print_proof(g)
+
+println(find_node_proof(g, id_ex, id_ex_to)) # Current challenge
+
+
