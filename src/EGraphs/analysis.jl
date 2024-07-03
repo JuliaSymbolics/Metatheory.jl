@@ -52,7 +52,7 @@ analyze!(g::EGraph, analysis_ref) = analyze!(g, analysis_ref, collect(keys(g.cla
     analyze!(egraph, analysis_name, [ECLASS_IDS])
 
 Given an [EGraph](@ref) and an `analysis` identified by name `analysis_name`, 
-do an automated bottom up trasversal of the EGraph, associating a value from the 
+do an automated bottom up traversal of the EGraph, associating a value from the 
 domain of analysis to each ENode in the egraph by the [make](@ref) function. 
 Then, for each [EClass](@ref), compute the [join](@ref) of the children ENodes analyses values.
 After `analyze!` is called, an analysis value will be associated to each EClass in the EGraph.

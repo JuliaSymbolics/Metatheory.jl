@@ -184,7 +184,7 @@ mutable struct EGraph
   classes::Dict{EClassId,EClass}
   "hashcons"
   memo::Dict{AbstractENode,EClassId}             # memo
-  "worklist for ammortized upwards merging"
+  "worklist for amortized upwards merging"
   dirty::Vector{EClassId}
   root::EClassId
   "A vector of analyses associated to the EGraph"

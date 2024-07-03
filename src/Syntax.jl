@@ -199,10 +199,10 @@ Creates an `AbstractRule` object. A rule object is callable, and takes an
 expression and rewrites it if it matches the LHS pattern to the RHS pattern,
 returns `nothing` otherwise. The rule language is described below.
 
-LHS can be any possibly nested function call expression where any of the arugments can
+LHS can be any possibly nested function call expression where any of the arguments can
 optionally be a Slot (`~x`) or a Segment (`~x...`) (described below).
 
-SLOTS is an optional list of symbols to be interpeted as slots or segments
+SLOTS is an optional list of symbols to be interpreted as slots or segments
 directly (without using `~`).  To declare slots for several rules at once, see
 the `@slots` macro.
 

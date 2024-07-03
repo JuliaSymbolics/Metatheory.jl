@@ -72,7 +72,7 @@ EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo))
 # It is used to create a term that is in the same closure of types of `x`. 
 # Given an existing term `x`, it is used to  instruct Metatheory how to recompose 
 # a similar expression, given a `head` (the result of `operation`), some children (given by `arguments`) 
-# and additionally, `metadata` and `exprehead`, in case you are recomposing an `Expr`.
+# and additionally, `metadata` and `exprhead`, in case you are recomposing an `Expr`.
 function TermInterface.similarterm(x::MyExpr, head, args; metadata = nothing, exprhead = :call)
   MyExpr(head, args, isnothing(metadata) ? "" : metadata)
 end
