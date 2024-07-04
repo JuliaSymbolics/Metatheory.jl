@@ -25,7 +25,7 @@ function match_compile(p::AbstractPat, pvars)
 
   state = MatchCompilerState(; pvars_bound = fill(false, npvars))
 
-  # Tree cordinates are a vector of integers.
+  # Tree coordinates are a vector of integers.
   # Each index `i` in the vector corresponds to the depth of the term 
   # Each value `n` at index `i` selects the `n`-th children of the term at depth i
   # Example: in f(x, g(y, k, h(z))), to get z the coordinate is [2,3,1]
