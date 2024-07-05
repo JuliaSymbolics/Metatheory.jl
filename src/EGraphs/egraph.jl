@@ -118,8 +118,8 @@ mutable struct EGraph{ExpressionType,Analysis}
   uf::UnionFind
   "map from eclass id to eclasses"
   classes::Dict{IdKey,EClass{Analysis}}
-  "hashcons mapping e-node hashes to their e-class id"
-  memo::Dict{IdKey,Id}
+  "hashcons mapping e-nodes to their e-class id"
+  memo::Dict{VecExpr,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
@@ -143,7 +143,7 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
     Dict{IdKey,EClass{Analysis}}(),
-    Dict{IdKey,Id}(),
+    Dict{VecExpr,Id}(),
     Dict{UInt64,Any}(),
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
@@ -254,7 +254,7 @@ function lookup(g::EGraph, n::VecExpr)::Id
   canonicalize!(g, n)
   h = IdKey(v_hash(n))
 
-  haskey(g.memo, h) ? find(g, g.memo[h]) : 0
+  haskey(g.memo, n) ? find(g, g.memo[n]) : 0
 end
 
 
@@ -272,9 +272,8 @@ Inserts an e-node in an [`EGraph`](@ref)
 """
 function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)::Id where {ExpressionType,Analysis}
   canonicalize!(g, n)
-  h = IdKey(v_hash(n))
 
-  haskey(g.memo, h) && return g.memo[h]
+  haskey(g.memo, n) && return g.memo[n]
 
   if should_copy
     n = copy(n)
@@ -288,7 +287,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
     end
   end
 
-  g.memo[h] = id
+  g.memo[n] = id
 
   add_class_by_op(g, n, id)
   eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
@@ -338,7 +337,7 @@ function addexpr!(g::EGraph, se)::Id
     end
     n
   else # constant enode
-    Id[Id(0), Id(0), Id(0), add_constant!(g, e)]
+    VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)])
   end
   id = add!(g, n, false)
   return id
@@ -432,10 +431,9 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     while !isempty(g.pending)
       (node::VecExpr, eclass_id::Id) = pop!(g.pending)
       canonicalize!(g, node)
-      h = IdKey(v_hash(node))
-      if haskey(g.memo, h)
-        old_class_id = g.memo[h]
-        g.memo[h] = eclass_id
+      if haskey(g.memo, node)
+        old_class_id = g.memo[node]
+        g.memo[node] = eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
@@ -485,7 +483,7 @@ function check_memo(g::EGraph)::Bool
 
   for (node, id) in test_memo
     @assert id == find(g, id)
-    @assert id == find(g, g.memo[IdKey(v_hash(node))])
+    @assert id == find(g, g.memo[node])
   end
 
   true
