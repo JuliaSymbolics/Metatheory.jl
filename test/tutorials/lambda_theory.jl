@@ -4,7 +4,7 @@ using Metatheory, Test, TermInterface
 #
 # This tutorial demonstrates how to implement a simple lambda calculus in Metatheory.
 # Importantly, it shows a practical example of [*e-graph analysis*](/egraphs/#EGraph-Analyses).
-# The three building blocks of lambda caluclus are *variables*, $\lambda$-functions, and *function
+# The three building blocks of lambda calculus are *variables*, $\lambda$-functions, and *function
 # application*, which we can implement as subtypes of an abstract `LambdaExpr`ession:
 
 abstract type LambdaExpr end
