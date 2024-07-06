@@ -2,6 +2,7 @@ module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
+using Metatheory: Metatheory
 
 using Metatheory: alwaystrue, cleanast, ematch_compile, match_compile
 
@@ -403,7 +404,7 @@ macro rule(args...)
     rhs_rewritten = rewrite_rhs(r)
     rhs_original = makeconsequent(rhs_rewritten)
     params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
-    rhs = :($(esc(params)) -> $(esc(rhs_original)))
+    rhs = :($(params) -> $(esc(rhs_original)))
   else
     rhs = makepattern(r, pvars, slots, __module__)
     setdebrujin!(rhs, pvars)
@@ -429,7 +430,7 @@ macro rule(args...)
   # FIXME => is not a function we have to use |>
   op = (op == :(=>)) ? :(|>) : op
 
-  quote
+  ex = quote
     $(__source__)
     RewriteRule(;
       name = $rule_name,
@@ -445,6 +446,8 @@ macro rule(args...)
       rhs_original = $(QuoteNode(rhs_original)),
     )
   end
+  @show ex
+  ex
 end
 
 
@@ -474,6 +477,10 @@ julia> v = [
 ```
 """
 macro theory(args...)
+  esc(_theory(args...))
+end
+
+function _theory(args...)
   length(args) >= 1 || ArgumentError("@theory requires at least one argument")
   slots = args[1:(end - 1)]
   expr = args[end]
@@ -492,11 +499,8 @@ macro theory(args...)
     end
   end
   # ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots))...)
-  ee = Expr(:ref, RewriteRule, rules...)
-
-  esc(ee)
+  Expr(:ref, RewriteRule, rules...)
 end
-
 
 
 """
@@ -559,6 +563,18 @@ macro capture(args...)
   end
   ret
 end
+
+macro match(target, rules)
+  @show target
+  println(target)
+  println(rules)
+  t = _theory(:_, rules)
+  quote
+    $(Metatheory.Rewriters.RestartedChain)($t)($(esc(target)))
+  end
+end
+
+export @match
 
 
 end

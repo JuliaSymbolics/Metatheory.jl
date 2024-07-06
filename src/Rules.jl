@@ -86,7 +86,7 @@ const DynamicRule = RewriteRule{typeof(|>)}
 
 is_bidirectional(r::RewriteRule) = r.op in (==, !=)
 
-# TODO equivalence up-to debrujin index
+# TODO equivalence up-to debruijn index
 Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
 
 function Base.show(io::IO, r::RewriteRule)
