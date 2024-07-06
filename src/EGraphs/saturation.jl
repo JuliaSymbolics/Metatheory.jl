@@ -136,29 +136,6 @@ function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add!(g, p.n, true)
 end
 
-function apply_rule!(buf, g::EGraph, rule::DirectedRule, id, ::Int)::Tuple{Union{Symbol,Nothing},Id,Id}
-  new_id::Id = instantiate_enode!(buf, g, rule.right)
-  nothing, new_id, id
-end
-
-function apply_rule!(bindings, g::EGraph, rule::EqualityRule, id::Id, direction::Int)
-  pat_to_inst = direction == 1 ? rule.right : rule.left
-  new_id = instantiate_enode!(bindings, g, pat_to_inst)
-  nothing, new_id, id
-end
-
-
-function apply_rule!(bindings, g::EGraph, rule::UnequalRule, id::Id, direction::Int)
-  pat_to_inst = direction == 1 ? rule.right : rule.left
-  other_id = instantiate_enode!(bindings, g, pat_to_inst)
-
-  if find(g, id) == find(g, other_id)
-    @debug "$rule produced a contradiction!"
-    return :contradiction, 0, 0
-  end
-  nothing, 0, 0
-end
-
 """
 Instantiate argument for dynamic rule application in e-graph
 """
@@ -174,11 +151,38 @@ function instantiate_actual_param!(bindings, g::EGraph, i)
   return eclass
 end
 
-function apply_rule!(bindings, g::EGraph, rule::DynamicRule, id::Id, ::Int)
-  r = rule.right(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
-  isnothing(r) && return (nothing, 0, 0)
-  rcid = addexpr!(g, r)
-  nothing, rcid, id
+
+struct RuleApplicationResult
+  halt_reason::Symbol
+  l::Id
+  r::Id
+end
+
+function apply_rule!(bindings, g::EGraph, rule::RewriteRule, id, direction::Int)::RuleApplicationResult
+  if rule.op === (-->) # DirectedRule
+    new_id::Id = instantiate_enode!(bindings, g, rule.right)
+    RuleApplicationResult(:nothing, new_id, id)
+  elseif rule.op === (==) # EqualityRule
+    pat_to_inst = direction == 1 ? rule.right : rule.left
+    new_id = instantiate_enode!(bindings, g, pat_to_inst)
+    RuleApplicationResult(:nothing, new_id, id)
+  elseif rule.op === (!=) # UnequalRule
+    pat_to_inst = direction == 1 ? rule.right : rule.left
+    other_id = instantiate_enode!(bindings, g, pat_to_inst)
+
+    if find(g, id) == find(g, other_id)
+      @debug "$rule produced a contradiction!"
+      return RuleApplicationResult(:contradiction, 0, 0)
+    end
+    RuleApplicationResult(:nothing, 0, 0)
+  elseif rule.op === (|>) # DynamicRule
+    r = rule.right(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
+    isnothing(r) && return RuleApplicationResult(nothing, 0, 0)
+    rcid = addexpr!(g, r)
+    RuleApplicationResult(:nothing, rcid, id)
+  else
+    RuleApplicationResult(:error, 0, 0)
+  end
 end
 
 const CHECK_GOAL_EVERY_N_MATCHES = 20
@@ -228,11 +232,11 @@ function eqsat_apply!(
 
     bindings = @view ematch_buffer.v[(next_delimiter_idx + 2):n]
 
-    halt_reason, l_id, r_id = apply_rule!(bindings, g, rule, id, direction)
+    res = apply_rule!(bindings, g, rule, id, direction)
 
     k = next_delimiter_idx
-    if !isnothing(halt_reason)
-      rep.reason = halt_reason
+    if res.halt_reason !== :nothing
+      rep.reason = res.halt_reason
       return
     end
 
@@ -242,7 +246,7 @@ function eqsat_apply!(
       break
     end
 
-    l_id !== 0 && r_id !== 0 && union!(g, l_id, r_id)
+    res.l !== 0 && res.r !== 0 && union!(g, res.l, res.r)
   end
   if params.goal(g)
     @debug "Goal reached"
