@@ -112,7 +112,7 @@ function eqsat_search!(
 end
 
 function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
-  add_constant!(g, p.value)
+  add_constant_hashed!(g, p.value, v_head(p.n))
   add!(g, p.n, true)
 end
 
@@ -158,7 +158,13 @@ struct RuleApplicationResult
   r::Id
 end
 
-function apply_rule!(bindings, g::EGraph, rule::RewriteRule, id, direction::Int)::RuleApplicationResult
+function apply_rule!(
+  bindings::SubArray{UInt128,1,Vector{UInt128},Tuple{UnitRange{Int64}},true},
+  g::EGraph,
+  rule::RewriteRule,
+  id::Id,
+  direction::Int,
+)::RuleApplicationResult
   if rule.op === (-->) # DirectedRule
     new_id::Id = instantiate_enode!(bindings, g, rule.right)
     RuleApplicationResult(:nothing, new_id, id)
@@ -266,10 +272,10 @@ Core algorithm of the library: the equality saturation step.
 function eqsat_step!(
   g::EGraph,
   theory::Theory,
-  curr_iter,
+  curr_iter::Int,
   scheduler::AbstractScheduler,
   params::SaturationParams,
-  report,
+  report::SaturationReport,
   ematch_buffer::OptBuffer{UInt128},
 )
 
