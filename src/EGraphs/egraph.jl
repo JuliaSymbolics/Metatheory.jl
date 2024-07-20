@@ -476,7 +476,8 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       if haskey(g.memo, node)
         old_class_id = g.memo[node]
         g.memo[node] = eclass_id
-        did_something = union!(g, old_class_id, eclass_id)
+        # any_new_rhs should be false
+        did_something = union!(g, old_class_id, eclass_id, 0) # By congruence
         # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
         n_unions += did_something
