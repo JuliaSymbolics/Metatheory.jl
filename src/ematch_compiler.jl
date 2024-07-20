@@ -44,11 +44,11 @@ function ematch_compile(p, pvars, direction)
 
   quote
     function ($(gensym("ematcher")))(
-      g::EGraph,
+      g::$(Metatheory.EGraphs.EGraph),
       rule_idx::Int,
-      root_id::Id,
-      stack::OptBuffer{UInt16},
-      ematch_buffer::OptBuffer{UInt128},
+      root_id::$(Metatheory.Id),
+      stack::$(Metatheory.OptBuffer){UInt16},
+      ematch_buffer::$(Metatheory.OptBuffer){UInt128},
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)

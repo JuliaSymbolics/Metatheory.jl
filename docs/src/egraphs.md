@@ -137,7 +137,7 @@ Given a starting e-graph `g`, a set of rewrite rules `t` and some parameters `p`
 * For each rule in `t`, search through the e-graph for l.h.s.
 * For each match produced, apply the rewrite
 * Do a bottom-up traversal of the e-graph to rebuild the congruence closure
-* If the e-graph hasn’t changed from last iteration, it has saturated. If so, halt saturation.
+* If the e-graph hasn't changed from last iteration, it has saturated. If so, halt saturation.
 * Loop at most n times.
 
 Note that knowing if an expression with a set of rules saturates an e-graph or never terminates

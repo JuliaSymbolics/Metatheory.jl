@@ -2,6 +2,7 @@ module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
+using Metatheory: Metatheory
 
 using Metatheory: alwaystrue, cleanast, ematch_compile, match_compile
 
@@ -240,10 +241,10 @@ Creates a `RewriteRule` object. A rule object is callable, and takes an
 expression and rewrites it if it matches the LHS pattern to the RHS pattern,
 returns `nothing` otherwise. The rule language is described below.
 
-LHS can be any possibly nested function call expression where any of the arugments can
+LHS can be any possibly nested function call expression where any of the arguments can
 optionally be a Slot (`~x`) or a Segment (`~x...`) (described below).
 
-SLOTS is an optional list of symbols to be interpeted as slots or segments
+SLOTS is an optional list of symbols to be interpreted as slots or segments
 directly (without using `~`).  To declare slots for several rules at once, see
 the `@slots` macro.
 
@@ -474,6 +475,10 @@ julia> v = [
 ```
 """
 macro theory(args...)
+  esc(_theory(args...))
+end
+
+function _theory(args...)
   length(args) >= 1 || ArgumentError("@theory requires at least one argument")
   slots = args[1:(end - 1)]
   expr = args[end]
@@ -492,11 +497,8 @@ macro theory(args...)
     end
   end
   # ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots))...)
-  ee = Expr(:ref, RewriteRule, rules...)
-
-  esc(ee)
+  Expr(:ref, RewriteRule, rules...)
 end
-
 
 
 """
@@ -559,6 +561,18 @@ macro capture(args...)
   end
   ret
 end
+
+macro match(target, rules)
+  # @show target
+  # println(target)
+  # println(rules)
+  t = _theory(:_, rules)
+  quote
+    $(Metatheory.Rewriters.RestartedChain)($t)($(esc(target)))
+  end
+end
+
+export @match
 
 
 end

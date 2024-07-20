@@ -86,19 +86,16 @@ const DynamicRule = RewriteRule{typeof(|>)}
 
 is_bidirectional(r::RewriteRule) = r.op in (==, !=)
 
-# TODO equivalence up-to debrujin index
+# TODO equivalence up-to debruijn index
 Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
 
 function Base.show(io::IO, r::RewriteRule)
-  if r.op == (|>) # Is dynamic rule, replace with =>
-    print(io, :($(r.left) => $(r.rhs_original)))
-  else
-    print(io, :($(nameof(r.op))($(r.left), $(r.right))))
-  end
-
-  if !isempty(r.name)
-    print(io, "\t#= $(r.name) =#")
-  end
+  print(io, r.left)
+  print(io, " ")
+  print(io, r.op == (|>) ? :(=>) : String(nameof(r.op)))
+  print(io, " ")
+  print(io, r.rhs_original)
+  isempty(r.name) || print(io, "\t#= $(r.name) =#")
 end
 
 
