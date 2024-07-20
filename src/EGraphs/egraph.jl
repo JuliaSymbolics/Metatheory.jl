@@ -97,6 +97,8 @@ end
 Base.hash(a::IdKey, h::UInt) = xor(a.val, h)
 Base.:(==)(a::IdKey, b::IdKey) = a.val == b.val
 
+include("proof.jl")
+
 """
     EGraph{ExpressionType,Analysis}
 
@@ -114,12 +116,24 @@ See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
 """
 mutable struct EGraph{ExpressionType,Analysis}
+  # TODO use Base.@kwdef without clashing methods below
   "stores the equality relations over e-class ids"
   uf::UnionFind
   "map from eclass id to eclasses"
   classes::Dict{IdKey,EClass{Analysis}}
-  "hashcons mapping e-nodes to their e-class id"
+  "hashcons mapping e-node hashes to their e-class id"
   memo::Dict{VecExpr,Id}
+  """
+  Stores the original e-nodes at the index of their uncanonical id.
+  The uncanonical id of an e-node, is the id of the e-class it was originally added to.
+  Since new eclasses are created with a fresh id every time a node is added to the e-graph,
+  that id will be the uncanonical id for a given e-node. The e-class id will instead change 
+  to the canonical one, if the newly added e-class containing a single node is merged 
+  to another e-class, which happens at the merge phase of the application equality saturation step. 
+  """
+  nodes::Vector{VecExpr}
+  "If proofs are enabled, this holds the `EGraphProof` additional unionfind."
+  proof::Union{EGraphProof,Nothing}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
@@ -139,11 +153,13 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
+function EGraph{ExpressionType,Analysis}(; needslock::Bool = false, proof::Bool = false) where {ExpressionType,Analysis}
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
     Dict{IdKey,EClass{Analysis}}(),
     Dict{VecExpr,Id}(),
+    VecExpr[],
+    proof ? EGraphProof() : nothing,
     Dict{UInt64,Any}(),
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
@@ -215,6 +231,17 @@ function Base.show(io::IO, g::EGraph)
 end
 
 
+function print_proof(g::EGraph)
+  # Print memo 
+  println("explain_find:")
+  println.(g.proof.explain_find)
+  println("uncanon_memo: ")
+  for (n, id) in g.proof.uncanon_memo
+    println("\t", to_expr(g, n), " => ", reinterpret(Int, id))
+  end
+end
+export print_proof
+
 """
 Returns the canonical e-class id for a given e-class.
 """
@@ -280,6 +307,8 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   end
 
   id = push!(g.uf) # create new singleton eclass
+  @assert length(g.nodes) == id - 1
+  push!(g.nodes, n)
 
   if v_isexpr(n)
     for c_id in v_children(n)
@@ -294,6 +323,10 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
   push!(g.pending, n => id)
+
+  if !isnothing(g.proof)
+    add!(g.proof, n, id, id)
+  end
 
   return id
 end
@@ -345,12 +378,16 @@ end
 
 """
 Given an [`EGraph`](@ref) and two e-class ids, set
-the two e-classes as equal.
+the two e-classes as equal. `rule_idx` argument is optional, it's used in 
+proof production to justify why two e-classes were merged together.
+By default `rule_idx` is equal to 0, and it means that if proofs are enabled, 
+then the union was performed by congruence closure invariant maintenance (rebuilding). 
 """
 function Base.union!(
   g::EGraph{ExpressionType,AnalysisType},
   enode_id1::Id,
   enode_id2::Id,
+  rule_idx::Int = 0,
 )::Bool where {ExpressionType,AnalysisType}
   g.clean = false
 
@@ -358,10 +395,15 @@ function Base.union!(
   id_2 = IdKey(find(g, enode_id2))
 
   id_1 == id_2 && return false
+  # TODO if ids already equal should add an alternate rewrite call to proof.
 
   # Make sure class 2 has fewer parents
   if length(g.classes[id_1].parents) < length(g.classes[id_2].parents)
     id_1, id_2 = id_2, id_1
+  end
+
+  if !isnothing(g.proof)
+    union!(g.proof, enode_id1, enode_id2, rule_idx)
   end
 
   union!(g.uf, id_1.val, id_2.val)
@@ -434,7 +476,8 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       if haskey(g.memo, node)
         old_class_id = g.memo[node]
         g.memo[node] = eclass_id
-        did_something = union!(g, old_class_id, eclass_id)
+        # any_new_rhs should be false
+        did_something = union!(g, old_class_id, eclass_id, 0) # By congruence
         # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
         n_unions += did_something
