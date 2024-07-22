@@ -101,12 +101,19 @@ offset_so_far(segments) = foldl(
   init = 0,
 )
 
-
 function get_coord(coordinate, segments_so_far)
   isempty(coordinate) && return :_term_being_matched
+  coord_obj = get_coord_obj(coordinate)
+  coord = get_idx(coordinate, segments_so_far)
+  quote
+    $coord <= length($coord_obj) || @goto backtrack
+    $(coord_obj)[$coord]
+  end
+end
 
+function get_coord_obj(coordinate)
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
-  :($(Symbol(tsym, :_args))[$(get_idx(coordinate, segments_so_far))])
+  Symbol(tsym, :_args)
 end
 
 get_idx(coordinate, segments_so_far) = :($(last(coordinate)) + $(offset_so_far(segments_so_far)))

@@ -4,7 +4,7 @@ using TermInterface
 using AutoHashEquals
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: OptBuffer, match_compile
+using Metatheory: OptBuffer
 
 export RewriteRule,
   DirectedRule,

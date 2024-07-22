@@ -234,6 +234,17 @@ end
   @test sf == :(ok(1, 2, 2, yeah(4, 4), 6, 7))
 end
 
+@testset "Correctly checking bounds" begin
+  expr = :(-a - b)
+  r = @rule a b c (a - b) - c --> a - (b + c)
+  @test isnothing(r(expr))
+
+
+  expr = :(f(g(a, a), b))
+  r = @rule a b c f(g(a), c) --> a
+  @test isnothing(r(expr))
+end
+
 module NonCall
 using Metatheory, TermInterface
 t = [@rule a b (a, b) --> ok(a, b)]
