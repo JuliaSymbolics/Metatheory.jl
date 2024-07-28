@@ -183,7 +183,7 @@ function apply_rule!(
     RuleApplicationResult(:nothing, 0, 0)
   elseif rule.op === (|>) # DynamicRule
     r = rule.right(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
-    isnothing(r) && return RuleApplicationResult(nothing, 0, 0)
+    isnothing(r) && return RuleApplicationResult(:nothing, 0, 0)
     rcid = addexpr!(g, r)
     RuleApplicationResult(:nothing, rcid, id)
   else
