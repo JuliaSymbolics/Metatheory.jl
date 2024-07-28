@@ -252,7 +252,7 @@ function eqsat_apply!(
       break
     end
 
-    res.l !== 0 && res.r !== 0 && union!(g, res.l, res.r)
+    !iszero(res.l) && !iszero(res.r) && union!(g, res.l, res.r)
   end
   if params.goal(g)
     @debug "Goal reached"
