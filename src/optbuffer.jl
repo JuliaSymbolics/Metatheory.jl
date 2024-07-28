@@ -34,3 +34,4 @@ end
 Base.isempty(b::OptBuffer{T}) where {T} = b.i === 0
 Base.empty!(b::OptBuffer{T}) where {T} = (b.i = 0)
 @inline Base.length(b::OptBuffer{T}) where {T} = b.i
+Base.iterate(b::OptBuffer{T}, i=1) where {T} = iterate(b.v[1:b.i], i)
