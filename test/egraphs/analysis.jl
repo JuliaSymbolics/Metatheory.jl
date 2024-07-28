@@ -111,3 +111,15 @@ end
 
 end
 
+
+
+@testset "Conditional Dynamic Rule" begin
+  g = EGraph{Expr,NumberFoldAnalysis}()
+
+  theo_dyn_cond = @theory a begin
+    a => !isnothing(a.data) ? a.data.n : nothing # awkward rule to trigger a certain branch in saturation.jl
+  end
+
+  @test !test_equality(theo_dyn_cond, :x, :y, :z; g)
+  @test !test_equality(theo_dyn_cond, 0, 1, 2; g)
+end
