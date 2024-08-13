@@ -1,13 +1,16 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
+##############################################
+# Interface to implement for custom analyses #
+##############################################
 
 """
     modify!(eclass::EClass{Analysis})
 
 The `modify!` function for EGraph Analysis can optionally modify the eclass
 `eclass` after it has been analyzed, typically by adding an e-node.
-It should be **idempotent** if no other changes occur to the EClass. 
+It should be **idempotent** if no other changes occur to the EClass.
 (See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
 """
 function modify! end
@@ -24,10 +27,13 @@ function join end
 """
     make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
 
-Given an e-node `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
+############
+# EClasses #
+############
 
 """
     EClass{D}
@@ -36,7 +42,7 @@ An `EClass` is an equivalence class of terms.
 
 The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, which
 means that without a reference to the [`EGraph`](@ref) object we cannot re-build human-readable terms
-they represent. The [`EGraph`](@ref) itself comes with pretty printing for human-readable terms.
+they represent. The [`EGraph`](@ref) itself comes with pretty printing for humean-readable terms.
 """
 struct EClass{D}
   id::Id
@@ -68,7 +74,15 @@ function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
   push!(a.parents, (n => id))
 end
 
+"""
+    merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
 
+Returns a tuple of: `(did_update_a, did_update_b, newdata)` where:
+
+- `did_update_a` is a boolean indicating whether `a`'s analysis class was updated
+- `did_update_b` is a boolean indicating whether `b`'s analysis class was updated
+- `newdata` is the merged analysis data
+"""
 function merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
   if !isnothing(a.data) && !isnothing(b.data)
     new_a_data = join(a.data, b.data)
@@ -94,7 +108,14 @@ Trick from: https://discourse.julialang.org/t/dictionary-with-custom-hash-functi
 struct IdKey
   val::Id
 end
+
+"""
+Recall that `Base.hash` combines an existing "seed" (h) with a new value (a).
+
+In this case, we just use bitwise XOR; very cheap!
+"""
 Base.hash(a::IdKey, h::UInt) = xor(a.val, h)
+
 Base.:(==)(a::IdKey, b::IdKey) = a.val == b.val
 
 """
@@ -114,16 +135,42 @@ See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for implementation details.
 """
 mutable struct EGraph{ExpressionType,Analysis}
-  "stores the equality relations over e-class ids"
+  """
+  stores the equality relations over e-class ids
+
+  The `(potentially non-root id) --> (root id)` mapping.
+  """
   uf::UnionFind
-  "map from eclass id to eclasses"
+
+  """
+  map from eclass id to eclasses
+
+  The `(root id) --> e-class` mapping.
+  """
   classes::Dict{IdKey,EClass{Analysis}}
-  "hashcons mapping e-nodes to their e-class id"
+
+  """
+  hashcons mapping e-nodes to their e-class id
+
+  The `e-node --> (potentially non-root id)` mapping.
+  """
   memo::Dict{VecExpr,Id}
-  "Hashcons the constants in the e-graph"
+
+  """
+  hashcons the constants in the e-graph
+
+  For performance reasons, the "head" of an e-node is hashed and the
+  value is stored in this Dict.
+  """
   constants::Dict{UInt64,Any}
-  "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
+
+  """
+  Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass.
+  """
   pending::Vector{Pair{VecExpr,Id}}
+
+  """
+  """
   analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
   root::Id
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
@@ -301,7 +348,7 @@ end
 
 """
 Extend this function on your types to do preliminary
-preprocessing of a symbolic term before adding it to 
+preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """
@@ -329,7 +376,7 @@ function addexpr!(g::EGraph, se)::Id
     h = iscall(e) ? operation(e) : head(e)
     v_set_head!(n, add_constant!(g, h))
 
-    # get the signature from op and arity 
+    # get the signature from op and arity
     v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
 
     for i in v_children_range(n)
