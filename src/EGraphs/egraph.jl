@@ -1,9 +1,9 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
-##############################################
-# Interface to implement for custom analyses #
-##############################################
+# ==============================================================
+# Interface to implement for custom analyses
+# ==============================================================
 
 """
     modify!(eclass::EClass{Analysis})
@@ -31,9 +31,9 @@ Given an e-node `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
-############
-# EClasses #
-############
+# ==============================================================
+# EClasses
+# ==============================================================
 
 """
     EClass{D}
@@ -132,13 +132,17 @@ not necessarily very informative, but you can access the terms of each e-node
 via `Metatheory.to_expr`.
 
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
-for implementation details.
+for implementation details. Of special notice is the e-graph invariants,
+and when they do or do not hold. One of the main innovations of `egg` was to
+"batch" the maintenance of the e-graph invariants. We use the `clean` field
+on this struct to keep track of whether there is pending work to do in order
+to re-establish the e-graph invariants.
 """
 mutable struct EGraph{ExpressionType,Analysis}
   """
   stores the equality relations over e-class ids
 
-  The `(potentially non-root id) --> (root id)` mapping.
+  More specifically, the `(potentially non-root id) --> (root id)` mapping.
   """
   uf::UnionFind
 
@@ -170,12 +174,27 @@ mutable struct EGraph{ExpressionType,Analysis}
   pending::Vector{Pair{VecExpr,Id}}
 
   """
+  When an e-node is added to an e-graph for the first time, we add analysis data to the
+  newly-created e-class by calling [`make`]() on the head of the e-node and the analysis
+  data for the arguments to that e-node. However, the analysis data for the arguments to
+  that e-node could get updated at some point, as e-classes are merged.
+
+  This is a queue for e-nodes which have had the analysis of some of their arguments
+  updated, but have not updated the analysis of their parent e-class yet.
   """
   analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
+
+  """
+  The Id of the e-class that we have built this e-graph to simplify.
+  """
   root::Id
+
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
   classes_by_op::Dict{IdKey,Vector{Id}}
+
+  "do we need to do extra work in order to re-establish the e-graph invariants"
   clean::Bool
+
   "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
   lock::ReentrantLock
@@ -219,6 +238,8 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
+
+# Why does one of these use `get!` and the other use `setindex!`?
 
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
   h = hash(c)
@@ -286,13 +307,17 @@ Returns the canonical e-class id for a given e-class.
 #   new_n
 # end
 
+"""
+Make sure all of the arguments of `n` point to root nodes in the unionfind
+data structure for `g`.
+"""
 function canonicalize!(g::EGraph, n::VecExpr)
-  v_isexpr(n) || @goto ret
-  for i in (VECEXPR_META_LENGTH + 1):length(n)
-    @inbounds n[i] = find(g, n[i])
+  if v_isexpr(n)
+    for i in (VECEXPR_META_LENGTH + 1):length(n)
+        @inbounds n[i] = find(g, n[i])
+    end
+    v_unset_hash!(n)
   end
-  v_unset_hash!(n)
-  @label ret
   v_hash!(n)
   n
 end
@@ -391,8 +416,9 @@ function addexpr!(g::EGraph, se)::Id
 end
 
 """
-Given an [`EGraph`](@ref) and two e-class ids, set
-the two e-classes as equal.
+Given an [`EGraph`](@ref) and two e-class ids, merge the two corresponding e-classes.
+
+This includes merging the analysis data of the e-classes.
 """
 function Base.union!(
   g::EGraph{ExpressionType,AnalysisType},
@@ -435,6 +461,9 @@ function Base.union!(
   return true
 end
 
+"""
+Returns whether all of `ids...` are the same e-class in `g`.
+"""
 function in_same_class(g::EGraph, ids::Id...)::Bool
   nids = length(ids)
   nids == 1 && return true
@@ -563,7 +592,9 @@ end
 
 # Thanks to Max Willsey and Yihong Zhang
 
-
+"""
+Look up a grounded pattern.
+"""
 function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   @assert isground(p)
 
