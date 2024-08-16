@@ -12,7 +12,8 @@ function test(file::String)
   end
 end
 
-allscripts(dir) = [joinpath(@__DIR__, dir, x) for x in readdir(dir) if endswith(x, ".jl")]
+allscripts(dir) =
+  [joinpath(@__DIR__, dir, x) for x in readdir(joinpath(@__DIR__, dir)) if endswith(x, ".jl")]
 
 const TEST_FILES = [
   allscripts("unit")
