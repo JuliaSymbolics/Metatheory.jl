@@ -72,7 +72,7 @@ end
 function merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
   if !isnothing(a.data) && !isnothing(b.data)
     new_a_data = join(a.data, b.data)
-    (a.data == new_a_data, b.data == new_a_data, new_a_data)
+    (a.data != new_a_data, b.data != new_a_data, new_a_data)
   elseif isnothing(a.data) && !isnothing(b.data)
     # a merged, b not merged
     (true, false, b.data)
@@ -508,7 +508,7 @@ function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
   # @assert check_memo(g)
-  # @assert check_analysis(g)
+  @assert check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
