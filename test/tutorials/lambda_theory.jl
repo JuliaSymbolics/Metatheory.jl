@@ -188,6 +188,7 @@ ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
 saturate!(g, λT)
 @test λ(:a₄, Apply(y, Variable(:a₄))) == extract!(g, astsize)
+@test Set([:y]) == g[g.root].data
 
 
 # With the above we can implement, for example, Church numerals.
@@ -213,8 +214,30 @@ params = SaturationParams(
 saturate!(g, λT, params)
 two_ = extract!(g, astsize)
 @test two_ == λ(:x, λ(:y, Apply(Variable(:x), Apply(Variable(:x), Variable(:y)))))
+@test g[g.root].data == Set([])
 two_
 
 # which is the same as `two` up to $\alpha$-conversion:
 
 two
+
+# check semantic analysis for free variables
+function test_free_variable_analysis(expr, free)
+  g = EGraph{LambdaExpr,LambdaAnalysis}(expr)
+  g[g.root].data == free
+end
+
+@test test_free_variable_analysis(Variable(:x), Set([:x]))
+@test test_free_variable_analysis(Apply(Variable(:x), Variable(:y)), Set([:x, :y]))
+@test test_free_variable_analysis(λ(:z, Variable(:x)), Set([:x]))
+@test test_free_variable_analysis(λ(:z, Variable(:z)), Set{Symbol}())
+@test test_free_variable_analysis(λ(:z, λ(:x, Variable(:x))), Set{Symbol}())
+
+let_expr = Let(:x, Variable(:z), λ(:x, Variable(:y)))
+@test test_free_variable_analysis(let_expr, Set([:z, :y]))
+# after saturation the expression becomes λ(:x, Variable(:y)) where only :y is left as free variable
+freshvar = fresh_var_generator()
+g = EGraph{LambdaExpr,LambdaAnalysis}(let_expr)
+saturate!(g, λT, params)
+@test extract!(g, astsize) == λ(:x, Variable(:y))
+@test g[g.root].data == Set([:y])
