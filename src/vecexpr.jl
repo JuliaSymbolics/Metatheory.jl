@@ -34,14 +34,12 @@ const Id = UInt64
     end
 
 An e-node is represented by `Vector{Id}` where:
-* Position 1 stores the hash of the `VecExpr`.
-* Position 2 stores the bit flags (`isexpr` or `iscall`).
-* Position 3 stores the signature
-* Position 4 stores the hash of the `head` (if `isexpr`) or node value in the e-graph constants.
+* Position 1 stores the bit flags (`isexpr` or `iscall`).
+* Position 2 stores the signature
+* Position 3 stores the hash of the `head` (if `isexpr`) or node value in the e-graph constants.
 * The rest of the positions store the e-class ids of the children nodes.
 
 The expression is represented as an array of integers to improve performance.
-The hash value for the VecExpr is cached in the first position for faster lookup performance in dictionaries.
 """
 struct VecExpr
   data::Vector{Id}
@@ -49,12 +47,12 @@ end
 
 const VECEXPR_FLAG_ISTREE = 0x01
 const VECEXPR_FLAG_ISCALL = 0x10
-const VECEXPR_META_LENGTH = 4
+const VECEXPR_META_LENGTH = 3
 
-@inline v_flags(n::VecExpr)::Id = @inbounds n.data[2]
-@inline v_unset_flags!(n::VecExpr) = @inbounds (n.data[2] = 0)
+@inline v_flags(n::VecExpr)::Id = @inbounds n.data[1]
+@inline v_unset_flags!(n::VecExpr) = @inbounds (n.data[1] = 0)
 @inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flags)
-@inline v_set_flag!(n::VecExpr, flag)::Id = @inbounds (n.data[2] = n.data[2] | flag)
+@inline v_set_flag!(n::VecExpr, flag)::Id = @inbounds (n.data[1] = n.data[1] | flag)
 
 """Returns `true` if the e-node ID points to a an expression tree."""
 @inline v_isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
@@ -65,33 +63,15 @@ const VECEXPR_META_LENGTH = 4
 """Number of children in the e-node."""
 @inline v_arity(n::VecExpr)::Int = length(n.data) - VECEXPR_META_LENGTH
 
-"""
-Compute the hash of a `VecExpr` and store it as the first element.
-"""
-@inline function v_hash!(n::VecExpr)::Id
-  if iszero(n.data[1])
-    n.data[1] = hash(@view n.data[2:end])
-  else
-    # h = hash(@view n[2:end])
-    # @assert h == n[1]
-    n.data[1]
-  end
-end
-
-"""The hash of the e-node."""
-@inline v_hash(n::VecExpr)::Id = @inbounds n.data[1]
-Base.hash(n::VecExpr) = v_hash(n) # IdKey not necessary here
-Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:end])
-
-"""Set e-node hash to zero."""
-@inline v_unset_hash!(n::VecExpr)::Id = @inbounds (n.data[1] = Id(0))
+Base.hash(n::VecExpr) = hash(n.data)
+Base.:(==)(a::VecExpr, b::VecExpr) = a.data == b.data
 
 """E-class IDs of the children of the e-node."""
 @inline v_children(n::VecExpr) = @view n.data[(VECEXPR_META_LENGTH + 1):end]
 
-@inline v_signature(n::VecExpr)::Id = @inbounds n.data[3]
+@inline v_signature(n::VecExpr)::Id = @inbounds n.data[2]
 
-@inline v_set_signature!(n::VecExpr, sig::Id) = @inbounds (n.data[3] = sig)
+@inline v_set_signature!(n::VecExpr, sig::Id) = @inbounds (n.data[2] = sig)
 
 "The constant ID of the operation of the e-node, or the e-node ."
 @inline v_head(n::VecExpr)::Id = @inbounds n.data[VECEXPR_META_LENGTH]
@@ -102,7 +82,6 @@ Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:en
 """Construct a new, empty `VecExpr` with `len` children."""
 @inline function v_new(len::Int)::VecExpr
   n = VecExpr(Vector{Id}(undef, len + VECEXPR_META_LENGTH))
-  v_unset_hash!(n)
   v_unset_flags!(n)
   n
 end

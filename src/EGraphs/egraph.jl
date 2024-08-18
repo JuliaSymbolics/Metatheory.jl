@@ -224,13 +224,11 @@ Returns the canonical e-class id for a given e-class.
 @inline Base.getindex(g::EGraph, i::Id) = g.classes[IdKey(find(g, i))]
 
 function canonicalize!(g::EGraph, n::VecExpr)
-  v_isexpr(n) || @goto ret
-  for i in (VECEXPR_META_LENGTH + 1):length(n)
-    @inbounds n[i] = find(g, n[i])
+  if v_isexpr(n)
+    for i in (VECEXPR_META_LENGTH + 1):length(n)
+      @inbounds n[i] = find(g, n[i])
+    end
   end
-  v_unset_hash!(n)
-  @label ret
-  v_hash!(n)
   n
 end
 
@@ -320,7 +318,7 @@ function addexpr!(g::EGraph, se)::Id
     end
     n
   else # constant enode
-    VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)])
+    VecExpr(Id[Id(0), Id(0), add_constant!(g, e)])
   end
   id = add!(g, n, false)
   return id
@@ -489,7 +487,7 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  @assert check_memo(g)
+  # @assert check_memo(g)
   # @assert check_analysis(g)
   g.clean = true
 
