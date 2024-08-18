@@ -473,9 +473,8 @@ function check_memo(g::EGraph)::Bool
   for (id, class) in g.classes
     @assert id.val == class.id
     for node in class.nodes
-      if haskey(test_memo, node)
-        old_id = test_memo[node]
-        test_memo[node] = id.val
+      old_id = get!(test_memo, node, id.val)
+      if old_id != id.val
         @assert find(g, old_id) == find(g, id.val) "Unexpected equivalence $node $(g[find(g, id.val)].nodes) $(g[find(g, old_id)].nodes)"
       end
     end
@@ -483,7 +482,7 @@ function check_memo(g::EGraph)::Bool
 
   for (node, id) in test_memo
     @assert id == find(g, id)
-    @assert id == find(g, g.memo[node])
+    @assert id == find(g, g.memo[node]) "Entry for $node at $id in test_memo was incorrect."
   end
 
   true
@@ -507,7 +506,7 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
+  @assert check_memo(g)
   # @assert check_analysis(g)
   g.clean = true
 
