@@ -488,7 +488,7 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
+  @assert check_memo(g)
   # @assert check_analysis(g)
   g.clean = true
 
