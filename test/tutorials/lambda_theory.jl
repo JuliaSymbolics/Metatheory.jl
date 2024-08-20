@@ -188,6 +188,7 @@ ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
 params = SaturationParams(
   timer = false,
+  check_memo = true,
   check_analysis = true
 )
 saturate!(g, λT, params)
@@ -214,6 +215,7 @@ params = SaturationParams(
   scheduler = Schedulers.BackoffScheduler,
   schedulerparams = (match_limit = 6000, ban_length = 5),
   timer = false,
+  check_memo = true,
   check_analysis = true
 )
 saturate!(g, λT, params)

@@ -36,8 +36,10 @@ Base.@kwdef mutable struct SaturationParams
   schedulerparams::NamedTuple = (;)
   threaded::Bool = false
   timer::Bool = true
-  check_memo::Bool = false # activate check of memoization of nodes (hashcons) after rebuilding
-  check_analysis::Bool = false # activate check of join-semilattice invariant for semantic analysis values after rebuilding
+  "Activate check for memoization of nodes (hashcons) after rebuilding"
+  check_memo::Bool = false
+  "Activate check for join-semilattice invariant for semantic analysis values after rebuilding"
+  check_analysis::Bool = false
 end
 
 function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
