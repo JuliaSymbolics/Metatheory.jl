@@ -290,7 +290,7 @@ function eqsat_step!(
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
-  @timeit report.to "Rebuild" rebuild!(g, params.check_memo, params.check_analysis)
+  @timeit report.to "Rebuild" rebuild!(g; should_check_memo = params.check_memo, should_check_analysis = params.check_analysis)
 
   Schedulers.rebuild!(scheduler)
 
