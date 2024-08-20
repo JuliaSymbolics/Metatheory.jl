@@ -186,7 +186,11 @@ x = Variable(:x)
 y = Variable(:y)
 ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
-saturate!(g, λT)
+params = SaturationParams(
+  timer = false,
+  check_analysis = true
+)
+saturate!(g, λT, params)
 @test λ(:a₄, Apply(y, Variable(:a₄))) == extract!(g, astsize)
 @test Set([:y]) == g[g.root].data
 
@@ -210,6 +214,7 @@ params = SaturationParams(
   scheduler = Schedulers.BackoffScheduler,
   schedulerparams = (match_limit = 6000, ban_length = 5),
   timer = false,
+  check_analysis = true
 )
 saturate!(g, λT, params)
 two_ = extract!(g, astsize)
