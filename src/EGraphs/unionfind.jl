@@ -1,4 +1,8 @@
 """
+    UnionFind()
+
+Creates a new empty unionfind.
+
 A unionfind data structure is an eventually-idempotent endomorphism on `1:n`.
 
 What does this mean? It is a function `parents : 1:n -> 1:n` such that
@@ -25,11 +29,6 @@ struct UnionFind
   parents::Vector{Id}
 end
 
-"""
-    UnionFind()
-
-Creates a new empty unionfind.
-"""
 UnionFind() = UnionFind(Id[])
 
 """
@@ -68,6 +67,40 @@ function Base.union!(uf::UnionFind, i::Id, j::Id)
   i
 end
 
+
+# Potential optimization:
+
+# ```julia
+# j = i
+# while j != uf.parents[j]
+#   j = uf.parents[j]
+# end
+# root = j
+# while i != uf.parents[i]
+#   uf.parents[i] = root
+#   i = uf.parents[i]
+# end
+# root
+# ```
+
+# This optimization sets up a "short-circuit". That is, before, the parents array
+# might be set up as
+
+# ```
+# 1 -> 5 -> 2 -> 3 -> 3
+# ```
+
+# After, we have
+
+# ```
+# 1 -> 3
+# 5 -> 3
+# 2 -> 3
+# 3 -> 3
+# ```
+
+# Note: why don't we do this optimization? Question for Alessandro.
+
 """
     find(uf::UnionFind, i::Id)
 
@@ -75,39 +108,6 @@ This computes the fixed point of `uf.parents` when applied to `i`.
 
 We know we are at a fixed point once `i == uf.parents[i]`. So, we continually
 set `i = uf.parents[i]` until this becomes true.
-
-Potential optimization:
-
-```julia
-j = i
-while j != uf.parents[j]
-  j = uf.parents[j]
-end
-root = j
-while i != uf.parents[i]
-  uf.parents[i] = root
-  i = uf.parents[i]
-end
-root
-```
-
-This optimization sets up a "short-circuit". That is, before, the parents array
-might be set up as
-
-```
-1 -> 5 -> 2 -> 3 -> 3
-```
-
-After, we have
-
-```
-1 -> 3
-5 -> 3
-2 -> 3
-3 -> 3
-```
-
-Note: why don't we do this optimization? Question for Alessandro.
 """
 function find(uf::UnionFind, i::Id)
   while i != uf.parents[i]

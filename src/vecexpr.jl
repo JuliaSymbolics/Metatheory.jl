@@ -40,22 +40,18 @@ An e-node is represented by `Vector{Id}` where:
 * Position 4 stores the hash of the `head` (if `isexpr`) or node value in the e-graph constants.
 * The rest of the positions store the e-class ids of the children nodes.
 
-The meaning of the bitflags `isexpr` and `iscall` can be best understood through looking at
-the source for `to_expr(g::EGraph, n::VecExpr)` in `src/EGraphs/egraph.jl`. Namely,
-e-nodes for which `isexpr` is false have no arguments; their only "data" is their head.
-E-nodes for which `isexpr` is true and `iscall` is also true correspond to
-`Expr(:call, head, args...)` expressions, and e-nodes for which `isexpr` is true but
-`iscall` is false correspond to `Expr(head, args...)` expressions. There should
-not be `VecExpr`s with `isexpr = false` but `iscall = true`.
+The bitflags `isexpr` and `iscall` corresponds to the values of `isexpr(e)::Boolean`
+and `iscall(e)::Boolean` from TermInterface. For instance, for `Expr`, we have
+`iscall(Expr(:call, f, args...)) = true`, `isexpr(Expr(head, args...)) = true`, but
+`iscall(Expr(:=, :a, :b)) = false` and `isexpr(2) = false`.
 
-The "signature" of an expression seems to in practice be computed as the hash of the head combined
-with the number of arguments (the arity). See: [`addexpr!`]() in `src/EGraphs/egraph.jl`.
-Perhaps in the future, signatures could also involve type information, e.g. to disambiguate
-overloaded heads? Signatures are used in the `classes_by_op` dictionary in a e-graph,
-so that when you are matching for `(a + b)` you can iterate over all of the e-classes
-that have some e-node with `(+, 2)` as its signature.
+The "signature" of an expression is computed as the hash of the head combined
+with the number of arguments (the arity). See: [`addexpr!`](@ref) in
+`src/EGraphs/egraph.jl`. Signatures are used in the `classes_by_op` dictionary
+in a e-graph, so that when you are matching for `(a + b)` you can iterate over
+all of the e-classes that have some e-node with `(+, 2)` as its signature.
 
-It also seems like the signature of a constant is `0`.
+The signature of a constant is `0`.
 
 The expression is represented as an array of integers to improve performance.
 The hash value for the VecExpr is cached in the first position for faster lookup performance in dictionaries.

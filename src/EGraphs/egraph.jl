@@ -77,6 +77,9 @@ end
 """
     merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
 
+This is an internal function and should not be called directly by users; this
+docstring is only for those who wish to understand Metatheory internals.
+
 Returns a tuple of: `(did_update_a, did_update_b, newdata)` where:
 
 - `did_update_a` is a boolean indicating whether `a`'s analysis class was updated
@@ -112,7 +115,9 @@ end
 """
 Recall that `Base.hash` combines an existing "seed" (h) with a new value (a).
 
-In this case, we just use bitwise XOR; very cheap!
+In this case, we just use bitwise XOR; very cheap! This is because
+[`IdKey`](@ref) is supposed to just hash to itself, so we don't need to do
+anything special to `a.val`.
 """
 Base.hash(a::IdKey, h::UInt) = xor(a.val, h)
 
@@ -163,8 +168,10 @@ mutable struct EGraph{ExpressionType,Analysis}
   """
   hashcons the constants in the e-graph
 
-  For performance reasons, the "head" of an e-node is hashed and the
-  value is stored in this Dict.
+  For performance reasons, the "head" of an e-node is stored in the e-node as a
+  hash (so that it fits in a flat vector of unsigned integers
+  ([`VecExpr`](@ref))) and this dictionary is used to get the actual Julia
+  object of the head when extracting terms.
   """
   constants::Dict{UInt64,Any}
 
@@ -593,7 +600,8 @@ end
 # Thanks to Max Willsey and Yihong Zhang
 
 """
-Look up a grounded pattern.
+Given a ground pattern, which is a pattern that has no pattern variables, find
+the eclass id in the egraph that represents that ground pattern.
 """
 function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   @assert isground(p)
