@@ -13,6 +13,7 @@ It should be **idempotent** if no other changes occur to the EClass.
 function modify! end
 
 
+
 """
     join(a::AnalysisType, b::AnalysisType)::AnalysisType
 
