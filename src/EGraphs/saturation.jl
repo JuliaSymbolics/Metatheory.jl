@@ -73,6 +73,7 @@ function eqsat_search!(
 
 
   @debug "SEARCHING"
+  stack = get_local_stack()
   for (rule_idx, rule) in enumerate(theory)
     prev_matches = n_matches
     @timeit report.to string(rule_idx) begin
@@ -87,14 +88,14 @@ function eqsat_search!(
 
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
-        n_matches += rule.ematcher_left!(g, rule_idx, i, get_local_stack(), ematch_buffer)
+        n_matches += rule.ematcher_left!(g, rule_idx, i, stack, ematch_buffer)
         inform!(scheduler, rule_idx, i, n_matches)
       end
 
       if is_bidirectional(rule)
         for i in ids_right
           cansearch(scheduler, rule_idx, i) || continue
-          n_matches += rule.ematcher_right!(g, rule_idx, i, get_local_stack(), ematch_buffer)
+          n_matches += rule.ematcher_right!(g, rule_idx, i, stack, ematch_buffer)
           inform!(scheduler, rule_idx, i, n_matches)
         end
       end

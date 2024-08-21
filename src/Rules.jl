@@ -29,14 +29,14 @@ Rules defined as with the --> are
 called *directed rewrite* rules. Application of a *directed rewrite* rule
 is a replacement of the `left` pattern with
 the `right` substitution, with the correct instantiation
-of pattern variables. 
+of pattern variables.
 
 ```julia
 @rule ~a * ~b --> ~b * ~a
 ```
 
-An *equational rule* is a symbolic substitution rule with operator `==` that 
-can be rewritten bidirectionally. Therefore, it can only be used 
+An *equational rule* is a symbolic substitution rule with operator `==` that
+can be rewritten bidirectionally. Therefore, it can only be used
 with the EGraphs backend.
 
 ```julia
@@ -45,7 +45,7 @@ with the EGraphs backend.
 
 Rules defined with the `!=` act as  *anti*-rules for checking contradictions in e-graph
 rewriting. If two terms, corresponding to the left and right hand side of an
-*anti-rule* are found in an `EGraph`, saturation is halted immediately. 
+*anti-rule* are found in an `EGraph`, saturation is halted immediately.
 
 ```julia
 !a != a
@@ -77,8 +77,14 @@ Base.@kwdef struct RewriteRule{Op<:Function}
   rhs_original = nothing
 end
 
-# Modeled off https://github.com/JuliaLang/julia/blob/bc4b2e848400764e389c825b57d1481ed76f4d85/stdlib/Random/src/RNGs.jl
 const THREAD_STACKS = OptBuffer{UInt16}[]
+"""
+Retrieve the per-thread stack thread used for program counters in matching.
+
+We need a stack for each thread so that multithreading works correctly.
+
+Modeled off [Julia's global RNG](https://github.com/JuliaLang/julia/blob/bc4b2e848400764e389c825b57d1481ed76f4d85/stdlib/Random/src/RNGs.jl)
+"""
 @inline get_local_stack() = get_local_stack(Threads.threadid())
 @noinline function get_local_stack(tid::Int)
   @assert 0 < tid <= length(THREAD_STACKS)
@@ -184,10 +190,10 @@ function Base.inv(r::RewriteRule)
 end
 
 """
-Turns an EqualityRule into a DirectedRule. For example, 
+Turns an EqualityRule into a DirectedRule. For example,
 
 ```julia
-direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x) 
+direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x)
 ```
 """
 function direct(r::EqualityRule)
@@ -195,10 +201,10 @@ function direct(r::EqualityRule)
 end
 
 """
-Turns an EqualityRule into a DirectedRule, but right to left. For example, 
+Turns an EqualityRule into a DirectedRule, but right to left. For example,
 
 ```julia
-direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x) 
+direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x)
 ```
 """
 direct_right_to_left(r::EqualityRule) = inv(direct(r))
