@@ -1,9 +1,6 @@
 name: Benchmark pull request
 
-on:
-  pull_request:
-    branches:
-      - master
+on: [pull_request]
 
 permissions:
   pull-requests: write
