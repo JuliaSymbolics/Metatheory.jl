@@ -304,28 +304,22 @@ function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
 
-  n = if isexpr(e)
-    args = iscall(e) ? arguments(e) : children(e)
-    ar = length(args)
-    n = v_new(ar)
-    v_set_flag!(n, VECEXPR_FLAG_ISTREE)
-    iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
 
-    h = iscall(e) ? operation(e) : head(e)
-    v_set_head!(n, add_constant!(g, h))
-
-    # get the signature from op and arity 
-    v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
-
-    for i in v_children_range(n)
-      @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
-    end
-    n
-  else # constant enode
-    VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)])
+  args = iscall(e) ? arguments(e) : children(e)
+  ar = length(args)
+  n = v_new(ar)
+  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+  iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  h = iscall(e) ? operation(e) : head(e)
+  v_set_head!(n, add_constant!(g, h))
+  # get the signature from op and arity
+  v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
+  for i in v_children_range(n)
+    @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
   end
-  id = add!(g, n, false)
-  return id
+
+  add!(g, n, false)
 end
 
 """
@@ -490,7 +484,7 @@ for more details.
 function rebuild!(g::EGraph)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
+  @assert check_memo(g)
   # @assert check_analysis(g)
   g.clean = true
 
