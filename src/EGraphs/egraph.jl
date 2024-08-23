@@ -237,7 +237,8 @@ end
 function lookup(g::EGraph, n::VecExpr)::Id
   canonicalize!(g, n)
 
-  haskey(g.memo, n) ? find(g, g.memo[n]) : 0
+  id = get(g.memo, n, zero(Id))
+  iszero(id) ? id : find(g, id)
 end
 
 
@@ -256,7 +257,8 @@ Inserts an e-node in an [`EGraph`](@ref)
 function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)::Id where {ExpressionType,Analysis}
   canonicalize!(g, n)
 
-  haskey(g.memo, n) && return g.memo[n]
+  id = get(g.memo, n, zero(Id))
+  iszero(id) || return id
 
   if should_copy
     n = copy(n)
@@ -456,9 +458,8 @@ function check_memo(g::EGraph)::Bool
   for (id, class) in g.classes
     @assert id.val == class.id
     for node in class.nodes
-      if haskey(test_memo, node)
-        old_id = test_memo[node]
-        test_memo[node] = id.val
+      old_id = get!(test_memo, node, id.val)
+      if old_id != id.val
         @assert find(g, old_id) == find(g, id.val) "Unexpected equivalence $node $(g[find(g, id.val)].nodes) $(g[find(g, old_id)].nodes)"
       end
     end
