@@ -416,9 +416,8 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     while !isempty(g.pending)
       (node::VecExpr, eclass_id::Id) = pop!(g.pending)
       canonicalize!(g, node)
-      if haskey(g.memo, node)
-        old_class_id = g.memo[node]
-        g.memo[node] = eclass_id
+      old_class_id = get!(g.memo, node, eclass_id)
+      if old_class_id != eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
