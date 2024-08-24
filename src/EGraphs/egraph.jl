@@ -13,6 +13,7 @@ It should be **idempotent** if no other changes occur to the EClass.
 function modify! end
 
 
+
 """
     join(a::AnalysisType, b::AnalysisType)::AnalysisType
 
@@ -485,11 +486,11 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph)
+function rebuild!(g::EGraph; should_check_memo=false, should_check_analysis=false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
-  # @assert check_memo(g)
-  # @assert check_analysis(g)
+  @assert !should_check_memo || check_memo(g)
+  @assert !should_check_analysis || check_analysis(g)
   g.clean = true
 
   @debug "REBUILT" n_unions trimmed_nodes
