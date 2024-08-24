@@ -17,7 +17,7 @@ function Base.push!(uq::UniqueQueue{T}, x::T) where {T}
   function in!(x::T, s::Set)
     idx, sh = Base.ht_keyindex2_shorthash!(s.dict, x)
     idx > 0 && return true
-    _setindex!(s.dict, nothing, x, -idx, sh)
+    Base._setindex!(s.dict, nothing, x, -idx, sh)
     
     false
   end
