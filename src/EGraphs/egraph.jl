@@ -272,17 +272,17 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   if v_isexpr(n)
     for c_id in v_children(n)
-      addparent!(g.classes[IdKey(c_id)], copy(n), id)
+      addparent!(g.classes[IdKey(c_id)], n, id)
     end
   end
 
-  g.memo[copy(n)] = id
+  g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, VecExpr[n], Pair{VecExpr,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n))
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
-  push!(g.pending, copy(n) => id)
+  push!(g.pending, n => id)
 
   return id
 end
