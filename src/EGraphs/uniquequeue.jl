@@ -12,7 +12,8 @@ end
 UniqueQueue{T}() where {T} = UniqueQueue{T}(Set{T}(), T[])
 
 function Base.push!(uq::UniqueQueue{T}, x::T) where {T}
-  if !in!(x, uq.set)
+  if !(x in uq.set)
+    push!(uq.set, x)
     push!(uq.vec, x)
   end
 end
@@ -30,15 +31,3 @@ function Base.pop!(uq::UniqueQueue{T}) where {T}
 end
 
 Base.isempty(uq::UniqueQueue) = isempty(uq.vec)
-
-# Helper for push!()
-# checks if x is contained in s and adds x if it is not, using a single hash call and lookup
-# available from Julia 1.11
-function in!(x::T, s::Set{T}) where {T}
-  idx, sh = Base.ht_keyindex2_shorthash!(s.dict, x)
-  idx > 0 && return true
-  Base._setindex!(s.dict, nothing, x, -idx, sh)
-  
-  false
-end
-
