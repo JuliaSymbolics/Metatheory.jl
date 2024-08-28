@@ -1,5 +1,6 @@
 # 3.0
 - Updated TermInterface to 1.0.1
+- Use a custom per-thread stack for e-matching
 
 # 2.0
 - No longer dispatch against types, but instead dispatch against objects.
