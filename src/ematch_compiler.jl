@@ -7,6 +7,8 @@ The "instructions" for this register machine are branches in a large if-else
 statement that looks like:
 
 ```julia
+@label compute
+
 if pc === 1
   # do instruction 1
 else if pc === 2
@@ -14,13 +16,19 @@ else if pc === 2
 else
 ...
 end
+
+@label backtrack
+pc = pop!(stack)
+
+@goto compute
 ```
 
 The "registers" for this register machine are simply local variables inside this
 function.
 
-We maintain a stack of program counters; "backtracking" simply means popping this
-stack. Refer to [`ematch_compile`]() for more information on exactly how this works.
+If an instruction "succeeds", it will increment pc, and then `@goto compute`; this
+is implemented by [`continue_`](@ref). This has the effect of going to the next instruction in the sequence. If an instruction "fails", it will `@goto backtrack`,
+which will go back to the most recent save point (usually an iteration over, say, e-nodes in an e-class). This is implemented by [`backtrack`](@ref).
 
 The one thing that is important to know at the start is that we refer to registers
 by "addresses" (which are just integers). To each address `addr`, there are
