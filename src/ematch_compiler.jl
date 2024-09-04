@@ -113,7 +113,7 @@ function to_expr(inst::BindExpr)
   addr = inst.addr
   i = enode_var(addr)
   check_flags = :(v_flags(n) === $(inst.flags))
-  check_sig = :(v_flags(n) === $(inst.flags))
+  check_sig = :(v_signature(n) === $(inst.signature))
   check_head = :(v_head(n) === $(inst.head_hash) || v_head(n) === $(inst.quoted_head_hash))
   quote
     eclass = g[$(eclass_var(addr))]
@@ -123,8 +123,8 @@ function to_expr(inst::BindExpr)
       $(set_backtrack_checkpoint())
 
       n = eclass.nodes[$i]
-
       $i += 1
+
       if $check_flags && $check_sig && $check_head
         $((map(enumerate(inst.memrange)) do (idx, addr)
           :($(eclass_var(addr)) = v_children(n)[$idx])
@@ -145,7 +145,7 @@ end
 Checks that the e-class for the e-id in `eclass_var(addr)` satisfies `predicate`.
 
 If so, also set `enode_var(addr)` to be one after the first enode
-that is not an expression? This doesn't really make sense to me.
+that is not an expression. This is used in [`instantiate_actual_param!`](@ref).
 """
 struct CheckVar <: Instruction
   addr::Address
@@ -262,13 +262,13 @@ end
 
 function to_expr(inst::Yield)
   push_exprs = [
-               :(push!(
-                 ematch_buffer,
-                 v_pair(
-                   $(eclass_var(addr)),
-                   reinterpret(UInt64, $(enode_var(addr)) - 1)
-                 )
-               )) for addr in inst.patvar_to_addr
+      :(push!(
+        ematch_buffer,
+        v_pair(
+          $(eclass_var(addr)),
+          reinterpret(UInt64, $(enode_var(addr)) - 1)
+        )
+      )) for addr in inst.patvar_to_addr
   ]
   quote
     g.needslock && lock(g.lock)
@@ -320,6 +320,11 @@ Base.@kwdef mutable struct EMatchCompilerState
   program::Vector{Instruction} = Instruction[]
 
   """
+  Whether we should throw an exception instead of running e-matching.
+  """
+  should_throw::Union{Nothing, Exception} = nothing
+
+  """
   The total number of addresses we need.
   """
   memsize = 1
@@ -335,18 +340,16 @@ function ematch_compile(p::AbstractPat, pvars, direction::Int)
 
   ematch_compile!(p, state, state.first_nonground)
 
+
   push!(state.program, Yield(state.patvar_to_addr, direction))
 
   pat_constants_checks = check_constant_exprs!(Expr[], p)
 
-  quote
-    function $(gensym("ematcher"))(
-      g::$(Metatheory.EGraphs.EGraph),
-      rule_idx::Int,
-      root_id::$(Metatheory.Id),
-      stack::$(Metatheory.OptBuffer){UInt16},
-      ematch_buffer::$(Metatheory.OptBuffer){UInt128},
-    )::Int
+
+  body = if !isnothing(state.should_throw)
+    :(throw($(state.should_throw)))
+  else
+    quote
       # If the constants in the pattern are not all present in the e-graph, just return
       $(pat_constants_checks...)
 
@@ -358,6 +361,7 @@ function ematch_compile(p::AbstractPat, pvars, direction::Int)
 
       n_matches = 0
       # Backtracking stack
+      # This variable is unused?
       stack_idx = 0
 
       # Instruction 0 is used to return when  the backtracking stack is empty.
@@ -390,6 +394,18 @@ function ematch_compile(p::AbstractPat, pvars, direction::Int)
       @goto compute
 
       return -1
+    end
+  end
+
+  quote
+    function $(gensym("ematcher"))(
+      g::$(Metatheory.EGraphs.EGraph),
+      rule_idx::Int,
+      root_id::$(Metatheory.Id),
+      stack::$(Metatheory.OptBuffer){UInt16},
+      ematch_buffer::$(Metatheory.OptBuffer){UInt128},
+    )::Int
+      $body
     end
   end
 end
@@ -521,12 +537,9 @@ function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
 end
 
 # Pattern not supported.
-# Why not throw this error right now?
+# We don't throw this error right away, because we produce the code for
 function ematch_compile!(p::AbstractPat, state::EMatchCompilerState, ::Int)
-  push!(
-    state.program,
-    :(throw(DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")); return 0),
-  )
+  state.should_throw = DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")
 end
 
 """
