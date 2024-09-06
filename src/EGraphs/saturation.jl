@@ -117,7 +117,7 @@ end
 
 function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
   add_constant_hashed!(g, p.value, v_head(p.n))
-  add!(g, p.n, true)
+  add!(g, p.n, nothing, true)
 end
 
 instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
@@ -127,7 +127,7 @@ function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id
   for i in v_children_range(p.n)
     @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
   end
-  add!(g, p.n, true)
+  add!(g, p.n, nothing, true)
 end
 
 function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
@@ -137,7 +137,7 @@ function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   for i in v_children_range(p.n)
     @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
   end
-  add!(g, p.n, true)
+  add!(g, p.n, nothing, true)
 end
 
 """

@@ -23,9 +23,9 @@ when two eclasses are being merged or the analysis is being constructed.
 function join end
 
 """
-    make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
+    make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr, md::Any)::AnalysisType where {ExpressionType}
 
-Given an e-node `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, and metadata extracted from an expression, `make` should return the corresponding analysis value. Implementations need to handle the default case where metadata is `nothing`.
 """
 function make end
 
@@ -168,7 +168,7 @@ EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionT
 EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 
 # Fallback implementation for analysis methods make and modify
-@inline make(::EGraph, ::VecExpr) = nothing
+@inline make(::EGraph, ::VecExpr, md) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
 
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
@@ -252,7 +252,7 @@ end
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)::Id where {ExpressionType,Analysis}
+function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, md, should_copy::Bool)::Id where {ExpressionType,Analysis}
   canonicalize!(g, n)
 
   id = get(g.memo, n, zero(Id))
@@ -273,7 +273,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n, md))
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
   push!(g.pending, n => id)
@@ -301,8 +301,9 @@ insert the literal into the [`EGraph`](@ref).
 function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
+  md = metadata(e)
 
-  isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
+  isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), md, false)
 
   args = iscall(e) ? arguments(e) : children(e)
   ar = length(args)
@@ -317,7 +318,7 @@ function addexpr!(g::EGraph, se)::Id
     @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
   end
 
-  add!(g, n, false)
+  add!(g, n, md, false)
 end
 
 """
