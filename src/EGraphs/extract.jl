@@ -19,7 +19,7 @@ function extract_expr_recursive(g::EGraph{T, A}, n::VecExpr, get_node::Function)
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return h
   children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
-  md = metadata(g[lookup(g, n)].data::A)
+  md = metadata(g[lookup(g, n)].data)
   maketerm(T, h, children, md)
 end
 
