@@ -426,21 +426,22 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       eclass = g.classes[eclass_id_key]
 
       node_data = make(g, node)
-      if !isnothing(eclass.data)
-        joined_data = join(eclass.data, node_data)
-
-        if joined_data != eclass.data
-          g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
-          # eclass.data = joined_data
+      if !isnothing(node_data)
+        if !isnothing(eclass.data)
+          joined_data = join(eclass.data, node_data)
+        
+          if joined_data != eclass.data
+            g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
+            # eclass.data = joined_data
+            modify!(g, eclass)
+            append!(g.analysis_pending, eclass.parents)
+          end
+        else
+          g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
+          # eclass.data = node_data
           modify!(g, eclass)
-          append!(g.analysis_pending, eclass.parents)
         end
-      else
-        g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
-        # eclass.data = node_data
-        modify!(g, eclass)
       end
-
     end
   end
   n_unions
