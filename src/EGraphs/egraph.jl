@@ -361,6 +361,7 @@ function Base.union!(
   )
 
   g.classes[id_1] = new_eclass
+  modify!(g, new_eclass)
 
   return true
 end
