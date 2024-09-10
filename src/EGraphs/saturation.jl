@@ -86,9 +86,8 @@ function eqsat_search!(
         @debug "$rule is banned"
         continue
       end
-      ids_left = cached_ids(g, rule.left)
-      ids_right = is_bidirectional(rule) ? cached_ids(g, rule.right) : UNDEF_ID_VEC
 
+      ids_left = cached_ids(g, rule.left)
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
         n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
@@ -96,6 +95,7 @@ function eqsat_search!(
       end
 
       if is_bidirectional(rule)
+        ids_right = cached_ids(g, rule.right)
         for i in ids_right
           cansearch(scheduler, rule_idx, i) || continue
           n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
