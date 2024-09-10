@@ -440,6 +440,7 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
           g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
           # eclass.data = node_data
           modify!(g, eclass)
+          append!(g.analysis_pending, eclass.parents)
         end
       end
     end
