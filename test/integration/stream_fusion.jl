@@ -49,7 +49,7 @@ fold_theory = @theory x y z begin
   x::Number * y::Number => x * y
   x::Number + y::Number => x + y
   x::Number / y::Number => x / y
-  x::Number - y::Number => x / y
+  x::Number - y::Number => x - y
   # etc...
 end
 
