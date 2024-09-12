@@ -36,6 +36,10 @@ Base.@kwdef mutable struct SaturationParams
   schedulerparams::NamedTuple = (;)
   threaded::Bool = false
   timer::Bool = true
+  "Activate check for memoization of nodes (hashcons) after rebuilding"
+  check_memo::Bool = false
+  "Activate check for join-semilattice invariant for semantic analysis values after rebuilding"
+  check_analysis::Bool = false
 end
 
 function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
@@ -289,7 +293,7 @@ function eqsat_step!(
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
-  @timeit report.to "Rebuild" rebuild!(g)
+  @timeit report.to "Rebuild" rebuild!(g; should_check_memo = params.check_memo, should_check_analysis = params.check_analysis)
 
   Schedulers.rebuild!(scheduler)
 
