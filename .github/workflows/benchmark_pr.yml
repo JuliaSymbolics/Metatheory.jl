@@ -47,7 +47,7 @@ jobs:
           ls -l ~/.julia/bin
           mkdir results
           benchpkg Metatheory \
-            --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" \
+            --rev="${{github.event.pull_request.base.sha}},${{github.event.pull_request.head.sha}}" \
             --url=${{ github.event.repository.clone_url }} \
             --bench-on="${{github.event.pull_request.head.sha}}" \
             --output-dir=results/ --tune
@@ -68,7 +68,7 @@ jobs:
       - name: Create markdown table from benchmarks
         run: |
           julia --project=egg-benchmark/scripts egg-benchmark/scripts/load_results.jl \
-            -b ${{github.event.pull_request.head.sha}} -b "${{github.event.repository.default_branch}}" \
+            -b ${{github.event.pull_request.head.sha}} -b "${{github.event.pull_request.base.sha}}" \
             --mt-results=results/ \
             --egg-results=egg-benchmark/target/criterion \
             -o table.md
