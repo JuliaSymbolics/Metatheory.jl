@@ -425,8 +425,9 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       eclass_id = find(g, eclass_id)
       eclass_id_key = IdKey(eclass_id)
       eclass = g.classes[eclass_id_key]
+      md = eclass.data
 
-      node_data = make(g, node)
+      node_data = make(g, node, md)
       if !isnothing(node_data)
         if !isnothing(eclass.data)
           joined_data = join(eclass.data, node_data)
@@ -472,7 +473,7 @@ end
 function check_analysis(g)
   for (id, eclass) in g.classes
     isnothing(eclass.data) && continue
-    pass = mapreduce(x -> make(g, x), (x, y) -> join(x, y), eclass)
+    pass = mapreduce(x -> make(g, x, x.data), (x, y) -> join(x, y), eclass)
     @assert eclass.data == pass
   end
   true
