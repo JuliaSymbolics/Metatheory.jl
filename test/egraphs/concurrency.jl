@@ -24,5 +24,5 @@ function run_eq()
   end
 
 @testset "Concurrency" begin
-    @test test_threads() broken=true
+    @test test_threads()
 end
