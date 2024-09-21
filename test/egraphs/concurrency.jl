@@ -14,7 +14,7 @@ function run_eq()
   end
   
   function test_threads()
-      @assert Threads.threadpoolsize() > 1 # this test is only useful in multi-threaded scenarios.
+      @assert Threads.nthreads() > 1 # this test is only useful in multi-threaded scenarios.
       
       # run equality saturation in parallel threads (no shared state)
       Threads.@threads for _ in 1:1000
