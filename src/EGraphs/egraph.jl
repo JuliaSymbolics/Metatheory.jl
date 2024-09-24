@@ -383,7 +383,6 @@ function addexpr!(g::EGraph, se)::Id
 
   isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
 
-<<<<<<< HEAD
   args = iscall(e) ? arguments(e) : children(e)
   ar = length(args)
   n = v_new(ar)
@@ -395,20 +394,6 @@ function addexpr!(g::EGraph, se)::Id
   v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
   for i in v_children_range(n)
     @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
-=======
-    h = iscall(e) ? operation(e) : head(e)
-    v_set_head!(n, add_constant!(g, h))
-
-    # get the signature from op and arity
-    v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
-
-    for i in v_children_range(n)
-      @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
-    end
-    n
-  else # constant enode
-    VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)])
->>>>>>> 4521a82 (Added more documentation to internal data structures)
   end
 
   add!(g, n, false)
