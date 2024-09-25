@@ -289,6 +289,18 @@ end
   @test test_equality(some_theory, :(a * b * 0), 0)
 end
 
+@testset "Dynamic rule predicates in EMatcher" begin
+  some_theory = @theory begin
+    ~a * ~b => 0 where (iszero(a) || iszero(b))
+    ~a * ~b --> ~b * ~a
+  end
+
+  g = EGraph(:(2 * 3))
+  saturate!(g, some_theory)
+
+  @test true == areequal(g, some_theory, :(a * b * 0), 0)
+end
+
 @testset "Inequalities" begin
   failme = @theory p begin
     p != !p
