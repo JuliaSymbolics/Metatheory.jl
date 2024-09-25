@@ -302,7 +302,7 @@ end
 
   saturate!(g, some_theory)
 
-  @test true == areequal(g, some_theory, :(a * b * 0), 0)
+  @test test_equality(some_theory, :(a * b * 0), 0)
 end
 
 @testset "Inequalities" begin
