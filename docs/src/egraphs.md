@@ -269,7 +269,7 @@ The `EGraph{E,A}` type is parametrized by the expression type `E` and the
 
 The following functions define an interface for analyses based on multiple dispatch:
  
-* [make(g::EGraph{ExprType, AnalysisType}, n)](@ref) should take an e-node `n::VecExpr` and return a value from the analysis domain.
+* [make(g::EGraph{ExprType, AnalysisType}, n, md)](@ref) should take an e-node `n::VecExpr`, and metadata `md` from an expression (possibly `noting`), and return a value from the analysis domain.
 * [join(x::AnalysisType, y::AnalysisType)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?* or *how should they be merged?*).`Base.isless` must be defined.
 * [modify!(g::EGraph{ExprType, AnalysisType}, eclass::EClass{AnalysisType})](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclass.id]` on-the-fly during an e-graph saturation iteration, given its analysis value, typically by adding an e-node.
 
@@ -325,7 +325,9 @@ From the definition of an e-node, we know that children of e-nodes are always ID
 to e-classes in the `EGraph`.
 
 ```@example custom_analysis
-function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, op, n::VecExpr) where {ExpressionType}
+function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, op, n::VecExpr, md) where {ExpressionType}
+    # metadata `md` is not used in this instance.
+    
     v_isexpr(n) || return odd_even_base_case(op)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.

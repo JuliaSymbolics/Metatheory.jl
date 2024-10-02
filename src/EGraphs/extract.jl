@@ -15,12 +15,12 @@ function Extractor(g::EGraph, cost_function::Function, cost_type = Float64)
   extractor
 end
 
-function extract_expr_recursive(g::EGraph{T}, n::VecExpr, get_node::Function) where {T}
+function extract_expr_recursive(g::EGraph{T, A}, n::VecExpr, get_node::Function) where {T, A}
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return h
   children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
-  # TODO metadata?
-  maketerm(T, h, children, nothing)
+  md = metadata(g[lookup(g, n)].data)
+  maketerm(T, h, children, md)
 end
 
 function extract_expr_recursive(g::EGraph{Expr}, n::VecExpr, get_node::Function)

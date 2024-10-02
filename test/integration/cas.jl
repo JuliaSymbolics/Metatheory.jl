@@ -215,7 +215,7 @@ end
 # ex = rewrite(ex, canonical_t; clean=false)
 
 
-function EGraphs.make(g::EGraph{Expr,Type}, n::VecExpr)
+function EGraphs.make(g::EGraph{Expr,Type}, n::VecExpr, md)
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return (h in (:im, im) ? Complex : typeof(h))
   v_iscall(n) || return (Any)

@@ -62,13 +62,23 @@ ex = :(a[b])
 
 
 # `metadata` should return the extra metadata. If you have many fields, i suggest using a `NamedTuple`.
-# TermInterface.metadata(e::MyExpr) = e.foo
+TermInterface.metadata(e::MyExpr) = e.foo
 
-# struct MetadataAnalysis 
-#   metadata
-# end
+struct MetadataAnalysis 
+  metadata
+end
 
-# function EGraphs.make(g::EGraph{MyExprHead,MetadataAnalysis}, n::VecExpr) = 
+# Extract metadata from the analysis. The metadata is used in maketerm to reconstruct the expression.
+TermInterface.metadata(ma::MetadataAnalysis) = ma.metadata
+
+
+function EGraphs.join(a::MetadataAnalysis, b::MetadataAnalysis)
+  return a # Some fancy join here.
+end
+
+function EGraphs.make(g::EGraph{MyExpr,MetadataAnalysis}, n::VecExpr, md)
+  isnothing(md) ? md : MetadataAnalysis(md)
+end
 
 # Additionally, you can override `EGraphs.preprocess` on your custom expression 
 # to pre-process any expression before insertion in the E-Graph. 
@@ -97,14 +107,12 @@ hcall = MyExpr(:h, [4], "hello")
 ex = MyExpr(:f, [MyExpr(:z, [2]), hcall])
 # We use the first type parameter an existing e-graph to inform the system about 
 # the *default* type of expressions that we want newly added expressions to have.  
-g = EGraph{MyExpr}(ex)
+g = EGraph{MyExpr, MetadataAnalysis}(ex)
 
 # Now let's test that it works.
 saturate!(g, t)
 
-# TODO metadata
-# expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
-expected = MyExpr(:f, [MyExpr(:h, [4], "")], "")
+expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
 
 extracted = extract!(g, astsize)
 @test expected == extracted

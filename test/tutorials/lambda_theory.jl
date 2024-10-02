@@ -104,7 +104,7 @@ const LambdaAnalysis = Set{Symbol}
 
 getdata(eclass) = eclass.data
 
-function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr) where {ExprType}
+function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr, md) where {ExprType}
   v_isexpr(n) || return LambdaAnalysis()
   if v_iscall(n)
     h = v_head(n)
