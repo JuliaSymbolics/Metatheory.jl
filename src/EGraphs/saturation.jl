@@ -75,7 +75,6 @@ function eqsat_search!(
   empty!(ematch_buffer)
   g.needslock && unlock(g.lock)
 
-
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
     @timeit report.to string(rule_idx) begin
