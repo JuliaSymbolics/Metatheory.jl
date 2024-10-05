@@ -77,14 +77,14 @@ function eqsat_search!(
 
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
+    # don't apply banned rules
+    if !cansearch(scheduler, rule_idx)
+      @debug "$rule is banned"
+      continue
+    end
+
     @timeit report.to string(rule_idx) begin
       prev_matches = n_matches
-      # don't apply banned rules
-      if !cansearch(scheduler, rule_idx)
-        @debug "$rule is banned"
-        continue
-      end
-
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
