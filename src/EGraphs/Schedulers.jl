@@ -8,7 +8,7 @@ using Metatheory.Patterns
 using DocStringExtensions
 
 export AbstractScheduler,
-  SimpleScheduler, BackoffScheduler, FreezingScheduler, ScoredScheduler, cansaturate, cansearch, inform!, setiter!
+  SimpleScheduler, BackoffScheduler, FreezingScheduler, ScoredScheduler, cansaturate, matchlimit, inform!, setiter!
 
 """
 Represents a rule scheduler for the equality saturation process
@@ -24,15 +24,16 @@ Should return `true` if the e-graph can be said to be saturated
 function cansaturate end
 
 """
-    cansearch(s::AbstractScheduler, i::Int)
-    cansearch(s::AbstractScheduler, i::Int, eclass_id::Id)
+    matchlimit(s::AbstractScheduler, i::Int)::Int
+    matchlimit(s::AbstractScheduler, i::Int, eclass_id::Id)::Int
 
 Given a theory `t` and a rule `r` with index `i` in the theory,
-should return `false` if the search for rule with index `i` should be skipped
+should return the limit for the number of matches for the rule with index `i`.
+Return 0 if the search for rule with index `i` should be skipped
 for the current iteration. An extra `eclass_id::Id` arguments can be passed 
 in order to filter out specific e-classes.
 """
-function cansearch end
+function matchlimit end
 
 """
     inform!(s::AbstractScheduler, i::Int, n_matches)
@@ -85,8 +86,8 @@ struct SimpleScheduler <: AbstractScheduler end
 SimpleScheduler(::EGraph, ::Theory) = SimpleScheduler()
 
 @inline cansaturate(s::SimpleScheduler) = true
-@inline cansearch(s::SimpleScheduler, ::Int) = true
-@inline cansearch(s::SimpleScheduler, ::Int, ::Id) = true
+@inline matchlimit(s::SimpleScheduler, ::Int) = typemax(Int)
+@inline matchlimit(s::SimpleScheduler, ::Int, ::Id) = typemax(Int)
 
 # ===========================================================================
 # BackoffScheduler
@@ -111,8 +112,14 @@ Base.@kwdef mutable struct BackoffScheduler <: AbstractScheduler
   ban_length::Int = 5
 end
 
-@inline cansearch(s::BackoffScheduler, rule_idx::Int)::Bool = s.curr_iter > last(s.data[rule_idx])
-@inline cansearch(s::BackoffScheduler, rule_idx::Int, eclass_id::Id) = true
+@inline function matchlimit(s::BackoffScheduler, rule_idx::Int)::Int
+  (times_banned, banned_until) = s.data[rule_idx]
+  s.curr_iter > banned_until || return 0
+  threshold = (s.match_limit << times_banned)
+  threshold + 1
+end
+
+@inline matchlimit(s::BackoffScheduler, rule_idx::Int, eclass_id::Id) = matchlimit(s, rule_idx)
 
 BackoffScheduler(g::EGraph, theory::Theory; kwargs...) =
   BackoffScheduler(; data = fill((0, 0), length(theory)), g, theory, kwargs...)
@@ -125,6 +132,7 @@ function inform!(s::BackoffScheduler, rule_idx::Int, n_matches::Int)
   (times_banned, _) = s.data[rule_idx]
   threshold = s.match_limit << times_banned
   if n_matches > threshold
+    @debug "Banning rule $rule_idx until iteration $(s.curr_iter + (s.ban_length << times_banned)) because n_matches = $n_matches > threshold = $threshold"
     s.data[rule_idx] = (times_banned += 1, s.curr_iter + (s.ban_length << times_banned))
   end
 end
@@ -158,8 +166,14 @@ end
 
 FreezingScheduler(g::EGraph, theory::Theory; kwargs...) = FreezingScheduler(; g, theory, kwargs...)
 
-@inline cansearch(s::FreezingScheduler, rule_idx::Int)::Bool = true
-@inline cansearch(s::FreezingScheduler, ::Int, eclass_id::Id) = s.curr_iter > s[eclass_id].banned_until
+@inline matchlimit(s::FreezingScheduler, rule_idx::Int)::Int = typemax(Int)
+@inline function matchlimit(s::FreezingScheduler, ::Int, eclass_id::Id) 
+  stats = s[eclass_id]
+  s.curr_iter > stats.banned_until || return 0
+
+  threshold = stats.size_limit + s.default_eclass_size_increment * stats.times_banned
+  threshold + 1
+end
 
 function Base.getindex(s::FreezingScheduler, id::Id)
   haskey(s.data, id) && return s.data[id]

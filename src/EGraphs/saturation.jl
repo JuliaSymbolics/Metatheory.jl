@@ -77,8 +77,9 @@ function eqsat_search!(
 
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
-    # don't apply banned rules
-    if !cansearch(scheduler, rule_idx)
+    rule_limit = matchlimit(scheduler, rule_idx)
+    # don't apply banned rules    
+    if iszero(rule_limit)
       @debug "$rule is banned"
       continue
     end
@@ -87,19 +88,25 @@ function eqsat_search!(
       prev_matches = n_matches
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
-        cansearch(scheduler, rule_idx, i) || continue
-        eclass_matches = rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
+        eclass_limit = matchlimit(scheduler, rule_idx, i) 
+        (eclass_limit > 0 && rule_limit > 0) || continue
+        limit = eclass_limit < rule_limit ? eclass_limit : rule_limit
+        eclass_matches = rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer, limit)
         n_matches += eclass_matches
         inform!(scheduler, rule_idx, i, eclass_matches)
+        rule_limit -= eclass_matches
       end
 
       if is_bidirectional(rule)
         ids_right = cached_ids(g, rule.right)
         for i in ids_right
-          cansearch(scheduler, rule_idx, i) || continue
-          eclass_matches = rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
+          eclass_limit = matchlimit(scheduler, rule_idx, i)
+          (eclass_limit > 0 && rule_limit > 0) || continue
+          limit = eclass_limit < rule_limit ? eclass_limit : rule_limit
+          eclass_matches = rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer, limit)
           n_matches += eclass_matches
           inform!(scheduler, rule_idx, i, eclass_matches)
+          rule_limit -= eclass_matches
         end
       end
 

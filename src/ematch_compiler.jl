@@ -49,6 +49,7 @@ function ematch_compile(p, pvars, direction)
       root_id::$(Metatheory.Id),
       stack::$(Metatheory.OptBuffer){UInt16},
       ematch_buffer::$(Metatheory.OptBuffer){UInt128},
+      limit::$(Int)=$(typemax(Int))
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
@@ -70,7 +71,7 @@ function ematch_compile(p, pvars, direction)
       # 2) When an instruction succeeds, the pc is incremented.  
       @label compute
       # Instruction 0 is used to return when  the backtracking stack is empty. 
-      pc === 0x0000 && return n_matches
+      (pc === 0x0000 || n_matches >= limit) && return n_matches
 
       # For each instruction in the program, create an if statement, 
       # Checking if the current value 
