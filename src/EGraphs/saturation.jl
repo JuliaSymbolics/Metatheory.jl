@@ -88,28 +88,24 @@ function eqsat_search!(
       prev_matches = n_matches
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
-        eclass_limit = matchlimit(scheduler, rule_idx, i) 
-        (eclass_limit > 0 && rule_limit > 0) || continue
-        limit = eclass_limit < rule_limit ? eclass_limit : rule_limit
-        eclass_matches = rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer, limit)
+        (eclass_limit = matchlimit(scheduler, rule_idx, i)) > 0 || continue
+        eclass_matches = rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer, min(eclass_limit, rule_limit))
         n_matches += eclass_matches
         inform!(scheduler, rule_idx, i, eclass_matches)
-        rule_limit -= eclass_matches
+        (rule_limit -= eclass_matches) <= 0 && break
       end
 
       if is_bidirectional(rule)
         ids_right = cached_ids(g, rule.right)
         for i in ids_right
-          eclass_limit = matchlimit(scheduler, rule_idx, i)
-          (eclass_limit > 0 && rule_limit > 0) || continue
-          limit = eclass_limit < rule_limit ? eclass_limit : rule_limit
-          eclass_matches = rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer, limit)
+          (eclass_limit = matchlimit(scheduler, rule_idx, i)) > 0 || continue
+          eclass_matches = rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer, min(eclass_limit, rule_limit))
           n_matches += eclass_matches
           inform!(scheduler, rule_idx, i, eclass_matches)
-          rule_limit -= eclass_matches
+          (rule_limit -= eclass_matches) <= 0 && break
         end
       end
-
+      
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
       inform!(scheduler, rule_idx, n_matches - prev_matches)
     end

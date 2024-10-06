@@ -51,6 +51,7 @@ function ematch_compile(p, pvars, direction)
       ematch_buffer::$(Metatheory.OptBuffer){UInt128},
       limit::$(Int)=$(typemax(Int))
     )::Int
+      iszero(limit) && return 0 # return immediately when no matches are allowed
       # If the constants in the pattern are not all present in the e-graph, just return 
       $(pat_constants_checks...)
       # Initialize σ variables (e-classes memory) and enode iteration indexes
@@ -59,8 +60,6 @@ function ematch_compile(p, pvars, direction)
 
       n_matches = 0
       # Backtracking stack
-      stack_idx = 0
-
       # Instruction 0 is used to return when  the backtracking stack is empty. 
       # We start from 1.
       push!(stack, 0x0000)
@@ -68,10 +67,14 @@ function ematch_compile(p, pvars, direction)
 
       # We goto this label when:
       # 1) After backtracking, the pc is popped from the stack.
-      # 2) When an instruction succeeds, the pc is incremented.  
+      # 2) When an instruction succeeds, the pc is incremented.
       @label compute
-      # Instruction 0 is used to return when  the backtracking stack is empty. 
-      (pc === 0x0000 || n_matches >= limit) && return n_matches
+      # Instruction 0 is used to return when the backtracking stack is empty.
+      pc === 0x0000 && return n_matches
+      if n_matches >= limit
+        empty!(stack)
+        return n_matches
+      end
 
       # For each instruction in the program, create an if statement, 
       # Checking if the current value 
@@ -332,8 +335,8 @@ function yield_expr(patvar_to_addr, direction)
     $(push_exprs...)
     # Add delimiter to buffer. 
     push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
-    n_matches += 1
     g.needslock && unlock(g.lock)
+    n_matches += 1
     @goto backtrack
   end
 end
