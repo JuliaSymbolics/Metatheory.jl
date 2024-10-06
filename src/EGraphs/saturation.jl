@@ -144,14 +144,12 @@ end
 Instantiate argument for dynamic rule application in e-graph
 """
 function instantiate_actual_param!(bindings, g::EGraph, i)
+  const_hash = v_pair_last(bindings[i])
+  const_hash == 0 || return get_constant(g, const_hash)
+
   ecid = v_pair_first(bindings[i])
-  literal_position = reinterpret(Int, v_pair_last(bindings[i]))
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
-  if literal_position > 0
-    @assert !v_isexpr(eclass[literal_position])
-    return get_constant(g, v_head(eclass[literal_position]))
-  end
   return eclass
 end
 
