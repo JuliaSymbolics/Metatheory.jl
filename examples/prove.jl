@@ -19,9 +19,6 @@ function prove(
     params.goal = (g::EGraph) -> in_same_class(g, ids...)
     saturate!(g, t, params)
     ex = extract!(g, astsize)
-    if !TermInterface.isexpr(ex)
-      return ex
-    end
   end
   return ex
 end

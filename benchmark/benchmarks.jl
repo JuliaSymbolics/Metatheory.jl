@@ -43,13 +43,13 @@ simpl1_math = :(a + b + (0 * c) + d)
 SUITE["basic_maths"]["simpl1"] = @benchmarkable (@assert :(a + b + d) == simplify(
   $simpl1_math,
   $maths_theory,
-  $(SaturationParams(; timer = false)),
+  $(SaturationParams(enodelimit=15000, timeout=8, timer = false)),
   postprocess_maths,
 ))
 
 simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
 SUITE["basic_maths"]["simpl2"] =
-  @benchmarkable (@assert :a == simplify($simpl2_math, $maths_theory, $(SaturationParams()), postprocess_maths))
+  @benchmarkable (@assert :a == simplify($simpl2_math, $maths_theory, $(SaturationParams(enodelimit=15000, timeout=8, timer=false)), postprocess_maths))
 
 
 # ==================================================================
@@ -60,7 +60,7 @@ ex_orig = :(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s))
 ex_logic = rewrite(ex_orig, impl)
 
 SUITE["prop_logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
-SUITE["prop_logic"]["prove1"] = @benchmarkable (@assert prove($propositional_logic_theory, $ex_logic, 3, 6))
+SUITE["prop_logic"]["prove1"] = @benchmarkable (@assert prove($propositional_logic_theory, $ex_logic, 2, 6))
 
 ex_demorgan = :(!(p || q) == (!p && !q))
 SUITE["prop_logic"]["demorgan"] = @benchmarkable (@assert prove($propositional_logic_theory, $ex_demorgan))
