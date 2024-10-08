@@ -259,7 +259,7 @@ function check_var_expr(addr, predicate::Function)
       #     break
       #   end
       # end
-      $(Symbol(:enode_idx, addr)) = 1
+      # $(Symbol(:enode_idx, addr)) = 1
       pc += 0x0001
       @goto compute
     end
