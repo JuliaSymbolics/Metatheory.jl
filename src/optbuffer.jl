@@ -30,7 +30,7 @@ Base.@inline function Base.pop!(b::OptBuffer{T})::T where {T}
   val
 end
 
-
+Base.resize!(b::OptBuffer{T}, n::Int) where {T} = b.i = n
 Base.isempty(b::OptBuffer{T}) where {T} = b.i === 0
 Base.empty!(b::OptBuffer{T}) where {T} = (b.i = 0)
 @inline Base.length(b::OptBuffer{T}) where {T} = b.i
