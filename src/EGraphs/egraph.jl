@@ -7,7 +7,7 @@
 
 The `modify!` function for EGraph Analysis can optionally modify the eclass
 `eclass` after it has been analyzed, typically by adding an e-node.
-It should be **idempotent** if no other changes occur to the EClass. 
+It should be **idempotent** if no other changes occur to the EClass.
 (See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
 """
 function modify! end
@@ -25,7 +25,7 @@ function join end
 """
     make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
 
-Given an e-node `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
@@ -42,7 +42,7 @@ they represent. The [`EGraph`](@ref) itself comes with pretty printing for human
 struct EClass{D}
   id::Id
   nodes::Vector{VecExpr}
-  parents::Vector{Pair{VecExpr,Id}}
+  parents::Vector{Id} # The original Ids of parent enodes.
   data::Union{D,Nothing}
 end
 
@@ -63,10 +63,6 @@ function Base.show(io::IO, a::EClass)
   for n in a.nodes
     println(io, "    $n")
   end
-end
-
-function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
-  push!(a.parents, (n => id))
 end
 
 
@@ -119,13 +115,15 @@ mutable struct EGraph{ExpressionType,Analysis}
   uf::UnionFind
   "map from eclass id to eclasses"
   classes::Dict{IdKey,EClass{Analysis}}
+  "vector of the original e-nodes"
+  nodes::Vector{VecExpr}
   "hashcons mapping e-nodes to their e-class id"
   memo::Dict{VecExpr,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
-  "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
-  pending::Vector{Pair{VecExpr,Id}}
-  analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
+  "Nodes which need to be processed for rebuilding. The id is the id of the e-node, not the canonical id of the e-class."
+  pending::Vector{Id}
+  analysis_pending::UniqueQueue{Id}
   root::Id
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
   classes_by_op::Dict{IdKey,Vector{Id}}
@@ -144,10 +142,11 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
     Dict{IdKey,EClass{Analysis}}(),
+    Vector{VecExpr}(),
     Dict{VecExpr,Id}(),
     Dict{UInt64,Any}(),
-    Pair{VecExpr,Id}[],
-    UniqueQueue{Pair{VecExpr,Id}}(),
+    Id[],
+    UniqueQueue{Id}(),
     0,
     Dict{IdKey,Vector{Id}}(),
     false,
@@ -200,7 +199,7 @@ end
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
-    d[class_id.val] = map(n -> to_expr(g, n), eclass.nodes)
+    d[class_id.val] = (map(n -> to_expr(g, n), eclass.nodes))
   end
   d
 end
@@ -209,8 +208,8 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(sort!(collect(d); by = first)) do (k, vect)
-    "  $k => [$(Base.join(vect, ", "))]"
+  cs = map(sort!(collect(d); by = first)) do (k, nodes)
+    "  $k => [$(Base.join(nodes, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
 end
@@ -245,7 +244,11 @@ end
 
 function add_class_by_op(g::EGraph, n, eclass_id)
   key = IdKey(v_signature(n))
-  vec = get!(g.classes_by_op, key, Vector{Id}())
+  vec = get(g.classes_by_op, key, nothing)
+  if isnothing(vec)
+    vec = Id[eclass_id]
+    g.classes_by_op[key] = vec
+  end
   push!(vec, eclass_id)
 end
 
@@ -263,20 +266,21 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   end
 
   id = push!(g.uf) # create new singleton eclass
+  push!(g.nodes, n)
 
   if v_isexpr(n)
     for c_id in v_children(n)
-      addparent!(g.classes[IdKey(c_id)], n, id)
+      push!(g.classes[IdKey(c_id)].parents, id)
     end
   end
 
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[n], Id[], make(g, n)) # TODO: check do we need to copy n for the nodes vector here?
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
-  push!(g.pending, n => id)
+  push!(g.pending, id)
 
   return id
 end
@@ -284,7 +288,7 @@ end
 
 """
 Extend this function on your types to do preliminary
-preprocessing of a symbolic term before adding it to 
+preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """
@@ -407,12 +411,12 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
 
   while !isempty(g.pending) || !isempty(g.analysis_pending)
     while !isempty(g.pending)
-      (node::VecExpr, eclass_id::Id) = pop!(g.pending)
-      node = copy(node)
+      enode_id = pop!(g.pending)
+      node = copy(g.nodes[enode_id])
       canonicalize!(g, node)
-      old_class_id = get!(g.memo, node, eclass_id)
-      if old_class_id != eclass_id
-        did_something = union!(g, old_class_id, eclass_id)
+      memo_class = get!(g.memo, node, enode_id)
+      if memo_class != enode_id
+        did_something = union!(g, memo_class, enode_id)
         # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
         n_unions += did_something
@@ -420,8 +424,9 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     end
 
     while !isempty(g.analysis_pending)
-      (node::VecExpr, eclass_id::Id) = pop!(g.analysis_pending)
-      eclass_id = find(g, eclass_id)
+      enode_id = pop!(g.analysis_pending)
+      node = g.nodes[enode_id]
+      eclass_id = find(g, enode_id)
       eclass_id_key = IdKey(eclass_id)
       eclass = g.classes[eclass_id_key]
 
@@ -429,7 +434,7 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       if !isnothing(node_data)
         if !isnothing(eclass.data)
           joined_data = join(eclass.data, node_data)
-        
+
           if joined_data != eclass.data
             g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
             # eclass.data = joined_data
@@ -446,6 +451,32 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     end
   end
   n_unions
+end
+
+function check_parents(g::EGraph)::Bool
+  for (id, class) in g.classes
+    # make sure that the parent node and parent eclass occurs in the parents vector for all children
+    for n in class.nodes
+      for chd_id in v_children(n)
+        chd_class = g[chd_id]
+        any(nid -> canonicalize!(g, copy(g.nodes[nid])) == n, chd_class.parents) || error("parent node is missing from child_class.parents")
+        any(nid -> find(g, nid) == id.val, chd_class.parents) || error("missing parent reference from child")
+      end
+    end
+
+    # make sure all nodes and parent ids occuring in the parent vector have this eclass as a child
+    for nid in class.parents
+      parent_class = g[nid]
+      any(n -> any(ch -> ch == id.val, v_children(n)), parent_class.nodes) || error("no node in the parent references the eclass") # nodes are canonicalized
+
+      parent_node = g.nodes[nid]
+      parent_node_copy = copy(parent_node)
+      canonicalize!(g, parent_node_copy)
+      (parent_node_copy in parent_class.nodes) || error("the node from the parent list does not occur in the parent nodes") # might fail because parent_node is probably not canonical
+    end
+  end
+
+  true
 end
 
 function check_memo(g::EGraph)::Bool
@@ -483,9 +514,10 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph; should_check_memo=false, should_check_analysis=false)
+function rebuild!(g::EGraph; should_check_parents=false, should_check_memo=false, should_check_analysis=false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
+  @assert !should_check_parents || check_parents(g)
   @assert !should_check_memo || check_memo(g)
   @assert !should_check_analysis || check_analysis(g)
   g.clean = true

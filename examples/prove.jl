@@ -1,4 +1,4 @@
-# Sketch function for basic iterative saturation and extraction 
+# Sketch function for basic iterative saturation and extraction
 function prove(
   t,
   ex,

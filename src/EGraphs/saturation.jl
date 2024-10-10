@@ -40,6 +40,8 @@ Base.@kwdef mutable struct SaturationParams
   check_memo::Bool = false
   "Activate check for join-semilattice invariant for semantic analysis values after rebuilding"
   check_analysis::Bool = false
+  "Activate check for parent vectors"
+  check_parents::Bool = false
 end
 
 function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}

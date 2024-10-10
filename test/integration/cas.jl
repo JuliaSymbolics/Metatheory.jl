@@ -64,7 +64,9 @@ fold_t = @theory a b begin
   a::Number + b::Number => a + b
   a::Number - b::Number => a - b
   a::Number * b::Number => a * b
-  a::Number^b::Number => begin
+  a::Number ^ b::Number => begin
+    a == 0 && b <= 0 && return nothing
+    a < 0 && b != round(b) && return nothing # only allow integer exponents for negative base
     b < 0 && a isa Int && (a = float(a))
     a^b
   end
@@ -87,14 +89,14 @@ end
 diff_t_base = @theory x y n begin
   diff(x, x) --> 1
   diff(n::Number, x) --> 0
-  diff(y^1, x) --> 1
-  diff(y^(n::Number), x) --> n * y^(n - 1)
+  # diff(x^1, x) --> 1 # special case of next rule
+  diff(x^(n::Number), x) --> n * x^(n - 1)
 end
 
 diff_t_composite = @theory x a b c begin
   diff(a + b, x) == diff(a, x) + diff(b, x)
-  diff(a * b, x) == diff(a, x) * b + a * diff(b, x) # product rule 
-  # if diff(b,x) == 0 
+  diff(a * b, x) == diff(a, x) * b + a * diff(b, x) # product rule
+  # if diff(b,x) == 0
   #         return :( $y * $xp * ($x ^ ($y - 1)) )
 
   diff(a^b, x) == a^b * (diff(b, x) * log(a) + b * (diff(a, x) / a))
@@ -186,17 +188,14 @@ end
 @test :(y + sec(x)^2) == simplify(:(1 + y + tan(x)^2))
 @test :(y + csc(x)^2) == simplify(:(1 + y + cot(x)^2))
 
-@test_broken simplify(:(diff(x^2, x))) == :(2x)
-
+@test simplify(:(diff(x^2, x))) == :(2x)
 @test_broken simplify(:(diff(x^(cos(x)), x))) == :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x))
+@test simplify(:(x * diff(x^2, x) * x)) == :(2x^3)
 
-@test_broken simplify(:(x * diff(x^2, x) * x)) == :(2x)
-
-# @test_broken simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(3y^2)
+@test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x ^ 2) # :(3y * 2x^2)
 
 @test simplify(:(6 * x * x * y)) == :(6 * y * x^2)
-
-@test_broken simplify(:(diff(y^3, y) / y)) == :(3y^2)
+@test simplify(:(diff(y^3, y) / y)) == :(3y)
 
 
 # params = SaturationParams(
