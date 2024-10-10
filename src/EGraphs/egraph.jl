@@ -42,7 +42,7 @@ they represent. The [`EGraph`](@ref) itself comes with pretty printing for human
 struct EClass{D}
   id::Id
   nodes::Vector{VecExpr}
-  parents::Vector{Pair{VecExpr,Id}}
+  parents::Vector{Id} # The original Ids of parent enodes.
   data::Union{D,Nothing}
 end
 
@@ -63,10 +63,6 @@ function Base.show(io::IO, a::EClass)
   for n in a.nodes
     println(io, "    $n")
   end
-end
-
-function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
-  push!(a.parents, (n => id))
 end
 
 
@@ -119,13 +115,16 @@ mutable struct EGraph{ExpressionType,Analysis}
   uf::UnionFind
   "map from eclass id to eclasses"
   classes::Dict{IdKey,EClass{Analysis}}
+  "vector of the original e-nodes"
+  nodes::Vector{VecExpr}
   "hashcons mapping e-nodes to their e-class id"
   memo::Dict{VecExpr,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
-  "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
-  pending::Vector{Pair{VecExpr,Id}}
-  analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
+  "Nodes which need to be processed for rebuilding. The id is the id of the e-node, not the canonical id of the e-class."
+  pending::Vector{Id}
+  "E-classes that have to be updated for semantic analysis. The id is the id of the e-class."
+  analysis_pending::UniqueQueue{Id}
   root::Id
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
   classes_by_op::Dict{IdKey,Vector{Id}}
@@ -144,10 +143,11 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
     Dict{IdKey,EClass{Analysis}}(),
+    Vector{VecExpr}(),
     Dict{VecExpr,Id}(),
     Dict{UInt64,Any}(),
-    Pair{VecExpr,Id}[],
-    UniqueQueue{Pair{VecExpr,Id}}(),
+    Id[],
+    UniqueQueue{Id}(),
     0,
     Dict{IdKey,Vector{Id}}(),
     false,
@@ -263,20 +263,21 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   end
 
   id = push!(g.uf) # create new singleton eclass
+  push!(g.nodes, n)
 
   if v_isexpr(n)
     for c_id in v_children(n)
-      addparent!(g.classes[IdKey(c_id)], n, id)
+      push!(g.classes[IdKey(c_id)].parents, id)
     end
   end
 
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[n], Id[], make(g, n)) # TODO: check do we need to copy n for the nodes vector here?
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
-  push!(g.pending, n => id)
+  push!(g.pending, id)
 
   return id
 end
@@ -407,10 +408,12 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
 
   while !isempty(g.pending) || !isempty(g.analysis_pending)
     while !isempty(g.pending)
-      (node::VecExpr, eclass_id::Id) = pop!(g.pending)
+      enode_id = pop!(g.pending)
+      eclass_id = find(g, enode_id)
+      node = g.nodes[enode_id]
       node = copy(node)
       canonicalize!(g, node)
-      old_class_id = get!(g.memo, node, eclass_id)
+      old_class_id = get!(g.memo, node, eclass_id) # TODO: check if we should pop the old node from memo
       if old_class_id != eclass_id
         did_something = union!(g, old_class_id, eclass_id)
         # TODO unique! can node dedup be moved here? compare performance
@@ -420,8 +423,9 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     end
 
     while !isempty(g.analysis_pending)
-      (node::VecExpr, eclass_id::Id) = pop!(g.analysis_pending)
-      eclass_id = find(g, eclass_id)
+      enode_id = pop!(g.analysis_pending)
+      node = g.nodes[enode_id]
+      eclass_id = find(g, enode_id)
       eclass_id_key = IdKey(eclass_id)
       eclass = g.classes[eclass_id_key]
 
@@ -454,17 +458,17 @@ function check_parents(g::EGraph)::Bool
     for n in class.nodes
       for chd_id in v_children(n)
         chd_class = g[chd_id]
-        any(pair -> canonicalize!(g, copy(pair[1])) == n, chd_class.parents) || error("parent node is missing from child_class.parents")
-        any(pair -> find(g, pair[2]) == id.val, chd_class.parents) || error("missing parent reference from child")
+        any(nid -> canonicalize!(g, copy(g.nodes[nid])) == n, chd_class.parents) || error("parent node is missing from child_class.parents")
+        any(nid -> find(g, nid) == id.val, chd_class.parents) || error("missing parent reference from child")
       end
     end
 
     # make sure all nodes and parent ids occuring in the parent vector have this eclass as a child
-    for pair in class.parents
-      parent_id = pair[2]
-      parent_node = pair[1]
-      parent_class = g[parent_id]
+    for nid in class.parents
+      parent_class = g[nid]
       any(n -> any(ch -> ch == id.val, v_children(n)), parent_class.nodes) || error("no node in the parent references the eclass") # nodes are canonicalized
+
+      parent_node = g.nodes[nid]
       parent_node_copy = copy(parent_node)
       canonicalize!(g, parent_node_copy)
       (parent_node_copy in parent_class.nodes) || error("the node from the parent list does not occur in the parent nodes") # might fail because parent_node is probably not canonical
