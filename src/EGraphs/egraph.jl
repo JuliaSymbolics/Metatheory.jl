@@ -245,7 +245,11 @@ end
 
 function add_class_by_op(g::EGraph, n, eclass_id)
   key = IdKey(v_signature(n))
-  vec = get!(g.classes_by_op, key, Vector{Id}())
+  vec = get(g.classes_by_op, key, nothing)
+  if isnothing(vec)
+    vec = Id[eclass_id]
+    g.classes_by_op[key] = vec
+  end
   push!(vec, eclass_id)
 end
 
