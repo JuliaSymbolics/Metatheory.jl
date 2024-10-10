@@ -209,7 +209,7 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(sort!(collect(d); by = first)) do (k, (nodes, parents))
+  cs = map(sort!(collect(d); by = first)) do (k, nodes)
     "  $k => [$(Base.join(nodes, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
