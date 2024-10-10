@@ -7,7 +7,7 @@
 
 The `modify!` function for EGraph Analysis can optionally modify the eclass
 `eclass` after it has been analyzed, typically by adding an e-node.
-It should be **idempotent** if no other changes occur to the EClass. 
+It should be **idempotent** if no other changes occur to the EClass.
 (See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
 """
 function modify! end
@@ -25,7 +25,7 @@ function join end
 """
     make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
 
-Given an e-node `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
@@ -198,9 +198,9 @@ function to_expr(g::EGraph, n::VecExpr)
 end
 
 function pretty_dict(g::EGraph)
-  d = Dict{Int,Vector{Any}}()
+  d = Dict{Int,Tuple{Vector{Any},Vector{Any}}}()
   for (class_id, eclass) in g.classes
-    d[class_id.val] = map(n -> to_expr(g, n), eclass.nodes)
+    d[class_id.val] = (map(n -> to_expr(g, n), eclass.nodes), map(pair -> (Int(pair[2]), Int(find(g, pair[2]))), eclass.parents))
   end
   d
 end
@@ -209,8 +209,8 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(sort!(collect(d); by = first)) do (k, vect)
-    "  $k => [$(Base.join(vect, ", "))]"
+  cs = map(sort!(collect(d); by = first)) do (k, (nodes, parents))
+    "  $k => [$(Base.join(nodes, ", "))], parents: [$(Base.join(parents, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
 end
@@ -284,7 +284,7 @@ end
 
 """
 Extend this function on your types to do preliminary
-preprocessing of a symbolic term before adding it to 
+preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """
@@ -429,7 +429,7 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       if !isnothing(node_data)
         if !isnothing(eclass.data)
           joined_data = join(eclass.data, node_data)
-        
+
           if joined_data != eclass.data
             g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
             # eclass.data = joined_data
@@ -446,6 +446,32 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
     end
   end
   n_unions
+end
+
+function check_parents(g::EGraph)::Bool
+  for (id, class) in g.classes
+    # make sure that the parent node and parent eclass occurs in the parents vector for all children
+    for n in class.nodes
+      for chd_id in v_children(n)
+        chd_class = g[chd_id]
+        any(pair -> canonicalize!(g, copy(pair[1])) == n, chd_class.parents) || error("parent node is missing from child_class.parents")
+        any(pair -> find(g, pair[2]) == id.val, chd_class.parents) || error("missing parent reference from child")
+      end
+    end
+
+    # make sure all nodes and parent ids occuring in the parent vector have this eclass as a child
+    for pair in class.parents
+      parent_id = pair[2]
+      parent_node = pair[1]
+      parent_class = g[parent_id]
+      any(n -> any(ch -> ch == id.val, v_children(n)), parent_class.nodes) || error("no node in the parent references the eclass") # nodes are canonicalized
+      parent_node_copy = copy(parent_node)
+      canonicalize!(g, parent_node_copy)
+      (parent_node_copy in parent_class.nodes) || error("the node from the parent list does not occur in the parent nodes") # might fail because parent_node is probably not canonical
+    end
+  end
+
+  true
 end
 
 function check_memo(g::EGraph)::Bool
@@ -483,9 +509,10 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph; should_check_memo=false, should_check_analysis=false)
+function rebuild!(g::EGraph; should_check_parents=false, should_check_memo=false, should_check_analysis=false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
+  @assert !should_check_parents || check_parents(g)
   @assert !should_check_memo || check_memo(g)
   @assert !should_check_analysis || check_analysis(g)
   g.clean = true
