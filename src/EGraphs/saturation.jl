@@ -42,25 +42,8 @@ Base.@kwdef mutable struct SaturationParams
   check_analysis::Bool = false
 end
 
-function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
-  if isground(p)
-    id = lookup_pat(g, p)
-    iszero(id) ? UNDEF_ID_VEC : [id]
-  else
-    get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
-  end
-end
-
-function cached_ids(g::EGraph, p::PatLiteral) # p is a literal
-  id = lookup_pat(g, p)
-  id > 0 && return [id]
-  return UNDEF_ID_VEC
-end
-
-cached_ids(g::EGraph, p::PatVar) = Iterators.map(x -> x.val, keys(g.classes))
-
 """
-Returns an iterator of `Match`es.
+Returns the number of matches
 """
 function eqsat_search!(
   g::EGraph,
@@ -75,44 +58,16 @@ function eqsat_search!(
   empty!(ematch_buffer)
   g.needslock && unlock(g.lock)
 
-
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
-    prev_matches = n_matches
     @timeit report.to string(rule_idx) begin
-      prev_matches = n_matches
-      # don't apply banned rules
-      if !cansearch(scheduler, rule_idx)
-        @debug "$rule is banned"
-        continue
-      end
-
-      ids_left = cached_ids(g, rule.left)
-      for i in ids_left
-        cansearch(scheduler, rule_idx, i) || continue
-        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
-        inform!(scheduler, rule_idx, i, n_matches)
-      end
-
-      if is_bidirectional(rule)
-        ids_right = cached_ids(g, rule.right)
-        for i in ids_right
-          cansearch(scheduler, rule_idx, i) || continue
-          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
-          inform!(scheduler, rule_idx, i, n_matches)
-        end
-      end
-
-      n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
-      # if n_matches - prev_matches > 2 && rule_idx == 2
-      #   @debug buffer_readable(g, old_len)
-      # end
-      inform!(scheduler, rule_idx, n_matches)
+      rule_n_matches = search_matches!(scheduler, ematch_buffer, rule_idx)
     end
+    rule_n_matches > 0 && @debug "Rule $rule_idx: $rule produced $(rule_n_matches) matches"
+    n_matches += rule_n_matches
   end
 
-
-  return n_matches
+  n_matches # this currently not used anywhere
 end
 
 function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
@@ -144,14 +99,12 @@ end
 Instantiate argument for dynamic rule application in e-graph
 """
 function instantiate_actual_param!(bindings, g::EGraph, i)
+  const_hash = v_pair_last(bindings[i])
+  const_hash == 0 || return get_constant(g, const_hash)
+
   ecid = v_pair_first(bindings[i])
-  literal_position = reinterpret(Int, v_pair_last(bindings[i]))
   ecid <= 0 && error("unbound pattern variable")
   eclass = g[ecid]
-  if literal_position > 0
-    @assert !v_isexpr(eclass[literal_position])
-    return get_constant(g, v_head(eclass[literal_position]))
-  end
   return eclass
 end
 
