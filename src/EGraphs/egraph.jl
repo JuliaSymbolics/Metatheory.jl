@@ -198,9 +198,9 @@ function to_expr(g::EGraph, n::VecExpr)
 end
 
 function pretty_dict(g::EGraph)
-  d = Dict{Int,Tuple{Vector{Any},Vector{Any}}}()
+  d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
-    d[class_id.val] = (map(n -> to_expr(g, n), eclass.nodes), map(pair -> (Int(pair[2]), Int(find(g, pair[2]))), eclass.parents))
+    d[class_id.val] = (map(n -> to_expr(g, n), eclass.nodes))
   end
   d
 end
@@ -210,7 +210,7 @@ function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
   cs = map(sort!(collect(d); by = first)) do (k, (nodes, parents))
-    "  $k => [$(Base.join(nodes, ", "))], parents: [$(Base.join(parents, ", "))]"
+    "  $k => [$(Base.join(nodes, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
 end
