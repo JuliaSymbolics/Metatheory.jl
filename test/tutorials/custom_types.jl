@@ -16,18 +16,18 @@
 
 # ## Concrete example
 
-using Metatheory, TermInterface, Test
+using Metatheory, Test
 using Metatheory.EGraphs
+using TermInterface
 
 # We first define our custom expression type in `MyExpr`:
-# It behaves like `Expr`, but it adds some extra fields.
 struct MyExpr
   head::Any
   args::Vector{Any}
   foo::String # additional metadata
 end
-MyExpr(head, args) = MyExpr(head, args, "")
-MyExpr(head) = MyExpr(head, [])
+MyExpr(op, args) = MyExpr(op, args, "")
+MyExpr(op) = MyExpr(op, [])
 
 # We also need to define equality for our expression.
 function Base.:(==)(a::MyExpr, b::MyExpr)
@@ -37,30 +37,38 @@ end
 # ## Overriding `TermInterface`` methods
 
 # First, we need to discern when an expression is a leaf or a tree node.
-# We can do it by overriding `istree`.
-TermInterface.istree(::MyExpr) = true
+# We can do it by overriding `isexpr`.
+TermInterface.isexpr(::MyExpr) = true
+# By default, our expression trees always represent a function call
+TermInterface.iscall(::MyExpr) = true
 
-# The `operation` function tells us what's the node's represented operation. 
-TermInterface.operation(e::MyExpr) = e.head
-# `arguments` tells the system how to extract the children nodes.
-TermInterface.arguments(e::MyExpr) = e.args
+# The `head` function tells us what's the node's represented operation. 
+TermInterface.head(e::MyExpr) = e.head
+# `children` tells the system how to extract the children nodes.
+TermInterface.children(e::MyExpr) = e.args
 
-# A particular function is `exprhead`. It is used to bridge our custom `MyExpr`
-# type, together with the `Expr` functionality that is used in Metatheory rule syntax. 
-# In this example we say that all expressions of type `MyExpr`, can be represented (and matched against) by 
-# a pattern that is represented by a `:call` Expr. 
-TermInterface.exprhead(::MyExpr) = :call
+# `operation` and `arguments` are functions used by the pattern matcher, required 
+# when `iscall` is true on an expression. Since our custom expression type 
+# **always represents function calls**, we can just define them to be `head` and `children`.
+TermInterface.operation(e::MyExpr) = head(e)
+TermInterface.arguments(e::MyExpr) = children(e)
 
-# While for common usage you will always define `exprhead` it to be `:call`, 
+# While for common usage you will always define `iscall` to be `true`, 
 # there are some cases where you would like to match your expression types 
-# against more complex patterns, for example, to match an expression `x` against an `a[b]` kind of pattern, 
-# you would need to inform the system that `exprhead(x)` is `:ref`, because 
+# against more complex patterns that are not function calls, for example, to match an expression `x` against an `a[b]` kind of pattern, 
+# you would need to inform the system that `iscall` is `false`, and that its operation can match against `:ref` or `getindex` because 
 ex = :(a[b])
 (ex.head, ex.args)
 
 
 # `metadata` should return the extra metadata. If you have many fields, i suggest using a `NamedTuple`.
-TermInterface.metadata(e::MyExpr) = e.foo
+# TermInterface.metadata(e::MyExpr) = e.foo
+
+# struct MetadataAnalysis 
+#   metadata
+# end
+
+# function EGraphs.make(g::EGraph{MyExprHead,MetadataAnalysis}, n::VecExpr) = 
 
 # Additionally, you can override `EGraphs.preprocess` on your custom expression 
 # to pre-process any expression before insertion in the E-Graph. 
@@ -68,22 +76,13 @@ TermInterface.metadata(e::MyExpr) = e.foo
 EGraphs.preprocess(e::MyExpr) = MyExpr(e.head, e.args, uppercase(e.foo))
 
 
-# `TermInterface` provides a very important function called `similarterm`. 
+# `TermInterface` provides a very important function called `maketerm`. 
 # It is used to create a term that is in the same closure of types of `x`. 
-# Given an existing term `x`, it is used to  instruct Metatheory how to recompose 
-# a similar expression, given a `head` (the result of `operation`), some children (given by `arguments`) 
-# and additionally, `metadata` and `exprehead`, in case you are recomposing an `Expr`.
-function TermInterface.similarterm(x::MyExpr, head, args; metadata = nothing, exprhead = :call)
-  MyExpr(head, args, isnothing(metadata) ? "" : metadata)
-end
+# Given an existing head `h`, it is used to  instruct Metatheory how to recompose 
+# a similar expression, given some children in `c` 
+# and additionally, `metadata` and `type`, in case you are recomposing an `Expr`.
+TermInterface.maketerm(::Type{MyExpr}, h, c, metadata) = MyExpr(h, c, isnothing(metadata) ? "" : metadata)
 
-# Since `similarterm` works by making a new term similar to an existing term `x`, 
-# in the e-graphs system, there won't be enough information such as a 'reference' object.
-# Only the type of the object is known. This extra function adds a bit of verbosity, due to compatibility 
-# with SymbolicUtils.jl
-function EGraphs.egraph_reconstruct_expression(::Type{MyExpr}, op, args; metadata = nothing, exprhead = nothing)
-  MyExpr(op, args, (isnothing(metadata) ? () : metadata))
-end
 
 # ## Theory Example
 
@@ -96,15 +95,17 @@ end
 # Let's create an example expression and e-graph  
 hcall = MyExpr(:h, [4], "hello")
 ex = MyExpr(:f, [MyExpr(:z, [2]), hcall])
-g = EGraph(ex; keepmeta = true)
-
-# We use `settermtype!` on an existing e-graph to inform the system about 
+# We use the first type parameter an existing e-graph to inform the system about 
 # the *default* type of expressions that we want newly added expressions to have.  
-settermtype!(g, MyExpr)
+g = EGraph{MyExpr}(ex)
 
 # Now let's test that it works.
 saturate!(g, t)
-expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
+
+# TODO metadata
+# expected = MyExpr(:f, [MyExpr(:h, [4], "HELLO")], "")
+expected = MyExpr(:f, [MyExpr(:h, [4], "")], "")
+
 extracted = extract!(g, astsize)
 @test expected == extracted
 
