@@ -1,13 +1,12 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
-
 """
     modify!(eclass::EClass{Analysis})
 
 The `modify!` function for EGraph Analysis can optionally modify the eclass
 `eclass` after it has been analyzed, typically by adding an e-node.
-It should be **idempotent** if no other changes occur to the EClass. 
+It should be **idempotent** if no other changes occur to the EClass.
 (See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
 """
 function modify! end
@@ -25,7 +24,7 @@ function join end
 """
     make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
 
-Given an e-node `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
@@ -284,7 +283,7 @@ end
 
 """
 Extend this function on your types to do preliminary
-preprocessing of a symbolic term before adding it to 
+preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """

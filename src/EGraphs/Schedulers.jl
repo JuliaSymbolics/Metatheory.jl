@@ -184,7 +184,7 @@ function search_matches!(s::BackoffScheduler,
   if n_matches > threshold
     ban_length = s.ban_length << times_banned
     banned_until = s.curr_iter + ban_length
-    @debug "Banning $rule (banned $times_banned x) for $ban_length iterations (threshold: $threshold < $n_matches matches)."
+    @debug "Banning $rule (banned $times_banned times) for $ban_length iterations (threshold: $threshold < $n_matches matches)."
     s.data[rule_idx] = (times_banned + 1, banned_until)
     # revert matches because the rule could be matched to eclasses only partially
     resize!(ematch_buffer, old_ematch_buffer_size)
@@ -232,7 +232,7 @@ cansaturate(s::FreezingScheduler)::Bool = all(stat -> stat.banned_until < s.curr
 function cansearch!(s::FreezingScheduler, eclass_id)
   stats = s[eclass_id]
   if s.curr_iter < stats.banned_until
-    @debug "Skipping eclass $eclass_id (banned $(stats.times_banned) x) until $(stats.banned_until)."
+    @debug "Skipping eclass $eclass_id (banned $(stats.times_banned) times) until $(stats.banned_until)."
     return false
   end
 
@@ -242,7 +242,7 @@ function cansearch!(s::FreezingScheduler, eclass_id)
     ban_length = stats.ban_length + s.default_eclass_ban_increment * stats.times_banned
     stats.times_banned += 1
     stats.banned_until = s.curr_iter + ban_length
-    @debug "Banning eclass $eclass_id (banned $(stats.times_banned) x) for $ban_length iterations (threshold: $threshold < $len nodes))."
+    @debug "Banning eclass $eclass_id (banned $(stats.times_banned) times) for $ban_length iterations (threshold: $threshold < $len nodes))."
 
     return false
   end
