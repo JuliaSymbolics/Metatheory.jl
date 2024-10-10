@@ -123,7 +123,6 @@ mutable struct EGraph{ExpressionType,Analysis}
   constants::Dict{UInt64,Any}
   "Nodes which need to be processed for rebuilding. The id is the id of the e-node, not the canonical id of the e-class."
   pending::Vector{Id}
-  "E-classes that have to be updated for semantic analysis. The id is the id of the e-class."
   analysis_pending::UniqueQueue{Id}
   root::Id
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
@@ -413,13 +412,11 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
   while !isempty(g.pending) || !isempty(g.analysis_pending)
     while !isempty(g.pending)
       enode_id = pop!(g.pending)
-      eclass_id = find(g, enode_id)
-      node = g.nodes[enode_id]
-      node = copy(node)
+      node = copy(g.nodes[enode_id])
       canonicalize!(g, node)
-      old_class_id = get!(g.memo, node, eclass_id) # TODO: check if we should pop the old node from memo
-      if old_class_id != eclass_id
-        did_something = union!(g, old_class_id, eclass_id)
+      memo_class = get!(g.memo, node, enode_id)
+      if memo_class != enode_id
+        did_something = union!(g, memo_class, enode_id)
         # TODO unique! can node dedup be moved here? compare performance
         # did_something && unique!(g[eclass_id].nodes)
         n_unions += did_something
