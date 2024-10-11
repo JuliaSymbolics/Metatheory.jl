@@ -30,7 +30,11 @@ Base.@inline function Base.pop!(b::OptBuffer{T})::T where {T}
   val
 end
 
-Base.resize!(b::OptBuffer{T}, n::Int) where {T} = b.i = n
+function Base.resize!(b::OptBuffer{T}, n::Int) where {T}
+  @assert n >= 0
+  @assert n <= b.i "Increasing the length of OptBuffer is not supported"
+  b.i = n
+end
 Base.isempty(b::OptBuffer{T}) where {T} = b.i === 0
 Base.empty!(b::OptBuffer{T}) where {T} = (b.i = 0)
 @inline Base.length(b::OptBuffer{T}) where {T} = b.i
