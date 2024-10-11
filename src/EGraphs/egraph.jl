@@ -113,10 +113,11 @@ for implementation details.
 mutable struct EGraph{ExpressionType,Analysis}
   "stores the equality relations over e-class ids"
   uf::UnionFind
-  "map from eclass id to eclasses"
-  classes::Dict{IdKey,EClass{Analysis}}
   "vector of the original e-nodes"
   nodes::Vector{VecExpr}
+  "map from eclass id to eclasses"
+  # classes::Dict{IdKey,EClass{Analysis}}
+  classes::SparseVector{EClass{Analysis}}
   "hashcons mapping e-nodes to their e-class id"
   memo::Dict{VecExpr,Id}
   "Hashcons the constants in the e-graph"
@@ -141,8 +142,9 @@ Construct an EGraph from a starting symbolic expression `expr`.
 function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
-    Dict{IdKey,EClass{Analysis}}(),
     Vector{VecExpr}(),
+    # Dict{IdKey,EClass{Analysis}}(),
+    SparseVector{EClass{Analysis}}(), # TODO: sizehint
     Dict{VecExpr,Id}(),
     Dict{UInt64,Any}(),
     Id[],
@@ -199,7 +201,7 @@ end
 function pretty_dict(g::EGraph)
   d = Dict{Int,Vector{Any}}()
   for (class_id, eclass) in g.classes
-    d[class_id.val] = (map(n -> to_expr(g, n), eclass.nodes))
+    d[class_id] = map(n -> to_expr(g, n), eclass.nodes)
   end
   d
 end
@@ -221,7 +223,7 @@ Returns the canonical e-class id for a given e-class.
 @inline find(g::EGraph, a::Id)::Id = find(g.uf, a)
 @inline find(@nospecialize(g::EGraph), @nospecialize(a::EClass))::Id = find(g, a.id)
 
-@inline Base.getindex(g::EGraph, i::Id) = g.classes[IdKey(find(g, i))]
+@inline Base.getindex(g::EGraph, i::Id) = g.classes[find(g, i)]
 
 function canonicalize!(g::EGraph, n::VecExpr)
   v_isexpr(n) || @goto ret
@@ -270,7 +272,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   if v_isexpr(n)
     for c_id in v_children(n)
-      push!(g.classes[IdKey(c_id)].parents, id)
+      push!(g.classes[c_id].parents, id)
     end
   end
 
@@ -278,7 +280,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   add_class_by_op(g, n, id)
   eclass = EClass{Analysis}(id, VecExpr[n], Id[], make(g, n)) # TODO: check do we need to copy n for the nodes vector here?
-  g.classes[IdKey(id)] = eclass
+  g.classes[id] = eclass
   modify!(g, eclass)
   push!(g.pending, id)
 
@@ -335,8 +337,8 @@ function Base.union!(
 )::Bool where {ExpressionType,AnalysisType}
   g.clean = false
 
-  id_1 = IdKey(find(g, enode_id1))
-  id_2 = IdKey(find(g, enode_id2))
+  id_1 = find(g, enode_id1)
+  id_2 = find(g, enode_id2)
 
   id_1 == id_2 && return false
 
@@ -345,7 +347,7 @@ function Base.union!(
     id_1, id_2 = id_2, id_1
   end
 
-  union!(g.uf, id_1.val, id_2.val)
+  union!(g.uf, id_1, id_2)
 
   eclass_2 = pop!(g.classes, id_2)::EClass
   eclass_1 = g.classes[id_1]::EClass
@@ -358,7 +360,7 @@ function Base.union!(
 
 
   new_eclass = EClass{AnalysisType}(
-    id_1.val,
+    id_1,
     append!(eclass_1.nodes, eclass_2.nodes),
     append!(eclass_1.parents, eclass_2.parents),
     new_data,
@@ -396,7 +398,7 @@ function rebuild_classes!(g::EGraph)
     unique!(eclass.nodes)
 
     for n in eclass.nodes
-      add_class_by_op(g, n, eclass_id.val)
+      add_class_by_op(g, n, eclass_id)
     end
   end
 
@@ -467,7 +469,7 @@ function check_parents(g::EGraph)::Bool
     # make sure all nodes and parent ids occuring in the parent vector have this eclass as a child
     for nid in class.parents
       parent_class = g[nid]
-      any(n -> any(ch -> ch == id.val, v_children(n)), parent_class.nodes) || error("no node in the parent references the eclass") # nodes are canonicalized
+      any(n -> any(ch -> ch == id, v_children(n)), parent_class.nodes) || error("no node in the parent references the eclass") # nodes are canonicalized
 
       parent_node = g.nodes[nid]
       parent_node_copy = copy(parent_node)
@@ -482,11 +484,11 @@ end
 function check_memo(g::EGraph)::Bool
   test_memo = Dict{VecExpr,Id}()
   for (id, class) in g.classes
-    @assert id.val == class.id
+    @assert id == class.id
     for node in class.nodes
-      old_id = get!(test_memo, node, id.val)
-      if old_id != id.val
-        @assert find(g, old_id) == find(g, id.val) "Unexpected equivalence $node $(g[find(g, id.val)].nodes) $(g[find(g, old_id)].nodes)"
+      old_id = get!(test_memo, node, id)
+      if old_id != id
+        @assert find(g, old_id) == find(g, id) "Unexpected equivalence $node $(g[find(g, id)].nodes) $(g[find(g, old_id)].nodes)"
       end
     end
   end

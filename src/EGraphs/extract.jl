@@ -77,16 +77,16 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
         end
       end
 
-      if min_cost != typemax(CT) && (!haskey(extractor.costs, id) || (min_cost < extractor.costs[id][1]))
-        extractor.costs[id] = (min_cost, min_cost_node_idx)
+      if min_cost != typemax(CT) && (!haskey(extractor.costs, IdKey(id)) || (min_cost < extractor.costs[IdKey(id)][1]))
+        extractor.costs[IdKey(id)] = (min_cost, min_cost_node_idx)
         did_something = true
       end
     end
   end
 
   for (id, _) in extractor.g.classes
-    if !haskey(extractor.costs, id)
-      error("failed to compute extraction costs for eclass ", id.val)
+    if !haskey(extractor.costs, IdKey(id))
+      error("failed to compute extraction costs for eclass ", id)
     end
   end
 end

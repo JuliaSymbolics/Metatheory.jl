@@ -64,3 +64,59 @@ function buffer_readable(g, limit, ematch_buffer)
     k = next_delimiter_idx
   end
 end
+
+
+# used for eclasses instead of a dictionary
+struct SparseVector{V}
+  data::Vector{Union{Nothing,V}}
+  nzidx::Vector{Int64} # for iteration over elements
+end
+
+SparseVector{V}() where {V} = SparseVector(Vector{Union{Nothing,V}}(), Vector{Int64}()) 
+
+function Base.getindex(v::SparseVector{V}, i) where {V}
+  i > 0 || i <= length(v.data) || return nothing
+  @inbounds v.data[i]
+end
+
+function Base.setindex!(v::SparseVector{V}, val::V, i) where {V}
+  i > 0 || throw(KeyError())
+
+  if i > length(v.data)
+    m = length(v.data)
+    resize!(v.data, ceil(Int64, i*1.4))
+    fill!(view(v.data, m+1:length(v.data)), nothing)
+    push!(v.nzidx, i)
+    @inbounds v.data[i] = val
+  elseif !isnothing(v.data[i])
+    # overwrite existing value
+    @inbounds v.data[i] = val
+  else
+    push!(v.nzidx, i)
+    @inbounds v.data[i] = val
+  end
+end
+
+function Base.pop!(v::SparseVector, i)
+  (i > 0 && i <= length(v.data)) || throw(KeyError()) 
+
+  @inbounds val = v.data[i]
+  !isnothing(val) || return val
+  deleteat!(v.nzidx, findfirst((==)(i), v.nzidx)) # TODO: a sorted collection could be useful here  
+  @inbounds v.data[i] = nothing
+  val
+end
+
+function Base.deleteat!(v::SparseVector, i)
+  (i > 0 && i <= length(v.data)) || return
+
+  !isnothing(v.data[i]) || return
+  
+  deleteat!(v.nzidx, findfirst((==)(i), v.nzidx)) # TODO: a sorted collection could be useful here
+  @inbounds v.data[i] = nothing
+  nothing
+end
+
+@inline Base.eachindex(v::SparseVector) = v.nzidx
+@inline Base.length(v::SparseVector) = length(v.nzidx)
+Base.iterate(v::SparseVector, i=1) = i <= length(v.nzidx) ? ((v.nzidx[i], v.data[v.nzidx[i]]), i + 1) : nothing
