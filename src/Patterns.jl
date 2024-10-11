@@ -1,21 +1,18 @@
 module Patterns
 
-using Metatheory: binarize, cleanast, alwaystrue
+using Metatheory: cleanast, alwaystrue, maybe_quote_operation
 using AutoHashEquals
 using TermInterface
+using Metatheory.VecExprModule
 
+import Metatheory: to_expr
+
+export AbstractPat, PatLiteral, PatVar, PatExpr, PatSegment, patvars, setdebrujin!, isground, constants
 
 """
 Abstract type representing a pattern used in all the various pattern matching backends. 
 """
 abstract type AbstractPat end
-
-
-struct UnsupportedPatternException <: Exception
-  p::AbstractPat
-end
-
-Base.showerror(io::IO, e::UnsupportedPatternException) = print(io, "Pattern ", e.p, " is unsupported in this context")
 
 
 Base.:(==)(a::AbstractPat, b::AbstractPat) = false
@@ -25,7 +22,17 @@ A ground pattern contains no pattern variables and
 only literal values to match.
 """
 isground(p::AbstractPat) = false
-isground(x) = true # literals
+
+struct PatLiteral <: AbstractPat
+  value
+  n::VecExpr
+  PatLiteral(val) = new(val, VecExpr(Id[0, 0, 0, hash(val)]))
+end
+
+PatLiteral(p::AbstractPat) = throw(DomainError(p, "Cannot construct a pattern literal of another pattern object."))
+
+isground(x::PatLiteral) = true # literals
+
 
 # PatVar is equivalent to SymbolicUtils's Slot
 """
@@ -42,15 +49,14 @@ boolean value. Such a slot will be considered a match only if `f` returns true.
 type assertion. Type assertions on a `PatVar`, will match if and only if 
 the type of the matched term for the pattern variable is a subtype of `T`. 
 """
-mutable struct PatVar{P} <: AbstractPat
+mutable struct PatVar{P<:Union{Function,Type}} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
-  predicate_code
 end
 Base.:(==)(a::PatVar, b::PatVar) = a.idx == b.idx
-PatVar(var) = PatVar(var, -1, alwaystrue, nothing)
-PatVar(var, i) = PatVar(var, i, alwaystrue, nothing)
+PatVar(var) = PatVar(var, -1, alwaystrue)
+PatVar(var, i) = PatVar(var, i, alwaystrue)
 
 """
 If you want to match a variable number of subexpressions at once, you will need
@@ -59,92 +65,117 @@ A segment pattern represents a vector of subexpressions matched.
 You can attach a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more 
 expressions and must return a boolean value. 
 """
-mutable struct PatSegment{P} <: AbstractPat
+mutable struct PatSegment{P<:Union{Function,Type}} <: AbstractPat
   name::Symbol
   idx::Int
   predicate::P
-  predicate_code
 end
 
-PatSegment(v) = PatSegment(v, -1, alwaystrue, nothing)
-PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
+PatSegment(v) = PatSegment(v, -1, alwaystrue)
+PatSegment(v, i) = PatSegment(v, i, alwaystrue)
 
 
 """
-Term patterns will match
-on terms of the same `arity` and with the same 
-function symbol `operation` and expression head `exprhead`.
+Term patterns will match on terms of the same `arity` and with the same `operation`.
 """
-struct PatTerm <: AbstractPat
-  exprhead::Any
-  operation::Any
-  args::Vector
-  PatTerm(eh, op, args) = new(eh, op, args) #Ref{UInt}(0))
+struct PatExpr <: AbstractPat
+  head
+  head_hash::UInt
+  quoted_head
+  quoted_head_hash::UInt
+  children::Vector{AbstractPat}
+  isground::Bool
+  """
+  Behaves like an e-node to not re-allocate memory when doing e-graph lookups and instantiation 
+  in case of cache hits in the e-graph hashcons
+  """
+  n::VecExpr
+  function PatExpr(iscall, op, qop, args::Vector)
+    op_hash = hash(op)
+    qop_hash = hash(qop)
+    ar = length(args)
+    signature = hash(qop, hash(ar))
+
+    n = v_new(ar)
+    v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+    iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+    v_set_head!(n, op_hash)
+    v_set_signature!(n, signature)
+
+    for i in v_children_range(n)
+      @inbounds n[i] = 0
+    end
+
+    new(op, op_hash, qop, qop_hash, args, all(isground, args), n)
+  end
 end
-TermInterface.istree(::PatTerm) = true
-TermInterface.exprhead(e::PatTerm) = e.exprhead
-TermInterface.operation(p::PatTerm) = p.operation
-TermInterface.arguments(p::PatTerm) = p.args
-TermInterface.arity(p::PatTerm) = length(arguments(p))
-TermInterface.metadata(p::PatTerm) = nothing
 
-function TermInterface.similarterm(x::PatTerm, head, args, symtype = nothing; metadata = nothing, exprhead = :call)
-  PatTerm(exprhead, head, args)
+# Should call `nameof` on op if Function or DataType. Identity otherwise
+PatExpr(iscall, op, args::Vector) = PatExpr(iscall, op, maybe_quote_operation(op), args)
+
+isground(p::PatExpr)::Bool = p.isground
+
+function Base.isequal(x::PatExpr, y::PatExpr)
+  x.head_hash === y.head_hash && v_signature(x.n)===v_signature(y.n) && all(x.children .== y.children)
 end
 
-isground(p::PatTerm) = all(isground, p.args)
+TermInterface.isexpr(::PatExpr) = true
+TermInterface.head(p::PatExpr) = p.head
+TermInterface.operation(p::PatExpr) = p.head
+TermInterface.children(p::PatExpr) = p.children
+TermInterface.arguments(p::PatExpr) = p.children
+TermInterface.iscall(p::PatExpr) = v_iscall(p.n)
 
+TermInterface.arity(p::PatExpr) = length(p.children)
 
-# ==============================================
-# ================== PATTERN VARIABLES =========
-# ==============================================
+function TermInterface.maketerm(::Type{PatExpr}, operation, arguments, metadata)
+  iscall = isnothing(metadata) ? true : metadata.iscall
+  PatExpr(iscall, operation, arguments...)
+end
+
+# ---------------------
+# # Pattern Variables.
 
 """
 Collects pattern variables appearing in a pattern into a vector of symbols
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)
-patvars(p::PatTerm, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
-patvars(x, s) = s
+patvars(p::PatExpr, s) = (patvars(operation(p), s); foreach(x -> patvars(x, s), arguments(p)); s)
+patvars(::Any, s) = s
 patvars(p) = unique!(patvars(p, Symbol[]))
 
 
-# ==============================================
-# ================== DEBRUJIN INDEXING =========
-# ==============================================
+# ---------------------
+# # Debrujin Indexing.
+
 
 function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
   p.idx = findfirst((==)(p.name), pvars)
 end
 
 # literal case
-setdebrujin!(p, pvars) = nothing
+setdebrujin!(::Any, pvars) = nothing
 
-function setdebrujin!(p::PatTerm, pvars)
+function setdebrujin!(p::PatExpr, pvars)
   setdebrujin!(operation(p), pvars)
-  foreach(x -> setdebrujin!(x, pvars), p.args)
+  foreach(x -> setdebrujin!(x, pvars), p.children)
 end
 
-
-to_expr(x) = x
-to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate_code))
-to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
+to_expr(x::PatLiteral) = x.value
+to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate))
+to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
-to_expr(x::PatTerm) = similarterm(Expr(:call, :x), operation(x), map(to_expr, arguments(x)); exprhead = exprhead(x))
+function to_expr(x::PatExpr)
+  if iscall(x)
+    maketerm(Expr, :call, [x.quoted_head; to_expr.(arguments(x))], nothing)
+  else
+    maketerm(Expr, operation(x), to_expr.(arguments(x)), nothing)
+  end
+end
 
 Base.show(io::IO, pat::AbstractPat) = print(io, to_expr(pat))
-
-
-# include("rules/patterns.jl")
-export AbstractPat
-export PatVar
-export PatTerm
-export PatSegment
-export patvars
-export setdebrujin!
-export isground
-export UnsupportedPatternException
 
 
 end

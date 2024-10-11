@@ -1,6 +1,6 @@
 # API Documentation
 
-
+```
 ## Syntax
 
 ```@autodocs
@@ -25,14 +25,6 @@ Modules = [Metatheory.Rules]
 
 ---
 
-## Rules 
-
-```@autodocs
-Modules = [Metatheory.Rules]
-```
-
----
-
 ## Rewriters
 
 ```@autodocs
@@ -45,6 +37,16 @@ Modules = [Metatheory.Rewriters]
 
 ```@autodocs
 Modules = [Metatheory.EGraphs]
+```
+
+## VecExprs (aka e-nodes)
+
+```@docs
+Metatheory.VecExprModule.VecExpr
+```
+
+```@autodocs
+Modules = [Metatheory.VecExprModule]
 ```
 
 ---
