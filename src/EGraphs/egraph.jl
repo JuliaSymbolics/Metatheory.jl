@@ -183,7 +183,7 @@ mutable struct EGraph{ExpressionType,Analysis}
 
   """
   When an e-node is added to an e-graph for the first time, we add analysis data to the
-  newly-created e-class by calling [`make`]() on the head of the e-node and the analysis
+  newly-created e-class by calling [`EGraphs.make`](@ref) on the head of the e-node and the analysis
   data for the arguments to that e-node. However, the analysis data for the arguments to
   that e-node could get updated at some point, as e-classes are merged.
 
