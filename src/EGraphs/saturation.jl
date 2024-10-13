@@ -109,7 +109,7 @@ function eqsat_search!(
       # if n_matches - prev_matches > 2 && rule_idx == 2
       #   @debug buffer_readable(g, old_len)
       # end
-      inform!(scheduler, rule_idx, n_matches)
+      inform!(scheduler, rule_idx, n_matches - prev_matches)
     end
   end
 
@@ -214,7 +214,7 @@ function eqsat_apply!(
     if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
       @debug "Goal reached"
       rep.reason = :goalreached
-      return
+      break
     end
 
     delimiter = ematch_buffer.v[k]
