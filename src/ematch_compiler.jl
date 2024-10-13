@@ -249,12 +249,12 @@ function check_var_expr(addr, predicate::Function)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
-      for (j, n) in enumerate(eclass.nodes)
-        if !v_isexpr(n)
-          $(Symbol(:enode_idx, addr)) = j + 1
-          break
-        end
-      end
+      # for (j, n) in enumerate(eclass.nodes)
+      #   if !v_isexpr(n)
+      #     $(Symbol(:enode_idx, addr)) = j + 1
+      #     break
+      #   end
+      # end
       pc += 0x0001
       @goto compute
     end
@@ -322,7 +322,17 @@ end
 
 function yield_expr(patvar_to_addr, direction)
   push_exprs = [
-    :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
+    quote
+      id = $(Symbol(:σ, addr))
+      eclass = g[id]
+      node_idx = $(Symbol(:enode_idx, addr)) - 1
+      if node_idx <= 0
+        push!(ematch_buffer, v_pair(id, reinterpret(UInt64, 0)))
+      else
+        n = eclass.nodes[node_idx]
+        push!(ematch_buffer, v_pair(id, v_head(n)))
+      end
+    end for
     addr in patvar_to_addr
   ]
   quote
