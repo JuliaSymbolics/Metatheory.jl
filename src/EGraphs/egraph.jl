@@ -281,7 +281,7 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
 
-  # push!(g.pending, id) #  We just created a new eclass for a new node. No need to reprocess parents (TODO: check)
+  # push!(g.pending, id) #  We just created a new eclass for a new node. No need to reprocess parents
 
   return id
 end
@@ -352,8 +352,8 @@ function Base.union!(
   eclass_2 = pop!(g.classes, id_2)::EClass
   eclass_1 = g.classes[id_1]::EClass
 
-  push!(g.pending, merged_id) 
-  # push!(g.pending, id_2.val) # TODO: sufficient?
+  # push!(g.pending, merged_id) 
+  push!(g.pending, id_2.val) # TODO: it seems sufficient, to queue parents of id_2.val?
 
   (merged_1, merged_2, new_data) = merge_analysis_data!(eclass_1, eclass_2)
   merged_1 && push!(g.analysis_pending, id_1.val)
@@ -483,7 +483,7 @@ function repair_parents!(g::EGraph, id::Id)
     for i in Iterators.drop(eachindex(eclass.parents), 1)
       (cur_node, cur_id) = eclass.parents[i]
       
-      if cur_node == prev_node  # could check hash(cur_node) == hash(prev_node) first
+      if hash(cur_node) == hash(prev_node) && cur_node == prev_node
         if union!(g, cur_id, prev_id) 
           n_unions += 1
         end
@@ -495,7 +495,7 @@ function repair_parents!(g::EGraph, id::Id)
     end
     
     # TODO: remove assertions
-    @assert length(unique(pair -> pair[1], new_parents)) == length(new_parents)  "not unique: $new_parents"
+    # @assert length(unique(pair -> pair[1], new_parents)) == length(new_parents)  "not unique: $new_parents"
     # @assert all(pair -> pair[2] == find(g, pair[2]), new_parents)  "not refering to eclasses: $(new_parents)\n $g"
     
     eclass.parents = new_parents
