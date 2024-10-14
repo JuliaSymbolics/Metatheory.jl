@@ -109,7 +109,7 @@ function eqsat_search!(
       # if n_matches - prev_matches > 2 && rule_idx == 2
       #   @debug buffer_readable(g, old_len)
       # end
-      inform!(scheduler, rule_idx, n_matches - prev_matches)
+      inform!(scheduler, rule_idx, n_matches) # TODO - prev_matches
     end
   end
 
@@ -327,7 +327,7 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
     curr_iter += 1
 
     @debug "================ EQSAT ITERATION $curr_iter  ================"
-    @debug g
+    # @debug g
 
     report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer)
 
