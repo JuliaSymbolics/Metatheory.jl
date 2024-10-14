@@ -389,11 +389,11 @@ function rebuild_classes!(g::EGraph)
 
   trimmed_nodes = 0
   for (eclass_id, eclass) in g.classes
-    for n in eclass.nodes
-      memo_class = pop!(g.memo, n, 0)
-      canonicalize!(g, n)
-      g.memo[n] = eclass_id.val
-    end
+    # for n in eclass.nodes
+    #   memo_class = pop!(g.memo, n, 0)
+    #   canonicalize!(g, n)
+    #   g.memo[n] = eclass_id.val
+    # end
     # TODO Sort to go in order?
     trimmed_nodes += length(eclass.nodes)
     unique!(eclass.nodes)

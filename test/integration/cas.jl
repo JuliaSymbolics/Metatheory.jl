@@ -1,4 +1,4 @@
-using Metatheory, TermInterface, Test
+using Metatheory, Test
 using Metatheory.Library
 using Metatheory.Schedulers
 
@@ -188,11 +188,11 @@ end
 @test :(y + sec(x)^2) == simplify(:(1 + y + tan(x)^2))
 @test :(y + csc(x)^2) == simplify(:(1 + y + cot(x)^2))
 
-@test_broken simplify(:(diff(x^2, x))) == :(2x)
+@test simplify(:(diff(x^2, x))) == :(2x)
 @test_broken simplify(:(diff(x^(cos(x)), x))) == :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x))
 @test simplify(:(x * diff(x^2, x) * x)) == :(2x^3)
 
-@test_broken simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x ^ 2) # :(3y * 2x^2)
+@test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x ^ 2) # :(3y * 2x^2)
 
 @test simplify(:(6 * x * x * y)) == :(6 * y * x^2)
 @test simplify(:(diff(y^3, y) / y)) == :(3y)
