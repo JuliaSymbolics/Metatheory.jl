@@ -503,7 +503,7 @@ function repair_parents!(g::EGraph, id::Id)
   n_unions
 end
 function update_analysis_upwards!(g::EGraph, id::Id)
-  for (p_node, p_id) in g.classes[IdKey(id)]
+  for (p_node, p_id) in g[id].parents
     p_id = find(g, p_id)
     eclass = g.classes[IdKey(p_id)]
 
@@ -515,12 +515,12 @@ function update_analysis_upwards!(g::EGraph, id::Id)
         if joined_data != eclass.data
           eclass.data = joined_data
           modify!(g, eclass)
-          append!(g.analysis_pending, eclass.parents)
+          append!(g.analysis_pending, p_id)
         end
       else
         eclass.data = node_data
         modify!(g, eclass)
-        append!(g.analysis_pending, eclass.parents)
+        append!(g.analysis_pending, p_id)
       end
     end
   end
