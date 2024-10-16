@@ -38,10 +38,10 @@ The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, 
 means that without a reference to the [`EGraph`](@ref) object we cannot re-build human-readable terms
 they represent. The [`EGraph`](@ref) itself comes with pretty printing for human-readable terms.
 """
-struct EClass{D}
-  id::Id
-  nodes::Vector{VecExpr}
-  parents::Vector{Pair{VecExpr,Id}}
+mutable struct EClass{D}
+  const id::Id
+  const nodes::Vector{VecExpr}
+  const parents::Vector{Pair{VecExpr,Id}}
   data::Union{D,Nothing}
 end
 
@@ -352,15 +352,12 @@ function Base.union!(
   merged_2 && append!(g.analysis_pending, eclass_2.parents)
 
 
-  new_eclass = EClass{AnalysisType}(
-    id_1.val,
-    append!(eclass_1.nodes, eclass_2.nodes),
-    append!(eclass_1.parents, eclass_2.parents),
-    new_data,
-  )
+  # update eclass_1
+  append!(eclass_1.nodes, eclass_2.nodes)
+  append!(eclass_1.parents, eclass_2.parents)
+  eclass_1.data = new_data
 
-  g.classes[id_1] = new_eclass
-  modify!(g, new_eclass)
+  modify!(g, eclass_1)
 
   return true
 end
@@ -429,14 +426,12 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
           joined_data = join(eclass.data, node_data)
         
           if joined_data != eclass.data
-            g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, joined_data)
-            # eclass.data = joined_data
+            eclass.data = joined_data
             modify!(g, eclass)
             append!(g.analysis_pending, eclass.parents)
           end
         else
-          g.classes[eclass_id_key] = EClass{AnalysisType}(eclass_id, eclass.nodes, eclass.parents, node_data)
-          # eclass.data = node_data
+          eclass.data = node_data
           modify!(g, eclass)
           append!(g.analysis_pending, eclass.parents)
         end
