@@ -77,6 +77,7 @@ function eqsat_search!(
 
 
   @debug "SEARCHING"
+  stack = get_local_stack()
   for (rule_idx, rule) in enumerate(theory)
     prev_matches = n_matches
     @timeit report.to string(rule_idx) begin
@@ -90,7 +91,7 @@ function eqsat_search!(
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
-        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
+        n_matches += rule.ematcher_left!(g, rule_idx, i, stack, ematch_buffer)
         inform!(scheduler, rule_idx, i, n_matches)
       end
 
@@ -98,7 +99,7 @@ function eqsat_search!(
         ids_right = cached_ids(g, rule.right)
         for i in ids_right
           cansearch(scheduler, rule_idx, i) || continue
-          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
+          n_matches += rule.ematcher_right!(g, rule_idx, i, stack, ematch_buffer)
           inform!(scheduler, rule_idx, i, n_matches)
         end
       end
@@ -123,21 +124,21 @@ end
 instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
 function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
   add_constant_hashed!(g, p.head, p.head_hash)
-
+  n = copy(p.n)
   for i in v_children_range(p.n)
-    @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
+    @inbounds n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
   end
-  add!(g, p.n, true)
+  add!(g, n, false)
 end
 
 function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
   add_constant_hashed!(g, p.quoted_head, p.quoted_head_hash)
   v_set_head!(p.n, p.quoted_head_hash)
-
+  n = copy(p.n)
   for i in v_children_range(p.n)
-    @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
+    @inbounds n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
   end
-  add!(g, p.n, true)
+  add!(g, n, false)
 end
 
 """

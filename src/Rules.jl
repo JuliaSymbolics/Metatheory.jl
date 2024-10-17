@@ -1,5 +1,6 @@
 module Rules
 
+using Base.Threads
 using TermInterface
 using AutoHashEquals
 using Metatheory.Patterns
@@ -16,7 +17,8 @@ export RewriteRule,
   Theory,
   direct,
   direct_left_to_right,
-  direct_right_to_left
+  direct_right_to_left,
+  get_local_stack
 
 const STACK_SIZE = 512
 
@@ -27,14 +29,14 @@ Rules defined as with the --> are
 called *directed rewrite* rules. Application of a *directed rewrite* rule
 is a replacement of the `left` pattern with
 the `right` substitution, with the correct instantiation
-of pattern variables. 
+of pattern variables.
 
 ```julia
 @rule ~a * ~b --> ~b * ~a
 ```
 
-An *equational rule* is a symbolic substitution rule with operator `==` that 
-can be rewritten bidirectionally. Therefore, it can only be used 
+An *equational rule* is a symbolic substitution rule with operator `==` that
+can be rewritten bidirectionally. Therefore, it can only be used
 with the EGraphs backend.
 
 ```julia
@@ -43,7 +45,7 @@ with the EGraphs backend.
 
 Rules defined with the `!=` act as  *anti*-rules for checking contradictions in e-graph
 rewriting. If two terms, corresponding to the left and right hand side of an
-*anti-rule* are found in an `EGraph`, saturation is halted immediately. 
+*anti-rule* are found in an `EGraph`, saturation is halted immediately.
 
 ```julia
 !a != a
@@ -71,9 +73,32 @@ Base.@kwdef struct RewriteRule{Op<:Function}
   ematcher_right!::Union{Nothing,Function} = nothing
   matcher_left::Function
   matcher_right::Union{Nothing,Function} = nothing
-  stack::OptBuffer{UInt16} = OptBuffer{UInt16}(STACK_SIZE)
   lhs_original = nothing
   rhs_original = nothing
+end
+
+const THREAD_STACKS = OptBuffer{UInt16}[]
+"""
+Retrieve the per-thread stack thread used for program counters in matching.
+
+We need a stack for each thread so that multithreading works correctly.
+
+Modeled off [Julia's global RNG](https://github.com/JuliaLang/julia/blob/bc4b2e848400764e389c825b57d1481ed76f4d85/stdlib/Random/src/RNGs.jl)
+"""
+@inline get_local_stack() = get_local_stack(Threads.threadid())
+@noinline function get_local_stack(tid::Int)
+  @assert 0 < tid <= length(THREAD_STACKS)
+  if @inbounds isassigned(THREAD_STACKS, tid)
+    @inbounds stack = THREAD_STACKS[tid]
+  else
+    stack = OptBuffer{UInt16}(STACK_SIZE)
+    @inbounds THREAD_STACKS[tid] = stack
+  end
+  return stack
+end
+
+function __init__()
+  resize!(empty!(THREAD_STACKS), Threads.nthreads())
 end
 
 function --> end
@@ -99,8 +124,8 @@ function Base.show(io::IO, r::RewriteRule)
 end
 
 
-(r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
-(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
+(r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), get_local_stack())
+(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), get_local_stack())
 
 # ---------------------
 # Theories
@@ -165,10 +190,10 @@ function Base.inv(r::RewriteRule)
 end
 
 """
-Turns an EqualityRule into a DirectedRule. For example, 
+Turns an EqualityRule into a DirectedRule. For example,
 
 ```julia
-direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x) 
+direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x)
 ```
 """
 function direct(r::EqualityRule)
@@ -176,10 +201,10 @@ function direct(r::EqualityRule)
 end
 
 """
-Turns an EqualityRule into a DirectedRule, but right to left. For example, 
+Turns an EqualityRule into a DirectedRule, but right to left. For example,
 
 ```julia
-direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x) 
+direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x)
 ```
 """
 direct_right_to_left(r::EqualityRule) = inv(direct(r))
