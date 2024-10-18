@@ -1,4 +1,4 @@
-using Metatheory, TermInterface, Test
+using Metatheory, Test
 using Metatheory.Library
 using Metatheory.Schedulers
 
@@ -145,14 +145,14 @@ function simplcost(n::VecExpr, op, costs)
   1 + sum(costs) + (op in (:∂, diff, :diff) ? 200 : 0)
 end
 
-function simplify(ex; steps = 4)
-  params = SaturationParams(
+function simplify(ex; steps = 4, params=SaturationParams())
+  #params = SaturationParams(
   # scheduler = ScoredScheduler,
   # eclasslimit = 5000,
-  # timeout = 7,
+  # timeout = 2,
   # schedulerparams = (match_limit = 1000, ban_length = 5),
   #stopwhen=stopwhen,
-  )
+  #)
   hist = UInt64[]
   push!(hist, hash(ex))
   for i in 1:steps

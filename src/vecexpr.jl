@@ -121,4 +121,6 @@ v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 @inline Base.lastindex(n::VecExpr) = lastindex(n.data)
 @inline Base.firstindex(n::VecExpr) = firstindex(n.data)
 
+Base.isless(a::VecExpr,b::VecExpr) = isless(a.data,b.data)
+
 end

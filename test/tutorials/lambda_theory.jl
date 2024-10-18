@@ -1,4 +1,4 @@
-using Metatheory, Test, TermInterface
+using Metatheory, Test
 
 # # Lambda theory
 #

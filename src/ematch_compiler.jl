@@ -96,11 +96,11 @@ end
 check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :(has_constant(g, $(last(p.n))) || return 0))
 check_constant_exprs!(buf, ::AbstractPat) = buf
 function check_constant_exprs!(buf, p::PatExpr)
-  if !(p.head isa AbstractPat)
-    push!(buf, :(has_constant(g, $(p.head_hash)) || has_constant(g, $(p.quoted_head_hash)) || return 0))
-  end
   for child in children(p)
     check_constant_exprs!(buf, child)
+  end
+  if !(p.head isa AbstractPat)
+    push!(buf, :(has_constant(g, $(p.head_hash)) || has_constant(g, $(p.quoted_head_hash)) || return 0))
   end
   buf
 end
@@ -209,8 +209,8 @@ function bind_expr(addr, p::PatExpr, memrange)
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
-      v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
-      v_head(n) === $(v_head(p.n)) || (v_head(n) === $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr)))
+      v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr)) # TODO better to check signature before flags? check perf.
+      v_head(n) === $(v_head(p.n)) || v_head(n) === $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr))
 
       # Node has matched.
       $([:($(Symbol(:σ, j)) = n[$i + $VECEXPR_META_LENGTH]) for (i, j) in enumerate(memrange)]...)
@@ -249,12 +249,12 @@ function check_var_expr(addr, predicate::Function)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
-      for (j, n) in enumerate(eclass.nodes)
-        if !v_isexpr(n)
-          $(Symbol(:enode_idx, addr)) = j + 1
-          break
-        end
-      end
+      # for (j, n) in enumerate(eclass.nodes)
+      #   if !v_isexpr(n)
+      #     $(Symbol(:enode_idx, addr)) = j + 1
+      #     break
+      #   end
+      # end
       pc += 0x0001
       @goto compute
     end
@@ -322,7 +322,17 @@ end
 
 function yield_expr(patvar_to_addr, direction)
   push_exprs = [
-    :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
+    quote
+      id = $(Symbol(:σ, addr))
+      eclass = g[id]
+      node_idx = $(Symbol(:enode_idx, addr)) - 1
+      if node_idx <= 0
+        push!(ematch_buffer, v_pair(id, reinterpret(UInt64, 0)))
+      else
+        n = eclass.nodes[node_idx]
+        push!(ematch_buffer, v_pair(id, v_head(n)))
+      end
+    end for
     addr in patvar_to_addr
   ]
   quote

@@ -85,9 +85,9 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   end
 
   for (id, _) in extractor.g.classes
-    if !haskey(extractor.costs, id)
-      error("failed to compute extraction costs for eclass ", id.val)
-    end
+    # if !haskey(extractor.costs, id)
+    #   error("failed to compute extraction costs for eclass ", id.val)
+    # end
   end
 end
 

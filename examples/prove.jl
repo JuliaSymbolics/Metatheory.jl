@@ -1,4 +1,4 @@
-# Sketch function for basic iterative saturation and extraction 
+# Sketch function for basic iterative saturation and extraction
 function prove(
   t,
   ex,
@@ -32,9 +32,9 @@ function test_equality(t, exprs...; params = SaturationParams(), g = EGraph())
   params = deepcopy(params)
   params.goal = (g::EGraph) -> in_same_class(g, ids...)
 
+  g.root = first(ids) # to allow extraction (for debugging)
   report = saturate!(g, t, params)
   goal_reached = params.goal(g)
-
   if !(report.reason === :saturated) && !goal_reached
     return false # failed to prove
   end

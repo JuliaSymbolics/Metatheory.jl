@@ -18,8 +18,10 @@ function Base.union!(uf::UnionFind, i::Id, j::Id)
 end
 
 function find(uf::UnionFind, i::Id)
+  # path splitting
   while i != uf.parents[i]
-    i = uf.parents[i]
+    (i, uf.parents[i]) = (uf.parents[i], uf.parents[uf.parents[i]])
   end
+
   i
 end

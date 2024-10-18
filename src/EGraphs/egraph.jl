@@ -7,7 +7,7 @@
 
 The `modify!` function for EGraph Analysis can optionally modify the eclass
 `eclass` after it has been analyzed, typically by adding an e-node.
-It should be **idempotent** if no other changes occur to the EClass. 
+It should be **idempotent** if no other changes occur to the EClass.
 (See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
 """
 function modify! end
@@ -25,7 +25,7 @@ function join end
 """
     make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
 
-Given an e-node `n`, `make` should return the corresponding analysis value. 
+Given an e-node `n`, `make` should return the corresponding analysis value.
 """
 function make end
 
@@ -42,7 +42,7 @@ they represent. The [`EGraph`](@ref) itself comes with pretty printing for human
 mutable struct EClass{D}
   const id::Id
   const nodes::Vector{VecExpr}
-  const parents::Vector{Pair{VecExpr,Id}}
+  parents::Vector{Pair{VecExpr,Id}} # the parent nodes and eclasses for upward merging
   data::Union{D,Nothing}
 end
 
@@ -63,10 +63,6 @@ function Base.show(io::IO, a::EClass)
   for n in a.nodes
     println(io, "    $n")
   end
-end
-
-function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
-  push!(a.parents, (n => id))
 end
 
 
@@ -123,9 +119,10 @@ mutable struct EGraph{ExpressionType,Analysis}
   memo::Dict{VecExpr,Id}
   "Hashcons the constants in the e-graph"
   constants::Dict{UInt64,Any}
-  "Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass."
-  pending::Vector{Pair{VecExpr,Id}}
-  analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
+  "E-classes whose parent nodes have to be reprocessed."
+  pending::Vector{Id}
+  "E-classes whose parent nodes have to be reprocessed for analysis values."
+  analysis_pending::Vector{Id}
   root::Id
   "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
   classes_by_op::Dict{IdKey,Vector{Id}}
@@ -146,8 +143,8 @@ function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {Expre
     Dict{IdKey,EClass{Analysis}}(),
     Dict{VecExpr,Id}(),
     Dict{UInt64,Any}(),
-    Pair{VecExpr,Id}[],
-    UniqueQueue{Pair{VecExpr,Id}}(),
+    Vector{Id}(),
+    Vector{Id}(),
     0,
     Dict{IdKey,Vector{Id}}(),
     false,
@@ -198,9 +195,10 @@ function to_expr(g::EGraph, n::VecExpr)
 end
 
 function pretty_dict(g::EGraph)
-  d = Dict{Int,Vector{Any}}()
+  d = Dict{Int,Tuple{Vector{Any},Vector{Any}}}()
   for (class_id, eclass) in g.classes
-    d[class_id.val] = map(n -> to_expr(g, n), eclass.nodes)
+    # TODO do not show parent lists anymore (but useful for debugging)
+    d[class_id.val] = (map(n -> to_expr(g, n), eclass.nodes), map(pair -> to_expr(g, pair[1]) => Int(pair[2]), eclass.parents))
   end
   d
 end
@@ -209,8 +207,8 @@ export pretty_dict
 function Base.show(io::IO, g::EGraph)
   d = pretty_dict(g)
   t = "$(typeof(g)) with $(length(d)) e-classes:"
-  cs = map(sort!(collect(d); by = first)) do (k, vect)
-    "  $k => [$(Base.join(vect, ", "))]"
+  cs = map(sort!(collect(d); by = first)) do (k, (nodes, parents))
+    "  $k => [$(Base.join(nodes, ", "))] parents: [$(Base.join(parents, ", "))]"
   end
   print(io, Base.join([t; cs], "\n"))
 end
@@ -239,13 +237,13 @@ function lookup(g::EGraph, n::VecExpr)::Id
   canonicalize!(g, n)
 
   id = get(g.memo, n, zero(Id))
-  iszero(id) ? id : find(g, id)
+  iszero(id) ? id : find(g, id) # find necessary because g.memo values are not necessarily canonical
 end
 
 
 function add_class_by_op(g::EGraph, n, eclass_id)
   key = IdKey(v_signature(n))
-  vec = get!(g.classes_by_op, key, Vector{Id}())
+  vec = get!(Vector{Id}, g.classes_by_op, key)
   push!(vec, eclass_id)
 end
 
@@ -264,19 +262,23 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   id = push!(g.uf) # create new singleton eclass
 
+  # eclass.nodes, eclass.parents, and g.memo all have a reference to the same VecExpr for the new enode.
+  # The node must never be manipulated while it is contained in memo.
+  
   if v_isexpr(n)
     for c_id in v_children(n)
-      addparent!(g.classes[IdKey(c_id)], n, id)
+      push!(g.classes[IdKey(c_id)].parents, n => id)
     end
   end
 
   g.memo[n] = id
 
   add_class_by_op(g, n, id)
-  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n))
+  eclass = EClass{Analysis}(id, VecExpr[n], Id[], make(g, n))
   g.classes[IdKey(id)] = eclass
   modify!(g, eclass)
-  push!(g.pending, n => id)
+
+  # push!(g.pending, id) #  We just created a new eclass for a new node. No need to reprocess parents
 
   return id
 end
@@ -284,7 +286,7 @@ end
 
 """
 Extend this function on your types to do preliminary
-preprocessing of a symbolic term before adding it to 
+preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """
@@ -293,14 +295,15 @@ function preprocess(e::Expr)
 end
 preprocess(x) = x
 
+addexpr!(::EGraph, se::EClass) = se.id # TODO: why do we need this?
+
 """
 Recursively traverse an type satisfying the `TermInterface` and insert terms into an
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
 function addexpr!(g::EGraph, se)::Id
-  se isa EClass && return se.id
-  e = preprocess(se)
+  e = preprocess(se) # TODO: type stability issue?
 
   isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
 
@@ -341,16 +344,17 @@ function Base.union!(
     id_1, id_2 = id_2, id_1
   end
 
-  union!(g.uf, id_1.val, id_2.val)
+  merged_id = union!(g.uf, id_1.val, id_2.val)
 
   eclass_2 = pop!(g.classes, id_2)::EClass
   eclass_1 = g.classes[id_1]::EClass
 
-  append!(g.pending, eclass_2.parents)
+  # push!(g.pending, merged_id) 
+  push!(g.pending, id_2.val) # TODO: it seems sufficient to queue parents of id_2.val?
 
   (merged_1, merged_2, new_data) = merge_analysis_data!(eclass_1, eclass_2)
-  merged_1 && append!(g.analysis_pending, eclass_1.parents)
-  merged_2 && append!(g.analysis_pending, eclass_2.parents)
+  merged_1 && push!(g.analysis_pending, id_1.val)
+  merged_2 && push!(g.analysis_pending, id_2.val)
 
 
   # update eclass_1
@@ -380,13 +384,12 @@ function rebuild_classes!(g::EGraph)
     empty!(v)
   end
 
+  trimmed_nodes = 0
   for (eclass_id, eclass) in g.classes
-    # old_len = length(eclass.nodes)
-    for n in eclass.nodes
-      canonicalize!(g, n)
-    end
-    # Sort to go in order?
+    trimmed_nodes += length(eclass.nodes)
+    # TODO Sort to go in order?
     unique!(eclass.nodes)
+    trimmed_nodes -= length(eclass.nodes)
 
     for n in eclass.nodes
       add_class_by_op(g, n, eclass_id.val)
@@ -395,52 +398,129 @@ function rebuild_classes!(g::EGraph)
 
   for v in values(g.classes_by_op)
     sort!(v)
-    unique!(v)
+    unique!(v) # TODO: _groupedunique!(itr), and implement isless(a::VecExpr, b::VecExpr) if it has an performance advantage
   end
+  trimmed_nodes
 end
 
 function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {ExpressionType,AnalysisType}
   n_unions = 0
 
+  # This is close to the pseudo-code in the egg paper.
+  # We separate the worklist into two lists for repair and update of semantic analysis values.
+  # The upwards update of semantic analysis values may require visiting fewer eclasses. 
   while !isempty(g.pending) || !isempty(g.analysis_pending)
-    while !isempty(g.pending)
-      (node::VecExpr, eclass_id::Id) = pop!(g.pending)
-      node = copy(node)
-      canonicalize!(g, node)
-      old_class_id = get!(g.memo, node, eclass_id)
-      if old_class_id != eclass_id
-        did_something = union!(g, old_class_id, eclass_id)
-        # TODO unique! can node dedup be moved here? compare performance
-        # did_something && unique!(g[eclass_id].nodes)
-        n_unions += did_something
-      end
+    todo = collect(unique(id -> find(g, id), g.pending))
+    @debug "Worklist reduced from $(length(g.pending)) to $(length(todo)) entries."
+    empty!(g.pending)
+    
+    for id in todo
+      n_unions += repair_parents!(g, id)
     end
 
-    while !isempty(g.analysis_pending)
-      (node::VecExpr, eclass_id::Id) = pop!(g.analysis_pending)
-      eclass_id = find(g, eclass_id)
-      eclass_id_key = IdKey(eclass_id)
-      eclass = g.classes[eclass_id_key]
-
-      node_data = make(g, node)
-      if !isnothing(node_data)
-        if !isnothing(eclass.data)
-          joined_data = join(eclass.data, node_data)
-        
-          if joined_data != eclass.data
-            eclass.data = joined_data
-            modify!(g, eclass)
-            append!(g.analysis_pending, eclass.parents)
-          end
-        else
-          eclass.data = node_data
-          modify!(g, eclass)
-          append!(g.analysis_pending, eclass.parents)
-        end
-      end
+    todo = collect(unique(id -> find(g, id), g.analysis_pending))
+    @debug "Analysis worklist reduced from $(length(g.analysis_pending)) to $(length(todo)) entries."
+    empty!(g.analysis_pending)
+    for id in todo
+      update_analysis_upwards!(g, id)
     end
   end
   n_unions
+end
+
+function repair_parents!(g::EGraph, id::Id)
+  n_unions = 0
+  eclass = g[id] # id does not have to be an eclass id anymore if we merged classes below
+  for (p_node, _) in eclass.parents
+    memo_class = pop!(g.memo, p_node, 0)
+    # memo_class = get(g.memo, p_node, 0)  # TODO: could we be messy instead and just canonicalize the node and add again (without pop!)?
+    
+    # only canonicalize node and update in memo if the node still exists
+    if memo_class > 0
+      canonicalize!(g, p_node)
+      g.memo[p_node] = find(g, memo_class)
+    end
+  end
+
+  # sort and collect unique nodes in new parents list (merging eclasses when finding duplicate nodes) 
+  if !isempty(eclass.parents) 
+    new_parents = Vector{Pair{VecExpr,Id}}()
+    sort!(eclass.parents, by=pair->pair[1])
+    (prev_node, prev_id) = first(eclass.parents)
+    
+    # TODO double check whether we need canonical eclass ids in parents list (find is called in rebuild above anyway)
+    push!(new_parents, prev_node => find(g, prev_id))
+    
+    for i in Iterators.drop(eachindex(eclass.parents), 1)
+      (cur_node, cur_id) = eclass.parents[i]
+      
+      if hash(cur_node) == hash(prev_node) && cur_node == prev_node
+        if union!(g, cur_id, prev_id) 
+          n_unions += 1
+        end
+      else
+        push!(new_parents, cur_node => find(g, cur_id)) # find not necessary?
+        prev_node, prev_id = cur_node, cur_id
+      end
+    end
+    
+    # TODO: remove assertions
+    # @assert length(unique(pair -> pair[1], new_parents)) == length(new_parents)  "not unique: $new_parents"
+    # @assert all(pair -> pair[2] == find(g, pair[2]), new_parents)  "not refering to eclasses: $(new_parents)\n $g"
+    
+    eclass.parents = new_parents
+  end
+  n_unions
+end
+
+function update_analysis_upwards!(g::EGraph, id::Id)
+  for (p_node, p_id) in g[id].parents
+    p_id = find(g, p_id)
+    eclass = g.classes[IdKey(p_id)]
+
+    node_data = make(g, p_node)
+    if !isnothing(node_data)
+      if !isnothing(eclass.data)
+        joined_data = join(eclass.data, node_data)
+
+        if joined_data != eclass.data
+          eclass.data = joined_data
+          modify!(g, eclass)
+          append!(g.analysis_pending, p_id)
+        end
+      else
+        eclass.data = node_data
+        modify!(g, eclass)
+        append!(g.analysis_pending, p_id)
+      end
+    end
+  end
+end
+
+function check_parents(g::EGraph)::Bool
+  for (id, class) in g.classes
+    # make sure that the parent node and parent eclass occurs in the parents vector for all children
+    for n in class.nodes
+      for chd_id in v_children(n)
+        chd_class = g[chd_id]
+        any(nid -> canonicalize!(g, copy(g.nodes[nid])) == n, chd_class.parents) || error("parent node is missing from child_class.parents")
+        any(nid -> find(g, nid) == id.val, chd_class.parents) || error("missing parent reference from child")
+      end
+    end
+
+    # make sure all nodes and parent ids occuring in the parent vector have this eclass as a child
+    for nid in class.parents
+      parent_class = g[nid]
+      any(n -> any(ch -> ch == id.val, v_children(n)), parent_class.nodes) || error("no node in the parent references the eclass") # nodes are canonicalized
+
+      parent_node = g.nodes[nid]
+      parent_node_copy = copy(parent_node)
+      canonicalize!(g, parent_node_copy)
+      (parent_node_copy in parent_class.nodes) || error("the node from the parent list does not occur in the parent nodes") # might fail because parent_node is probably not canonical
+    end
+  end
+
+  true
 end
 
 function check_memo(g::EGraph)::Bool
@@ -478,9 +558,11 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph; should_check_memo=false, should_check_analysis=false)
+function rebuild!(g::EGraph; should_check_parents=false, should_check_memo=false, should_check_analysis=false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
+
+  @assert !should_check_parents || check_parents(g)
   @assert !should_check_memo || check_memo(g)
   @assert !should_check_analysis || check_analysis(g)
   g.clean = true
