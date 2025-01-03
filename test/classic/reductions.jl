@@ -219,7 +219,7 @@ end
   sf = r(:(f(1, 2, 3, 4, 5)))
   @test isnothing(sf)
 
-  # Appears 3 times, doesn't work because of `offset_so_far` not counting how many times 
+  # Appears 3 times, doesn't work because of `offset_so_far` not counting how many times
   # a variable appears
   r = @rule f(~~x, 3, ~~x, 5, ~~x) --> ok(~~x)
   sf = r(:(f(1, 2, 3, 1, 2, 5, 1, 2)))
@@ -280,7 +280,7 @@ using Metatheory.Syntax: @capture
 
   #note that @test inserts a soft local scope (try-catch) that would gobble
   #the matches from assignment statements in @capture macro, so we call it
-  #outside the test macro 
+  #outside the test macro
   ret = @capture ex (~x)^(~x)
   @test ret
   @test @isdefined x
@@ -358,4 +358,25 @@ end
 @testset "Matchable struct" begin
   QuxTest.test()
   LuxTest.test()
+end
+
+
+## Parametric Data Types. TODO: the pattern matcher should support type parameters
+
+
+@testset "Parametric Data Types are valid pattern operations" begin
+  abstract type Dim end
+
+  @matchable struct Lit <: Dim
+    value::Int64
+  end
+
+  @matchable struct Plus{T<:Dim,U<:Dim} <: Dim
+    dim1::T
+    dim2::U
+  end
+
+  r = @rule Plus(Lit(0), ~dim1) --> ~dim1
+
+  @test r(Plus(Lit(0), Lit(1))) == Lit(1)
 end

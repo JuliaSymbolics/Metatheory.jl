@@ -8,7 +8,7 @@ using Reexport
 function to_expr end
 
 # TODO: document
-Base.@inline maybe_quote_operation(x::Union{Function,DataType}) = nameof(x)
+Base.@inline maybe_quote_operation(x::Union{Function,DataType,UnionAll}) = nameof(x)
 Base.@inline maybe_quote_operation(x) = x
 
 include("docstrings.jl")
@@ -23,10 +23,10 @@ const UNDEF_ID_VEC = Vector{Id}(undef, 0)
 
 @reexport using TermInterface
 
-""" 
+"""
   @matchable struct Foo fields... end [HeadType]
 
-Take a struct definition and automatically define `TermInterface` methods. 
+Take a struct definition and automatically define `TermInterface` methods.
 `iscall` of such type will default to `true`.
 """
 macro matchable(expr)

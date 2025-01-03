@@ -14,8 +14,8 @@ Base.@kwdef mutable struct MatchCompilerState
   """
   segments::Vector{Pair{Symbol,Symbol}} = Pair{Symbol,Symbol}[]
   """
-  When matching segment variables, we can count how many non-segment terms 
-  are remaining in the tail of the pattern term, to avoid matching extra terms 
+  When matching segment variables, we can count how many non-segment terms
+  are remaining in the tail of the pattern term, to avoid matching extra terms
   """
   current_term_n_remaining::Int = 0
 end
@@ -26,7 +26,7 @@ function match_compile(p::AbstractPat, pvars)
   state = MatchCompilerState(; pvars_bound = fill(false, npvars))
 
   # Tree coordinates are a vector of integers.
-  # Each index `i` in the vector corresponds to the depth of the term 
+  # Each index `i` in the vector corresponds to the depth of the term
   # Each value `n` at index `i` selects the `n`-th children of the term at depth i
   # Example: in f(x, g(y, k, h(z))), to get z the coordinate is [2,3,1]
   coordinate = Int[]
@@ -37,7 +37,7 @@ function match_compile(p::AbstractPat, pvars)
 
   quote
     function ($(gensym("matcher")))(_term_being_matched, _callback::Function, stack::$(OptBuffer{UInt16}))
-      # Assign and empty the variables for patterns 
+      # Assign and empty the variables for patterns
       $([:($(varname(var)) = nothing) for var in setdiff(pvars, first.(state.segments))]...)
 
       # Initialize the variables needed in the outermost scope (accessible by instruction blocks)
@@ -46,20 +46,20 @@ function match_compile(p::AbstractPat, pvars)
       # Backtracking stack
       local stack_idx = 0
 
-      # Instruction 0 is used to return when  the backtracking stack is empty. 
+      # Instruction 0 is used to return when  the backtracking stack is empty.
       # We start from 1.
       push!(stack, 0x0000)
       local pc = 0x0001
 
       # We goto this label when:
       # 1) After backtracking, the pc is popped from the stack.
-      # 2) When an instruction succeeds, the pc is incremented.  
+      # 2) When an instruction succeeds, the pc is incremented.
       @label compute
-      # Instruction 0 is used to fail the backtracking stack is empty. 
+      # Instruction 0 is used to fail the backtracking stack is empty.
       pc === 0x0000 && return nothing
 
-      # For each instruction in the program, create an if statement, 
-      # Checking if the current value 
+      # For each instruction in the program, create an if statement,
+      # Checking if the current value
       $([:(
         if pc === $(UInt16(i))
           $code
@@ -118,10 +118,10 @@ end
 
 get_idx(coordinate, segments_so_far) = :($(last(coordinate)) + $(offset_so_far(segments_so_far)))
 
-# TODO FIXME Report on Julialang ? 
+# TODO FIXME Report on Julialang ?
 # This workaround is needed because otherwise pattern variables named `val`
-# Are going to clash with @inbounds generated val. 
-# See this: 
+# Are going to clash with @inbounds generated val.
+# See this:
 # julia> @macroexpand @inbounds v[i:j]
 # quote
 #     $(Expr(:inbounds, true))
@@ -173,7 +173,7 @@ function match_compile!(
     get_coord(coordinate, parent_segments)
   end
   instruction = if state.pvars_bound[patvar.idx]
-    # Pattern variable with the same Debrujin index has appeared in the  
+    # Pattern variable with the same Debrujin index has appeared in the
     # pattern before this (is bound). Just check for equality.
     match_eq_expr(patvar, state, to_compare, coordinate, parent_segments)
   else
@@ -204,7 +204,7 @@ end
 # Actual Instructions
 # ==============================================================
 
-function match_term_op(pattern, tsym, ::Union{Function,DataType})
+function match_term_op(pattern, tsym, ::Union{Function,DataType,UnionAll})
   t_op = Symbol(tsym, :_op)
   :($t_op == $(pattern.head) || $t_op == $(QuoteNode(pattern.quoted_head)) || @goto backtrack)
 end
@@ -298,7 +298,7 @@ function match_var_expr(patvar::PatSegment, state::MatchCompilerState, to_compar
       @goto backtrack
     end
 
-    # Restart 
+    # Restart
     $n_dropped_sym = 0
     @goto backtrack
   end
@@ -321,7 +321,7 @@ end
 function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   # This method should be called only when a PatSegment is already bound.
   # Get parent term variable name
-  # TODO reuse in function, duplicate from get_coord 
+  # TODO reuse in function, duplicate from get_coord
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
   tsym_args = Symbol(tsym, :_args)
 
@@ -334,8 +334,8 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
     end
   end
   @assert !isnothing(previous_local_args)
-  # Start and end indexes in the vector of term arguments that 
-  # matched on the previous occurrence of the segment variable. 
+  # Start and end indexes in the vector of term arguments that
+  # matched on the previous occurrence of the segment variable.
   previous_start_idx = Symbol(varname(patvar.name), :_start)
   previous_end_idx = Symbol(varname(patvar.name), :_end)
 
@@ -345,11 +345,11 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
       # We're checking a segment variable that was previously bound.
       # We start checking from arguments of term at index `start_idx`.
       # `tsym_args` are the arguments of the term.
-      # If `start_idx` is > than the length of the terms, we mean that 
-      # we have no more space to match. 
-      # This means that if the previously bound segment variable was empty, 
+      # If `start_idx` is > than the length of the terms, we mean that
+      # we have no more space to match.
+      # This means that if the previously bound segment variable was empty,
       # and contains no matches, then we can safely proceed.
-      # Otherwise we need to fail.  
+      # Otherwise we need to fail.
       len == 0 || @goto backtrack
     end
     $start_idx + len - 1 <= length($tsym_args) || @goto backtrack
