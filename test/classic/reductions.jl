@@ -362,8 +362,6 @@ end
 
 
 ## Parametric Data Types. TODO: the pattern matcher should support type parameters
-
-
 @testset "Parametric Data Types are valid pattern operations" begin
   abstract type Dim end
 
