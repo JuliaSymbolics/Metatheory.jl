@@ -31,11 +31,8 @@ function makesegment(s::Expr, pvars, mod)
   end
 
   name, predicate = children(s)
-  if !(predicate isa Symbol) && isdefined(mod, predicate)
-    error("Invalid predicate in $s. Predicates must be names of functions or types defined in current module.")
-  end
   name ∉ pvars && push!(pvars, name)
-  return PatSegment(name, -1, getfield(mod, predicate))
+  return PatSegment(name, makepredicate(mod, predicate), -1)
 end
 
 function makesegment(name::Symbol, pvars, mod)
@@ -53,12 +50,15 @@ function makevar(s::Expr, pvars, mod)
     )
   end
 
+  # TODO support anonymous functions for predicates
   name, predicate = children(s)
-  if !(predicate isa Symbol) && isdefined(mod, predicate)
-    error("Invalid predicate in $s. Predicates must be names of functions or types defined in current module.")
-  end
   name ∉ pvars && push!(pvars, name)
-  return PatVar(name, -1, getfield(mod, predicate))
+  return PatVar(name, makepredicate(mod, predicate), -1)
+end
+
+function makepredicate(mod, predicate::Symbol)
+  obj = getfield(mod, predicate)
+  obj isa Type ? Base.Fix2(isa, obj) : obj
 end
 
 function makevar(name::Symbol, pvars, mod)

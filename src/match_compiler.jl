@@ -13,6 +13,7 @@ Base.@kwdef mutable struct MatchCompilerState
   that will be used to construct the view.
   """
   segments::Vector{Pair{Symbol,Symbol}} = Pair{Symbol,Symbol}[]
+
   """
   When matching segment variables, we can count how many non-segment terms
   are remaining in the tail of the pattern term, to avoid matching extra terms
@@ -261,16 +262,10 @@ function match_term_expr_closing(pattern, state, coordinate, segments_so_far)
   end
 end
 
-match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, predicate::Function) =
-  :($(predicate)($(varname(patvar.name))))
-match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, predicate::typeof(alwaystrue)) = true
-match_var_expr_if_guard(patvar::Union{PatVar,PatSegment}, T::Type) = :($(varname(patvar.name)) isa $T)
-
-
 function match_var_expr(patvar::PatVar, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   quote
     $(varname(patvar.name)) = $to_compare
-    if $(match_var_expr_if_guard(patvar, patvar.predicate))
+    if $(patvar.predicate)($(varname(patvar.name)))
       pc += 0x0001
       @goto compute
     end
@@ -283,7 +278,6 @@ function match_var_expr(patvar::PatSegment, state::MatchCompilerState, to_compar
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
   tsym_args = Symbol(tsym, :_args)
   n_dropped_sym = Symbol(varname(patvar.name), :_n_dropped)
-
 
   quote
     start_idx = $(get_idx(coordinate, segments_so_far))
@@ -299,12 +293,18 @@ function match_var_expr(patvar::PatSegment, state::MatchCompilerState, to_compar
 
       $n_dropped_sym += 1
 
-      if $(match_var_expr_if_guard(patvar, patvar.predicate))
-        pc += 0x0001
-        @goto compute
-      end
+      $(
+        if patvar.predicate != alwaystrue
+          quote
+            for _i in ($(Symbol(varname(patvar.name), :_start))):($(Symbol(varname(patvar.name), :_end)))
+              $(patvar.predicate)(($tsym_args)[_i]) || @goto backtrack
+            end
+          end
+        end
+      )
 
-      @goto backtrack
+      pc += 0x0001
+      @goto compute
     end
 
     # Restart

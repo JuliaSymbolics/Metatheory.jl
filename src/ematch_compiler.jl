@@ -251,6 +251,7 @@ function check_var_expr(addr::Int, predicate::Function)
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
       for (j, n) in enumerate(eclass.nodes)
+        # TODO does this make sense? This should be unset.
         if !v_isexpr(n)
           $(Symbol(:enode_idx, addr)) = j + 1
           break
@@ -264,7 +265,13 @@ function check_var_expr(addr::Int, predicate::Function)
 end
 
 
-function check_var_expr(addr::Int, T::Type)
+"""
+Generates a pattern matching expression that given a σ address `addr::Int`
+and a predicate checking a type `T`, iterates an e-class stored in the e-graph `g` at ID given by
+pattern-matcher local variable `σaddr`, and matches if the
+e-class contains at least a literal that is of type
+"""
+function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type})
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
@@ -274,7 +281,7 @@ function check_var_expr(addr::Int, T::Type)
 
       if !v_isexpr(n)
         hn = Metatheory.EGraphs.get_constant(g, v_head(n))
-        if hn isa $T
+        if $(predicate)(hn)
           $(Symbol(:enode_idx, addr)) += 1
           pc += 0x0001
           @goto compute
@@ -321,7 +328,7 @@ function lookup_expr(addr::Int, p::AbstractPat)
   end
 end
 
-function yield_expr(patvar_to_addr, direction)
+function yield_expr(patvar_to_addr, direction::Int)
   push_exprs = [
     :(push!(ematch_buffer, v_pair($(Symbol(:σ, addr)), reinterpret(UInt64, $(Symbol(:enode_idx, addr)) - 1)))) for
     addr in patvar_to_addr

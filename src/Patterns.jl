@@ -10,7 +10,7 @@ import Metatheory: to_expr
 export AbstractPat, PatLiteral, PatVar, PatExpr, PatSegment, patvars, setdebrujin!, isground, constants
 
 """
-Abstract type representing a pattern used in all the various pattern matching backends. 
+Abstract type representing a pattern used in all the various pattern matching backends.
 """
 abstract type AbstractPat end
 
@@ -18,7 +18,7 @@ abstract type AbstractPat end
 Base.:(==)(a::AbstractPat, b::AbstractPat) = false
 TermInterface.arity(p::AbstractPat) = 0
 """
-A ground pattern contains no pattern variables and 
+A ground pattern contains no pattern variables and
 only literal values to match.
 """
 isground(p::AbstractPat) = false
@@ -41,38 +41,38 @@ isground(x::PatLiteral) = true # literals
 Pattern variables will first match on one subterm
 and instantiate the substitution to that subterm.
 
-Matcher pattern may contain pattern variables with attached predicates,
-where `predicate` is a function that takes a matched expression and returns a
+Matcher patterns may contain pattern variables with attached predicates,
+where `predicate` is a type, or a function that takes a matched expression and returns a
 boolean value. Such a slot will be considered a match only if `f` returns true.
 
-`predicate` can also be a `Type{<:t}`, this predicate is called a 
-type assertion. Type assertions on a `PatVar`, will match if and only if 
-the type of the matched term for the pattern variable is a subtype of `T`. 
+`predicate` that are of kind  `Base.Fix2(isa, <:T})`, are a special kind of predicates known as
+type assertions. Type assertions on a `PatVar`, will match if and only if
+the type of the matched term for the pattern variable is a subtype of `T`.
 """
-mutable struct PatVar{P<:Union{Function,Type}} <: AbstractPat
-  name::Symbol
+mutable struct PatVar{P<:Function} <: AbstractPat
+  const name::Symbol
+  const predicate::P
   idx::Int
-  predicate::P
 end
 Base.:(==)(a::PatVar, b::PatVar) = a.idx == b.idx
-PatVar(var) = PatVar(var, -1, alwaystrue)
-PatVar(var, i) = PatVar(var, i, alwaystrue)
+PatVar(var) = PatVar(var, alwaystrue, -1)
+PatVar(var, i::Int) = PatVar(var, alwaystrue, i)
 
 """
 If you want to match a variable number of subexpressions at once, you will need
-a **segment pattern**. 
-A segment pattern represents a vector of subexpressions matched. 
-You can attach a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more 
-expressions and must return a boolean value. 
+a **segment pattern**.
+A segment pattern represents a vector of subexpressions matched.
+You can attach a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more
+expressions and must return a boolean value.
 """
-mutable struct PatSegment{P<:Union{Function,Type}} <: AbstractPat
-  name::Symbol
+mutable struct PatSegment{P<:Function} <: AbstractPat
+  const name::Symbol
+  const predicate::P
   idx::Int
-  predicate::P
 end
 
-PatSegment(v) = PatSegment(v, -1, alwaystrue)
-PatSegment(v, i) = PatSegment(v, i, alwaystrue)
+PatSegment(v) = PatSegment{typeof(alwaystrue)}(v, alwaystrue, -1)
+PatSegment(v, i) = PatSegment{typeof(alwaystrue)}(v, alwaystrue, i)
 
 
 """
@@ -86,7 +86,7 @@ struct PatExpr <: AbstractPat
   children::Vector{AbstractPat}
   isground::Bool
   """
-  Behaves like an e-node to not re-allocate memory when doing e-graph lookups and instantiation 
+  Behaves like an e-node to not re-allocate memory when doing e-graph lookups and instantiation
   in case of cache hits in the e-graph hashcons
   """
   n::VecExpr
@@ -116,7 +116,7 @@ PatExpr(iscall, op, args::Vector) = PatExpr(iscall, op, maybe_quote_operation(op
 isground(p::PatExpr)::Bool = p.isground
 
 function Base.isequal(x::PatExpr, y::PatExpr)
-  x.head_hash === y.head_hash && v_signature(x.n)===v_signature(y.n) && all(x.children .== y.children)
+  x.head_hash === y.head_hash && v_signature(x.n) === v_signature(y.n) && all(x.children .== y.children)
 end
 
 TermInterface.isexpr(::PatExpr) = true
@@ -163,8 +163,11 @@ function setdebrujin!(p::PatExpr, pvars)
 end
 
 to_expr(x::PatLiteral) = x.value
-to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate))
-to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate)))
+to_expr(x::PatVar) = Expr(:call, :~, Expr(:(::), x.name, x.predicate))
+to_expr(x::PatVar{Base.Fix2{typeof(isa),Type{Int64}}}) = Expr(:call, :~, Expr(:(::), x.name, x.predicate.x))
+to_expr(x::PatSegment) = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate)))
+to_expr(x::PatSegment{Base.Fix2{typeof(isa),Type{Int64}}}) =
+  Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate)))
 to_expr(x::PatVar{typeof(alwaystrue)}) = Expr(:call, :~, x.name)
 to_expr(x::PatSegment{typeof(alwaystrue)}) = Expr(:..., Expr(:call, :~, x.name))
 function to_expr(x::PatExpr)
