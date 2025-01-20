@@ -34,11 +34,24 @@ const Id = UInt64
     end
 
 An e-node is represented by `Vector{Id}` where:
-* Position 1 stores the hash of the `VecExpr`.
+* Position 1 stores the hash of the rest of the `VecExpr`.
 * Position 2 stores the bit flags (`isexpr` or `iscall`).
 * Position 3 stores the signature
 * Position 4 stores the hash of the `head` (if `isexpr`) or node value in the e-graph constants.
 * The rest of the positions store the e-class ids of the children nodes.
+
+The bitflags `isexpr` and `iscall` corresponds to the values of `isexpr(e)::Boolean`
+and `iscall(e)::Boolean` from TermInterface. For instance, for `Expr`, we have
+`iscall(Expr(:call, f, args...)) = true`, `isexpr(Expr(head, args...)) = true`, but
+`iscall(Expr(:=, :a, :b)) = false` and `isexpr(2) = false`.
+
+The "signature" of an expression is computed as the hash of the head combined
+with the number of arguments (the arity). See: [`addexpr!`](@ref) in
+`src/EGraphs/egraph.jl`. Signatures are used in the `classes_by_op` dictionary
+in a e-graph, so that when you are matching for `(a + b)` you can iterate over
+all of the e-classes that have some e-node with `(+, 2)` as its signature.
+
+The signature of a constant is `0`.
 
 The expression is represented as an array of integers to improve performance.
 The hash value for the VecExpr is cached in the first position for faster lookup performance in dictionaries.
