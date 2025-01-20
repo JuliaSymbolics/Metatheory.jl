@@ -453,11 +453,11 @@ end
 """
     @theory [SLOTS...] begin (LHS operator RHS)... end
 
-Syntax sugar to define a vector of rules in a nice and readable way. Can use `@slots` or have the slots 
+Syntax sugar to define a vector of rules in a nice and readable way. Can use `@slots` or have the slots
 as the first arguments:
 
 ```
-julia> t = @theory x y z begin 
+julia> t = @theory x y z begin
     x * (y + z) --> (x * y) + (x * z)
     x + y       ==  (y + x)
     #...

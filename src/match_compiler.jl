@@ -6,7 +6,7 @@ Base.@kwdef mutable struct MatchCompilerState
   pvars_bound::Vector{Bool}
   "List of actual instructions"
   program::Vector{Expr} = Expr[]
-  "Pair of variables needed by the pattern matcher and their initial value"
+  "Pair of variables needed locally in the pattern matcher scope and their initial value"
   variables = Pair{Symbol,Any}[]
   """
   For each segment pattern variable, store the reference to the vector
@@ -20,10 +20,19 @@ Base.@kwdef mutable struct MatchCompilerState
   current_term_n_remaining::Int = 0
 end
 
-function match_compile(p::AbstractPat, pvars)
-  npvars = length(pvars)
+"""
+Entry point for classical pattern matching compiler.
 
-  state = MatchCompilerState(; pvars_bound = fill(false, npvars))
+This function, given a `p::AbstractPat` pattern with `n` pattern variables,
+returns an `Expr` containing a function definition.
+
+The returned compiled pattern matching function will accept:
+  - `_term_being_matched`, being the term that will be matched.
+  - `_callback`, a function that will be called on successful match, that should accepts `n` arguments (the number of pattern variables of `p`).
+  - `stack`: an [`OptBuffer`](@ref) used to avoid re-allocating the instruction pointer stack.
+"""
+function match_compile(p::AbstractPat, pvars)::Expr
+  state = MatchCompilerState(; pvars_bound = fill(false, length(pvars)))
 
   # Tree coordinates are a vector of integers.
   # Each index `i` in the vector corresponds to the depth of the term
@@ -90,7 +99,7 @@ end
 # Term Matchers
 # ==============================================================
 
-function make_coord_symbol(coordinate)
+function make_coord_symbol(coordinate)::Symbol
   isempty(coordinate) && return :_term_being_matched
   Symbol("_term_being_matched_", join(coordinate, "_"))
 end
@@ -204,15 +213,15 @@ end
 # Actual Instructions
 # ==============================================================
 
-function match_term_op(pattern, tsym, ::Union{Function,DataType,UnionAll})
+function match_term_op(pattern::PatExpr, tsym::Symbol, ::Union{Function,DataType,UnionAll})
   t_op = Symbol(tsym, :_op)
   :($t_op == $(pattern.head) || $t_op == $(QuoteNode(pattern.quoted_head)) || @goto backtrack)
 end
 
-match_term_op(pattern, tsym, ::Union{Symbol,Expr}) =
+match_term_op(pattern::PatExpr, tsym::Symbol, ::Union{Symbol,Expr}) =
   :($(Symbol(tsym, :_op)) == $(QuoteNode(pattern.head)) || @goto backtrack)
 
-match_term_op(::AbstractPat, tsym, patvar::PatVar) =
+match_term_op(::PatExpr, tsym::Symbol, patvar::PatVar) =
   :($(Symbol(tsym, :_op)) == $(varname(patvar.name)) || @goto backtrack)
 
 
