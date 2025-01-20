@@ -27,14 +27,14 @@ Rules defined as with the --> are
 called *directed rewrite* rules. Application of a *directed rewrite* rule
 is a replacement of the `left` pattern with
 the `right` substitution, with the correct instantiation
-of pattern variables. 
+of pattern variables.
 
 ```julia
 @rule ~a * ~b --> ~b * ~a
 ```
 
-An *equational rule* is a symbolic substitution rule with operator `==` that 
-can be rewritten bidirectionally. Therefore, it can only be used 
+An *equational rule* is a symbolic substitution rule with operator `==` that
+can be rewritten bidirectionally. Therefore, it can only be used
 with the EGraphs backend.
 
 ```julia
@@ -43,7 +43,7 @@ with the EGraphs backend.
 
 Rules defined with the `!=` act as  *anti*-rules for checking contradictions in e-graph
 rewriting. If two terms, corresponding to the left and right hand side of an
-*anti-rule* are found in an `EGraph`, saturation is halted immediately. 
+*anti-rule* are found in an `EGraph`, saturation is halted immediately.
 
 ```julia
 !a != a
@@ -131,7 +131,7 @@ function instantiate(left::Expr, pat::PatExpr, bindings)
       instantiate_arg!(ntail, left, parg, bindings)
     end
     op = operation(pat)
-    op_name = op isa Union{Function,DataType} ? nameof(op) : op
+    op_name = op isa Union{Function,DataType,UnionAll} ? nameof(op) : op
     maketerm(Expr, :call, [op_name; ntail], nothing)
   else
     for parg in children(pat)
@@ -165,10 +165,10 @@ function Base.inv(r::RewriteRule)
 end
 
 """
-Turns an EqualityRule into a DirectedRule. For example, 
+Turns an EqualityRule into a DirectedRule. For example,
 
 ```julia
-direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x) 
+direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x)
 ```
 """
 function direct(r::EqualityRule)
@@ -176,10 +176,10 @@ function direct(r::EqualityRule)
 end
 
 """
-Turns an EqualityRule into a DirectedRule, but right to left. For example, 
+Turns an EqualityRule into a DirectedRule, but right to left. For example,
 
 ```julia
-direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x) 
+direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x)
 ```
 """
 direct_right_to_left(r::EqualityRule) = inv(direct(r))
