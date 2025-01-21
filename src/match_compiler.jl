@@ -105,6 +105,7 @@ function make_coord_symbol(coordinate)::Symbol
   Symbol("_term_being_matched_", join(coordinate, "_"))
 end
 
+# TODO document
 offset_so_far(segments) = foldl(
   (x, y) -> :($x + $y),
   map(n -> :(length(($(Symbol(varname(n), :_start))):($(Symbol(varname(n), :_end)))) - 1), segments);

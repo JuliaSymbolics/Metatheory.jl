@@ -79,6 +79,7 @@ end
 
 function stream_fusion_cost(n::VecExpr, op, costs::Vector{Float64})::Float64
   v_isexpr(n) || return 1
+  op === :block && return sum(costs)
   cost = 1 + v_arity(n)
   op ∈ (:map, :filter) && (cost += 10)
   cost + sum(costs)
@@ -105,8 +106,14 @@ end
 
 # ['a','1','2','3','4']
 ex = :(filter(ispow2, filter(iseven, reverse(reverse(fill(4, 100))))))
-@test Base.remove_linenums!(stream_optimize(ex)) ==
-      Base.remove_linenums!(:(filter(x -> ispow2(x) && iseven(x), fill(4, 100))))
+
+@test Base.remove_linenums!(stream_optimize(ex)) == Base.remove_linenums!(:(
+  if ispow2(4) && iseven(4)
+    fill(4, 100)
+  else
+    fill(4, 0)
+  end
+))
 
 
 ex = :(map(x -> 7 * x, reverse(reverse(fill(13, 40)))))

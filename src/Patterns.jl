@@ -1,6 +1,6 @@
 module Patterns
 
-using Metatheory: cleanast, alwaystrue, maybe_quote_operation
+using Metatheory: alwaystrue, maybe_quote_operation
 using AutoHashEquals
 using TermInterface
 using Metatheory.VecExprModule
