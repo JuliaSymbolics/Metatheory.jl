@@ -164,6 +164,24 @@ end
 end
 
 
+@testset "Matching Literals in Dynamic Rules" begin
+  g = EGraph()
+
+  ec_xy = addexpr!(g, :(x + y))
+  ec_1 = addexpr!(g, 1)
+  union!(g, ec_xy, ec_1)
+  # 1: x
+  # 2: y
+  # 3: %1 + %2, 1
+
+  r2 = @theory a b begin
+    a::Number => :($a + 0)
+    :x + :y => :y
+  end
+  saturate!(g, r2)
+end
+
+
 comm_monoid = @commutative_monoid (*) 1
 
 @testset "Basic Equalities - Commutative Monoid" begin
