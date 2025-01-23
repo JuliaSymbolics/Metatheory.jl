@@ -144,15 +144,11 @@ end
 Instantiate argument for dynamic rule application in e-graph
 """
 function instantiate_actual_param!(bindings, g::EGraph, i)
+  const_hash = v_pair_last(bindings[i])
+  const_hash == 0 || return get_constant(g, const_hash)
   ecid = v_pair_first(bindings[i])
-  literal_position = reinterpret(Int, v_pair_last(bindings[i]))
   ecid <= 0 && error("unbound pattern variable")
-  eclass = g[ecid]
-  if literal_position > 0
-    @assert !v_isexpr(eclass[literal_position])
-    return get_constant(g, v_head(eclass[literal_position]))
-  end
-  return eclass
+  g[ecid]
 end
 
 
@@ -288,7 +284,6 @@ function eqsat_step!(
   @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
 
   @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer)
-
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
