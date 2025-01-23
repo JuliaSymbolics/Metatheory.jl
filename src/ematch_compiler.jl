@@ -1,6 +1,6 @@
 Base.@kwdef mutable struct EMatchCompilerState
   """
-  As ground terms are matched at the beginning. 
+  As ground terms are matched at the beginning.
   Store the index of the σ variable (address) that represents the first non-ground term.
   """
   first_nonground::Int = 0
@@ -10,12 +10,12 @@ Base.@kwdef mutable struct EMatchCompilerState
 
   """
   Given a pattern variable with Debrujin index i
-  This vector stores the σ variable index (address) for that variable at position i 
+  This vector stores the σ variable index (address) for that variable at position i
   """
   patvar_to_addr::Vector{Int} = Int[]
 
   """
-  Addresses of σ variables that should iterate e-nodes in an e-class, 
+  Addresses of σ variables that should iterate e-nodes in an e-class,
   used to generate `enode_idx` variables
   """
   enode_idx_addresses::Vector{Int} = Int[]
@@ -76,8 +76,8 @@ function ematch_compile(p, pvars, direction)
         return n_matches
       end
 
-      # For each instruction in the program, create an if statement, 
-      # Checking if the current value 
+      # For each instruction in the program, create an if statement,
+      # Checking if the current value
       $([:(
         if pc === $(UInt16(i))
           $code
@@ -110,11 +110,11 @@ function check_constant_exprs!(buf, p::PatExpr)
 end
 
 """
-Create a vector of assignment expressions in the form of 
-`σi = 0x0000000000000000` where `i`` is a number from 1 to n. 
-If `i == first_nonground`, create an expression `σi = root_id`, 
-where root_id is a parameter of the ematching function, defined 
-in scope. 
+Create a vector of assignment expressions in the form of
+`σi = 0x0000000000000000` where `i`` is a number from 1 to n.
+If `i == first_nonground`, create an expression `σi = root_id`,
+where root_id is a parameter of the ematching function, defined
+in scope.
 """
 make_memory(n, first_nonground) = [:($(Symbol(:σ, i)) = $(i == first_nonground ? :root_id : Id(0))) for i in 1:n]
 
@@ -135,7 +135,7 @@ function ematch_compile_ground!(p::Union{PatExpr,PatLiteral}, state::EMatchCompi
     state.ground_terms_to_addr[p] = addr
     # Add the lookup instruction to the program
     push!(state.program, lookup_expr(addr, p))
-    # Memory needs one more register 
+    # Memory needs one more register
     state.memsize += 1
   else
     # Search for ground patterns in the children.
@@ -170,8 +170,8 @@ end
 
 function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
   instruction = if state.patvar_to_addr[p.idx] != -1
-    # Pattern variable with the same Debrujin index has appeared in the  
-    # pattern before this. Just check if the current e-class id matches the one 
+    # Pattern variable with the same Debrujin index has appeared in the
+    # pattern before this. Just check if the current e-class id matches the one
     # That was already encountered.
     check_eq_expr(addr, state.patvar_to_addr[p.idx])
   else
@@ -203,7 +203,7 @@ end
 # Actual Instructions
 # ==============================================================
 
-function bind_expr(addr, p::PatExpr, memrange)
+function bind_expr(addr::Int, p::PatExpr, memrange)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
@@ -235,8 +235,9 @@ function bind_expr(addr, p::PatExpr, memrange)
   end
 end
 
-function check_var_expr(addr, predicate::typeof(alwaystrue))
+function check_var_expr(::Int, ::typeof(alwaystrue))
   quote
+    # TODO: see if this is needed
     # eclass = g[$(Symbol(:σ, addr))]
     # for (j, n) in enumerate(eclass.nodes)
     #   if !v_isexpr(n)
@@ -249,17 +250,17 @@ function check_var_expr(addr, predicate::typeof(alwaystrue))
   end
 end
 
-function check_var_expr(addr, predicate::Function)
+function check_var_expr(addr::Int, predicate::Function)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
-      # for (j, n) in enumerate(eclass.nodes)
-      #   if !v_isexpr(n)
-      #     $(Symbol(:enode_idx, addr)) = j + 1
-      #     break
-      #   end
-      # end
-      # $(Symbol(:enode_idx, addr)) = 1
+      for (j, n) in enumerate(eclass.nodes)
+        # TODO does this make sense? This should be unset.
+        if !v_isexpr(n)
+          $(Symbol(:enode_idx, addr)) = j + 1
+          break
+        end
+      end
       pc += 0x0001
       @goto compute
     end
@@ -268,7 +269,13 @@ function check_var_expr(addr, predicate::Function)
 end
 
 
-function check_var_expr(addr, T::Type)
+"""
+Generates a pattern matching expression that given a σ address `addr::Int`
+and a predicate checking a type `T`, iterates an e-class stored in the e-graph `g` at ID given by
+pattern-matcher local variable `σaddr`, and matches if the
+e-class contains at least a literal that is of type
+"""
+function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type})
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
@@ -278,7 +285,7 @@ function check_var_expr(addr, T::Type)
 
       if !v_isexpr(n)
         hn = Metatheory.EGraphs.get_constant(g, v_head(n))
-        if hn isa $T
+        if $(predicate)(hn)
           $(Symbol(:enode_idx, addr)) += 1
           pc += 0x0001
           @goto compute
@@ -298,11 +305,11 @@ end
 
 
 """
-Constructs an e-matcher instruction `Expr` that checks if 2 e-class IDs 
-contained in memory addresses `addr_a` and `addr_b` are equal, 
+Constructs an e-matcher instruction `Expr` that checks if 2 e-class IDs
+contained in memory addresses `addr_a` and `addr_b` are equal,
 backtracks otherwise.
 """
-function check_eq_expr(addr_a, addr_b)
+function check_eq_expr(addr_a::Int, addr_b::Int)
   quote
     if $(Symbol(:σ, addr_a)) == $(Symbol(:σ, addr_b))
       pc += 0x0001
@@ -313,7 +320,7 @@ function check_eq_expr(addr_a, addr_b)
   end
 end
 
-function lookup_expr(addr, p::AbstractPat)
+function lookup_expr(addr::Int, p::AbstractPat)
   quote
     ecid = lookup_pat(g, $p)
     if ecid > 0
@@ -325,7 +332,7 @@ function lookup_expr(addr, p::AbstractPat)
   end
 end
 
-function yield_expr(patvar_to_addr, direction)
+function yield_expr(patvar_to_addr, direction::Int)
   push_exprs = [
     quote
       id = $(Symbol(:σ, addr))
@@ -344,7 +351,7 @@ function yield_expr(patvar_to_addr, direction)
     g.needslock && lock(g.lock)
     push!(ematch_buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
     $(push_exprs...)
-    # Add delimiter to buffer. 
+    # Add delimiter to buffer.
     push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
     g.needslock && unlock(g.lock)
     n_matches += 1

@@ -90,11 +90,12 @@ is_bidirectional(r::RewriteRule) = r.op in (==, !=)
 Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
 
 function Base.show(io::IO, r::RewriteRule)
+  is_dynamic = r.op == (|>)
   print(io, r.left)
   print(io, " ")
-  print(io, r.op == (|>) ? :(=>) : String(nameof(r.op)))
+  print(io, is_dynamic ? :(=>) : String(nameof(r.op)))
   print(io, " ")
-  print(io, r.rhs_original)
+  print(io, is_dynamic ? r.rhs_original : r.right)
   isempty(r.name) || print(io, "\t#= $(r.name) =#")
 end
 

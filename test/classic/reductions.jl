@@ -87,7 +87,6 @@ t = @theory begin
 end
 
 @testset "Subtyping" begin
-
   sf = rewrite(:($airpl * c), t)
   df = rewrite(:($car * c), t)
 
@@ -361,19 +360,18 @@ end
 end
 
 
+abstract type Dim end
+
+@matchable struct Lit <: Dim
+  value::Int64
+end
+
+@matchable struct Plus{T<:Dim,U<:Dim} <: Dim
+  dim1::T
+  dim2::U
+end
 ## Parametric Data Types. TODO: the pattern matcher should support type parameters
 @testset "Parametric Data Types are valid pattern operations" begin
-  abstract type Dim end
-
-  @matchable struct Lit <: Dim
-    value::Int64
-  end
-
-  @matchable struct Plus{T<:Dim,U<:Dim} <: Dim
-    dim1::T
-    dim2::U
-  end
-
   r = @rule Plus(Lit(0), ~dim1) --> ~dim1
 
   @test r(Plus(Lit(0), Lit(1))) == Lit(1)

@@ -4,7 +4,7 @@ using Metatheory.Rules
 using TermInterface
 using Metatheory: Metatheory
 
-using Metatheory: alwaystrue, cleanast, ematch_compile, match_compile
+using Metatheory: alwaystrue, ematch_compile, match_compile
 
 export @rule
 export @theory
@@ -12,30 +12,14 @@ export @slots
 export @capture
 
 
-# FIXME this thing eats up macro calls!
-"""
-Remove LineNumberNode from quoted blocks of code. Not on macros.
-"""
-function rmlines(e::Expr)
-  if e.head == :macrocall
-    Expr(e.head, e.args[1], map(rmlines, e.args[2:end])...)
-  else
-    Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
-  end
-end
-rmlines(a) = a
-
 function makesegment(s::Expr, pvars, mod)
   if s.head != :(::)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
   name, predicate = children(s)
-  if !(predicate isa Symbol) && isdefined(mod, predicate)
-    error("Invalid predicate in $s. Predicates must be names of functions or types defined in current module.")
-  end
   name ∉ pvars && push!(pvars, name)
-  return PatSegment(name, -1, getfield(mod, predicate))
+  return PatSegment(name, makepredicate(mod, predicate), -1)
 end
 
 function makesegment(name::Symbol, pvars, mod)
@@ -53,12 +37,15 @@ function makevar(s::Expr, pvars, mod)
     )
   end
 
+  # TODO support anonymous functions for predicates
   name, predicate = children(s)
-  if !(predicate isa Symbol) && isdefined(mod, predicate)
-    error("Invalid predicate in $s. Predicates must be names of functions or types defined in current module.")
-  end
   name ∉ pvars && push!(pvars, name)
-  return PatVar(name, -1, getfield(mod, predicate))
+  return PatVar(name, makepredicate(mod, predicate), -1)
+end
+
+function makepredicate(mod, predicate::Symbol)
+  obj = getfield(mod, predicate)
+  obj isa Type ? Base.Fix2(isa, obj) : obj
 end
 
 function makevar(name::Symbol, pvars, mod)
@@ -151,6 +138,14 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     splat ? makesegment(ex, pvars) : makevar(ex, pvars, mod)
   elseif h === :$
     ex.args[1]
+  elseif h === :block
+    stmts = filter(st -> !(st isa LineNumberNode), children(ex))
+    # if length(stmts) == 1
+    # makepattern(only(stmts), pvars, slots, mod)
+    # else
+    patargs = map(i -> makepattern(i, pvars, slots, mod), stmts) # recurse
+    PatExpr(false, h, patargs)
+    # end
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
     PatExpr(false, h, patargs)
@@ -382,8 +377,6 @@ macro rule(args...)
   expr = args[end]
 
   ex = macroexpand(__module__, expr)
-  ex = rmlines(ex)
-
   op = iscall(ex) ? operation(ex) : head(ex)
 
   @assert op in (:(==), :(=>), :(-->), :(!=))
@@ -453,11 +446,11 @@ end
 """
     @theory [SLOTS...] begin (LHS operator RHS)... end
 
-Syntax sugar to define a vector of rules in a nice and readable way. Can use `@slots` or have the slots 
+Syntax sugar to define a vector of rules in a nice and readable way. Can use `@slots` or have the slots
 as the first arguments:
 
 ```
-julia> t = @theory x y z begin 
+julia> t = @theory x y z begin
     x * (y + z) --> (x * y) + (x * z)
     x + y       ==  (y + x)
     #...
@@ -481,14 +474,11 @@ end
 function _theory(args...)
   length(args) >= 1 || ArgumentError("@theory requires at least one argument")
   slots = args[1:(end - 1)]
-  expr = args[end]
-
-  e = rmlines(expr)
-  # e = interp_dollar(e, __module__)
+  e = args[end]
 
   e.head == :block || error("theory is not in form begin a => b; ... end")
 
-  rules = children(e)
+  rules = filter(ln -> !(ln isa LineNumberNode), children(e))
   rules = map(rules) do r
     if r.head == :macrocall && r.args[1] == Symbol("@rule") && r.args[2] isa Union{LineNumberNode,Nothing}
       addslots(r, slots)
@@ -524,8 +514,6 @@ macro capture(args...)
   ex = args[end - 1]
   l = args[end]
   l = macroexpand(__module__, l)
-  l = rmlines(l)
-
 
   pvars = Symbol[]
   lhs = makepattern(l, pvars, slots, __module__)

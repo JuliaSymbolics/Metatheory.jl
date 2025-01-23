@@ -17,7 +17,7 @@ GraphViz = "f526b714-d49f-11e8-06ff-31ed36ee7ee0"
 Plotting = ["GraphViz"]
 
 [compat]
-AutoHashEquals = "2.1.0"
+AutoHashEquals = "2.2.0"
 DocStringExtensions = "0.8, 0.9"
 Reexport = "0.2, 1"
 TermInterface = "2.0"
