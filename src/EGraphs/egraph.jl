@@ -306,7 +306,7 @@ data structure for `g`.
 function canonicalize!(g::EGraph, n::VecExpr)
   if v_isexpr(n)
     for i in (VECEXPR_META_LENGTH + 1):length(n)
-        @inbounds n[i] = find(g, n[i])
+      @inbounds n[i] = find(g, n[i])
     end
     v_unset_hash!(n)
   end
@@ -509,7 +509,7 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       if !isnothing(node_data)
         if !isnothing(eclass.data)
           joined_data = join(eclass.data, node_data)
-        
+
           if joined_data != eclass.data
             eclass.data = joined_data
             modify!(g, eclass)
@@ -561,7 +561,7 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph; should_check_memo=false, should_check_analysis=false)
+function rebuild!(g::EGraph; should_check_memo = false, should_check_analysis = false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
   @assert !should_check_memo || check_memo(g)

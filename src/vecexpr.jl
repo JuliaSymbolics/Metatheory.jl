@@ -24,7 +24,9 @@ export Id,
   v_set_signature!,
   v_pair,
   v_pair_first,
-  v_pair_last
+  v_pair_last,
+  v_bitvec_set,
+  v_bitvec_check
 
 const Id = UInt64
 
@@ -133,5 +135,9 @@ v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 @inline Base.copy(n::VecExpr) = VecExpr(copy(n.data))
 @inline Base.lastindex(n::VecExpr) = lastindex(n.data)
 @inline Base.firstindex(n::VecExpr) = firstindex(n.data)
+
+
+@inline v_bitvec_set(x::UInt64, n::Int) = x | UInt64(1) << (n - 1)
+@inline v_bitvec_check(x::UInt64, n::Int) = Bool(x >> (n - 1) & UInt64(1))
 
 end

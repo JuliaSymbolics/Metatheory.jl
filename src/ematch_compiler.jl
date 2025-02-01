@@ -48,17 +48,23 @@ function ematch_compile(p, pvars, direction)
       rule_idx::Int,
       root_id::$(Metatheory.Id),
       stack::$(Metatheory.OptBuffer){UInt16},
-      ematch_buffer::$(Metatheory.OptBuffer){UInt128},
+      ematch_buffer::$(Metatheory.OptBuffer){UInt64},
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return
       $(pat_constants_checks...)
       # Initialize σ variables (e-classes memory) and enode iteration indexes
       $(make_memory(state.memsize, state.first_nonground)...)
+      # Each node in the pattern can store an index of an enode to iterate the e-classes
       $([:($(Symbol(:enode_idx, i)) = 1) for i in state.enode_idx_addresses]...)
+      # Each pattern variable can yield a literal. Store enode literal hashes in these variables
+      $([:($(Symbol(:literal_hash, i)) = UInt64(0)) for i in state.patvar_to_addr]...)
 
       n_matches = 0
       # Backtracking stack
       stack_idx = 0
+
+      # TODO: comment
+      isliteral_bitvec = UInt64(0)
 
       # Instruction 0 is used to return when  the backtracking stack is empty.
       # We start from 1.
@@ -175,7 +181,7 @@ function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
     state.patvar_to_addr[p.idx] = addr
     # insert instruction for checking predicates or type.
     push!(state.enode_idx_addresses, addr)
-    check_var_expr(addr, p.predicate)
+    check_var_expr(addr, p.predicate, p.idx)
   end
   push!(state.program, instruction)
 end
@@ -231,7 +237,7 @@ function bind_expr(addr::Int, p::PatExpr, memrange)
   end
 end
 
-function check_var_expr(::Int, ::typeof(alwaystrue))
+function check_var_expr(::Int, ::typeof(alwaystrue), idx::Int64)
   quote
     # TODO: see if this is needed
     # eclass = g[$(Symbol(:σ, addr))]
@@ -246,7 +252,7 @@ function check_var_expr(::Int, ::typeof(alwaystrue))
   end
 end
 
-function check_var_expr(addr::Int, predicate::Function)
+function check_var_expr(addr::Int, predicate::Function, idx::Int64)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
@@ -254,6 +260,8 @@ function check_var_expr(addr::Int, predicate::Function)
         # TODO does this make sense? This should be unset.
         if !v_isexpr(n)
           $(Symbol(:enode_idx, addr)) = j + 1
+          $(Symbol(:literal_hash, addr)) = v_head(n)
+          isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           break
         end
       end
@@ -271,7 +279,7 @@ and a predicate checking a type `T`, iterates an e-class stored in the e-graph `
 pattern-matcher local variable `σaddr`, and matches if the
 e-class contains at least a literal that is of type
 """
-function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type})
+function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type}, idx::Int64)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
@@ -280,9 +288,12 @@ function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type})
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       if !v_isexpr(n)
-        hn = Metatheory.EGraphs.get_constant(g, v_head(n))
+        h = v_head(n)
+        hn = Metatheory.EGraphs.get_constant(g, h)
         if $(predicate)(hn)
           $(Symbol(:enode_idx, addr)) += 1
+          $(Symbol(:literal_hash, addr)) = h
+          isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           pc += 0x0001
           @goto compute
         end
@@ -330,25 +341,18 @@ end
 
 function yield_expr(patvar_to_addr, direction::Int)
   push_exprs = [
-    quote
-      id = $(Symbol(:σ, addr))
-      eclass = g[id]
-      node_idx = $(Symbol(:enode_idx, addr)) - 1
-      if node_idx <= 0
-        push!(ematch_buffer, v_pair(id, reinterpret(UInt64, 0)))
-      else
-        n = eclass.nodes[node_idx]
-        push!(ematch_buffer, v_pair(id, v_head(n)))
-      end
-    end for
-    addr in patvar_to_addr
+    :(push!(
+      ematch_buffer,
+      v_bitvec_check(isliteral_bitvec, $i) ? $(Symbol(:literal_hash, addr)) : $(Symbol(:σ, addr)),
+    )) for (i, addr) in enumerate(patvar_to_addr)
   ]
   quote
     g.needslock && lock(g.lock)
-    push!(ematch_buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
+    push!(ematch_buffer, root_id)
+    push!(ematch_buffer, reinterpret(UInt64, rule_idx * $direction))
+    push!(ematch_buffer, isliteral_bitvec)
+
     $(push_exprs...)
-    # Add delimiter to buffer.
-    push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
     n_matches += 1
     g.needslock && unlock(g.lock)
     @goto backtrack

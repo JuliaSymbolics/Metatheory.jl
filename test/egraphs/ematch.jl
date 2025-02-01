@@ -7,7 +7,7 @@ using Metatheory.Library
 
 include("../../examples/prove.jl")
 
-b = OptBuffer{UInt128}(10)
+b = OptBuffer{UInt64}(10)
 
 @testset "Simple Literal" begin
   r = @rule 2 --> true
@@ -312,7 +312,7 @@ end
   zero_id = addexpr!(g, 0)
 
   some_theory = @theory begin
-    ~a * ~b => 0 where (iszero(a) || iszero(b))
+    ~a * ~b => 0 where {(iszero(a) || iszero(b))}
     ~a * ~b --> ~b * ~a
   end
 

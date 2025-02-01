@@ -60,11 +60,11 @@ end
 
 # Dynamic rules
 fold_t = @theory a b begin
-  -(a::Number) => -a
+  -(a::Number)          => -a
   a::Number + b::Number => a + b
   a::Number - b::Number => a - b
   a::Number * b::Number => a * b
-  a::Number ^ b::Number => begin
+  a::Number^b::Number   => begin
     a == 0 && b <= 0 && return nothing
     a < 0 && b != round(b) && return nothing # only allow integer exponents for negative base
     b < 0 && a isa Int && (a = float(a))
@@ -140,9 +140,11 @@ end
 
 function simplcost(n::VecExpr, op, costs)
   v_isexpr(n) || return 1
-  # @show op
-  # @show(sum(costs))
-  1 + sum(costs) + (op in (:∂, diff, :diff) ? 200 : 0)
+  op === :block && return sum(costs)
+  cost = 1 + v_arity(n)
+  (op ∈ (:∂, diff, :diff)) && (cost += 200)
+
+  cost + sum(costs)
 end
 
 function simplify(ex; steps = 4)
@@ -159,6 +161,7 @@ function simplify(ex; steps = 4)
     g = EGraph(ex)
     saturate!(g, cas, params)
     ex = extract!(g, simplcost)
+    @show ex
     ex = rewrite(ex, canonical_t)
     if !isexpr(ex) || hash(ex) ∈ hist
       return ex
@@ -192,23 +195,23 @@ end
 @test_broken simplify(:(diff(x^(cos(x)), x))) == :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x))
 @test simplify(:(x * diff(x^2, x) * x)) == :(2x^3)
 
-@test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x ^ 2) # :(3y * 2x^2)
+@test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x^2) # :(3y * 2x^2)
 
 @test simplify(:(6 * x * x * y)) == :(6 * y * x^2)
 @test simplify(:(diff(y^3, y) / y)) == :(3y)
 
 
-# params = SaturationParams(
-#     scheduler=BackoffScheduler,
-#     eclasslimit=5000,
-#     timeout=7,
-#     (match_limit = 1000, ban_length = 5),
-#     #stopwhen=stopwhen,
-# )
+params = SaturationParams(
+  scheduler = BackoffScheduler,
+  eclasslimit = 5000,
+  timeout = 7,
+  # (match_limit = 1000, ban_length = 5),
+  #stopwhen=stopwhen,
+)
 
-# ex = :((x+y)^(a*0) / (y+x)^0)
-# g = EGraph(ex)
-# @profview println(saturate!(g, cas, params))
+ex = :((x + y)^(a * 0) / (y + x)^0)
+g = EGraph(ex)
+@profview println(saturate!(g, cas, params))
 
 # ex = extract!(g, simplcost)
 # ex = rewrite(ex, canonical_t; clean=false)
