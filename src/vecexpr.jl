@@ -66,6 +66,7 @@ const VECEXPR_FLAG_ISTREE = 0x01
 const VECEXPR_FLAG_ISCALL = 0x10
 const VECEXPR_META_LENGTH = 4
 
+@inline Base.isless(a::VecExpr, b::VecExpr) = Base.isless(a.data, b.data)
 @inline v_flags(n::VecExpr)::Id = @inbounds n.data[2]
 @inline v_unset_flags!(n::VecExpr) = @inbounds (n.data[2] = 0)
 @inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flags)
