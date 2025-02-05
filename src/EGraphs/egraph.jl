@@ -247,6 +247,9 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
 
+@inline needs_operation_quoting(g::EGraph) = false
+@inline needs_operation_quoting(g::EGraph{Expr}) = true
+
 # Why does one of these use `get!` and the other use `setindex!`?
 
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
@@ -256,6 +259,7 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 end
 
 @inline function add_constant_hashed!(@nospecialize(g::EGraph), @nospecialize(c), h::UInt64)::Id
+  @assert hash(c) === h
   g.constants[h] = c
   h
 end
@@ -306,7 +310,7 @@ data structure for `g`.
 function canonicalize!(g::EGraph, n::VecExpr)
   if v_isexpr(n)
     for i in (VECEXPR_META_LENGTH + 1):length(n)
-        @inbounds n[i] = find(g, n[i])
+      @inbounds n[i] = find(g, n[i])
     end
     v_unset_hash!(n)
   end
@@ -509,7 +513,7 @@ function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {Exp
       if !isnothing(node_data)
         if !isnothing(eclass.data)
           joined_data = join(eclass.data, node_data)
-        
+
           if joined_data != eclass.data
             eclass.data = joined_data
             modify!(g, eclass)
@@ -561,7 +565,7 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph; should_check_memo=false, should_check_analysis=false)
+function rebuild!(g::EGraph; should_check_memo = false, should_check_analysis = false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
   @assert !should_check_memo || check_memo(g)
@@ -577,13 +581,17 @@ end
 Given a ground pattern, which is a pattern that has no pattern variables, find
 the eclass id in the egraph that represents that ground pattern.
 """
-function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
-  @assert isground(p)
+function lookup_pat(g::EGraph{ExpressionType}, p::Pat)::Id where {ExpressionType}
+  if p.type === PAT_LITERAL
+    # TODO avoid using enode vector for lookup, just try using hash
+    return has_constant(g, p.head_hash) ? lookup(g, p.n) : 0
+  end
+  @assert p.type === PAT_EXPR && p.isground
 
   args = children(p)
   h = v_head(p.n)
 
-  has_op = has_constant(g, h) || (h != p.quoted_head_hash && has_constant(g, p.quoted_head_hash))
+  has_op = has_constant(g, h) || (h != p.name_hash && has_constant(g, p.name_hash))
   has_op || return 0
 
   for i in v_children_range(p.n)
@@ -592,15 +600,11 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   end
 
   id = lookup(g, p.n)
-  if id <= 0 && h != p.quoted_head_hash
-    v_set_head!(p.n, p.quoted_head_hash)
+  if id <= 0 && h != p.name_hash
+    v_set_head!(p.n, p.name_hash)
     id = lookup(g, p.n)
     v_set_head!(p.n, p.head_hash)
   end
   id
 end
 
-function lookup_pat(g::EGraph, p::PatLiteral)::Id
-  h = last(p.n)
-  has_constant(g, h) ? lookup(g, p.n) : 0
-end

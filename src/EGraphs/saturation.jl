@@ -42,22 +42,16 @@ Base.@kwdef mutable struct SaturationParams
   check_analysis::Bool = false
 end
 
-function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
-  if isground(p)
+function cached_ids(g::EGraph, p::Pat)
+  p.type === PAT_VARIABLE && return Iterators.map(x -> x.val, keys(g.classes))
+
+  if p.isground
     id = lookup_pat(g, p)
-    iszero(id) ? UNDEF_ID_VEC : [id]
+    id > 0 ? [id] : UNDEF_ID_VEC
   else
     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
   end
 end
-
-function cached_ids(g::EGraph, p::PatLiteral) # p is a literal
-  id = lookup_pat(g, p)
-  id > 0 && return [id]
-  return UNDEF_ID_VEC
-end
-
-cached_ids(g::EGraph, p::PatVar) = Iterators.map(x -> x.val, keys(g.classes))
 
 """
 Returns an iterator of `Match`es.
@@ -115,28 +109,25 @@ function eqsat_search!(
   return n_matches
 end
 
-function instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatLiteral)::Id
-  add_constant_hashed!(g, p.value, v_head(p.n))
-  add!(g, p.n, true)
-end
 
-instantiate_enode!(bindings, @nospecialize(g::EGraph), p::PatVar)::Id = v_pair_first(bindings[p.idx])
-function instantiate_enode!(bindings, g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
-  add_constant_hashed!(g, p.head, p.head_hash)
+function instantiate_enode!(bindings, g::EGraph, p::Pat)::Id
+  if p.type === PAT_LITERAL
+    add_constant_hashed!(g, p.head, p.head_hash)
+  elseif p.type === PAT_VARIABLE
+    return v_pair_first(bindings[p.idx])
+  elseif p.type === PAT_EXPR
+    add_constant_hashed!(g, p.head, p.head_hash)
 
-  for i in v_children_range(p.n)
-    @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
+    if needs_operation_quoting(g)
+      add_constant_hashed!(g, p.name, p.name_hash)
+      v_set_head!(p.n, p.name_hash)
+    end
+
+    for i in v_children_range(p.n)
+      @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
+    end
   end
-  add!(g, p.n, true)
-end
 
-function instantiate_enode!(bindings, g::EGraph{Expr}, p::PatExpr)::Id
-  add_constant_hashed!(g, p.quoted_head, p.quoted_head_hash)
-  v_set_head!(p.n, p.quoted_head_hash)
-
-  for i in v_children_range(p.n)
-    @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
-  end
   add!(g, p.n, true)
 end
 
@@ -292,7 +283,11 @@ function eqsat_step!(
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
-  @timeit report.to "Rebuild" rebuild!(g; should_check_memo = params.check_memo, should_check_analysis = params.check_analysis)
+  @timeit report.to "Rebuild" rebuild!(
+    g;
+    should_check_memo = params.check_memo,
+    should_check_analysis = params.check_analysis,
+  )
 
   Schedulers.rebuild!(scheduler)
 
