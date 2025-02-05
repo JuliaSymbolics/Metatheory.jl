@@ -8,7 +8,7 @@ end
 SaturationReport() = SaturationReport(nothing, EGraph(), 0, TimerOutput())
 SaturationReport(g::EGraph) = SaturationReport(nothing, g, 0, TimerOutput())
 
-
+const Bindings = SubArray{UInt128,1,Vector{UInt128},Tuple{UnitRange{Int64}},true}
 
 # string representation of timedata
 function Base.show(io::IO, x::SaturationReport)
@@ -110,7 +110,7 @@ function eqsat_search!(
 end
 
 
-function instantiate_enode!(bindings, g::EGraph, p::Pat)::Id
+function instantiate_enode!(bindings::Bindings, g::EGraph, p::Pat)::Id
   if p.type === PAT_LITERAL
     add_constant_hashed!(g, p.head, p.head_hash)
   elseif p.type === PAT_VARIABLE
@@ -134,7 +134,7 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(bindings, g::EGraph, i)
+function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
   ecid = v_pair_first(bindings[i])
   literal_position = reinterpret(Int, v_pair_last(bindings[i]))
   ecid <= 0 && error("unbound pattern variable")
@@ -153,13 +153,7 @@ struct RuleApplicationResult
   r::Id
 end
 
-function apply_rule!(
-  bindings::SubArray{UInt128,1,Vector{UInt128},Tuple{UnitRange{Int64}},true},
-  g::EGraph,
-  rule::RewriteRule,
-  id::Id,
-  direction::Int,
-)::RuleApplicationResult
+function apply_rule!(bindings::Bindings, g::EGraph, rule::RewriteRule, id::Id, direction::Int)::RuleApplicationResult
   if rule.op === (-->) # DirectedRule
     new_id::Id = instantiate_enode!(bindings, g, rule.right)
     RuleApplicationResult(:nothing, new_id, id)

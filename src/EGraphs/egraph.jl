@@ -259,7 +259,6 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 end
 
 @inline function add_constant_hashed!(@nospecialize(g::EGraph), @nospecialize(c), h::UInt64)::Id
-  @assert hash(c) === h
   g.constants[h] = c
   h
 end
