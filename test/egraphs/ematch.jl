@@ -312,7 +312,7 @@ end
   zero_id = addexpr!(g, 0)
 
   some_theory = @theory begin
-    ~a * ~b => 0 where {(iszero(a) || iszero(b))}
+    ~a * ~b => 0 where (iszero(a) || iszero(b))
     ~a * ~b --> ~b * ~a
   end
 
