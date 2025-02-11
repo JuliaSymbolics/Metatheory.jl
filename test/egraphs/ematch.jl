@@ -7,7 +7,7 @@ using Metatheory.Library
 
 include("../../examples/prove.jl")
 
-b = OptBuffer{UInt128}(10)
+b = OptBuffer{UInt64}(10)
 
 @testset "Simple Literal" begin
   r = @rule 2 --> true
@@ -161,6 +161,24 @@ end
   @test in_same_class(g, ec_2r, ec_mag)
   @test !in_same_class(g, ec_2r, ec_baz)
   @test !in_same_class(g, ec_1r, ec_mag)
+end
+
+
+@testset "Matching Literals in Dynamic Rules" begin
+  g = EGraph()
+
+  ec_xy = addexpr!(g, :(x + y))
+  ec_1 = addexpr!(g, 1)
+  union!(g, ec_xy, ec_1)
+  # 1: x
+  # 2: y
+  # 3: %1 + %2, 1
+
+  r2 = @theory a b begin
+    a::Number => :($a + 0)
+    :x + :y => :y
+  end
+  saturate!(g, r2)
 end
 
 

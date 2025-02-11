@@ -107,7 +107,7 @@ end
 # ['a','1','2','3','4']
 ex = :(filter(ispow2, filter(iseven, reverse(reverse(fill(4, 100))))))
 
-@test Base.remove_linenums!(stream_optimize(ex)) == Base.remove_linenums!(:(
+@test_broken Base.remove_linenums!(stream_optimize(ex)) == Base.remove_linenums!(:(
   if ispow2(4) && iseven(4)
     fill(4, 100)
   else

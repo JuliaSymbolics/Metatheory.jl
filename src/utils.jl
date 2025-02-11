@@ -4,7 +4,7 @@ using TimerOutputs
 const binarize_ops = [:(+), :(*), (+), (*)]
 
 function cleanast(e::Expr)
-  # TODO better line removal 
+  # TODO better line removal
   if e.head === :block
     return Expr(e.head, filter(x -> !(x isa LineNumberNode), e.args)...)
   end
@@ -31,20 +31,21 @@ macro timer(name, expr)
   )
 end
 
+# TODO adjust
 "Useful for debugging: prints the content of the e-graph match buffer in readable format."
 function buffer_readable(g, limit, ematch_buffer)
   k = length(ematch_buffer)
 
   while k > limit
     delimiter = ematch_buffer.v[k]
-    @assert delimiter == 0xffffffffffffffffffffffffffffffff
+    @assert delimiter == 0xffffffffffffffff
     n = k - 1
 
     next_delimiter_idx = 0
     n_elems = 0
     for i in n:-1:1
       n_elems += 1
-      if ematch_buffer.v[i] == 0xffffffffffffffffffffffffffffffff
+      if ematch_buffer.v[i] == 0xffffffffffffffff
         n_elems -= 1
         next_delimiter_idx = i
         break
