@@ -19,12 +19,12 @@ function makesegment(s::Expr, pvars, mod)
 
   name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
-  return PatSegment(name, makepredicate(mod, predicate), -1)
+  return pat_var(PAT_SEGMENT, name, makepredicate(mod, predicate), -1)
 end
 
 function makesegment(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
-  PatSegment(name)
+  pat_var(PAT_SEGMENT, name)
 end
 
 function makevar(s::Expr, pvars, mod)
@@ -40,7 +40,7 @@ function makevar(s::Expr, pvars, mod)
   # TODO support anonymous functions for predicates
   name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
-  return PatVar(name, makepredicate(mod, predicate), -1)
+  return pat_var(PAT_VARIABLE, name, -1, makepredicate(mod, predicate))
 end
 
 function makepredicate(mod, predicate::Symbol)
@@ -50,7 +50,7 @@ end
 
 function makevar(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
-  PatVar(name)
+  pat_var(PAT_VARIABLE, name)
 end
 
 
@@ -86,19 +86,19 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
-function makepattern(x, pvars, slots, mod, splat = false)
+function makepattern(x, pvars, slots, mod, splat = false)::Pat
   if x in slots
     splat ? makesegment(x, pvars, mod) : makevar(x, pvars, mod)
   elseif x isa Symbol
-    PatLiteral(getfield(mod, x))
+    pat_literal(getfield(mod, x))
   elseif x isa QuoteNode
-    PatLiteral(x.value)
+    pat_literal(x.value)
   else
-    PatLiteral(x)
+    pat_literal(x)
   end
 end
 
-function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
+function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)::Pat
   h = head(ex)
 
   if iscall(ex)
@@ -126,9 +126,9 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
 
       if isdef && op isa Expr || op isa Symbol
         # Support fully qualified function symbols such as `Main.foo`
-        PatExpr(iscall(ex), op_obj, op, patargs)
+        pat_expr(iscall(ex), op_obj, op, patargs)
       else
-        PatExpr(iscall(ex), op_obj, patargs)
+        pat_expr(iscall(ex), op_obj, patargs)
       end
     end
 
@@ -144,11 +144,11 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     # makepattern(only(stmts), pvars, slots, mod)
     # else
     patargs = map(i -> makepattern(i, pvars, slots, mod), stmts) # recurse
-    PatExpr(false, h, patargs)
+    pat_expr(false, h, patargs)
     # end
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
-    PatExpr(false, h, patargs)
+    pat_expr(false, h, patargs)
   end
 end
 
@@ -383,7 +383,7 @@ macro rule(args...)
 
   l, r = iscall(ex) ? arguments(ex) : children(ex)
   pvars = Symbol[]
-  lhs::AbstractPat = makepattern(l, pvars, slots, __module__)
+  lhs::Pat = makepattern(l, pvars, slots, __module__)
   ppvars = Patterns.patvars(lhs)
 
   @assert pvars == ppvars
@@ -524,6 +524,7 @@ macro capture(args...)
     push!(bind_exprs, :($(esc(key)) = __MATCHES__[$idx]))
   end
 
+  readline()
   setdebrujin!(lhs, pvars)
 
   matcher_left_expr = match_compile(lhs, pvars)

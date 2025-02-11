@@ -24,7 +24,7 @@ end
 """
 Entry point for classical pattern matching compiler.
 
-This function, given a `p::AbstractPat` pattern with `n` pattern variables,
+This function, given a `p::Pat` pattern with `n` pattern variables,
 returns an `Expr` containing a function definition.
 
 The returned compiled pattern matching function will accept:
@@ -32,7 +32,7 @@ The returned compiled pattern matching function will accept:
   - `_callback`, a function that will be called on successful match, that should accepts `n` arguments (the number of pattern variables of `p`).
   - `stack`: an [`OptBuffer`](@ref) used to avoid re-allocating the instruction pointer stack.
 """
-function match_compile(p::AbstractPat, pvars)::Expr
+function match_compile(p::Pat, pvars)::Expr
   state = MatchCompilerState(; pvars_bound = fill(false, length(pvars)))
 
   # Tree coordinates are a vector of integers.
@@ -82,6 +82,24 @@ function match_compile(p::AbstractPat, pvars)::Expr
       pc = pop!(stack)
       @goto compute
     end
+  end
+end
+
+function match_compile!(
+  pat::Pat,
+  state::MatchCompilerState,
+  coordinate::Vector{Int},
+  parent_segments::Vector{Symbol},
+  is_term_operation = false,
+)
+  if pat.type === PAT_EXPR
+    match_compile_expr!(pat, state, coordinate, parent_segments, is_term_operation)
+  elseif pat.type === PAT_VARIABLE
+    match_compile_var!(pat, state, coordinate, parent_segments, is_term_operation)
+  elseif pat.type === PAT_SEGMENT
+    match_compile_segment!(pat, state, coordinate, parent_segments, is_term_operation)
+  elseif pat.type === PAT_LITERAL
+    match_compile_literal!(pat, state, coordinate, parent_segments, is_term_operation)
   end
 end
 
@@ -142,14 +160,21 @@ get_idx(coordinate, segments_so_far) = :($(last(coordinate)) + $(offset_so_far(s
 # end
 varname(patvarname::Symbol) = Symbol(:_pvar_, patvarname)
 
-function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate::Vector{Int}, parent_segments)
+function match_compile_expr!(
+  pattern::Pat,
+  state::MatchCompilerState,
+  coordinate::Vector{Int},
+  parent_segments,
+  is_term_operation = false,
+)
+  @assert pattern.type === PAT_EXPR
   tsym = make_coord_symbol(coordinate)
   !isempty(coordinate) && push!(state.variables, tsym => nothing)
   push!(state.variables, Symbol(tsym, :_op) => nothing)
   push!(state.variables, Symbol(tsym, :_args) => nothing)
 
   pat_op = operation(pattern)
-  if pat_op isa PatVar
+  if pat_op isa Pat
     match_compile!(pat_op, state, coordinate, parent_segments, true)
   end
   push!(state.program, match_term_expr(pattern, coordinate, parent_segments))
@@ -161,24 +186,24 @@ function match_compile!(pattern::PatExpr, state::MatchCompilerState, coordinate:
   segments_so_far = Symbol[]
 
   for (i, child_pattern) in enumerate(p_args)
-    state.current_term_n_remaining = p_arity - i - count(x -> (x isa PatSegment), @view(p_args[(i + 1):end]))
+    state.current_term_n_remaining = p_arity - i - count(x -> (x.type === PAT_SEGMENT), @view(p_args[(i + 1):end]))
     match_compile!(child_pattern, state, [coordinate; i], segments_so_far)
   end
 
   push!(state.program, match_term_expr_closing(pattern, state, [coordinate; p_arity], segments_so_far))
 end
 
-function match_compile!(
-  patvar::Union{PatVar,PatSegment},
+function match_compile_var!(
+  patvar::Pat,
   state::MatchCompilerState,
   coordinate::Vector{Int},
   parent_segments,
   is_term_operation_patvar = false,
 )
+  @assert patvar.type === PAT_VARIABLE
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
-  tsym_args = Symbol(tsym, :_args)
 
-  to_compare = if is_term_operation_patvar && patvar isa PatVar
+  to_compare = if is_term_operation_patvar
     :(operation($tsym))
   else
     get_coord(coordinate, parent_segments)
@@ -194,19 +219,51 @@ function match_compile!(
     match_var_expr(patvar, state, to_compare, coordinate, parent_segments)
   end
 
-
-  if patvar isa PatSegment
-    push!(parent_segments, patvar.name)
-    push!(state.segments, patvar.name => tsym_args)
-    push!(state.variables, Symbol(varname(patvar.name), :_start) => -1)
-    push!(state.variables, Symbol(varname(patvar.name), :_end) => -2)
-    push!(state.variables, Symbol(varname(patvar.name), :_n_dropped) => 0)
-  end
   push!(state.program, instruction)
 end
 
+function match_compile_segment!(
+  patvar::Pat,
+  state::MatchCompilerState,
+  coordinate::Vector{Int},
+  parent_segments,
+  is_term_operation_patvar = false,
+)
+  @assert patvar.type === PAT_SEGMENT
+  @assert !is_term_operation_patvar
 
-function match_compile!(p::PatLiteral, state::MatchCompilerState, coordinate::Vector{Int}, segments_so_far)
+  tsym = make_coord_symbol(coordinate[1:(end - 1)])
+  tsym_args = Symbol(tsym, :_args)
+
+  to_compare = get_coord(coordinate, parent_segments)
+
+  instruction = if state.pvars_bound[patvar.idx]
+    # Pattern variable with the same Debrujin index has appeared in the
+    # pattern before this (is bound). Just check for equality.
+    match_eq_expr(patvar, state, to_compare, coordinate, parent_segments)
+  else
+    # Variable has not been seen before. Store it
+    state.pvars_bound[patvar.idx] = true
+    # insert instruction for checking predicates or type.
+    match_var_expr(patvar, state, to_compare, coordinate, parent_segments)
+  end
+
+  push!(parent_segments, patvar.name)
+  push!(state.segments, patvar.name => tsym_args)
+  push!(state.variables, Symbol(varname(patvar.name), :_start) => -1)
+  push!(state.variables, Symbol(varname(patvar.name), :_end) => -2)
+  push!(state.variables, Symbol(varname(patvar.name), :_n_dropped) => 0)
+  push!(state.program, instruction)
+end
+
+function match_compile_literal!(
+  p::Pat,
+  state::MatchCompilerState,
+  coordinate::Vector{Int},
+  segments_so_far,
+  is_term_operation_patvar = false,
+)
+  @assert p.type === PAT_LITERAL
   to_compare = get_coord(coordinate, segments_so_far)
   push!(state.program, match_eq_expr(p, state, to_compare, coordinate, segments_so_far))
 end
@@ -215,19 +272,22 @@ end
 # Actual Instructions
 # ==============================================================
 
-function match_term_op(pattern::PatExpr, tsym::Symbol, ::Union{Function,DataType,UnionAll})
+# Assume pattern is always PAT_EXPR
+function match_term_op(pattern::Pat, tsym::Symbol, ::Union{Function,DataType,UnionAll})
   t_op = Symbol(tsym, :_op)
-  :($t_op == $(pattern.head) || $t_op == $(QuoteNode(pattern.quoted_head)) || @goto backtrack)
+  :($t_op == $(pattern.head) || $t_op == $(QuoteNode(pattern.name)) || @goto backtrack)
 end
 
-match_term_op(pattern::PatExpr, tsym::Symbol, ::Union{Symbol,Expr}) =
+match_term_op(pattern::Pat, tsym::Symbol, ::Union{Symbol,Expr}) =
   :($(Symbol(tsym, :_op)) == $(QuoteNode(pattern.head)) || @goto backtrack)
 
-match_term_op(::PatExpr, tsym::Symbol, patvar::PatVar) =
-  :($(Symbol(tsym, :_op)) == $(varname(patvar.name)) || @goto backtrack)
+function match_term_op(::Pat, tsym::Symbol, pat::Pat)
+  @assert pat.type === PAT_VARIABLE
+  :($(Symbol(tsym, :_op)) == $(varname(pat.name)) || @goto backtrack)
+end
 
-
-function match_term_expr(pattern::PatExpr, coordinate, segments_so_far)
+function match_term_expr(pattern::Pat, coordinate, segments_so_far)
+  @assert pattern.type === PAT_EXPR
   tsym = make_coord_symbol(coordinate)
   op_fun = iscall(pattern) ? :operation : :head
   args_fun = iscall(pattern) ? :arguments : :children
@@ -263,19 +323,22 @@ function match_term_expr_closing(pattern, state, coordinate, segments_so_far)
   end
 end
 
-function match_var_expr(patvar::PatVar, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
-  quote
-    $(varname(patvar.name)) = $to_compare
-    if $(patvar.predicate)($(varname(patvar.name)))
-      pc += 0x0001
-      @goto compute
+
+
+function match_var_expr(patvar::Pat, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
+  if patvar.type === PAT_VARIABLE
+    return quote
+      $(varname(patvar.name)) = $to_compare
+      if $(patvar.predicate)($(varname(patvar.name)))
+        pc += 0x0001
+        @goto compute
+      end
+      @goto backtrack
     end
-    @goto backtrack
   end
-end
 
+  @assert patvar.type === PAT_SEGMENT
 
-function match_var_expr(patvar::PatSegment, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
   tsym_args = Symbol(tsym, :_args)
   n_dropped_sym = Symbol(varname(patvar.name), :_n_dropped)
@@ -316,9 +379,17 @@ end
 
 
 
-function match_eq_expr(patvar::PatVar, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
+function match_eq_expr(pat::Pat, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
+  pat.type === PAT_SEGMENT && return match_eq_expr_segment(pat, state, to_compare, coordinate, segments_so_far)
+
+  condition = if pat.type === PAT_VARIABLE
+    :(isequal($(varname(pat.name)), $to_compare))
+  elseif pat.type === PAT_LITERAL
+    :(isequal($(pat.head isa Union{Symbol,Expr} ? QuoteNode(pat.head) : pat.head), $to_compare))
+  end
+
   quote
-    if isequal($(varname(patvar.name)), $to_compare)
+    if $condition
       pc += 0x0001
       @goto compute
     else
@@ -328,8 +399,9 @@ function match_eq_expr(patvar::PatVar, state::MatchCompilerState, to_compare, co
 end
 
 
-function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
-  # This method should be called only when a PatSegment is already bound.
+function match_eq_expr_segment(patvar::Pat, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
+  @assert patvar.type === PAT_SEGMENT
+  # This method should be called only when a pattern segment is already bound.
   # Get parent term variable name
   # TODO reuse in function, duplicate from get_coord
   tsym = make_coord_symbol(coordinate[1:(end - 1)])
@@ -372,16 +444,5 @@ function match_eq_expr(patvar::PatSegment, state::MatchCompilerState, to_compare
 
     pc += 0x0001
     @goto compute
-  end
-end
-
-function match_eq_expr(pat::PatLiteral, state::MatchCompilerState, to_compare, coordinate, segments_so_far)
-  quote
-    if isequal($(pat.value isa Union{Symbol,Expr} ? QuoteNode(pat.value) : pat.value), $to_compare)
-      pc += 0x0001
-      @goto compute
-    else
-      @goto backtrack
-    end
   end
 end

@@ -116,7 +116,7 @@ end
   @test r(:(f(1, 2))) == :(ok())
 end
 
-@testset "PatSegment as tail" begin
+@testset "Pattern variable segment as tail" begin
   r = @rule f(~x, ~~y) => Expr(:call, :ok, (~~y)...)
   sf = r(:(f(1, 2, 3, 4)))
   @test sf == :(ok(2, 3, 4))
@@ -150,7 +150,7 @@ end
   @test sf == :(ok(1, 3, h(4, 5), 6))
 end
 
-@testset "PatSegment as head" begin
+@testset "Pattern variable segment as head" begin
   r = @rule f(~~x, ~y) => Expr(:call, :ok, (~~x)...)
   sf = r(:(f(1, 2, 3, 4)))
   @test sf == :(ok(1, 2, 3))
