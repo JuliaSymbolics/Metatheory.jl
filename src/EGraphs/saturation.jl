@@ -121,13 +121,9 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
 end
 
 function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::PatVar)::Id
-  # @show p
-  # @show isliteral_bitvec
-  # @show bindings
   if v_bitvec_check(isliteral_bitvec, p.idx)
     add!(g, VecExpr(Id[0, 0, 0, bindings[p.idx]]), true)
   else
-    # @show bindings[p.idx]
     bindings[p.idx]
   end
 end
@@ -153,47 +149,8 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
   for i in v_children_range(p.n)
     @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
   end
-  # @show p p.n
   add!(g, p.n, true)
 end
-
-# @generated function instantiate_enode_impl(
-#   ::Type{P},
-#   bindings::Bindings,
-#   isliteral_bitvec::UInt64,
-#   g::EGraph,
-#   p::P,
-# ) where {P<:AbstractPat}
-#   if P === PatLiteral
-#     return :(add_constant_hashed!(g, p.value, v_head(p.n)); add!(g, p.n, true))
-#   elseif P <: PatVar
-#     return :(
-#       if v_bitvec_check(isliteral_bitvec, p.idx)
-#         add!(g, VecExpr(Id[0, 0, 0, bindings[p.idx]]), true)
-#       else
-#         bindings[p.idx]
-#       end
-#     )
-#   elseif P === PatExpr
-#     # Here you might need to generate code that inlines the loop.
-#     quote
-#       add_constant_hashed!(g, p.quoted_head, p.quoted_head_hash)
-#       v_set_head!(p.n, p.quoted_head_hash)
-
-#       for i in v_children_range(p.n)
-#         @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
-#       end
-#       add!(g, p.n, true)
-#     end
-#   else
-#     error("Unsupported pattern type $(p)")
-#   end
-# end
-
-# @inline function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::AbstractPat)
-#   instantiate_enode_impl(typeof(p), bindings, isliteral_bitvec, g, p)
-# end
-
 
 """
 Instantiate argument for dynamic rule application in e-graph
