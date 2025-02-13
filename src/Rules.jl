@@ -91,9 +91,9 @@ Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left &&
 
 function Base.show(io::IO, r::RewriteRule)
   if r.op == (|>) # Is dynamic rule, replace with =>
-    print(io, :($(r.left) => $(r.rhs_original)))
+    print(io, :($(r.left) => $(r.rhs_original) : $(r.name)))
   else
-    print(io, :($(nameof(r.op))($(r.left), $(r.right))))
+    print(io, :($(nameof(r.op))($(r.left), $(r.right)) : $(r.name)))
   end
 
   if !isempty(r.name)
@@ -153,7 +153,7 @@ instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
 "Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
 function Base.inv(r::RewriteRule)
   RewriteRule(
-    name = r.name,
+    name = r.name + "-inv",
     op = r.op,
     left = r.right,
     right = r.left,

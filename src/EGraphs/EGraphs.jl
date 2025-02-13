@@ -33,6 +33,6 @@ include("saturation.jl")
 export SaturationParams, saturate!
 
 include("exprproof.jl")
-export PositionedProof, find_node_proof
+export PositionedProof, find_node_proof, detailed_dict
 
 end

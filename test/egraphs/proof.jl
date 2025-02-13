@@ -1,6 +1,6 @@
 using Metatheory, Test
 using Metatheory.Library
-
+import JSON
 
 g = EGraph(; proof = true)
 
@@ -51,18 +51,25 @@ end
 id_e = addexpr!(g, :e)
 @test isempty(find_flat_proof(g.proof, id_a, id_e))
 
+id_z = addexpr!(g, :z)
+
 comm_monoid = @commutative_monoid (*) 1
 
 fold_mul = @theory begin
   ~a::Number * ~b::Number => ~a * ~b
 end
 
-ex = :(a * 4)
+ex = :(a * b * 4 * z)
 id_ex = addexpr!(g, ex)
-ex_to = :(e * 4)
+ex_to = :(d * c * 4 * z)
 id_ex_to = addexpr!(g, ex_to)
-print_proof(g)
+print_nodes(g)
 
-println(find_node_proof(g, id_ex, id_ex_to)) # Current challenge
-
-
+println(pretty_dict(g))
+prf = find_node_proof(g, id_ex, id_ex_to)
+if prf === nothing
+  println("No proof")
+else
+  println(JSON.json(detailed_dict(prf[1], g)))
+  println(JSON.json(detailed_dict(prf[2], g)))
+end

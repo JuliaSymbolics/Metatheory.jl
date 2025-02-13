@@ -231,6 +231,13 @@ function Base.show(io::IO, g::EGraph)
 end
 
 
+function print_nodes(g::EGraph)
+  for (i, node) in enumerate(g.nodes)
+    println("[$i] => ", to_expr(g, node))
+  end
+end
+export print_nodes
+
 function print_proof(g::EGraph)
   # Print memo 
   println("explain_find:")

@@ -1,5 +1,4 @@
 export ProofConnection, ProofNode, EGraphProof, find_flat_proof, rewrite_to_leader
-
 mutable struct ProofConnection
   """
   Justification can be 
