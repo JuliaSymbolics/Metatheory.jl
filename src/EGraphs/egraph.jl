@@ -555,6 +555,17 @@ function check_analysis(g)
   true
 end
 
+function rebuild_memo!(g::EGraph)
+  new_memo = Dict{VecExpr,Id}()
+  for eclass in values(g.classes)
+    for node in eclass.nodes
+      canonicalize!(g, node)
+      new_memo[node] = eclass.id
+    end
+  end
+  g.memo = new_memo
+end
+
 """
 This function restores invariants and executes
 upwards merging in an [`EGraph`](@ref). See
@@ -564,6 +575,7 @@ for more details.
 function rebuild!(g::EGraph; should_check_memo = false, should_check_analysis = false)
   n_unions = process_unions!(g)
   trimmed_nodes = rebuild_classes!(g)
+  rebuild_memo!(g)
   @assert !should_check_memo || check_memo(g)
   @assert !should_check_analysis || check_analysis(g)
   g.clean = true
