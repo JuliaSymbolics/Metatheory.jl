@@ -265,59 +265,6 @@ function eqsat_apply!(
     !iszero(res.l) && !iszero(res.r) && union!(g, res.l, res.r)
   end
 
-
-  # k = length(ematch_buffer)
-  # while k > 0
-
-  #   if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
-  #     @debug "Goal reached"
-  #     rep.reason = :goalreached
-  #     return
-  #   end
-
-  #   delimiter = ematch_buffer.v[k]
-  #   @assert delimiter == 0xffffffffffffffff
-  #   n = k - 1
-
-  #   next_delimiter_idx = 0
-  #   for i in n:-1:1
-  #     buf_element = ematch_buffer.v[i]
-  #     if buf_element == 0xffffffffffffffff
-  #       next_delimiter_idx = i
-  #       break
-  #     end
-  #   end
-
-  #   n_matches += 1
-
-  #   id = ematch_buffer.v[next_delimiter_idx + 1]
-  #   rule_idx = reinterpret(Int, ematch_buffer.v[next_delimiter_idx + 2])
-  #   isliteral_bitvec = ematch_buffer.v[next_delimiter_idx + 3]
-  #   direction = sign(rule_idx)
-  #   rule_idx = abs(rule_idx)
-  #   rule = theory[rule_idx]
-
-  #   @show ematch_buffer.v[(next_delimiter_idx + 1):k]
-  #   @show rule_idx
-
-  #   bindings = @view ematch_buffer.v[(next_delimiter_idx + 4):n]
-
-  #   res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction)
-
-  #   k = next_delimiter_idx
-  #   if res.halt_reason !== :nothing
-  #     rep.reason = res.halt_reason
-  #     return
-  #   end
-
-  #   if params.enodelimit > 0 && length(g.memo) > params.enodelimit
-  #     @debug "Too many enodes"
-  #     rep.reason = :enodelimit
-  #     break
-  #   end
-
-  #   !iszero(res.l) && !iszero(res.r) && union!(g, res.l, res.r)
-  # end
   empty!(ematch_buffer)
 
   if params.goal(g)
