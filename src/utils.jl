@@ -36,9 +36,9 @@ end
 function buffer_readable(g, theory, ematch_buffer::OptBuffer{UInt64}, limit = length(ematch_buffer))
   k = 1
   while k < limit
-    id = ematch_buffer.v[k]
-    rule_idx = reinterpret(Int, ematch_buffer.v[k + 1])
-    isliteral_bitvec = ematch_buffer.v[k + 2]
+    id = ematch_buffer[k]
+    rule_idx = reinterpret(Int, ematch_buffer[k + 1])
+    isliteral_bitvec = ematch_buffer[k + 2]
     direction = sign(rule_idx)
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
@@ -47,7 +47,7 @@ function buffer_readable(g, theory, ematch_buffer::OptBuffer{UInt64}, limit = le
 
     bind_end = bind_start + length(rule.patvars) - 1
 
-    bindings = @view ematch_buffer.v[bind_start:bind_end]
+    bindings = @view ematch_buffer[bind_start:bind_end]
 
     # Print literal hashes as UInt64 hashes, and e-class IDs as ints with %
     print(
