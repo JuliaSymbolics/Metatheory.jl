@@ -21,8 +21,8 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_t
   @test prove(calculational_logic_theory, :(((p ⟹ (p || p)) == ((!(p) && q) ⟹ q))), 1, 10, params)
 
   freges = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))   # Frege's theorem
-  params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (match_limit = 6000, ban_length = 5))
-  @test_broken true == prove(calculational_logic_theory, freges, 2, 10, params)
+  params = SaturationParams(timeout = 12, eclasslimit = 10000)
+  @test true == prove(calculational_logic_theory, freges, 2, 10, params)
 
-  @test prove(calculational_logic_theory, :(!(p || q) == (!p && !q)))   # Demorgan's
+  @test true == prove(calculational_logic_theory, :(!(p || q) == (!p && !q)))   # Demorgan's
 end
