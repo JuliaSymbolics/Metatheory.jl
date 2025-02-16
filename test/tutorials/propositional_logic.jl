@@ -23,9 +23,4 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
 end
 
 # Consensus theorem
-# @test_broken test_equality(
-#   propositional_logic_theory,
-#   :((x && y) || (!x && z) || (y && z)),
-#   :((x && y) || (!x && z)),
-#   true,
-# )
+@test true == prove(propositional_logic_theory, :(((x && y) || (!x && z) || (y && z)) == ((x && y) || (!x && z))))
