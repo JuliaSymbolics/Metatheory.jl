@@ -4,7 +4,7 @@ using TimerOutputs
 const binarize_ops = [:(+), :(*), (+), (*)]
 
 function cleanast(e::Expr)
-  # TODO better line removal 
+  # TODO better line removal
   if e.head === :block
     return Expr(e.head, filter(x -> !(x isa LineNumberNode), e.args)...)
   end
@@ -31,36 +31,33 @@ macro timer(name, expr)
   )
 end
 
+# TODO adjust
 "Useful for debugging: prints the content of the e-graph match buffer in readable format."
-function buffer_readable(g, limit, ematch_buffer)
-  k = length(ematch_buffer)
-
-  while k > limit
-    delimiter = ematch_buffer.v[k]
-    @assert delimiter == 0xffffffffffffffffffffffffffffffff
-    n = k - 1
-
-    next_delimiter_idx = 0
-    n_elems = 0
-    for i in n:-1:1
-      n_elems += 1
-      if ematch_buffer.v[i] == 0xffffffffffffffffffffffffffffffff
-        n_elems -= 1
-        next_delimiter_idx = i
-        break
-      end
-    end
-
-    match_info = ematch_buffer.v[next_delimiter_idx + 1]
-    id = v_pair_first(match_info)
-    rule_idx = reinterpret(Int, v_pair_last(match_info))
+function buffer_readable(g, theory, ematch_buffer::OptBuffer{UInt64}, limit = length(ematch_buffer))
+  k = 1
+  while k < limit
+    id = ematch_buffer[k]
+    rule_idx = reinterpret(Int, ematch_buffer[k + 1])
+    isliteral_bitvec = ematch_buffer[k + 2]
+    direction = sign(rule_idx)
     rule_idx = abs(rule_idx)
+    rule = theory[rule_idx]
 
-    bindings = @view ematch_buffer.v[(next_delimiter_idx + 2):n]
+    bind_start = k + 3
 
-    print("$id E-Classes: ", map(x -> reinterpret(Int, v_pair_first(x)), bindings))
-    print(" Nodes: ", map(x -> reinterpret(Int, v_pair_last(x)), bindings), "\n")
+    bind_end = bind_start + length(rule.patvars) - 1
 
-    k = next_delimiter_idx
+    bindings = @view ematch_buffer[bind_start:bind_end]
+
+    # Print literal hashes as UInt64 hashes, and e-class IDs as ints with %
+    print(
+      "Rule $rule_idx on %$id bindings: [",
+      join(map(enumerate(bindings)) do (i, x)
+        v_bitvec_check(isliteral_bitvec, i) ? "$x" : "%$(reinterpret(Int64, x))"
+      end, ", "),
+      "]\n",
+    )
+
+    k = bind_end + 1
   end
 end
