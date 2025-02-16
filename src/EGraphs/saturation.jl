@@ -8,7 +8,7 @@ end
 SaturationReport() = SaturationReport(nothing, EGraph(), 0, TimerOutput())
 SaturationReport(g::EGraph) = SaturationReport(nothing, g, 0, TimerOutput())
 
-const Bindings = SubArray{UInt128,1,Vector{UInt128},Tuple{UnitRange{Int64}},true}
+const Bindings = SubArray{UInt64,1,Vector{UInt64},Tuple{UnitRange{Int64}},true}
 
 # string representation of timedata
 function Base.show(io::IO, x::SaturationReport)
@@ -61,7 +61,7 @@ function eqsat_search!(
   theory::Theory,
   scheduler::AbstractScheduler,
   report::SaturationReport,
-  ematch_buffer::OptBuffer{UInt128},
+  ematch_buffer::OptBuffer{UInt64},
 )::Int
   n_matches = 0
 
@@ -110,11 +110,16 @@ function eqsat_search!(
 end
 
 
-function instantiate_enode!(bindings::Bindings, g::EGraph, p::Pat)::Id
+function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat)::Id
   if p.type === PAT_LITERAL
     add_constant_hashed!(g, p.head, p.head_hash)
+    add!(g, p.n, true)
   elseif p.type === PAT_VARIABLE
-    return v_pair_first(bindings[p.idx])
+    if v_bitvec_check(isliteral_bitvec, p.idx)
+      add!(g, v_new_literal(bindings[p.idx]), true)
+    else
+      bindings[p.idx]
+    end
   elseif p.type === PAT_EXPR
     add_constant_hashed!(g, p.head, p.head_hash)
 
@@ -124,7 +129,7 @@ function instantiate_enode!(bindings::Bindings, g::EGraph, p::Pat)::Id
     end
 
     for i in v_children_range(p.n)
-      @inbounds p.n[i] = instantiate_enode!(bindings, g, p.children[i - VECEXPR_META_LENGTH])
+      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
     end
   end
 
@@ -134,16 +139,14 @@ end
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
-  ecid = v_pair_first(bindings[i])
-  literal_position = reinterpret(Int, v_pair_last(bindings[i]))
-  ecid <= 0 && error("unbound pattern variable")
-  eclass = g[ecid]
-  if literal_position > 0
-    @assert !v_isexpr(eclass[literal_position])
-    return get_constant(g, v_head(eclass[literal_position]))
+function instantiate_actual_param!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, i)
+  val = bindings[i]
+  if v_bitvec_check(isliteral_bitvec, i)
+    get_constant(g, bindings[i])
+  else
+    val <= 0 && error("unbound pattern variable")
+    g[val]
   end
-  return eclass
 end
 
 
@@ -153,17 +156,24 @@ struct RuleApplicationResult
   r::Id
 end
 
-function apply_rule!(bindings::Bindings, g::EGraph, rule::RewriteRule, id::Id, direction::Int)::RuleApplicationResult
+function apply_rule!(
+  bindings::Bindings,
+  isliteral_bitvec::UInt64,
+  g::EGraph,
+  rule::RewriteRule,
+  id::Id,
+  direction::Int,
+)::RuleApplicationResult
   if rule.op === (-->) # DirectedRule
-    new_id::Id = instantiate_enode!(bindings, g, rule.right)
+    new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right)
     RuleApplicationResult(:nothing, new_id, id)
   elseif rule.op === (==) # EqualityRule
     pat_to_inst = direction == 1 ? rule.right : rule.left
-    new_id = instantiate_enode!(bindings, g, pat_to_inst)
+    new_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
     RuleApplicationResult(:nothing, new_id, id)
   elseif rule.op === (!=) # UnequalRule
     pat_to_inst = direction == 1 ? rule.right : rule.left
-    other_id = instantiate_enode!(bindings, g, pat_to_inst)
+    other_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
 
     if find(g, id) == find(g, other_id)
       @debug "$rule produced a contradiction!"
@@ -171,7 +181,11 @@ function apply_rule!(bindings::Bindings, g::EGraph, rule::RewriteRule, id::Id, d
     end
     RuleApplicationResult(:nothing, 0, 0)
   elseif rule.op === (|>) # DynamicRule
-    r = rule.right(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
+    r = rule.right(
+      id,
+      g,
+      (instantiate_actual_param!(bindings, isliteral_bitvec, g, i) for i in 1:length(rule.patvars))...,
+    )
     isnothing(r) && return RuleApplicationResult(:nothing, 0, 0)
     rcid = addexpr!(g, r)
     RuleApplicationResult(:nothing, rcid, id)
@@ -187,49 +201,39 @@ function eqsat_apply!(
   theory::Theory,
   rep::SaturationReport,
   params::SaturationParams,
-  ematch_buffer::OptBuffer{UInt128},
+  ematch_buffer::OptBuffer{UInt64},
 )
   n_matches = 0
-  k = length(ematch_buffer)
-
-  @debug "APPLYING $(count((==)(0xffffffffffffffffffffffffffffffff), ematch_buffer)) matches"
   g.needslock && lock(g.lock)
-  while k > 0
 
+  k = 1
+  while k < length(ematch_buffer)
     if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
       @debug "Goal reached"
       rep.reason = :goalreached
       return
     end
 
-    delimiter = ematch_buffer.v[k]
-    @assert delimiter == 0xffffffffffffffffffffffffffffffff
-    n = k - 1
-
-    next_delimiter_idx = 0
-    n_elems = 0
-    for i in n:-1:1
-      n_elems += 1
-      if ematch_buffer.v[i] == 0xffffffffffffffffffffffffffffffff
-        n_elems -= 1
-        next_delimiter_idx = i
-        break
-      end
-    end
-
     n_matches += 1
-    match_info = ematch_buffer.v[next_delimiter_idx + 1]
-    id = v_pair_first(match_info)
-    rule_idx = reinterpret(Int, v_pair_last(match_info))
+
+
+    id = ematch_buffer[k]
+    rule_idx = reinterpret(Int, ematch_buffer[k + 1])
+    isliteral_bitvec = ematch_buffer[k + 2]
     direction = sign(rule_idx)
     rule_idx = abs(rule_idx)
     rule = theory[rule_idx]
 
-    bindings = @view ematch_buffer.v[(next_delimiter_idx + 2):n]
+    bind_start = k + 3
 
-    res = apply_rule!(bindings, g, rule, id, direction)
+    bind_end = bind_start + length(rule.patvars) - 1
 
-    k = next_delimiter_idx
+    bindings = @view ematch_buffer[bind_start:bind_end]
+
+    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction)
+
+    k = bind_end + 1
+
     if res.halt_reason !== :nothing
       rep.reason = res.halt_reason
       return
@@ -243,13 +247,14 @@ function eqsat_apply!(
 
     !iszero(res.l) && !iszero(res.r) && union!(g, res.l, res.r)
   end
+
+  empty!(ematch_buffer)
+
   if params.goal(g)
     @debug "Goal reached"
     rep.reason = :goalreached
     return
   end
-
-  empty!(ematch_buffer)
 
   g.needslock && unlock(g.lock)
 end
@@ -265,7 +270,7 @@ function eqsat_step!(
   scheduler::AbstractScheduler,
   params::SaturationParams,
   report::SaturationReport,
-  ematch_buffer::OptBuffer{UInt128},
+  ematch_buffer::OptBuffer{UInt64},
 )
 
   setiter!(scheduler, curr_iter)
@@ -273,7 +278,6 @@ function eqsat_step!(
   @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
 
   @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer)
-
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
@@ -305,7 +309,7 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
   params.timer || disable_timer!(report.to)
 
   # Buffer for e-matching. Use a local buffer for generated functions.
-  ematch_buffer = OptBuffer{UInt128}(64)
+  ematch_buffer = OptBuffer{UInt64}(64)
 
   while true
     curr_iter += 1
