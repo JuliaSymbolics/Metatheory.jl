@@ -180,7 +180,7 @@ function apply_rule!(
     end
     RuleApplicationResult(:nothing, 0, 0)
   elseif rule.op === (|>) # DynamicRule
-    r = rule.right(
+    r = rule.right_fun(
       id,
       g,
       (instantiate_actual_param!(bindings, isliteral_bitvec, g, i) for i in 1:length(rule.patvars))...,

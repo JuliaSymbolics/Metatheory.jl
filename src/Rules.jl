@@ -64,7 +64,8 @@ Base.@kwdef struct RewriteRule{Op<:Function}
   name::String = ""
   op::Op
   left::Pat
-  right::Union{Function,Pat}
+  right::Pat
+  right_fun::Function
   patvars::Vector{Symbol}
   ematcher_left!::Function
   ematcher_right!::Union{Nothing,Function} = nothing
@@ -100,7 +101,7 @@ end
 
 
 (r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
-(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
+(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right_fun(term, nothing, bindings...), r.stack)
 
 # ---------------------
 # Theories
@@ -166,6 +167,7 @@ function Base.inv(r::RewriteRule)
     op = r.op,
     left = r.right,
     right = r.left,
+    right_fun = r.right_fun,
     patvars = r.patvars,
     ematcher_left! = r.ematcher_right!,
     ematcher_right! = r.ematcher_left!,
@@ -175,6 +177,8 @@ function Base.inv(r::RewriteRule)
     rhs_original = r.lhs_original,
   )
 end
+
+Base.inv(r::DynamicRule) = error("Can not invert a dynamic rule.")
 
 """
 Turns an EqualityRule into a DirectedRule. For example,

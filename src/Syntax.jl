@@ -135,7 +135,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)::
   elseif h === :...
     makepattern(ex.args[1], pvars, slots, mod, true)
   elseif h == :(::) && ex.args[1] in slots
-    splat ? makesegment(ex, pvars) : makevar(ex, pvars, mod)
+    splat ? makesegment(ex, pvars, mod) : makevar(ex, pvars, mod)
   elseif h === :$
     ex.args[1]
   elseif h === :block
@@ -391,16 +391,19 @@ macro rule(args...)
   ematcher_right_expr = :nothing
   matcher_right_expr = :nothing
 
-  rhs = rhs_original = :(println("replace me"))
+  rhs_pat = pat_empty()
+  # TODO  have a failing function
+  rhs_fun = () -> error("unreachable") # dummy function
+  rhs_original = :(println("replace me"))
 
   if op == :(=>) # Dynamic Rule
     rhs_rewritten = rewrite_rhs(r)
     rhs_original = makeconsequent(rhs_rewritten)
     params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
-    rhs = :($(esc(params)) -> $(esc(rhs_original)))
+    rhs_fun = :($(esc(params)) -> $(esc(rhs_original)))
   else
-    rhs = makepattern(r, pvars, slots, __module__)
-    setdebrujin!(rhs, pvars)
+    rhs_pat = makepattern(r, pvars, slots, __module__)
+    setdebrujin!(rhs_pat, pvars)
     rhs_original = r
   end
 
@@ -410,9 +413,9 @@ macro rule(args...)
   ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
 
   if op in (:(==), :(!=)) # Bidirectional rule
-    ematcher_right_expr = esc(ematch_compile(rhs, pvars, -1))
-    matcher_right_expr = esc(match_compile(rhs, pvars))
-    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs))
+    ematcher_right_expr = esc(ematch_compile(rhs_pat, pvars, -1))
+    matcher_right_expr = esc(match_compile(rhs_pat, pvars))
+    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs_pat))
     if !isempty(extravars)
       error("unbound pattern variables $extravars when creating bidirectional rule")
     end
@@ -429,7 +432,8 @@ macro rule(args...)
       name = $rule_name,
       op = $op,
       left = $lhs,
-      right = $rhs,
+      right = $rhs_pat,
+      right_fun = $rhs_fun,
       patvars = $ppvars,
       ematcher_left! = $ematcher_left_expr,
       ematcher_right! = $ematcher_right_expr,
@@ -535,7 +539,8 @@ macro capture(args...)
       op = (|>),
       patvars = $pvars,
       left = $lhs,
-      right = (_lhs_expr, _egraph, pvars...) -> pvars,
+      right = $(pat_empty()),
+      right_fun = (_lhs_expr, _egraph, pvars...) -> pvars,
       matcher_left = $matcher_left_expr,
       ematcher_left! = () -> (),
     )

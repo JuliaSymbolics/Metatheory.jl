@@ -7,7 +7,17 @@ using Metatheory.VecExprModule
 import Metatheory: to_expr
 
 export Pat,
-  PatternType, PAT_LITERAL, PAT_VARIABLE, PAT_SEGMENT, PAT_EXPR, pat_literal, pat_var, pat_expr, patvars, setdebrujin!
+  PatternType,
+  PAT_LITERAL,
+  PAT_VARIABLE,
+  PAT_SEGMENT,
+  PAT_EXPR,
+  pat_literal,
+  pat_var,
+  pat_expr,
+  patvars,
+  setdebrujin!,
+  pat_empty
 
 @enum PatternType PAT_LITERAL PAT_VARIABLE PAT_SEGMENT PAT_EXPR
 
@@ -62,6 +72,8 @@ function pat_expr(iscall::Bool, op, qop, args::Vector{Pat})
 end
 
 pat_expr(iscall, op, args::Vector{Pat}) = pat_expr(iscall, op, maybe_quote_operation(op), args)
+
+pat_empty() = Pat(PAT_EXPR, true, -1, alwaystrue, nothing, 0, nothing, 0, Pat[], v_new(0))
 
 function Base.:(==)(a::Pat, b::Pat)
   a.type === b.type || return false
