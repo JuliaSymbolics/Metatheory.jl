@@ -524,7 +524,6 @@ macro capture(args...)
     push!(bind_exprs, :($(esc(key)) = __MATCHES__[$idx]))
   end
 
-  readline()
   setdebrujin!(lhs, pvars)
 
   matcher_left_expr = match_compile(lhs, pvars)

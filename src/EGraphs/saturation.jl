@@ -111,15 +111,14 @@ end
 
 
 function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat)::Id
-  if p.type === PAT_LITERAL
-    add_constant_hashed!(g, p.head, p.head_hash)
-    add!(g, p.n, true)
-  elseif p.type === PAT_VARIABLE
-    if v_bitvec_check(isliteral_bitvec, p.idx)
+  if p.type === PAT_VARIABLE
+    return if v_bitvec_check(isliteral_bitvec, p.idx)
       add!(g, v_new_literal(bindings[p.idx]), true)
     else
       bindings[p.idx]
     end
+  elseif p.type === PAT_LITERAL
+    add_constant_hashed!(g, p.head, p.head_hash)
   elseif p.type === PAT_EXPR
     add_constant_hashed!(g, p.head, p.head_hash)
 

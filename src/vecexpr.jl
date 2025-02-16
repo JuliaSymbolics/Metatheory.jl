@@ -25,8 +25,9 @@ export Id,
   v_pair,
   v_pair_first,
   v_pair_last,
-  v_new_literal
-v_bitvec_set, v_bitvec_check
+  v_new_literal,
+  v_bitvec_set,
+  v_bitvec_check
 
 const Id = UInt64
 
