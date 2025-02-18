@@ -62,14 +62,14 @@ SUITE["basic_maths"]["simpl1"] = begin
     postprocess_maths,
   ))
   @eval check_result($quoted_expr, :(a + b + d), "basic_maths_simpl1")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
 SUITE["basic_maths"]["simpl2"] = begin
   quoted_expr = :(simplify(simpl2_math, maths_theory, SaturationParams(), postprocess_maths))
   @eval check_result($quoted_expr, :a, "basic_maths_simpl2")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 # ==================================================================
@@ -84,21 +84,21 @@ SUITE["prop_logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
 SUITE["prop_logic"]["prove1"] = begin 
   quoted_expr = :(prove(propositional_logic_theory, ex_logic, 3, 6))
   @eval check_result($quoted_expr, true, "prop_logic_prove1")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 ex_demorgan = :(!(p || q) == (!p && !q))
 SUITE["prop_logic"]["demorgan"] = begin
   quoted_expr = :(prove(propositional_logic_theory, ex_demorgan))
   @eval check_result($quoted_expr, true, "prop_logic_demorgan")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 ex_frege = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))
 SUITE["prop_logic"]["freges_theorem"] = begin
   quoted_expr = :(prove(propositional_logic_theory, ex_frege))
   @eval check_result($quoted_expr, true, "prop_logic_freges_theorem")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 # ==================================================================
@@ -108,7 +108,7 @@ SUITE["calc_logic"] = BenchmarkGroup(["egraph", "logic"])
 SUITE["calc_logic"]["demorgan"] = begin
   quoted_expr = :(prove(calculational_logic_theory, ex_demorgan))
   @eval check_result($quoted_expr, true, "calc_logic_demorgan")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 # TODO FIXME After https://github.com/JuliaSymbolics/Metatheory.jl/pull/261/ the order of application of
@@ -118,7 +118,7 @@ end
 SUITE["calc_logic"]["freges_theorem"] = begin
   quoted_expr = :(prove((reverse(calculational_logic_theory)), ex_frege, 2, 10))
   @eval check_result($quoted_expr, true, "calc_logic_freges_theorem")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 # ==================================================================
@@ -145,7 +145,7 @@ SUITE["while_superinterpreter"]["while_10"] = begin
   expected = 10
   quoted_expr = :(bench_while_superinterpreter(exx, $expected))
   @eval check_result($quoted_expr, $expected, "while_superinterpreter_while_10")
-  @benchmarkable $quoted_expr
+  @eval @benchmarkable $quoted_expr
 end
 
 SUITE
