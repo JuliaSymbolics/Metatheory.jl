@@ -12,6 +12,14 @@ function simplify(ex, theory, params = SaturationParams(), postprocess = identit
 end
 
 
+function report_size(bench, g)
+  n_classes = length(g.classes)
+  n_nodes = sum(length(c.nodes) for c in values(g.classes))
+  n_memo = length(g.memo)
+  println("$bench n_classes: $n_classes, n_nodes: $n_nodes, n_memo: $n_memo")
+end
+
+
 include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/basic_maths_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
@@ -141,13 +149,6 @@ SUITE["while_superinterpreter"]["while_10"] = begin
   report_size("while_superinterpreter_while_10", g)
   @assert expr == expected
   @benchmarkable bench_while_superinterpreter($exx, $expected)
-end
-
-function report_size(bench, g)
-  n_classes = length(g.classes)
-  n_nodes = sum(length(c.nodes) for c in values(g.classes))
-  n_memo = length(g.memo)
-  println("$bench n_classes: $n_classes, n_nodes: $n_nodes, n_memo: $n_memo")
 end
 
 SUITE
