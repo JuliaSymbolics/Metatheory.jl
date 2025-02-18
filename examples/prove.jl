@@ -20,10 +20,10 @@ function prove(
     saturate!(g, t, params)
     ex = extract!(g, astsize)
     if !TermInterface.isexpr(ex)
-      return ex
+      return ex, g
     end
   end
-  return ex
+  return ex, g
 end
 
 function test_equality(t, exprs...; params = SaturationParams(), g = EGraph())
