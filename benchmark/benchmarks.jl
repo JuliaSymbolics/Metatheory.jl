@@ -19,6 +19,12 @@ function report_size(bench, g)
   println("$bench n_classes: $n_classes, n_nodes: $n_nodes, n_memo: $n_memo")
 end
 
+check_result(result, expected,_) = @assert expected == result
+function check_result(result::Tuple, expected, benchname)
+  expr, g = result
+  report_size(benchname, g)
+  @assert expected == expr
+end
 
 include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/basic_maths_theory.jl"))
@@ -49,24 +55,21 @@ SUITE["basic_maths"] = BenchmarkGroup(["egraphs"])
 
 simpl1_math = :(a + b + (0 * c) + d)
 SUITE["basic_maths"]["simpl1"] = begin
-  expr, g = simplify(
+  quoted_expr = :(simplify(
     simpl1_math,
     maths_theory,
-    SaturationParams(; timer = false),
+    (SaturationParams(; timer = false)),
     postprocess_maths,
-  )
-  report_size("basic_maths_simpl1", g)
-  @assert :(a + b + d) == expr
-
-  @benchmarkable simplify($simpl1_math, $maths_theory, $(SaturationParams(; timer = false)), postprocess_maths)
+  ))
+  @eval check_result($quoted_expr, :(a + b + d), "basic_maths_simpl1")
+  @benchmarkable $quoted_expr
 end
 
 simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
 SUITE["basic_maths"]["simpl2"] = begin
-  expr,g = simplify(simpl2_math, maths_theory, (SaturationParams()), postprocess_maths)
-  report_size("basic_maths_simpl2", g)
-  @assert :a == expr
-  @benchmarkable simplify($simpl2_math, $maths_theory, $(SaturationParams()), postprocess_maths)
+  quoted_expr = :(simplify(simpl2_math, maths_theory, SaturationParams(), postprocess_maths))
+  @eval check_result($quoted_expr, :a, "basic_maths_simpl2")
+  @benchmarkable $quoted_expr
 end
 
 # ==================================================================
@@ -79,26 +82,23 @@ ex_logic = rewrite(ex_orig, impl)
 SUITE["prop_logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
 
 SUITE["prop_logic"]["prove1"] = begin 
-  expr,g = prove(propositional_logic_theory, ex_logic, 3, 6)
-  report_size("prop_logic_prove1", g)
-  @assert expr == true
-  @benchmarkable prove($propositional_logic_theory, $ex_logic, 3, 6)
+  quoted_expr = :(prove(propositional_logic_theory, ex_logic, 3, 6))
+  @eval check_result($quoted_expr, true, "prop_logic_prove1")
+  @benchmarkable $quoted_expr
 end
 
 ex_demorgan = :(!(p || q) == (!p && !q))
 SUITE["prop_logic"]["demorgan"] = begin
-  expr,g = prove(propositional_logic_theory, ex_demorgan)
-  report_size("prop_logic_demorgan", g)
-  @assert expr == true
-  @benchmarkable prove($propositional_logic_theory, $ex_demorgan)
+  quoted_expr = :(prove(propositional_logic_theory, ex_demorgan))
+  @eval check_result($quoted_expr, true, "prop_logic_demorgan")
+  @benchmarkable $quoted_expr
 end
 
 ex_frege = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))
 SUITE["prop_logic"]["freges_theorem"] = begin
-  expr,g = prove(propositional_logic_theory, ex_frege)
-  report_size("prop_logic_freges_theorem", g)
-  @assert expr == true
-  @benchmarkable prove($propositional_logic_theory, $ex_frege)
+  quoted_expr = :(prove(propositional_logic_theory, ex_frege))
+  @eval check_result($quoted_expr, true, "prop_logic_freges_theorem")
+  @benchmarkable $quoted_expr
 end
 
 # ==================================================================
@@ -106,10 +106,9 @@ end
 SUITE["calc_logic"] = BenchmarkGroup(["egraph", "logic"])
 
 SUITE["calc_logic"]["demorgan"] = begin
-  expr,g = prove(calculational_logic_theory, ex_demorgan)
-  report_size("calc_logic_demorgan", g)
-  @assert expr == true
-  @benchmarkable prove($calculational_logic_theory, $ex_demorgan)
+  quoted_expr = :(prove(calculational_logic_theory, ex_demorgan))
+  @eval check_result($quoted_expr, true, "calc_logic_demorgan")
+  @benchmarkable $quoted_expr
 end
 
 # TODO FIXME After https://github.com/JuliaSymbolics/Metatheory.jl/pull/261/ the order of application of
@@ -117,10 +116,9 @@ end
 # order of application of rules changes the resulting e-graph, while this should not be the case.
 # See comments in https://github.com/JuliaSymbolics/Metatheory.jl/pull/261#pullrequestreview-2609050078
 SUITE["calc_logic"]["freges_theorem"] = begin
-  expr,g = prove((reverse(calculational_logic_theory)), ex_frege, 2, 10)
-  report_size("calc_logic_freges_theorem", g)
-  @assert expr == true
-  @benchmarkable prove($(reverse(calculational_logic_theory)), $ex_frege, 2, 10)
+  quoted_expr = :(prove((reverse(calculational_logic_theory)), ex_frege, 2, 10))
+  @eval check_result($quoted_expr, true, "calc_logic_freges_theorem")
+  @benchmarkable $quoted_expr
 end
 
 # ==================================================================
@@ -145,10 +143,9 @@ end
 
 SUITE["while_superinterpreter"]["while_10"] = begin
   expected = 10
-  expr,g = bench_while_superinterpreter(exx, expected)
-  report_size("while_superinterpreter_while_10", g)
-  @assert expr == expected
-  @benchmarkable bench_while_superinterpreter($exx, $expected)
+  quoted_expr = :(bench_while_superinterpreter(exx, $expected))
+  @eval check_result($quoted_expr, $expected, "while_superinterpreter_while_10")
+  @benchmarkable $quoted_expr
 end
 
 SUITE
