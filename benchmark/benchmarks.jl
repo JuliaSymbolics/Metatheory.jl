@@ -4,19 +4,65 @@ using Metatheory.Library
 
 const SUITE = BenchmarkGroup()
 
+# to collect egraph size information
+mutable struct EGraphSize
+  n_classes::UInt64
+  n_nodes::UInt64
+  n_memo::UInt64
+  iterations::UInt64
+  
+  EGraphSize() = new(0, 0, 0, 0)
+end
+
+
+# update size information by adding size of EGraph g
+function add!(s::EGraphSize, g::EGraph)
+  s.n_classes += length(g.classes)
+  s.n_nodes += sum(length(c.nodes) for c in values(g.classes))
+  s.n_memo += length(g.memo)
+  s
+end
+
+EGraphSize(g::EGraph) = add!(EGraphSize(), g)
+
 function simplify(ex, theory, params = SaturationParams(), postprocess = identity)
   g = EGraph(ex)
   saturate!(g, theory, params)
   res = extract!(g, astsize)
-  postprocess(res), g
+
+  postprocess(res), EGraphSize(g)
+end
+
+# NOTE: This must have the same behaviour as prove() in prove.jl.
+# Here we additionally track the egraph size for benchmarking.
+function prove(t, ex, steps = 1, timeout = 10, params = SaturationParams(
+  timeout = timeout,
+  scheduler = Schedulers.BackoffScheduler,
+  schedulerparams = (match_limit = 6000, ban_length = 5),
+  timer = false,
+))
+  size = EGraphSize()
+  for _ in 1:steps
+    g = EGraph(ex)
+  
+    ids = [addexpr!(g, true), g.root]
+  
+    params.goal = (g::EGraph) -> in_same_class(g, ids...)
+    saturate!(g, t, params)
+    ex = extract!(g, astsize)
+  
+    add!(size, g)
+  
+    if !TermInterface.isexpr(ex)
+      return ex, size
+    end
+  end
+  ex, size
 end
 
 
-function report_size(bench, g)
-  n_classes = length(g.classes)
-  n_nodes = sum(length(c.nodes) for c in values(g.classes))
-  n_memo = length(g.memo)
-  println("$bench n_classes: $n_classes, n_nodes: $n_nodes, n_memo: $n_memo")
+function report_size(bench, s::EGraphSize)
+  println("$bench n_classes: $(s.n_classes), n_nodes: $(s.n_nodes), n_memo: $(s.n_memo)")
 end
 
 check_result(result, expected,_) = @assert expected == result
@@ -26,7 +72,6 @@ function check_result(result::Tuple, expected, benchname)
   @assert expected == expr
 end
 
-include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/basic_maths_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_theory.jl"))
@@ -138,7 +183,8 @@ function bench_while_superinterpreter(expr, expected)
   goal = (g::EGraph) -> in_same_class(g, id1, id2)
   params = SaturationParams(timeout = 100, goal = goal, scheduler = Schedulers.SimpleScheduler)
   saturate!(g, while_language, params)
-  extract!(g, astsize), g
+  
+  extract!(g, astsize), EGraphSize(g)
 end
 
 SUITE["while_superinterpreter"]["while_10"] = begin
