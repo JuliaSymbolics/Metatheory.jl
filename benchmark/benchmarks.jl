@@ -90,7 +90,11 @@ function nested_expr(level)
   end
 end
 
-SUITE["egraph"]["addexpr"] = @benchmarkable EGraph($(nested_expr(2000)))
+SUITE["egraph"]["addexpr"] = begin
+  ex = nested_expr(2000)
+  report_size("egraph/addexpr", EGraphSize(EGraph(ex)))
+  @eval @benchmarkable EGraph($ex)
+end
 
 
 # ==================================================================
