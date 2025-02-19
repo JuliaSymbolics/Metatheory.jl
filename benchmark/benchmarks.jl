@@ -93,7 +93,7 @@ end
 SUITE["egraph"]["addexpr"] = begin
   ex = nested_expr(2000)
   report_size("egraph/addexpr", EGraphSize(EGraph(ex)))
-  @eval @benchmarkable EGraph($ex)
+  @benchmarkable EGraph(ex)
 end
 
 
