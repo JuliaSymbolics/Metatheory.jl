@@ -25,22 +25,34 @@ end
 
 EGraphSize(g::EGraph) = add!(EGraphSize(), g)
 
-function simplify(ex, theory, params = SaturationParams(), postprocess = identity)
+# defaults for egg 0.9.5 (against which this code is benchmarked):
+# timeout iterations: 30
+# no eclass limit
+# enodelimit: 30000
+# BackoffScheduler, match_limit: 1000, ban_length: 5
+function simplify(ex, theory, timeout = 30)
+  params = SaturationParams(
+    timeout = timeout,
+    enodelimit = 15000,
+    eclasslimit = 15000,
+    scheduler = Metatheory.Schedulers.BackoffScheduler,
+    schedulerparams = (match_limit = 1000, ban_length = 5),
+    timer = false)
   g = EGraph(ex)
   saturate!(g, theory, params)
-  res = extract!(g, astsize)
-
-  postprocess(res), EGraphSize(g)
+  extract!(g, astsize), EGraphSize(g)
 end
 
 # NOTE: This must have the same behaviour as prove() in prove.jl.
 # Here we additionally track the egraph size for benchmarking.
-function prove(t, ex, steps = 1, timeout = 10, params = SaturationParams(
-  timeout = timeout,
-  scheduler = Schedulers.BackoffScheduler,
-  schedulerparams = (match_limit = 6000, ban_length = 5),
-  timer = false,
-))
+function prove(t, ex, steps = 1, timeout = 30)
+  params = SaturationParams(
+    timeout = timeout,
+    enodelimit = 15000,
+    eclasslimit = 15000,
+    scheduler = Schedulers.BackoffScheduler,
+    schedulerparams = (match_limit = 6000, ban_length = 5),
+    timer = false)
   size = EGraphSize()
   for _ in 1:steps
     g = EGraph(ex)
@@ -65,11 +77,11 @@ function report_size(bench, s::EGraphSize)
   println("$bench n_classes: $(s.n_classes), n_nodes: $(s.n_nodes), n_memo: $(s.n_memo)")
 end
 
-check_result(result, expected,_) = @assert expected == result
-function check_result(result::Tuple, expected, benchname)
+check_result(result, expected, benchname, post_process=identity) = @assert expected == post_process(result)
+function check_result(result::Tuple, expected, benchname, post_process=identity)
   expr, g = result
   report_size(benchname, g)
-  @assert expected == expr
+  @assert expected == post_process(expr)
 end
 
 include(joinpath(dirname(pathof(Metatheory)), "../examples/basic_maths_theory.jl"))
@@ -102,22 +114,17 @@ end
 SUITE["basic_maths"] = BenchmarkGroup(["egraphs"])
 
 
-simpl1_math = :(a + b + (0 * c) + d)
+simpl1_math = :(a + (b + ((0 * c) + d)))
 SUITE["basic_maths"]["simpl1"] = begin
-  quoted_expr = :(simplify(
-    simpl1_math,
-    maths_theory,
-    (SaturationParams(; timer = false)),
-    postprocess_maths,
-  ))
-  @eval check_result($quoted_expr, :(a + b + d), "basic_maths/simpl1")
+  quoted_expr = :(simplify(simpl1_math, maths_theory, 8))
+  @eval check_result($quoted_expr, :(a + b + d), "basic_maths/simpl1", postprocess_maths)
   @eval @benchmarkable $quoted_expr
 end
 
-simpl2_math = :(0 + (1 * foo) * 0 + (a * 0) + a)
+simpl2_math = :(((0 + (1 * foo) * 0) + (a * 0)) + a)
 SUITE["basic_maths"]["simpl2"] = begin
-  quoted_expr = :(simplify(simpl2_math, maths_theory, SaturationParams(), postprocess_maths))
-  @eval check_result($quoted_expr, :a, "basic_maths/simpl2")
+  quoted_expr = :(simplify(simpl2_math, maths_theory, 8))
+  @eval check_result($quoted_expr, :a, "basic_maths/simpl2", postprocess_maths)
   @eval @benchmarkable $quoted_expr
 end
 
@@ -131,21 +138,21 @@ ex_logic = rewrite(ex_orig, impl)
 SUITE["prop_logic"]["rewrite"] = @benchmarkable rewrite($ex_orig, $impl)
 
 SUITE["prop_logic"]["prove1"] = begin 
-  quoted_expr = :(prove(propositional_logic_theory, ex_logic, 3, 6))
+  quoted_expr = :(prove(propositional_logic_theory, ex_logic, 2, 6))
   @eval check_result($quoted_expr, true, "prop_logic/prove1")
   @eval @benchmarkable $quoted_expr
 end
 
 ex_demorgan = :(!(p || q) == (!p && !q))
 SUITE["prop_logic"]["demorgan"] = begin
-  quoted_expr = :(prove(propositional_logic_theory, ex_demorgan))
+  quoted_expr = :(prove(propositional_logic_theory, ex_demorgan, 1, 10))
   @eval check_result($quoted_expr, true, "prop_logic/demorgan")
   @eval @benchmarkable $quoted_expr
 end
 
 ex_frege = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))
 SUITE["prop_logic"]["freges_theorem"] = begin
-  quoted_expr = :(prove(propositional_logic_theory, ex_frege))
+  quoted_expr = :(prove(propositional_logic_theory, ex_frege, 1, 10))
   @eval check_result($quoted_expr, true, "prop_logic/freges_theorem")
   @eval @benchmarkable $quoted_expr
 end
@@ -155,7 +162,7 @@ end
 SUITE["calc_logic"] = BenchmarkGroup(["egraph", "logic"])
 
 SUITE["calc_logic"]["demorgan"] = begin
-  quoted_expr = :(prove(calculational_logic_theory, ex_demorgan))
+  quoted_expr = :(prove(calculational_logic_theory, ex_demorgan, 1, 10))
   @eval check_result($quoted_expr, true, "calc_logic/demorgan")
   @eval @benchmarkable $quoted_expr
 end
