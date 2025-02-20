@@ -327,8 +327,6 @@ to e-classes in the `EGraph`.
 ```@example custom_analysis
 function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::VecExpr) where {ExpressionType}
     op = get_constant(g, v_head(n))
-    @show n,op
-
     v_isexpr(n) || return odd_even_base_case(op)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
