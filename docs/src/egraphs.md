@@ -325,14 +325,16 @@ From the definition of an e-node, we know that children of e-nodes are always ID
 to e-classes in the `EGraph`.
 
 ```@example custom_analysis
-function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, op, n::VecExpr) where {ExpressionType}
+function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::VecExpr) where {ExpressionType}
+    op = get_constant(g, v_head(n))
+    @show n,op
+
     v_isexpr(n) || return odd_even_base_case(op)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
-    if v_iscall(n) && arity(n) == 2
-        op = operation(n)
+    child_eclasses = v_children(n)
+    if v_iscall(n) && length(child_eclasses) == 2
         # Get the left and right child eclasses
-        child_eclasses = arguments(n)
         l,r = g[child_eclasses[1]],  g[child_eclasses[2]]
 
         if !isnothing(l.data) && !isnothing(r.data) 
