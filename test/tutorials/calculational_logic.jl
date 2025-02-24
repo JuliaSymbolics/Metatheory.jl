@@ -28,5 +28,5 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_t
   # See comments in https://github.com/JuliaSymbolics/Metatheory.jl/pull/261#pullrequestreview-2609050078
   @test prove(reverse(calculational_logic_theory), freges, 2, 10, params)
 
-  @test true == prove(calculational_logic_theory, :(!(p || q) == (!p && !q)))   # Demorgan's
+  @test prove(calculational_logic_theory, :(!(p || q) == (!p && !q)))  # Demorgan's
 end
