@@ -4,7 +4,7 @@ using Metatheory, Test
   r = @rule Main.identity(~a) --> ~a
 
   @test operation(r.left) == identity
-  @test r.right == PatVar(:a, 1)
+  @test r.right == pat_var(PAT_VARIABLE, :a, 1)
 
   expr = :(Main.test(11, 12))
   rule = @rule Main.test(~a, ~b) --> ~b
@@ -19,8 +19,8 @@ end
   r = @rule "totti" f(~x) --> ~x
   @test r.name == "totti"
   @test operation(r.left) == :f
-  @test arguments(r.left) == [PatVar(:x, 1)]
-  @test r.right == PatVar(:x, 1)
+  @test arguments(r.left) == [pat_var(PAT_VARIABLE, :x, 1)]
+  @test r.right == pat_var(PAT_VARIABLE, :x, 1)
 end
 
 
@@ -34,9 +34,9 @@ end
 
 
 @testset "EqualityRule to DirectedRule(s)" begin
-  r = @rule "distributive" x y z x*(y + z) == x*y + x*z
-  r_ltr = @rule "distributive" x y z x * (y + z) --> x*y + x*z
-  r_rtl = @rule "distributive" x y z x*y + x*z --> x * (y + z)
+  r = @rule "distributive" x y z x * (y + z) == x * y + x * z
+  r_ltr = @rule "distributive" x y z x * (y + z) --> x * y + x * z
+  r_rtl = @rule "distributive" x y z x * y + x * z --> x * (y + z)
   r1 = direct(r)
   r2 = Metatheory.direct_right_to_left(r)
 

@@ -42,22 +42,16 @@ Base.@kwdef mutable struct SaturationParams
   check_analysis::Bool = false
 end
 
-function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
-  if isground(p)
+function cached_ids(g::EGraph, p::Pat)
+  p.type === PAT_VARIABLE && return Iterators.map(x -> x.val, keys(g.classes))
+
+  if p.isground
     id = lookup_pat(g, p)
-    iszero(id) ? UNDEF_ID_VEC : [id]
+    id > 0 ? [id] : UNDEF_ID_VEC
   else
     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
   end
 end
-
-function cached_ids(g::EGraph, p::PatLiteral) # p is a literal
-  id = lookup_pat(g, p)
-  id > 0 && return [id]
-  return UNDEF_ID_VEC
-end
-
-cached_ids(g::EGraph, p::PatVar) = Iterators.map(x -> x.val, keys(g.classes))
 
 """
 Returns an iterator of `Match`es.
@@ -115,40 +109,29 @@ function eqsat_search!(
   return n_matches
 end
 
-function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::PatLiteral)::Id
-  add_constant_hashed!(g, p.value, v_head(p.n))
-  add!(g, p.n, true)
-end
 
-function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::PatVar)::Id
-  if v_bitvec_check(isliteral_bitvec, p.idx)
-    add!(g, VecExpr(Id[0, 0, 0, bindings[p.idx]]), true)
-  else
-    bindings[p.idx]
+function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat)::Id
+  if p.type === PAT_VARIABLE
+    return if v_bitvec_check(isliteral_bitvec, p.idx)
+      add!(g, v_new_literal(bindings[p.idx]), true)
+    else
+      bindings[p.idx]
+    end
+  elseif p.type === PAT_LITERAL
+    add_constant_hashed!(g, p.head, p.head_hash)
+  elseif p.type === PAT_EXPR
+    add_constant_hashed!(g, p.head, p.head_hash)
+
+    if needs_operation_quoting(g)
+      add_constant_hashed!(g, p.name, p.name_hash)
+      v_set_head!(p.n, p.name_hash)
+    end
+
+    for i in v_children_range(p.n)
+      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
+    end
   end
-end
 
-function instantiate_enode!(
-  bindings::Bindings,
-  isliteral_bitvec::UInt64,
-  g::EGraph{ExpressionType},
-  p::PatExpr,
-)::Id where {ExpressionType}
-  add_constant_hashed!(g, p.head, p.head_hash)
-
-  for i in v_children_range(p.n)
-    @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
-  end
-  add!(g, p.n, true)
-end
-
-function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph{Expr}, p::PatExpr)::Id
-  add_constant_hashed!(g, p.quoted_head, p.quoted_head_hash)
-  v_set_head!(p.n, p.quoted_head_hash)
-
-  for i in v_children_range(p.n)
-    @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
-  end
   add!(g, p.n, true)
 end
 
@@ -180,7 +163,6 @@ function apply_rule!(
   id::Id,
   direction::Int,
 )::RuleApplicationResult
-  # @show rule
   if rule.op === (-->) # DirectedRule
     new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right)
     RuleApplicationResult(:nothing, new_id, id)
@@ -198,7 +180,7 @@ function apply_rule!(
     end
     RuleApplicationResult(:nothing, 0, 0)
   elseif rule.op === (|>) # DynamicRule
-    r = rule.right(
+    r = rule.right_fun(
       id,
       g,
       (instantiate_actual_param!(bindings, isliteral_bitvec, g, i) for i in 1:length(rule.patvars))...,

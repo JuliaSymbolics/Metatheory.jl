@@ -247,6 +247,9 @@ EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 @inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
 @inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
 
+@inline needs_operation_quoting(g::EGraph) = false
+@inline needs_operation_quoting(g::EGraph{Expr}) = true
+
 # Why does one of these use `get!` and the other use `setindex!`?
 
 @inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
@@ -577,13 +580,17 @@ end
 Given a ground pattern, which is a pattern that has no pattern variables, find
 the eclass id in the egraph that represents that ground pattern.
 """
-function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {ExpressionType}
-  @assert isground(p)
+function lookup_pat(g::EGraph{ExpressionType}, p::Pat)::Id where {ExpressionType}
+  if p.type === PAT_LITERAL
+    # TODO avoid using enode vector for lookup, just try using hash
+    return has_constant(g, p.head_hash) ? lookup(g, p.n) : 0
+  end
+  @assert p.type === PAT_EXPR && p.isground
 
   args = children(p)
   h = v_head(p.n)
 
-  has_op = has_constant(g, h) || (h != p.quoted_head_hash && has_constant(g, p.quoted_head_hash))
+  has_op = has_constant(g, h) || (h != p.name_hash && has_constant(g, p.name_hash))
   has_op || return 0
 
   for i in v_children_range(p.n)
@@ -592,15 +599,11 @@ function lookup_pat(g::EGraph{ExpressionType}, p::PatExpr)::Id where {Expression
   end
 
   id = lookup(g, p.n)
-  if id <= 0 && h != p.quoted_head_hash
-    v_set_head!(p.n, p.quoted_head_hash)
+  if id <= 0 && h != p.name_hash
+    v_set_head!(p.n, p.name_hash)
     id = lookup(g, p.n)
     v_set_head!(p.n, p.head_hash)
   end
   id
 end
 
-function lookup_pat(g::EGraph, p::PatLiteral)::Id
-  h = last(p.n)
-  has_constant(g, h) ? lookup(g, p.n) : 0
-end

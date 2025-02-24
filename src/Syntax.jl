@@ -19,12 +19,12 @@ function makesegment(s::Expr, pvars, mod)
 
   name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
-  return PatSegment(name, makepredicate(mod, predicate), -1)
+  return pat_var(PAT_SEGMENT, name, makepredicate(mod, predicate), -1)
 end
 
 function makesegment(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
-  PatSegment(name)
+  pat_var(PAT_SEGMENT, name)
 end
 
 function makevar(s::Expr, pvars, mod)
@@ -40,7 +40,7 @@ function makevar(s::Expr, pvars, mod)
   # TODO support anonymous functions for predicates
   name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
-  return PatVar(name, makepredicate(mod, predicate), -1)
+  return pat_var(PAT_VARIABLE, name, -1, makepredicate(mod, predicate))
 end
 
 function makepredicate(mod, predicate::Symbol)
@@ -50,7 +50,7 @@ end
 
 function makevar(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
-  PatVar(name)
+  pat_var(PAT_VARIABLE, name)
 end
 
 
@@ -86,19 +86,19 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
-function makepattern(x, pvars, slots, mod, splat = false)
+function makepattern(x, pvars, slots, mod, splat = false)::Pat
   if x in slots
     splat ? makesegment(x, pvars, mod) : makevar(x, pvars, mod)
   elseif x isa Symbol
-    PatLiteral(getfield(mod, x))
+    pat_literal(getfield(mod, x))
   elseif x isa QuoteNode
-    PatLiteral(x.value)
+    pat_literal(x.value)
   else
-    PatLiteral(x)
+    pat_literal(x)
   end
 end
 
-function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
+function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)::Pat
   h = head(ex)
 
   if iscall(ex)
@@ -126,16 +126,16 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
 
       if isdef && op isa Expr || op isa Symbol
         # Support fully qualified function symbols such as `Main.foo`
-        PatExpr(iscall(ex), op_obj, op, patargs)
+        pat_expr(iscall(ex), op_obj, op, patargs)
       else
-        PatExpr(iscall(ex), op_obj, patargs)
+        pat_expr(iscall(ex), op_obj, patargs)
       end
     end
 
   elseif h === :...
     makepattern(ex.args[1], pvars, slots, mod, true)
   elseif h == :(::) && ex.args[1] in slots
-    splat ? makesegment(ex, pvars) : makevar(ex, pvars, mod)
+    splat ? makesegment(ex, pvars, mod) : makevar(ex, pvars, mod)
   elseif h === :$
     ex.args[1]
   elseif h === :block
@@ -144,11 +144,11 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
     # makepattern(only(stmts), pvars, slots, mod)
     # else
     patargs = map(i -> makepattern(i, pvars, slots, mod), stmts) # recurse
-    PatExpr(false, h, patargs)
+    pat_expr(false, h, patargs)
     # end
   else
     patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
-    PatExpr(false, h, patargs)
+    pat_expr(false, h, patargs)
   end
 end
 
@@ -383,7 +383,7 @@ macro rule(args...)
 
   l, r = iscall(ex) ? arguments(ex) : children(ex)
   pvars = Symbol[]
-  lhs::AbstractPat = makepattern(l, pvars, slots, __module__)
+  lhs::Pat = makepattern(l, pvars, slots, __module__)
   ppvars = Patterns.patvars(lhs)
 
   @assert pvars == ppvars
@@ -391,16 +391,19 @@ macro rule(args...)
   ematcher_right_expr = :nothing
   matcher_right_expr = :nothing
 
-  rhs = rhs_original = :(println("replace me"))
+  rhs_pat = pat_empty()
+  # TODO  have a failing function
+  rhs_fun = () -> error("unreachable") # dummy function
+  rhs_original = :(println("replace me"))
 
   if op == :(=>) # Dynamic Rule
     rhs_rewritten = rewrite_rhs(r)
     rhs_original = makeconsequent(rhs_rewritten)
     params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
-    rhs = :($(esc(params)) -> $(esc(rhs_original)))
+    rhs_fun = :($(esc(params)) -> $(esc(rhs_original)))
   else
-    rhs = makepattern(r, pvars, slots, __module__)
-    setdebrujin!(rhs, pvars)
+    rhs_pat = makepattern(r, pvars, slots, __module__)
+    setdebrujin!(rhs_pat, pvars)
     rhs_original = r
   end
 
@@ -410,9 +413,9 @@ macro rule(args...)
   ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
 
   if op in (:(==), :(!=)) # Bidirectional rule
-    ematcher_right_expr = esc(ematch_compile(rhs, pvars, -1))
-    matcher_right_expr = esc(match_compile(rhs, pvars))
-    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs))
+    ematcher_right_expr = esc(ematch_compile(rhs_pat, pvars, -1))
+    matcher_right_expr = esc(match_compile(rhs_pat, pvars))
+    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs_pat))
     if !isempty(extravars)
       error("unbound pattern variables $extravars when creating bidirectional rule")
     end
@@ -429,7 +432,8 @@ macro rule(args...)
       name = $rule_name,
       op = $op,
       left = $lhs,
-      right = $rhs,
+      right = $rhs_pat,
+      right_fun = $rhs_fun,
       patvars = $ppvars,
       ematcher_left! = $ematcher_left_expr,
       ematcher_right! = $ematcher_right_expr,
@@ -535,7 +539,8 @@ macro capture(args...)
       op = (|>),
       patvars = $pvars,
       left = $lhs,
-      right = (_lhs_expr, _egraph, pvars...) -> pvars,
+      right = $(pat_empty()),
+      right_fun = (_lhs_expr, _egraph, pvars...) -> pvars,
       matcher_left = $matcher_left_expr,
       ematcher_left! = () -> (),
     )

@@ -1,4 +1,4 @@
-using Metatheory, TermInterface, Test
+using Metatheory, Test
 using Metatheory.Library
 using Metatheory.Schedulers
 
@@ -141,7 +141,7 @@ end
 function simplcost(n::VecExpr, op, costs)
   v_isexpr(n) || return 1
   op === :block && return sum(costs)
-  cost = 1 + v_arity(n)
+  cost = 1
   (op ∈ (:∂, diff, :diff)) && (cost += 200)
 
   cost + sum(costs)
@@ -159,7 +159,11 @@ function simplify(ex; steps = 4)
   push!(hist, hash(ex))
   for i in 1:steps
     g = EGraph(ex)
-    saturate!(g, cas, params)
+    # TODO FIXME After https://github.com/JuliaSymbolics/Metatheory.jl/pull/261/ the order of application of
+    # matches in ematch_buffer has been reversed. There is likely some issue in rebuilding such that the
+    # order of application of rules changes the resulting e-graph, while this should not be the case.
+    # See comments in https://github.com/JuliaSymbolics/Metatheory.jl/pull/261#pullrequestreview-2609050078
+    saturate!(g, reverse(cas), params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)
     if !isexpr(ex) || hash(ex) ∈ hist
@@ -194,9 +198,9 @@ end
 @test_broken simplify(:(diff(x^(cos(x)), x))) == :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x))
 @test simplify(:(x * diff(x^2, x) * x)) == :(2x^3)
 
-@test_broken simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x^2) # :(3y * 2x^2)
+@test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x^2) # :(3y * 2x^2)
 
-@test_broken simplify(:(6 * x * x * y)) == :(6 * y * x^2)
+@test simplify(:(6 * x * x * y)) == :(6 * y * x^2)
 @test simplify(:(diff(y^3, y) / y)) == :(3y)
 
 

@@ -1,7 +1,6 @@
 module Rules
 
 using TermInterface
-using AutoHashEquals
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
 using Metatheory: OptBuffer
@@ -64,8 +63,9 @@ of right hand sides.
 Base.@kwdef struct RewriteRule{Op<:Function}
   name::String = ""
   op::Op
-  left::AbstractPat
-  right::Union{Function,AbstractPat}
+  left::Pat
+  right::Pat
+  right_fun::Function
   patvars::Vector{Symbol}
   ematcher_left!::Function
   ematcher_right!::Union{Nothing,Function} = nothing
@@ -101,7 +101,7 @@ end
 
 
 (r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
-(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right(term, nothing, bindings...), r.stack)
+(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right_fun(term, nothing, bindings...), r.stack)
 
 # ---------------------
 # Theories
@@ -117,36 +117,48 @@ const Theory = Vector{RewriteRule}
 # ---------------------
 # Instantiation
 
-function instantiate(left, pat::PatExpr, bindings)
-  ntail = []
-  for parg in arguments(pat)
-    instantiate_arg!(ntail, left, parg, bindings)
-  end
-  maketerm(typeof(left), operation(pat), ntail, nothing)
-end
-
-function instantiate(left::Expr, pat::PatExpr, bindings)
-  ntail = []
-  if iscall(pat)
-    for parg in arguments(pat)
+function instantiate(left, pat::Pat, bindings)
+  if pat.type === PAT_EXPR
+    ntail = []
+    for parg in pat.children
       instantiate_arg!(ntail, left, parg, bindings)
     end
-    op = operation(pat)
-    op_name = op isa Union{Function,DataType,UnionAll} ? nameof(op) : op
-    maketerm(Expr, :call, [op_name; ntail], nothing)
+    maketerm(typeof(left), operation(pat), ntail, nothing)
+  elseif pat.type === PAT_LITERAL
+    pat.head
+  elseif pat.type === PAT_VARIABLE || pat.type === PAT_SEGMENT
+    bindings[pat.idx]
+  end
+end
+
+function instantiate_arg!(acc, left, pat::Pat, bindings)
+  if pat.type === PAT_SEGMENT
+    append!(acc, instantiate(left, pat, bindings))
   else
-    for parg in children(pat)
-      instantiate_arg!(ntail, left, parg, bindings)
-    end
-    maketerm(Expr, head(pat), ntail, nothing)
+    push!(acc, instantiate(left, pat, bindings))
   end
 end
 
-instantiate_arg!(acc, left, parg::PatSegment, bindings) = append!(acc, instantiate(left, parg, bindings))
-instantiate_arg!(acc, left, parg::AbstractPat, bindings) = push!(acc, instantiate(left, parg, bindings))
-
-instantiate(_, pat::PatLiteral, bindings) = pat.value
-instantiate(_, pat::Union{PatVar,PatSegment}, bindings) = bindings[pat.idx]
+function instantiate(left::Expr, pat::Pat, bindings)
+  if pat.type === PAT_EXPR
+    ntail = []
+    if iscall(pat)
+      for parg in pat.children
+        instantiate_arg!(ntail, left, parg, bindings)
+      end
+      maketerm(Expr, :call, [pat.name; ntail], nothing)
+    else
+      for parg in children(pat)
+        instantiate_arg!(ntail, left, parg, bindings)
+      end
+      maketerm(Expr, pat.head, ntail, nothing)
+    end
+  elseif pat.type === PAT_LITERAL
+    pat.head
+  elseif pat.type === PAT_VARIABLE || pat.type === PAT_SEGMENT
+    bindings[pat.idx]
+  end
+end
 
 "Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
 function Base.inv(r::RewriteRule)
@@ -155,6 +167,7 @@ function Base.inv(r::RewriteRule)
     op = r.op,
     left = r.right,
     right = r.left,
+    right_fun = r.right_fun,
     patvars = r.patvars,
     ematcher_left! = r.ematcher_right!,
     ematcher_right! = r.ematcher_left!,
@@ -164,6 +177,8 @@ function Base.inv(r::RewriteRule)
     rhs_original = r.lhs_original,
   )
 end
+
+Base.inv(r::DynamicRule) = error("Can not invert a dynamic rule.")
 
 """
 Turns an EqualityRule into a DirectedRule. For example,
