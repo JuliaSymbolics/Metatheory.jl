@@ -231,7 +231,7 @@ function bind_expr(addr::Int, p::Pat, memrange)
 
       v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
       v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
-      v_head(n) === $(v_head(p.n)) || (v_head(n) === $(p.name_hash) || @goto $(Symbol(:skip_node, addr)))
+      head(n) === $(head(p.n)) || (head(n) === $(p.name_hash) || @goto $(Symbol(:skip_node, addr)))
 
       # Node has matched.
       $([:($(Symbol(:σ, j)) = n[$i + $VECEXPR_META_LENGTH]) for (i, j) in enumerate(memrange)]...)
@@ -257,7 +257,7 @@ function check_var_expr(::Int, ::typeof(alwaystrue), idx::Int64)
     # TODO: see if this is needed
     # eclass = g[$(Symbol(:σ, addr))]
     # for (j, n) in enumerate(eclass.nodes)
-    #   if !v_isexpr(n)
+    #   if !isexpr(n)
     #     $(Symbol(:enode_idx, addr)) = j + 1
     #     break
     #   end
@@ -273,9 +273,9 @@ function check_var_expr(addr::Int, predicate::Function, idx::Int64)
     if ($predicate)(g, eclass)
       for (j, n) in enumerate(eclass.nodes)
         # TODO does this make sense? This should be unset.
-        if !v_isexpr(n)
+        if !isexpr(n)
           $(Symbol(:enode_idx, addr)) = j + 1
-          $(Symbol(:literal_hash, addr)) = v_head(n)
+          $(Symbol(:literal_hash, addr)) = head(n)
           isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           break
         end
@@ -302,8 +302,8 @@ function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type}, idx
       push!(stack, pc)
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
-      if !v_isexpr(n)
-        h = v_head(n)
+      if !isexpr(n)
+        h = head(n)
         hn = Metatheory.EGraphs.get_constant(g, h)
         if $(predicate)(hn)
           $(Symbol(:enode_idx, addr)) += 1

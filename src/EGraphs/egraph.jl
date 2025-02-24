@@ -265,10 +265,10 @@ end
 
 
 function to_expr(g::EGraph, n::VecExpr)
-  v_isexpr(n) || return get_constant(g, v_head(n))
-  h = get_constant(g, v_head(n))
-  args = Core.SSAValue.(Int.(v_children(n)))
-  if v_iscall(n)
+  isexpr(n) || return get_constant(g, head(n))
+  h = get_constant(g, head(n))
+  args = Core.SSAValue.(Int.(children(n)))
+  if iscall(n)
     maketerm(Expr, :call, [h; args], nothing)
   else
     maketerm(Expr, h, args, nothing)
@@ -307,7 +307,7 @@ Make sure all of the arguments of `n` point to root nodes in the unionfind
 data structure for `g`.
 """
 function canonicalize!(g::EGraph, n::VecExpr)
-  if v_isexpr(n)
+  if isexpr(n)
     for i in (VECEXPR_META_LENGTH + 1):length(n)
       @inbounds n[i] = find(g, n[i])
     end
@@ -346,8 +346,8 @@ function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)
 
   id = push!(g.uf) # create new singleton eclass
 
-  if v_isexpr(n)
-    for c_id in v_children(n)
+  if isexpr(n)
+    for c_id in children(n)
       addparent!(g.classes[IdKey(c_id)], n, id)
     end
   end
@@ -588,7 +588,7 @@ function lookup_pat(g::EGraph{ExpressionType}, p::Pat)::Id where {ExpressionType
   @assert p.type === PAT_EXPR && p.isground
 
   args = children(p)
-  h = v_head(p.n)
+  h = head(p.n)
 
   has_op = has_constant(g, h) || (h != p.name_hash && has_constant(g, p.name_hash))
   has_op || return 0

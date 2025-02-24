@@ -1,5 +1,7 @@
 module VecExprModule
 
+using TermInterface
+
 export Id,
   VecExpr,
   VECEXPR_FLAG_ISTREE,
@@ -10,21 +12,13 @@ export Id,
   v_unset_flags!,
   v_check_flags,
   v_set_flag!,
-  v_isexpr,
-  v_iscall,
-  v_head,
   v_set_head!,
-  v_children,
   v_children_range,
-  v_arity,
   v_hash!,
   v_hash,
   v_unset_hash!,
   v_signature,
   v_set_signature!,
-  v_pair,
-  v_pair_first,
-  v_pair_last,
   v_new_literal,
   v_bitvec_set,
   v_bitvec_check
@@ -68,20 +62,19 @@ const VECEXPR_FLAG_ISCALL = 0x10
 const VECEXPR_META_LENGTH = 4
 
 
-@inline v_new_literal(val::UInt64)::VecExpr = VecExpr(Id[0, 0, 0, val])
 @inline v_flags(n::VecExpr)::Id = @inbounds n.data[2]
 @inline v_unset_flags!(n::VecExpr) = @inbounds (n.data[2] = 0)
 @inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flag)
 @inline v_set_flag!(n::VecExpr, flag)::Id = @inbounds (n.data[2] = n.data[2] | flag)
 
 """Returns `true` if the e-node ID points to a an expression tree."""
-@inline v_isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
+@inline TermInterface.isexpr(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISTREE)
 
 """Returns `true` if the e-node ID points to a function call."""
-@inline v_iscall(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISCALL)
+@inline TermInterface.iscall(n::VecExpr)::Bool = !iszero(v_flags(n) & VECEXPR_FLAG_ISCALL)
 
 """Number of children in the e-node."""
-@inline v_arity(n::VecExpr)::Int = length(n.data) - VECEXPR_META_LENGTH
+@inline TermInterface.arity(n::VecExpr)::Int = length(n.data) - VECEXPR_META_LENGTH
 
 """
 Compute the hash of a `VecExpr` and store it as the first element.
@@ -105,14 +98,14 @@ Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:en
 @inline v_unset_hash!(n::VecExpr)::Id = @inbounds (n.data[1] = Id(0))
 
 """E-class IDs of the children of the e-node."""
-@inline v_children(n::VecExpr) = @view n.data[(VECEXPR_META_LENGTH + 1):end]
+@inline TermInterface.children(n::VecExpr) = @view n.data[(VECEXPR_META_LENGTH + 1):end]
 
 @inline v_signature(n::VecExpr)::Id = @inbounds n.data[3]
 
 @inline v_set_signature!(n::VecExpr, sig::Id) = @inbounds (n.data[3] = sig)
 
 "The constant ID of the operation of the e-node, or the e-node ."
-@inline v_head(n::VecExpr)::Id = @inbounds n.data[VECEXPR_META_LENGTH]
+@inline TermInterface.head(n::VecExpr)::Id = @inbounds n.data[VECEXPR_META_LENGTH]
 
 "Update the E-Node operation ID."
 @inline v_set_head!(n::VecExpr, h::Id) = @inbounds (n.data[VECEXPR_META_LENGTH] = h)
@@ -124,13 +117,9 @@ Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:en
   v_unset_flags!(n)
   n
 end
+@inline v_new_literal(val::UInt64)::VecExpr = VecExpr(Id[0, 0, 0, val])
 
 @inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n.data))
-
-
-v_pair(a::UInt64, b::UInt64) = UInt128(a) << 64 | b
-v_pair_first(p::UInt128)::UInt64 = UInt64(p >> 64)
-v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 
 @inline Base.length(n::VecExpr) = length(n.data)
 @inline Base.getindex(n::VecExpr, i) = n.data[i]
