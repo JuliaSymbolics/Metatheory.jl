@@ -97,7 +97,7 @@ TermInterface.head(p::Pat) = p.head
 TermInterface.operation(p::Pat) = p.head
 TermInterface.children(p::Pat) = p.children
 TermInterface.arguments(p::Pat) = p.children
-TermInterface.iscall(p::Pat) = v_iscall(p.n)
+TermInterface.iscall(p::Pat) = iscall(p.n)
 
 function TermInterface.maketerm(::Type{Pat}, operation, arguments, metadata)
   iscall = isnothing(metadata) ? true : metadata.iscall
