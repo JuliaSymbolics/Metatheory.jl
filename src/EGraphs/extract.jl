@@ -1,3 +1,5 @@
+using TermInterface
+
 struct Extractor{CostFun,Cost}
   g::EGraph
   cost_function::CostFun
@@ -18,20 +20,20 @@ end
 function extract_expr_recursive(g::EGraph{T}, n::VecExpr, get_node::Function) where {T}
   h = get_constant(g, head(n))
   isexpr(n) || return h
-  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(children(n)))
+  c = map(c -> extract_expr_recursive(g, c, get_node), get_node.(children(n)))
   # TODO metadata?
-  maketerm(T, h, children, nothing)
+  maketerm(T, h, c, nothing)
 end
 
 function extract_expr_recursive(g::EGraph{Expr}, n::VecExpr, get_node::Function)
   h = get_constant(g, head(n))
   isexpr(n) || return h
-  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(children(n)))
+  c = map(c -> extract_expr_recursive(g, c, get_node), get_node.(children(n)))
 
   if iscall(n)
-    maketerm(Expr, :call, [h; children], nothing)
+    maketerm(Expr, :call, [h; c], nothing)
   else
-    maketerm(Expr, h, children, nothing)
+    maketerm(Expr, h, c, nothing)
   end
 end
 
