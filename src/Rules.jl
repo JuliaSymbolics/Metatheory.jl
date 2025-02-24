@@ -1,218 +1,204 @@
 module Rules
 
 using TermInterface
-using AutoHashEquals
-using Metatheory.EMatchCompiler
 using Metatheory.Patterns
 using Metatheory.Patterns: to_expr
-using Metatheory: cleanast, binarize, matcher, instantiate
+using Metatheory: OptBuffer
 
-const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
+export RewriteRule,
+  DirectedRule,
+  EqualityRule,
+  UnequalRule,
+  DynamicRule,
+  -->,
+  is_bidirectional,
+  Theory,
+  direct,
+  direct_left_to_right,
+  direct_right_to_left
 
-abstract type AbstractRule end
-# Must override
-Base.:(==)(a::AbstractRule, b::AbstractRule) = false
-
-abstract type SymbolicRule <: AbstractRule end
-
-abstract type BidirRule <: SymbolicRule end
-
-struct RuleRewriteError
-  rule
-  expr
-end
-
-getdepth(::Any) = typemax(Int)
-
-showraw(io, t) = Base.show(IOContext(io, :simplify => false), t)
-showraw(t) = showraw(stdout, t)
-
-@noinline function Base.showerror(io::IO, err::RuleRewriteError)
-  msg = "Failed to apply rule $(err.rule) on expression "
-  msg *= sprint(io -> showraw(io, err.expr))
-  print(io, msg)
-end
-
+const STACK_SIZE = 512
 
 """
-Rules defined as `left_hand --> right_hand` are
-called *symbolic rewrite* rules. Application of a *rewrite* Rule
-is a replacement of the `left_hand` pattern with
-the `right_hand` substitution, with the correct instantiation
-of pattern variables. Function call symbols are not treated as pattern
-variables, all other identifiers are treated as pattern variables.
-Literals such as `5, :e, "hello"` are not treated as pattern
-variables.
+Rules in Metatheory can be defined with the `@rule` macro.
 
+Rules defined as with the --> are
+called *directed rewrite* rules. Application of a *directed rewrite* rule
+is a replacement of the `left` pattern with
+the `right` substitution, with the correct instantiation
+of pattern variables.
 
 ```julia
 @rule ~a * ~b --> ~b * ~a
 ```
-"""
-@auto_hash_equals fields = (left, right) struct RewriteRule <: SymbolicRule
-  left
-  right
-  matcher
-  patvars::Vector{Symbol}
-  ematcher!
-end
 
-function RewriteRule(l, r)
-  pvars = patvars(l) ∪ patvars(r)
-  # sort!(pvars)
-  setdebrujin!(l, pvars)
-  setdebrujin!(r, pvars)
-  RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)))
-end
-
-Base.show(io::IO, r::RewriteRule) = print(io, :($(r.left) --> $(r.right)))
-
-
-function (r::RewriteRule)(term)
-  # n == 1 means that exactly one term of the input (term,) was matched
-  success(bindings, n) = n == 1 ? instantiate(term, r.right, bindings) : nothing
-
-  try
-    r.matcher(success, (term,), EMPTY_DICT)
-  catch err
-    throw(RuleRewriteError(r, term))
-  end
-end
-
-# ============================================================
-# EqualityRule
-# ============================================================
-
-"""
-An `EqualityRule` can is a symbolic substitution rule that 
-can be rewritten bidirectional. Therefore, it should only be used 
+An *equational rule* is a symbolic substitution rule with operator `==` that
+can be rewritten bidirectionally. Therefore, it can only be used
 with the EGraphs backend.
 
 ```julia
 @rule ~a * ~b == ~b * ~a
 ```
-"""
-@auto_hash_equals struct EqualityRule <: BidirRule
-  left
-  right
-  patvars::Vector{Symbol}
-  ematcher!
-end
 
-function EqualityRule(l, r)
-  pvars = patvars(l) ∪ patvars(r)
-  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
-  if !isempty(extravars)
-    error("unbound pattern variables $extravars when creating bidirectional rule")
-  end
-  setdebrujin!(l, pvars)
-  setdebrujin!(r, pvars)
-
-  EqualityRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
-end
-
-
-Base.show(io::IO, r::EqualityRule) = print(io, :($(r.left) == $(r.right)))
-
-function (r::EqualityRule)(x)
-  throw(RuleRewriteError(r, x))
-end
-
-
-# ============================================================
-# UnequalRule
-# ============================================================
-
-"""
-This type of *anti*-rules is used for checking contradictions in the EGraph
-backend. If two terms, corresponding to the left and right hand side of an
-*anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
+Rules defined with the `!=` act as  *anti*-rules for checking contradictions in e-graph
+rewriting. If two terms, corresponding to the left and right hand side of an
+*anti-rule* are found in an `EGraph`, saturation is halted immediately.
 
 ```julia
-!a ≠ a
-```
+!a != a
+````
 
-"""
-@auto_hash_equals struct UnequalRule <: BidirRule
-  left
-  right
-  patvars::Vector{Symbol}
-  ematcher!
-end
-
-function UnequalRule(l, r)
-  pvars = patvars(l) ∪ patvars(r)
-  extravars = setdiff(pvars, patvars(l) ∩ patvars(r))
-  if !isempty(extravars)
-    error("unbound pattern variables $extravars when creating bidirectional rule")
-  end
-  # sort!(pvars)
-  setdebrujin!(l, pvars)
-  setdebrujin!(r, pvars)
-  UnequalRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
-end
-
-Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
-
-# ============================================================
-# DynamicRule
-# ============================================================
-"""
-Rules defined as `left_hand => right_hand` are
-called `dynamic` rules. Dynamic rules behave like anonymous functions.
+Rules defined with the `=>` operator are
+called *dynamic rules*. Dynamic rules behave like anonymous functions.
 Instead of a symbolic substitution, the right hand of
 a dynamic `=>` rule is evaluated during rewriting:
 matched values are bound to pattern variables as in a
 regular function call. This allows for dynamic computation
 of right hand sides.
 
-Dynamic rule
 ```julia
 @rule ~a::Number * ~b::Number => ~a*~b
 ```
 """
-@auto_hash_equals struct DynamicRule <: AbstractRule
-  left
-  rhs_fun::Function
-  rhs_code
-  matcher
-  patvars::Vector{Symbol} # useful set of pattern variables
-  ematcher!
+Base.@kwdef struct RewriteRule{Op<:Function}
+  name::String = ""
+  op::Op
+  left::Pat
+  right::Pat
+  right_fun::Function
+  patvars::Vector{Symbol}
+  ematcher_left!::Function
+  ematcher_right!::Union{Nothing,Function} = nothing
+  matcher_left::Function
+  matcher_right::Union{Nothing,Function} = nothing
+  stack::OptBuffer{UInt16} = OptBuffer{UInt16}(STACK_SIZE)
+  lhs_original = nothing
+  rhs_original = nothing
 end
 
-function DynamicRule(l, r::Function, rhs_code = nothing)
-  pvars = patvars(l)
-  setdebrujin!(l, pvars)
-  isnothing(rhs_code) && (rhs_code = repr(rhs_code))
+function --> end
+const DirectedRule = RewriteRule{typeof(-->)}
+const EqualityRule = RewriteRule{typeof(==)}
+const UnequalRule = RewriteRule{typeof(!=)}
+# FIXME => is not a function we have to use |>
+const DynamicRule = RewriteRule{typeof(|>)}
 
-  DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)))
+
+is_bidirectional(r::RewriteRule) = r.op in (==, !=)
+
+# TODO equivalence up-to debruijn index
+Base.:(==)(a::RewriteRule, b::RewriteRule) = a.op == b.op && a.left == b.left && a.right == b.right
+
+function Base.show(io::IO, r::RewriteRule)
+  is_dynamic = r.op == (|>)
+  print(io, r.left)
+  print(io, " ")
+  print(io, is_dynamic ? :(=>) : String(nameof(r.op)))
+  print(io, " ")
+  print(io, is_dynamic ? r.rhs_original : r.right)
+  isempty(r.name) || print(io, "\t#= $(r.name) =#")
 end
 
 
-Base.show(io::IO, r::DynamicRule) = print(io, :($(r.left) => $(r.rhs_code)))
+(r::DirectedRule)(term) = r.matcher_left(term, (bindings...) -> instantiate(term, r.right, bindings), r.stack)
+(r::DynamicRule)(term) = r.matcher_left(term, (bindings...) -> r.right_fun(term, nothing, bindings...), r.stack)
 
-function (r::DynamicRule)(term)
-  # n == 1 means that exactly one term of the input (term,) was matched
-  success(bindings, n) =
-    if n == 1
-      bvals = [bindings[i] for i in 1:length(r.patvars)]
-      return r.rhs_fun(term, nothing, bvals...)
+# ---------------------
+# Theories
+
+
+const Theory = Vector{RewriteRule}
+
+# struct Theory
+#   name::String
+#   rules::Vector{RewriteRule}
+# end
+
+# ---------------------
+# Instantiation
+
+function instantiate(left, pat::Pat, bindings)
+  if pat.type === PAT_EXPR
+    ntail = []
+    for parg in pat.children
+      instantiate_arg!(ntail, left, parg, bindings)
     end
-
-  try
-    return r.matcher(success, (term,), EMPTY_DICT)
-  catch err
-    rethrow(err)
-    throw(RuleRewriteError(r, term))
+    maketerm(typeof(left), operation(pat), ntail, nothing)
+  elseif pat.type === PAT_LITERAL
+    pat.head
+  elseif pat.type === PAT_VARIABLE || pat.type === PAT_SEGMENT
+    bindings[pat.idx]
   end
 end
 
-export SymbolicRule
-export RewriteRule
-export BidirRule
-export EqualityRule
-export UnequalRule
-export DynamicRule
-export AbstractRule
+function instantiate_arg!(acc, left, pat::Pat, bindings)
+  if pat.type === PAT_SEGMENT
+    append!(acc, instantiate(left, pat, bindings))
+  else
+    push!(acc, instantiate(left, pat, bindings))
+  end
+end
+
+function instantiate(left::Expr, pat::Pat, bindings)
+  if pat.type === PAT_EXPR
+    ntail = []
+    if iscall(pat)
+      for parg in pat.children
+        instantiate_arg!(ntail, left, parg, bindings)
+      end
+      maketerm(Expr, :call, [pat.name; ntail], nothing)
+    else
+      for parg in children(pat)
+        instantiate_arg!(ntail, left, parg, bindings)
+      end
+      maketerm(Expr, pat.head, ntail, nothing)
+    end
+  elseif pat.type === PAT_LITERAL
+    pat.head
+  elseif pat.type === PAT_VARIABLE || pat.type === PAT_SEGMENT
+    bindings[pat.idx]
+  end
+end
+
+"Inverts the direction of a rewrite rule, swapping the LHS and the RHS"
+function Base.inv(r::RewriteRule)
+  RewriteRule(
+    name = r.name,
+    op = r.op,
+    left = r.right,
+    right = r.left,
+    right_fun = r.right_fun,
+    patvars = r.patvars,
+    ematcher_left! = r.ematcher_right!,
+    ematcher_right! = r.ematcher_left!,
+    matcher_left = r.matcher_right,
+    matcher_right = r.matcher_left,
+    lhs_original = r.rhs_original,
+    rhs_original = r.lhs_original,
+  )
+end
+
+Base.inv(r::DynamicRule) = error("Can not invert a dynamic rule.")
+
+"""
+Turns an EqualityRule into a DirectedRule. For example,
+
+```julia
+direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x)
+```
+"""
+function direct(r::EqualityRule)
+  RewriteRule(r.name, -->, (getfield(r, k) for k in fieldnames(DirectedRule)[3:end])...)
+end
+
+"""
+Turns an EqualityRule into a DirectedRule, but right to left. For example,
+
+```julia
+direct(@rule f(~x) == g(~x)) == g(~x) --> f(~x)
+```
+"""
+direct_right_to_left(r::EqualityRule) = inv(direct(r))
+direct_left_to_right(r::EqualityRule) = direct(r)
 
 end

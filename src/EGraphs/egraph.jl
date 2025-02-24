@@ -1,206 +1,210 @@
 # Functional implementation of https://egraphs-good.github.io/
 # https://dl.acm.org/doi/10.1145/3434304
 
+# ==============================================================
+# Interface to implement for custom analyses
+# ==============================================================
 
-abstract type AbstractENode end
+"""
+    modify!(eclass::EClass{Analysis})
 
-import Metatheory: maybelock!
+The `modify!` function for EGraph Analysis can optionally modify the eclass
+`eclass` after it has been analyzed, typically by adding an e-node.
+It should be **idempotent** if no other changes occur to the EClass.
+(See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
+"""
+function modify! end
 
-const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
-const EClassId = Int64
-const TermTypes = Dict{Tuple{Any,Int},Type}
-# TODO document bindings
-const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
-const DEFAULT_BUFFER_SIZE = 1048576
 
-struct ENodeLiteral <: AbstractENode
-  value
-  hash::Ref{UInt}
-  ENodeLiteral(a) = new(a, Ref{UInt}(0))
+
+"""
+    join(a::AnalysisType, b::AnalysisType)::AnalysisType
+
+Joins two analyses values into a single one, used by [analyze!](@ref)
+when two eclasses are being merged or the analysis is being constructed.
+"""
+function join end
+
+"""
+    make(g::EGraph{ExpressionType, AnalysisType}, n::VecExpr)::AnalysisType where {ExpressionType}
+
+Given an e-node `n`, `make` should return the corresponding analysis value.
+"""
+function make end
+
+# ==============================================================
+# EClasses
+# ==============================================================
+
+"""
+    EClass{D}
+
+An `EClass` is an equivalence class of terms.
+
+The children and parent nodes are stored as [`VecExpr`](@ref)s for performance, which
+means that without a reference to the [`EGraph`](@ref) object we cannot re-build human-readable terms
+they represent. The [`EGraph`](@ref) itself comes with pretty printing for human-readable terms.
+"""
+mutable struct EClass{D}
+  const id::Id
+  const nodes::Vector{VecExpr}
+  const parents::Vector{Pair{VecExpr,Id}}
+  data::Union{D,Nothing}
 end
-
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
-
-TermInterface.istree(n::ENodeLiteral) = false
-TermInterface.exprhead(n::ENodeLiteral) = nothing
-TermInterface.operation(n::ENodeLiteral) = n.value
-TermInterface.arity(n::ENodeLiteral) = 0
-
-function Base.hash(t::ENodeLiteral, salt::UInt)
-  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-  h = t.hash[]
-  !iszero(h) && return h
-  h′ = hash(t.value, salt)
-  t.hash[] = h′
-  return h′
-end
-
-
-mutable struct ENodeTerm <: AbstractENode
-  exprhead::Union{Symbol,Nothing}
-  operation::Any
-  symtype::Type
-  args::Vector{EClassId}
-  hash::Ref{UInt} # hash cache
-  ENodeTerm(exprhead, operation, symtype, c_ids) = new(exprhead, operation, symtype, c_ids, Ref{UInt}(0))
-end
-
-
-function Base.:(==)(a::ENodeTerm, b::ENodeTerm)
-  hash(a) == hash(b) && a.operation == b.operation
-end
-
-
-TermInterface.istree(n::ENodeTerm) = true
-TermInterface.symtype(n::ENodeTerm) = n.symtype
-TermInterface.exprhead(n::ENodeTerm) = n.exprhead
-TermInterface.operation(n::ENodeTerm) = n.operation
-TermInterface.arguments(n::ENodeTerm) = n.args
-TermInterface.arity(n::ENodeTerm) = length(n.args)
-
-# This optimization comes from SymbolicUtils
-# The hash of an enode is cached to avoid recomputing it.
-# Shaves off a lot of time in accessing dictionaries with ENodes as keys.
-function Base.hash(t::ENodeTerm, salt::UInt)
-  !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
-  h = t.hash[]
-  !iszero(h) && return h
-  h′ = hash(t.args, hash(t.exprhead, hash(t.operation, salt)))
-  t.hash[] = h′
-  return h′
-end
-
-
-# parametrize metadata by M
-mutable struct EClass
-  g # EGraph
-  id::EClassId
-  nodes::Vector{AbstractENode}
-  parents::Vector{Pair{AbstractENode,EClassId}}
-  data::AnalysisData
-end
-
-function toexpr(n::ENodeTerm)
-  Expr(:call, :ENode, exprhead(n), operation(n), symtype(n), arguments(n))
-end
-
-function Base.show(io::IO, x::ENodeTerm)
-  print(io, toexpr(x))
-end
-
-toexpr(n::ENodeLiteral) = operation(n)
-
-Base.show(io::IO, x::ENodeLiteral) = print(io, toexpr(x))
-
-EClass(g, id) = EClass(g, id, AbstractENode[], Pair{AbstractENode,EClassId}[], nothing)
-EClass(g, id, nodes, parents) = EClass(g, id, nodes, parents, NamedTuple())
 
 # Interface for indexing EClass
 Base.getindex(a::EClass, i) = a.nodes[i]
-Base.setindex!(a::EClass, v, i) = setindex!(a.nodes, v, i)
-Base.firstindex(a::EClass) = firstindex(a.nodes)
-Base.lastindex(a::EClass) = lastindex(a.nodes)
-Base.length(a::EClass) = length(a.nodes)
 
 # Interface for iterating EClass
 Base.iterate(a::EClass) = iterate(a.nodes)
 Base.iterate(a::EClass, state) = iterate(a.nodes, state)
 
+Base.length(a::EClass) = length(a.nodes)
+
 # Showing
 function Base.show(io::IO, a::EClass)
-  print(io, "EClass $(a.id) (")
-
-  print(io, "[", Base.join(a.nodes, ", "), "], ")
-  # print(io, a.data)
-  print(io, ")")
+  println(io, "$(typeof(a)) %$(a.id) with $(length(a.nodes)) e-nodes:")
+  println(io, " data: $(a.data)")
+  println(io, " nodes:")
+  for n in a.nodes
+    println(io, "    $n")
+  end
 end
 
-function addparent!(a::EClass, n::AbstractENode, id::EClassId)
+function addparent!(@nospecialize(a::EClass), n::VecExpr, id::Id)
   push!(a.parents, (n => id))
 end
 
-function Base.union!(to::EClass, from::EClass)
-  # TODO revisit
-  append!(to.nodes, from.nodes)
-  append!(to.parents, from.parents)
-  if !isnothing(to.data) && !isnothing(from.data)
-    to.data = join_analysis_data!(to.g, something(to.data), something(from.data))
-  elseif to.data === nothing
-    to.data = from.data
-  end
-  return to
-end
+"""
+    merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
 
-function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
-  new_dst = merge(dst, src)
-  for analysis_name in keys(src)
-    analysis_ref = g.analyses[analysis_name]
-    if hasproperty(dst, analysis_name)
-      ref = getproperty(new_dst, analysis_name)
-      ref[] = join(analysis_ref, ref[], getproperty(src, analysis_name)[])
-    end
-  end
-  new_dst
-end
+This is an internal function and should not be called directly by users; this
+docstring is only for those who wish to understand Metatheory internals.
 
-# Thanks to Shashi Gowda
-hasdata(a::EClass, analysis_name::Symbol) = hasproperty(a.data, analysis_name)
-hasdata(a::EClass, f::Function) = hasproperty(a.data, nameof(f))
-getdata(a::EClass, analysis_name::Symbol) = getproperty(a.data, analysis_name)[]
-getdata(a::EClass, f::Function) = getproperty(a.data, nameof(f))[]
-getdata(a::EClass, analysis_ref::Union{Symbol,Function}, default) =
-  hasdata(a, analysis_ref) ? getdata(a, analysis_ref) : default
+Returns a tuple of: `(did_update_a, did_update_b, newdata)` where:
 
-
-setdata!(a::EClass, f::Function, value) = setdata!(a, nameof(f), value)
-function setdata!(a::EClass, analysis_name::Symbol, value)
-  if hasdata(a, analysis_name)
-    ref = getproperty(a.data, analysis_name)
-    ref[] = value
+- `did_update_a` is a boolean indicating whether `a`'s analysis class was updated
+- `did_update_b` is a boolean indicating whether `b`'s analysis class was updated
+- `newdata` is the merged analysis data
+"""
+function merge_analysis_data!(a::EClass{D}, b::EClass{D})::Tuple{Bool,Bool,Union{D,Nothing}} where {D}
+  if !isnothing(a.data) && !isnothing(b.data)
+    new_a_data = join(a.data, b.data)
+    (a.data != new_a_data, b.data != new_a_data, new_a_data)
+  elseif isnothing(a.data) && !isnothing(b.data)
+    # a merged, b not merged
+    (true, false, b.data)
+  elseif !isnothing(a.data) && isnothing(b.data)
+    (false, true, a.data)
   else
-    a.data = merge(a.data, NamedTuple{(analysis_name,)}((Ref{Any}(value),)))
-  end
-end
-
-function funs(a::EClass)
-  map(operation, a.nodes)
-end
-
-function funs_arity(a::EClass)
-  map(a.nodes) do x
-    (operation(x), arity(x))
+    (false, false, nothing)
   end
 end
 
 """
-A concrete type representing an [`EGraph`].
+There's no need of computing hash for dictionaries where keys are UInt64.
+Wrap them in an immutable struct that overrides `hash`.
+
+TODO: this is rather hacky. We need a more performant dict implementation.
+
+Trick from: https://discourse.julialang.org/t/dictionary-with-custom-hash-function/49168
+"""
+struct IdKey
+  val::Id
+end
+
+"""
+Recall that `Base.hash` combines an existing "seed" (h) with a new value (a).
+
+In this case, we just use bitwise XOR; very cheap! This is because
+[`IdKey`](@ref) is supposed to just hash to itself, so we don't need to do
+anything special to `a.val`.
+"""
+Base.hash(a::IdKey, h::UInt) = xor(a.val, h)
+
+Base.:(==)(a::IdKey, b::IdKey) = a.val == b.val
+
+"""
+    EGraph{ExpressionType,Analysis}
+
+A concrete type representing an *e-graph*.
+
+An [`EGraph`](@ref) is a set of equivalence classes ([`EClass`](@ref)).
+An `EClass` is in turn a set of e-nodes representing equivalent terms.
+An e-node points to a set of children e-classes.
+In Metatheory.jl, an e-node is implemented as a [`VecExpr`](@ref) for performance reasons.
+The IDs stored in an e-node (i.e. `VecExpr`) or an `EClass` by themselves are
+not necessarily very informative, but you can access the terms of each e-node
+via `Metatheory.to_expr`.
+
 See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
-for implementation details.
+for implementation details. Of special notice is the e-graph invariants,
+and when they do or do not hold. One of the main innovations of `egg` was to
+"batch" the maintenance of the e-graph invariants. We use the `clean` field
+on this struct to keep track of whether there is pending work to do in order
+to re-establish the e-graph invariants.
 """
-mutable struct EGraph
-  "stores the equality relations over e-class ids"
-  uf::IntDisjointSet
-  "map from eclass id to eclasses"
-  classes::Dict{EClassId,EClass}
-  "hashcons"
-  memo::Dict{AbstractENode,EClassId}             # memo
-  "worklist for ammortized upwards merging"
-  dirty::Vector{EClassId}
-  root::EClassId
-  "A vector of analyses associated to the EGraph"
-  analyses::Dict{Union{Symbol,Function},Union{Symbol,Function}}
-  "a cache mapping function symbols to e-classes that contain e-nodes with that function symbol."
-  symcache::Dict{Any,Vector{EClassId}}
-  default_termtype::Type
-  termtypes::TermTypes
-  numclasses::Int
-  numnodes::Int
-  "If we use global buffers we may need to lock. Defaults to true."
+mutable struct EGraph{ExpressionType,Analysis}
+  """
+  stores the equality relations over e-class ids
+
+  More specifically, the `(potentially non-root id) --> (root id)` mapping.
+  """
+  uf::UnionFind
+
+  """
+  map from eclass id to eclasses
+
+  The `(root id) --> e-class` mapping.
+  """
+  classes::Dict{IdKey,EClass{Analysis}}
+
+  """
+  hashcons mapping e-nodes to their e-class id
+
+  The `e-node --> (potentially non-root id)` mapping.
+  """
+  memo::Dict{VecExpr,Id}
+
+  """
+  hashcons the constants in the e-graph
+
+  For performance reasons, the "head" of an e-node is stored in the e-node as a
+  hash (so that it fits in a flat vector of unsigned integers
+  ([`VecExpr`](@ref))) and this dictionary is used to get the actual Julia
+  object of the head when extracting terms.
+  """
+  constants::Dict{UInt64,Any}
+
+  """
+  Nodes which need to be processed for rebuilding. The id is the id of the enode, not the canonical id of the eclass.
+  """
+  pending::Vector{Pair{VecExpr,Id}}
+
+  """
+  When an e-node is added to an e-graph for the first time, we add analysis data to the
+  newly-created e-class by calling [`EGraphs.make`](@ref) on the head of the e-node and the analysis
+  data for the arguments to that e-node. However, the analysis data for the arguments to
+  that e-node could get updated at some point, as e-classes are merged.
+
+  This is a queue for e-nodes which have had the analysis of some of their arguments
+  updated, but have not updated the analysis of their parent e-class yet.
+  """
+  analysis_pending::UniqueQueue{Pair{VecExpr,Id}}
+
+  """
+  The Id of the e-class that we have built this e-graph to simplify.
+  """
+  root::Id
+
+  "a cache mapping signatures (function symbols and their arity) to e-classes that contain e-nodes with that function symbol."
+  classes_by_op::Dict{IdKey,Vector{Id}}
+
+  "do we need to do extra work in order to re-establish the e-graph invariants"
+  clean::Bool
+
+  "If we use global buffers we may need to lock. Defaults to false."
   needslock::Bool
-  "Buffer for e-matching which defaults to a global. Use a local buffer for generated functions."
-  buffer::Vector{Bindings}
-  "Buffer for rule application which defaults to a global. Use a local buffer for generated functions."
-  merges_buffer::Vector{Tuple{Int,Int}}
   lock::ReentrantLock
 end
 
@@ -209,146 +213,160 @@ end
     EGraph(expr)
 Construct an EGraph from a starting symbolic expression `expr`.
 """
-function EGraph(; needslock::Bool = false, buffer_size = DEFAULT_BUFFER_SIZE)
-  EGraph(
-    IntDisjointSet(),
-    Dict{EClassId,EClass}(),
-    Dict{AbstractENode,EClassId}(),
-    EClassId[],
-    -1,
-    Dict{Union{Symbol,Function},Union{Symbol,Function}}(),
-    Dict{Any,Vector{EClassId}}(),
-    Expr,
-    TermTypes(),
+function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
+  EGraph{ExpressionType,Analysis}(
+    UnionFind(),
+    Dict{IdKey,EClass{Analysis}}(),
+    Dict{VecExpr,Id}(),
+    Dict{UInt64,Any}(),
+    Pair{VecExpr,Id}[],
+    UniqueQueue{Pair{VecExpr,Id}}(),
     0,
-    0,
+    Dict{IdKey,Vector{Id}}(),
+    false,
     needslock,
-    Bindings[],
-    Tuple{Int,Int}[],
     ReentrantLock(),
   )
 end
+EGraph(; kwargs...) = EGraph{Expr,Nothing}(; kwargs...)
+EGraph{ExpressionType}(; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(; kwargs...)
 
-function maybelock!(f::Function, g::EGraph)
-  g.needslock ? lock(f, g.buffer_lock) : f()
-end
-
-function EGraph(e; keepmeta = false, kwargs...)
-  g = EGraph(kwargs...)
-  keepmeta && addanalysis!(g, :metadata_analysis)
-  g.root = addexpr!(g, e; keepmeta = keepmeta)
+function EGraph{ExpressionType,Analysis}(e; kwargs...) where {ExpressionType,Analysis}
+  g = EGraph{ExpressionType,Analysis}(; kwargs...)
+  g.root = addexpr!(g, e)
   g
 end
 
-function addanalysis!(g::EGraph, costfun::Function)
-  g.analyses[nameof(costfun)] = costfun
-  g.analyses[costfun] = costfun
+EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(e; kwargs...)
+EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
+
+# Fallback implementation for analysis methods make and modify
+@inline make(::EGraph, ::VecExpr) = nothing
+@inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing
+
+@inline get_constant(@nospecialize(g::EGraph), hash::UInt64) = g.constants[hash]
+@inline has_constant(@nospecialize(g::EGraph), hash::UInt64)::Bool = haskey(g.constants, hash)
+
+@inline needs_operation_quoting(g::EGraph) = false
+@inline needs_operation_quoting(g::EGraph{Expr}) = true
+
+# Why does one of these use `get!` and the other use `setindex!`?
+
+@inline function add_constant!(@nospecialize(g::EGraph), @nospecialize(c))::Id
+  h = hash(c)
+  get!(g.constants, h, c)
+  h
 end
 
-function addanalysis!(g::EGraph, analysis_name::Symbol)
-  g.analyses[analysis_name] = analysis_name
+@inline function add_constant_hashed!(@nospecialize(g::EGraph), @nospecialize(c), h::UInt64)::Id
+  g.constants[h] = c
+  h
 end
 
-function settermtype!(g::EGraph, f, ar, T)
-  g.termtypes[(f, ar)] = T
-end
 
-function settermtype!(g::EGraph, T)
-  g.default_termtype = T
-end
-
-function gettermtype(g::EGraph, f, ar)
-  if haskey(g.termtypes, (f, ar))
-    g.termtypes[(f, ar)]
+function to_expr(g::EGraph, n::VecExpr)
+  v_isexpr(n) || return get_constant(g, v_head(n))
+  h = get_constant(g, v_head(n))
+  args = Core.SSAValue.(Int.(v_children(n)))
+  if v_iscall(n)
+    maketerm(Expr, :call, [h; args], nothing)
   else
-    g.default_termtype
+    maketerm(Expr, h, args, nothing)
   end
+end
+
+function pretty_dict(g::EGraph)
+  d = Dict{Int,Vector{Any}}()
+  for (class_id, eclass) in g.classes
+    d[class_id.val] = map(n -> to_expr(g, n), eclass.nodes)
+  end
+  d
+end
+export pretty_dict
+
+function Base.show(io::IO, g::EGraph)
+  d = pretty_dict(g)
+  t = "$(typeof(g)) with $(length(d)) e-classes:"
+  cs = map(sort!(collect(d); by = first)) do (k, vect)
+    "  $k => [$(Base.join(vect, ", "))]"
+  end
+  print(io, Base.join([t; cs], "\n"))
 end
 
 
 """
 Returns the canonical e-class id for a given e-class.
 """
-find(g::EGraph, a::EClassId)::EClassId = find_root(g.uf, a)
-find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
+@inline find(g::EGraph, a::Id)::Id = find(g.uf, a)
+@inline find(@nospecialize(g::EGraph), @nospecialize(a::EClass))::Id = find(g, a.id)
 
-Base.getindex(g::EGraph, i::EClassId) = g.classes[find(g, i)]
+@inline Base.getindex(g::EGraph, i::Id) = g.classes[IdKey(find(g, i))]
 
-### Definition 2.3: canonicalization
-iscanonical(g::EGraph, n::ENodeTerm) = n == canonicalize(g, n)
-iscanonical(g::EGraph, n::ENodeLiteral) = true
-iscanonical(g::EGraph, e::EClass) = find(g, e.id) == e.id
-
-canonicalize(g::EGraph, n::ENodeLiteral) = n
-
-function canonicalize(g::EGraph, n::ENodeTerm)
-  if arity(n) > 0
-    new_args = map(x -> find(g, x), n.args)
-    return ENodeTerm(exprhead(n), operation(n), symtype(n), new_args)
+"""
+Make sure all of the arguments of `n` point to root nodes in the unionfind
+data structure for `g`.
+"""
+function canonicalize!(g::EGraph, n::VecExpr)
+  if v_isexpr(n)
+    for i in (VECEXPR_META_LENGTH + 1):length(n)
+      @inbounds n[i] = find(g, n[i])
+    end
+    v_unset_hash!(n)
   end
-  return n
+  v_hash!(n)
+  n
 end
 
-function canonicalize!(g::EGraph, n::ENodeTerm)
-  for (i, arg) in enumerate(n.args)
-    n.args[i] = find(g, arg)
-  end
-  n.hash[] = UInt(0)
-  return n
+function lookup(g::EGraph, n::VecExpr)::Id
+  canonicalize!(g, n)
+
+  id = get(g.memo, n, zero(Id))
+  iszero(id) ? id : find(g, id)
 end
 
-canonicalize!(g::EGraph, n::ENodeLiteral) = n
 
-
-function canonicalize!(g::EGraph, e::EClass)
-  e.id = find(g, e.id)
-end
-
-function lookup(g::EGraph, n::AbstractENode)::EClassId
-  cc = canonicalize(g, n)
-  haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
+function add_class_by_op(g::EGraph, n, eclass_id)
+  key = IdKey(v_signature(n))
+  vec = get!(g.classes_by_op, key, Vector{Id}())
+  push!(vec, eclass_id)
 end
 
 """
 Inserts an e-node in an [`EGraph`](@ref)
 """
-function add!(g::EGraph, n::AbstractENode)::EClassId
-  n = canonicalize(g, n)
-  haskey(g.memo, n) && return g.memo[n]
+function add!(g::EGraph{ExpressionType,Analysis}, n::VecExpr, should_copy::Bool)::Id where {ExpressionType,Analysis}
+  canonicalize!(g, n)
+
+  id = get(g.memo, n, zero(Id))
+  iszero(id) || return id
+
+  if should_copy
+    n = copy(n)
+  end
 
   id = push!(g.uf) # create new singleton eclass
 
-  if n isa ENodeTerm
-    for c_id in arguments(n)
-      addparent!(g.classes[c_id], n, id)
+  if v_isexpr(n)
+    for c_id in v_children(n)
+      addparent!(g.classes[IdKey(c_id)], n, id)
     end
   end
 
   g.memo[n] = id
 
-  if haskey(g.symcache, operation(n))
-    push!(g.symcache[operation(n)], id)
-  else
-    g.symcache[operation(n)] = [id]
-  end
+  add_class_by_op(g, n, id)
+  eclass = EClass{Analysis}(id, VecExpr[copy(n)], Pair{VecExpr,Id}[], make(g, n))
+  g.classes[IdKey(id)] = eclass
+  modify!(g, eclass)
+  push!(g.pending, n => id)
 
-  classdata = EClass(g, id, AbstractENode[n], Pair{AbstractENode,EClassId}[])
-  g.classes[id] = classdata
-  g.numclasses += 1
-
-  for an in values(g.analyses)
-    if !islazy(an) && an !== :metadata_analysis
-      setdata!(classdata, an, make(an, g, n))
-      modify!(an, g, id)
-    end
-  end
   return id
 end
 
 
 """
 Extend this function on your types to do preliminary
-preprocessing of a symbolic term before adding it to 
+preprocessing of a symbolic term before adding it to
 an EGraph. Most common preprocessing techniques are binarization
 of n-ary terms and metadata stripping.
 """
@@ -362,204 +380,230 @@ Recursively traverse an type satisfying the `TermInterface` and insert terms int
 [`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
 insert the literal into the [`EGraph`](@ref).
 """
-function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
+function addexpr!(g::EGraph, se)::Id
+  se isa EClass && return se.id
   e = preprocess(se)
 
-  id = add!(g, if istree(se)
-    class_ids::Vector{EClassId} = [addexpr!(g, arg; keepmeta = keepmeta) for arg in arguments(e)]
-    ENodeTerm(exprhead(e), operation(e), symtype(e), class_ids)
-  else
-    # constant enode
-    ENodeLiteral(e)
-  end)
-  if keepmeta
-    meta = TermInterface.metadata(e)
-    !isnothing(meta) && setdata!(g.classes[id], :metadata_analysis, meta)
+  isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
+
+  args = iscall(e) ? arguments(e) : children(e)
+  ar = length(args)
+  n = v_new(ar)
+  v_set_flag!(n, VECEXPR_FLAG_ISTREE)
+  iscall(e) && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
+  h = iscall(e) ? operation(e) : head(e)
+  v_set_head!(n, add_constant!(g, h))
+  # get the signature from op and arity
+  v_set_signature!(n, hash(maybe_quote_operation(h), hash(ar)))
+  for i in v_children_range(n)
+    @inbounds n[i] = addexpr!(g, args[i - VECEXPR_META_LENGTH])
   end
-  return id
-end
 
-function addexpr!(g::EGraph, ec::EClass; keepmeta = false)
-  @assert g == ec.g
-  find(g, ec.id)
+  add!(g, n, false)
 end
 
 """
-Given an [`EGraph`](@ref) and two e-class ids, set
-the two e-classes as equal.
+Given an [`EGraph`](@ref) and two e-class ids, merge the two corresponding e-classes.
+
+This includes merging the analysis data of the e-classes.
 """
-function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
-  id_a = find(g, a)
-  id_b = find(g, b)
+function Base.union!(
+  g::EGraph{ExpressionType,AnalysisType},
+  enode_id1::Id,
+  enode_id2::Id,
+)::Bool where {ExpressionType,AnalysisType}
+  g.clean = false
+
+  id_1 = IdKey(find(g, enode_id1))
+  id_2 = IdKey(find(g, enode_id2))
+
+  id_1 == id_2 && return false
+
+  # Make sure class 2 has fewer parents
+  if length(g.classes[id_1].parents) < length(g.classes[id_2].parents)
+    id_1, id_2 = id_2, id_1
+  end
+
+  union!(g.uf, id_1.val, id_2.val)
+
+  eclass_2 = pop!(g.classes, id_2)::EClass
+  eclass_1 = g.classes[id_1]::EClass
+
+  append!(g.pending, eclass_2.parents)
+
+  (merged_1, merged_2, new_data) = merge_analysis_data!(eclass_1, eclass_2)
+  merged_1 && append!(g.analysis_pending, eclass_1.parents)
+  merged_2 && append!(g.analysis_pending, eclass_2.parents)
 
 
-  id_a == id_b && return id_a
-  to = union!(g.uf, id_a, id_b)
-  from = (to == id_a) ? id_b : id_a
+  # update eclass_1
+  append!(eclass_1.nodes, eclass_2.nodes)
+  append!(eclass_1.parents, eclass_2.parents)
+  eclass_1.data = new_data
 
-  push!(g.dirty, to)
+  modify!(g, eclass_1)
 
-  from_class = g.classes[from]
-  to_class = g.classes[to]
-  to_class.id = to
-
-  # I (was) the troublesome line!
-  g.classes[to] = union!(to_class, from_class)
-  delete!(g.classes, from)
-  g.numclasses -= 1
-
-  return to
+  return true
 end
 
-function in_same_class(g::EGraph, a, b)
-  find(g, a) == find(g, b)
+"""
+Returns whether all of `ids...` are the same e-class in `g`.
+"""
+function in_same_class(g::EGraph, ids::Id...)::Bool
+  nids = length(ids)
+  nids == 1 && return true
+
+  first_id = find(g, ids[1])
+  for i in 2:nids
+    first_id == find(g, ids[i]) || return false
+  end
+  true
 end
 
 
-# TODO new rebuilding from egg
+function rebuild_classes!(g::EGraph)
+  for v in values(g.classes_by_op)
+    empty!(v)
+  end
+
+  for (eclass_id, eclass) in g.classes
+    # old_len = length(eclass.nodes)
+    for n in eclass.nodes
+      canonicalize!(g, n)
+    end
+    # Sort to go in order?
+    unique!(eclass.nodes)
+
+    for n in eclass.nodes
+      add_class_by_op(g, n, eclass_id.val)
+    end
+  end
+
+  for v in values(g.classes_by_op)
+    sort!(v)
+    unique!(v)
+  end
+end
+
+function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {ExpressionType,AnalysisType}
+  n_unions = 0
+
+  while !isempty(g.pending) || !isempty(g.analysis_pending)
+    while !isempty(g.pending)
+      (node::VecExpr, eclass_id::Id) = pop!(g.pending)
+      node = copy(node)
+      canonicalize!(g, node)
+      old_class_id = get!(g.memo, node, eclass_id)
+      if old_class_id != eclass_id
+        did_something = union!(g, old_class_id, eclass_id)
+        # TODO unique! can node dedup be moved here? compare performance
+        # did_something && unique!(g[eclass_id].nodes)
+        n_unions += did_something
+      end
+    end
+
+    while !isempty(g.analysis_pending)
+      (node::VecExpr, eclass_id::Id) = pop!(g.analysis_pending)
+      eclass_id = find(g, eclass_id)
+      eclass_id_key = IdKey(eclass_id)
+      eclass = g.classes[eclass_id_key]
+
+      node_data = make(g, node)
+      if !isnothing(node_data)
+        if !isnothing(eclass.data)
+          joined_data = join(eclass.data, node_data)
+
+          if joined_data != eclass.data
+            eclass.data = joined_data
+            modify!(g, eclass)
+            append!(g.analysis_pending, eclass.parents)
+          end
+        else
+          eclass.data = node_data
+          modify!(g, eclass)
+          append!(g.analysis_pending, eclass.parents)
+        end
+      end
+    end
+  end
+  n_unions
+end
+
+function check_memo(g::EGraph)::Bool
+  test_memo = Dict{VecExpr,Id}()
+  for (id, class) in g.classes
+    @assert id.val == class.id
+    for node in class.nodes
+      old_id = get!(test_memo, node, id.val)
+      if old_id != id.val
+        @assert find(g, old_id) == find(g, id.val) "Unexpected equivalence $node $(g[find(g, id.val)].nodes) $(g[find(g, old_id)].nodes)"
+      end
+    end
+  end
+
+  for (node, id) in test_memo
+    @assert id == find(g, id)
+    @assert id == find(g, g.memo[node])
+  end
+
+  true
+end
+
+function check_analysis(g)
+  for (id, eclass) in g.classes
+    isnothing(eclass.data) && continue
+    pass = mapreduce(x -> make(g, x), (x, y) -> join(x, y), eclass)
+    @assert eclass.data == pass
+  end
+  true
+end
+
 """
 This function restores invariants and executes
 upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
-function rebuild!(g::EGraph)
-  # normalize!(g.uf)
+function rebuild!(g::EGraph; should_check_memo = false, should_check_analysis = false)
+  n_unions = process_unions!(g)
+  trimmed_nodes = rebuild_classes!(g)
+  @assert !should_check_memo || check_memo(g)
+  @assert !should_check_analysis || check_analysis(g)
+  g.clean = true
 
-  while !isempty(g.dirty)
-    # todo = unique([find(egraph, id) for id ∈ egraph.dirty])
-    todo = unique(g.dirty)
-    empty!(g.dirty)
-    for x in todo
-      repair!(g, x)
-    end
-  end
-
-  if g.root != -1
-    g.root = find(g, g.root)
-  end
-
-  normalize!(g.uf)
-end
-
-function repair!(g::EGraph, id::EClassId)
-  id = find(g, id)
-  ecdata = g[id]
-  ecdata.id = id
-
-  new_parents = (length(ecdata.parents) > 30 ? OrderedDict : LittleDict){AbstractENode,EClassId}()
-
-  for (p_enode, p_eclass) in ecdata.parents
-    p_enode = canonicalize!(g, p_enode)
-    # deduplicate parents
-    if haskey(new_parents, p_enode)
-      merge!(g, p_eclass, new_parents[p_enode])
-    end
-    n_id = find(g, p_eclass)
-    g.memo[p_enode] = n_id
-    new_parents[p_enode] = n_id
-  end
-
-  ecdata.parents = collect(new_parents)
-
-  # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
-
-  # Analysis invariant maintenance
-  for an in values(g.analyses)
-    hasdata(ecdata, an) && modify!(an, g, id)
-    for (p_enode, p_id) in ecdata.parents
-      # p_eclass = find(g, p_eclass)
-      p_eclass = g[p_id]
-      if !islazy(an) && !hasdata(p_eclass, an)
-        setdata!(p_eclass, an, make(an, g, p_enode))
-      end
-      if hasdata(p_eclass, an)
-        p_data = getdata(p_eclass, an)
-
-        if an !== :metadata_analysis
-          new_data = join(an, p_data, make(an, g, p_enode))
-          if new_data != p_data
-            setdata!(p_eclass, an, new_data)
-            push!(g.dirty, p_id)
-          end
-        end
-      end
-    end
-  end
-
-  unique!(ecdata.nodes)
-
-  # ecdata.nodes = map(n -> canonicalize(g.uf, n), ecdata.nodes)
-
-end
-
-
-"""
-Recursive function that traverses an [`EGraph`](@ref) and
-returns a vector of all reachable e-classes from a given e-class id.
-"""
-function reachable(g::EGraph, id::EClassId)
-  id = find(g, id)
-  hist = EClassId[id]
-  todo = EClassId[id]
-
-
-  function reachable_node(xn::ENodeTerm)
-    x = canonicalize(g, xn)
-    for c_id in arguments(x)
-      if c_id ∉ hist
-        push!(hist, c_id)
-        push!(todo, c_id)
-      end
-    end
-  end
-  function reachable_node(x::ENodeLiteral) end
-
-  while !isempty(todo)
-    curr = find(g, pop!(todo))
-    for n in g.classes[curr]
-      reachable_node(n)
-    end
-  end
-
-  return hist
-end
-
-
-"""
-When extracting symbolic expressions from an e-graph, we need 
-to instruct the e-graph how to rebuild expressions of a certain type. 
-This function must be extended by the user to add new types of expressions that can be manipulated by e-graphs.
-"""
-function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothing, exprhead = :call)
-  similarterm(Expr(:call, :_), op, args; metadata = metadata, exprhead = exprhead)
+  @debug "REBUILT" n_unions trimmed_nodes
 end
 
 # Thanks to Max Willsey and Yihong Zhang
 
-import Metatheory: lookup_pat
-
-function lookup_pat(g::EGraph, p::PatTerm)::EClassId
-  @assert isground(p)
-
-  eh = exprhead(p)
-  op = operation(p)
-  args = arguments(p)
-  ar = arity(p)
-
-  T = gettermtype(g, op, ar)
-
-  ids = map(x -> lookup_pat(g, x), args)
-  !all((>)(0), ids) && return -1
-
-  if T == Expr && op isa Union{Function,DataType}
-    id = lookup(g, ENodeTerm(eh, op, T, ids))
-    id < 0 && return lookup(g, ENodeTerm(eh, nameof(op), T, ids))
-    return id
-  else
-    return lookup(g, ENodeTerm(eh, op, T, ids))
+"""
+Given a ground pattern, which is a pattern that has no pattern variables, find
+the eclass id in the egraph that represents that ground pattern.
+"""
+function lookup_pat(g::EGraph{ExpressionType}, p::Pat)::Id where {ExpressionType}
+  if p.type === PAT_LITERAL
+    # TODO avoid using enode vector for lookup, just try using hash
+    return has_constant(g, p.head_hash) ? lookup(g, p.n) : 0
   end
+  @assert p.type === PAT_EXPR && p.isground
+
+  args = children(p)
+  h = v_head(p.n)
+
+  has_op = has_constant(g, h) || (h != p.name_hash && has_constant(g, p.name_hash))
+  has_op || return 0
+
+  for i in v_children_range(p.n)
+    @inbounds p.n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
+    p.n[i] <= 0 && return 0
+  end
+
+  id = lookup(g, p.n)
+  if id <= 0 && h != p.name_hash
+    v_set_head!(p.n, p.name_hash)
+    id = lookup(g, p.n)
+    v_set_head!(p.n, p.head_hash)
+  end
+  id
 end
 
-lookup_pat(g::EGraph, p::Any) = lookup(g, ENodeLiteral(p))
-lookup_pat(g::EGraph, p::AbstractPat) = throw(UnsupportedPatternException(p))

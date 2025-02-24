@@ -1,32 +1,32 @@
 using Metatheory
 using Metatheory.EGraphs
-using TermInterface
 using Test
 
-# TODO update
-
-function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeLiteral)
-  if n.value isa Real
-    if n.value == Inf
-      Inf
-    elseif n.value == -Inf
-      -Inf
-    elseif n.value isa Real # in Julia NaN is a Real
-      sign(n.value)
-    else
-      nothing
-    end
-  elseif n.value isa Symbol
-    s = n.value
-    s == :x && return 1
-    s == :y && return -1
-    s == :z && return 0
-    s == :k && return Inf
-    return nothing
+function make_value(v::Real)
+  if v == Inf
+    Inf
+  elseif v == -Inf
+    -Inf
+  elseif v isa Real # in Julia NaN is a Real
+    sign(v)
+  else
+    nothing
   end
 end
 
-function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENodeTerm)
+function make_value(v::Symbol)
+  s = v
+  s == :x && return 1
+  s == :y && return -1
+  s == :z && return 0
+  s == :k && return Inf
+  return nothing
+end
+
+
+function EGraphs.make(::Val{:sign_analysis}, g::EGraph, n::ENode)
+  isexpr(n) || return make_value(operation(n))
+
   # Let's consider only binary function call terms.
   if exprhead(n) == :call && arity(n) == 2
     # get the symbol name of the operation

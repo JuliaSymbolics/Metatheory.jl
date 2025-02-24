@@ -1,3 +1,5 @@
+module Plotting
+
 using GraphViz
 using Metatheory
 using TermInterface
@@ -24,7 +26,7 @@ function render_eclass!(io::IO, g::EGraph, eclass::EClass)
     """    subgraph cluster_$(eclass.id) {
          style="dotted,rounded";
          rank=same;
-         label="#$(eclass.id). Smallest: $(extract!(g, astsize; root=eclass.id))"
+         label="%$(eclass.id). Smallest: $(extract!(g, astsize, eclass.id))"
          fontcolor = gray
          fontsize  = 8
    """,
@@ -46,8 +48,8 @@ function render_eclass!(io::IO, g::EGraph, eclass::EClass)
 end
 
 
-function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::AbstractENode)
-  label = operation(node)
+function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::VecExpr)
+  label = get_constant(g, v_head(node))
   # (mr, style) = if node in diff && get(report.cause, node, missing) !== missing
   #   pair = get(report.cause, node, missing)
   #   split(split("$(pair[1].rule) ", "=>")[1], "-->")[1], " color=\"red\""
@@ -58,11 +60,10 @@ function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::Abstract
   println(io, "      $eclass_id.$i [label=<$label> shape=box style=rounded]")
 end
 
-render_enode_edges!(::IO, ::EGraph, eclass_id, i, ::ENodeLiteral) = nothing
-
-function render_enode_edges!(io::IO, g::EGraph, eclass_id, i, node::ENodeTerm)
-  len = length(arguments(node))
-  for (ite, child) in enumerate(arguments(node))
+function render_enode_edges!(io::IO, g::EGraph, eclass_id, i, node::VecExpr)
+  v_isexpr(node) || return nothing
+  len = length(v_children(node))
+  for (ite, child) in enumerate(v_children(node))
     cluster_id = find(g, child)
     # The limitation of graphviz is that it cannot point to the eclass outer frame, 
     # so when pointing to the same e-class, the next best thing is to point to the same e-node.
@@ -93,4 +94,6 @@ end
 
 function Base.show(io::IO, mime::MIME"image/svg+xml", g::EGraph)
   show(io, mime, convert(GraphViz.Graph, g))
+end
+
 end

@@ -1,29 +1,26 @@
 # Proving Propositional Logic Statements
 
-using Test
-using Metatheory
-using TermInterface
+using Metatheory, Test
 
+include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_theory.jl"))
 
 @testset "Prop logic" begin
   ex = rewrite(:(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s)), impl)
-  @test prove(propositional_logic_theory, ex, 5, 10, 5000)
+  @test prove(propositional_logic_theory, ex, 5, 10)
 
 
-  @test @areequal propositional_logic_theory true ((!p == p) == false)
-  @test @areequal propositional_logic_theory true ((!p == !p) == true)
-  @test @areequal propositional_logic_theory true ((!p || !p) == !p) (!p || p) !(!p && p)
-  @test @areequal propositional_logic_theory p (p || p)
-  @test @areequal propositional_logic_theory true ((p ⟹ (p || p)))
-  @test @areequal propositional_logic_theory true ((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true
+  @test prove(propositional_logic_theory, :((!p == p) == false))
+  @test prove(propositional_logic_theory, :((!p == !p) == true))
+  @test test_equality(propositional_logic_theory, :((!p || !p) == !p), :(!p || p), :(!(!p && p)))
+  @test prove(propositional_logic_theory, :((p || p) == p))
+  @test prove(propositional_logic_theory, :((p ⟹ (p || p))))
+  @test prove(propositional_logic_theory, :((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)))
 
-  # Frege's theorem
-  @test @areequal propositional_logic_theory true (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))
+  @test prove(propositional_logic_theory, :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))))# Frege's theorem
 
-  # Demorgan's
-  @test @areequal propositional_logic_theory true (!(p || q) == (!p && !q))
-
-  # Consensus theorem
-  # @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
+  @test prove(propositional_logic_theory, :(!(p || q) == (!p && !q))) # Demorgan's
 end
+
+# Consensus theorem
+@test true == prove(propositional_logic_theory, :(((x && y) || (!x && z) || (y && z)) == ((x && y) || (!x && z))))

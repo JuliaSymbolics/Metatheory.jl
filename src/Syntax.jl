@@ -2,8 +2,9 @@ module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules
 using TermInterface
+using Metatheory: Metatheory
 
-using Metatheory: alwaystrue, cleanast, binarize
+using Metatheory: alwaystrue, ematch_compile, match_compile
 
 export @rule
 export @theory
@@ -11,134 +12,167 @@ export @slots
 export @capture
 
 
-# FIXME this thing eats up macro calls!
-"""
-Remove LineNumberNode from quoted blocks of code
-"""
-rmlines(e::Expr) = Expr(e.head, map(rmlines, filter(x -> !(x isa LineNumberNode), e.args))...)
-rmlines(a) = a
-
-function_object_or_quote(op::Symbol, mod)::Expr = :(isdefined($mod, $(QuoteNode(op))) ? $op : $(QuoteNode(op)))
-function_object_or_quote(op, mod) = op
-
-function makesegment(s::Expr, pvars)
-  if !(exprhead(s) == :(::))
+function makesegment(s::Expr, pvars, mod)
+  if s.head != :(::)
     error("Syntax for specifying a segment is ~~x::\$predicate, where predicate is a boolean function or a type")
   end
 
-  name, predicate = arguments(s)
+  name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
-  return :($PatSegment($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
+  return pat_var(PAT_SEGMENT, name, makepredicate(mod, predicate), -1)
 end
 
-function makesegment(name::Symbol, pvars)
+function makesegment(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
-  PatSegment(name)
+  pat_var(PAT_SEGMENT, name)
 end
 
-function makevar(s::Expr, pvars)
-  if !(exprhead(s) == :(::))
-    error("Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type")
+function makevar(s::Expr, pvars, mod)
+  if s.head != :(::)
+    throw(
+      DomainError(
+        s,
+        "Syntax for specifying a slot is ~x::\$predicate, where predicate is a boolean function or a type",
+      ),
+    )
   end
 
-  name, predicate = arguments(s)
+  # TODO support anonymous functions for predicates
+  name, predicate = children(s)
   name ∉ pvars && push!(pvars, name)
-  return :($PatVar($(QuoteNode(name)), -1, $predicate, $(QuoteNode(predicate))))
+  return pat_var(PAT_VARIABLE, name, -1, makepredicate(mod, predicate))
 end
 
-function makevar(name::Symbol, pvars)
+function makepredicate(mod, predicate::Symbol)
+  obj = getfield(mod, predicate)
+  obj isa Type ? Base.Fix2(isa, obj) : obj
+end
+
+function makevar(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
-  PatVar(name)
+  pat_var(PAT_VARIABLE, name)
 end
 
 
 # Make a dynamic rule right hand side
 function makeconsequent(expr::Expr)
-  head = exprhead(expr)
-  args = arguments(expr)
-  op = operation(expr)
-  if head === :call
+  if iscall(expr)
+    op = operation(expr)
+    args = arguments(expr)
     if op === :(~)
-      if args[1] isa Symbol
-        return args[1]
-      elseif args[1] isa Expr && operation(args[1]) == :(~)
-        n = arguments(args[1])[1]
-        @assert n isa Symbol
-        return n
-      else
-        error("Error when parsing right hand side")
+      let v = args[1]
+        if v isa Symbol
+          v
+        elseif v isa Expr && iscall(v) && operation(v) === :(~)
+          n = v.args[2]
+          @assert n isa Symbol
+          n
+        else
+          throw(
+            DomainError(
+              v,
+              "Wrong usage of `~` in patterns. Must be a pattern variable `~x` or a segment variable `~~x`",
+            ),
+          )
+        end
       end
     else
-      return Expr(head, makeconsequent(op), map(makeconsequent, args)...)
+      Expr(expr.head, makeconsequent(op), map(makeconsequent, args)...)
     end
   else
-    return Expr(head, map(makeconsequent, args)...)
+    Expr(expr.head, map(makeconsequent, children(expr))...)
   end
 end
 
 makeconsequent(x) = x
 # treat as a literal
-function makepattern(x, pvars, slots, mod = @__MODULE__, splat = false)
-  x in slots ? (splat ? makesegment(x, pvars) : makevar(x, pvars)) : x
+function makepattern(x, pvars, slots, mod, splat = false)::Pat
+  if x in slots
+    splat ? makesegment(x, pvars, mod) : makevar(x, pvars, mod)
+  elseif x isa Symbol
+    pat_literal(getfield(mod, x))
+  elseif x isa QuoteNode
+    pat_literal(x.value)
+  else
+    pat_literal(x)
+  end
 end
 
-function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)
-  head = exprhead(ex)
-  op = operation(ex)
-  # Retrieve the function object if available
-  # Optionally quote function objects
-  args = arguments(ex)
-  istree(op) && (op = makepattern(op, pvars, slots, mod))
+function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)::Pat
+  h = head(ex)
 
-  if head === :call
-    if operation(ex) === :(~) # is a variable or segment
+  if iscall(ex)
+    op = operation(ex)
+    # If operation is a pattern variable
+    iscall(op) && operation(op) == :(~) && (op = makepattern(op, pvars, slots, mod))
+    # Optionally quote function objects
+    args = arguments(ex)
+    if op === :(~) # is a variable or segment
       let v = args[1]
-        if v isa Expr && operation(v) == :(~)
+        if v isa Expr && iscall(v) && operation(v) === :(~)
           # matches ~~x::predicate or ~~x::predicate...
-          makesegment(arguments(v)[1], pvars)
+          makesegment(v.args[2], pvars, mod)
         elseif splat
           # matches ~x::predicate...
-          makesegment(v, pvars)
+          makesegment(v, pvars, mod)
         else
-          makevar(v, pvars)
+          makevar(v, pvars, mod)
         end
       end
-    else # Matches a term
+    else# Matches a term
       patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-      :($PatTerm(:call, $(function_object_or_quote(op, mod)), [$(patargs...)]))
+      isdef = isdefined_nested(mod, op)
+      op_obj = isdef ? getfield_nested(mod, op) : op
+
+      if isdef && op isa Expr || op isa Symbol
+        # Support fully qualified function symbols such as `Main.foo`
+        pat_expr(iscall(ex), op_obj, op, patargs)
+      else
+        pat_expr(iscall(ex), op_obj, patargs)
+      end
     end
 
-  elseif head === :...
-    makepattern(args[1], pvars, slots, mod, true)
-  elseif head == :(::) && args[1] in slots
-    splat ? makesegment(ex, pvars) : makevar(ex, pvars)
-  elseif head === :ref
-    # getindex 
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm(:ref, getindex, [$(patargs...)]))
-  elseif head === :$
-    args[1]
+  elseif h === :...
+    makepattern(ex.args[1], pvars, slots, mod, true)
+  elseif h == :(::) && ex.args[1] in slots
+    splat ? makesegment(ex, pvars, mod) : makevar(ex, pvars, mod)
+  elseif h === :$
+    ex.args[1]
+  elseif h === :block
+    stmts = filter(st -> !(st isa LineNumberNode), children(ex))
+    # if length(stmts) == 1
+    # makepattern(only(stmts), pvars, slots, mod)
+    # else
+    patargs = map(i -> makepattern(i, pvars, slots, mod), stmts) # recurse
+    pat_expr(false, h, patargs)
+    # end
   else
-    patargs = map(i -> makepattern(i, pvars, slots, mod), args) # recurse
-    :($PatTerm($(QuoteNode(head)), $(function_object_or_quote(op, mod)), [$(patargs...)]))
+    patargs = map(i -> makepattern(i, pvars, slots, mod), ex.args) # recurse
+    pat_expr(false, h, patargs)
   end
 end
 
-function rule_sym_map(ex::Expr)
-  h = operation(ex)
-  if h == :(-->) || h == :(→)
-    RewriteRule
-  elseif h == :(=>)
-    DynamicRule
-  elseif h == :(==)
-    EqualityRule
-  elseif h == :(!=) || h == :(≠)
-    UnequalRule
-  else
-    error("Cannot parse rule with operator '$h'")
-  end
+# If it's not a symbol or expr, it's defined.
+isdefined_nested(mod, ex) = true
+isdefined_nested(mod, ex::Symbol) = isdefined(mod, ex)
+function isdefined_nested(mod, ex::Expr)
+  @assert ex.head === :.
+  r_unquoted = ex.args[2]
+  r = r_unquoted isa QuoteNode ? r_unquoted.value : r_unquoted
+  isdefined_nested(mod, ex.args[1]) || return false
+
+  isdefined_nested(getfield_nested(mod, ex.args[1]), r)
 end
-rule_sym_map(ex) = error("Cannot parse rule from $ex")
+
+# If it's not a symbol or expr, it's defined.
+getfield_nested(mod, ex) = ex
+getfield_nested(mod, ex::Symbol) = getfield(mod, ex)
+function getfield_nested(mod, ex::Expr)
+  @assert ex.head === :.
+  r_unquoted = ex.args[2]
+  r = r_unquoted isa QuoteNode ? r_unquoted.value : r_unquoted
+  getfield(getfield_nested(mod, ex.args[1]), r)
+end
 
 """
     rewrite_rhs(expr::Expr)
@@ -147,8 +181,8 @@ Rewrite the `expr` by dealing with `:where` if necessary.
 The `:where` is rewritten from, for example, `~x where f(~x)` to `f(~x) ? ~x : nothing`.
 """
 function rewrite_rhs(ex::Expr)
-  if exprhead(ex) == :where
-    rhs, predicate = arguments(ex)
+  if ex.head == :where
+    rhs, predicate = children(ex)
     return :($predicate ? $rhs : nothing)
   end
   ex
@@ -158,9 +192,13 @@ rewrite_rhs(x) = x
 
 function addslots(expr, slots)
   if expr isa Expr
-    if expr.head === :macrocall &&
-       expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
-      Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+    if expr.head === :macrocall
+      if expr.args[1] == Symbol("@rule")
+        name = expr.args[3] isa String ? expr.args[3] : ""
+        Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
+      elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+        Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+      end
     else
       Expr(expr.head, addslots.(expr.args, (slots,))...)
     end
@@ -168,7 +206,6 @@ function addslots(expr, slots)
     expr
   end
 end
-
 
 """
     @slots [SLOTS...] ex
@@ -195,14 +232,14 @@ end
 """
     @rule [SLOTS...] LHS operator RHS
 
-Creates an `AbstractRule` object. A rule object is callable, and takes an
+Creates a `RewriteRule` object. A rule object is callable, and takes an
 expression and rewrites it if it matches the LHS pattern to the RHS pattern,
 returns `nothing` otherwise. The rule language is described below.
 
-LHS can be any possibly nested function call expression where any of the arugments can
+LHS can be any possibly nested function call expression where any of the arguments can
 optionally be a Slot (`~x`) or a Segment (`~x...`) (described below).
 
-SLOTS is an optional list of symbols to be interpeted as slots or segments
+SLOTS is an optional list of symbols to be interpreted as slots or segments
 directly (without using `~`).  To declare slots for several rules at once, see
 the `@slots` macro.
 
@@ -213,9 +250,9 @@ matches found for these variables in the LHS.
 
 **Rule operators**:
 - `LHS => RHS`: create a `DynamicRule`. The RHS is *evaluated* on rewrite.
-- `LHS --> RHS`: create a `RewriteRule`. The RHS is **not** evaluated but *symbolically substituted* on rewrite.
-- `LHS == RHS`: create a `EqualityRule`. In e-graph rewriting, this rule behaves like `RewriteRule` but can go in both directions. Doesn't work in classical rewriting
-- `LHS ≠ RHS`: create a `UnequalRule`. Can only be used in e-graphs, and is used to eagerly stop the process of rewriting if LHS is found to be equal to RHS.
+- `LHS --> RHS`: create a `DirectedRule`. The RHS is **not** evaluated but *symbolically substituted* on rewrite.
+- `LHS == RHS`: create a `EqualityRule`. In e-graph rewriting, this rule behaves like `DirectedRule` but can go in both directions. Doesn't work in classical rewriting
+- `LHS != RHS`: create a `UnequalRule`. Can only be used in e-graphs, and is used to eagerly stop the process of rewriting if LHS is found to be equal to RHS.
 
 **Slot**:
 
@@ -327,33 +364,84 @@ Segment variables may still be written as (`~~x`), and slot (`~x`) and segment (
 See also: [`@capture`](@ref), [`@slots`](@ref)
 """
 macro rule(args...)
-  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
+  length(args) >= 1 || throw(ArgumentError("@rule requires at least one argument"))
+  rule_name = if args[1] isa String
+    str = args[1]
+    args = args[2:end]
+    str
+  else
+    ""
+  end
+
   slots = args[1:(end - 1)]
   expr = args[end]
 
-  e = macroexpand(__module__, expr)
-  e = rmlines(e)
-  RuleType = rule_sym_map(e)
+  ex = macroexpand(__module__, expr)
+  op = iscall(ex) ? operation(ex) : head(ex)
 
-  l, r = arguments(e)
+  @assert op in (:(==), :(=>), :(-->), :(!=))
+
+  l, r = iscall(ex) ? arguments(ex) : children(ex)
   pvars = Symbol[]
-  lhs = makepattern(l, pvars, slots, __module__)
-  rhs = RuleType <: SymbolicRule ? esc(makepattern(r, [], slots, __module__)) : r
+  lhs::Pat = makepattern(l, pvars, slots, __module__)
+  ppvars = Patterns.patvars(lhs)
 
-  if RuleType == DynamicRule
+  @assert pvars == ppvars
+
+  ematcher_right_expr = :nothing
+  matcher_right_expr = :nothing
+
+  rhs_pat = pat_empty()
+  # TODO  have a failing function
+  rhs_fun = () -> error("unreachable") # dummy function
+  rhs_original = :(println("replace me"))
+
+  if op == :(=>) # Dynamic Rule
     rhs_rewritten = rewrite_rhs(r)
-    rhs_consequent = makeconsequent(rhs_rewritten)
+    rhs_original = makeconsequent(rhs_rewritten)
     params = Expr(:tuple, :_lhs_expr, :_egraph, pvars...)
-    rhs = :($(esc(params)) -> $(esc(rhs_consequent)))
-    return quote
-      $(__source__)
-      DynamicRule($(esc(lhs)), $rhs, $(QuoteNode(rhs_consequent)))
+    rhs_fun = :($(esc(params)) -> $(esc(rhs_original)))
+  else
+    rhs_pat = makepattern(r, pvars, slots, __module__)
+    setdebrujin!(rhs_pat, pvars)
+    rhs_original = r
+  end
+
+  setdebrujin!(lhs, pvars)
+
+
+  ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
+
+  if op in (:(==), :(!=)) # Bidirectional rule
+    ematcher_right_expr = esc(ematch_compile(rhs_pat, pvars, -1))
+    matcher_right_expr = esc(match_compile(rhs_pat, pvars))
+    extravars = setdiff(pvars, patvars(lhs) ∩ patvars(rhs_pat))
+    if !isempty(extravars)
+      error("unbound pattern variables $extravars when creating bidirectional rule")
     end
   end
 
+  matcher_left_expr = match_compile(lhs, pvars)
+
+  # FIXME => is not a function we have to use |>
+  op = (op == :(=>)) ? :(|>) : op
+
   quote
     $(__source__)
-    ($RuleType)($(esc(lhs)), $rhs)
+    RewriteRule(;
+      name = $rule_name,
+      op = $op,
+      left = $lhs,
+      right = $rhs_pat,
+      right_fun = $rhs_fun,
+      patvars = $ppvars,
+      ematcher_left! = $ematcher_left_expr,
+      ematcher_right! = $ematcher_right_expr,
+      matcher_left = $matcher_left_expr,
+      matcher_right = $matcher_right_expr,
+      lhs_original = $(QuoteNode(l)),
+      rhs_original = $(QuoteNode(rhs_original)),
+    )
   end
 end
 
@@ -362,11 +450,11 @@ end
 """
     @theory [SLOTS...] begin (LHS operator RHS)... end
 
-Syntax sugar to define a vector of rules in a nice and readable way. Can use `@slots` or have the slots 
+Syntax sugar to define a vector of rules in a nice and readable way. Can use `@slots` or have the slots
 as the first arguments:
 
 ```
-julia> t = @theory x y z begin 
+julia> t = @theory x y z begin
     x * (y + z) --> (x * y) + (x * z)
     x + y       ==  (y + x)
     #...
@@ -384,22 +472,27 @@ julia> v = [
 ```
 """
 macro theory(args...)
-  length(args) >= 1 || ArgumentError("@rule requires at least one argument")
-  slots = args[1:(end - 1)]
-  expr = args[end]
-
-  e = macroexpand(__module__, expr)
-  e = rmlines(e)
-  # e = interp_dollar(e, __module__)
-
-  if exprhead(e) == :block
-    ee = Expr(:vect, map(x -> addslots(:(@rule($x)), slots), arguments(e))...)
-    esc(ee)
-  else
-    error("theory is not in form begin a => b; ... end")
-  end
+  esc(_theory(args...))
 end
 
+function _theory(args...)
+  length(args) >= 1 || ArgumentError("@theory requires at least one argument")
+  slots = args[1:(end - 1)]
+  e = args[end]
+
+  e.head == :block || error("theory is not in form begin a => b; ... end")
+
+  rules = filter(ln -> !(ln isa LineNumberNode), children(e))
+  rules = map(rules) do r
+    if r.head == :macrocall && r.args[1] == Symbol("@rule") && r.args[2] isa Union{LineNumberNode,Nothing}
+      addslots(r, slots)
+    else
+      addslots(:(@rule($r)), slots)
+    end
+  end
+  # ee = Expr(:ref, RewriteRule, map(x -> addslots(:(@rule($x)), slots))...)
+  Expr(:ref, RewriteRule, rules...)
+end
 
 
 """
@@ -423,28 +516,56 @@ macro capture(args...)
   length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
   slots = args[1:(end - 2)]
   ex = args[end - 1]
-  lhs = args[end]
-  lhs = macroexpand(__module__, lhs)
-  lhs = rmlines(lhs)
+  l = args[end]
+  l = macroexpand(__module__, l)
 
   pvars = Symbol[]
-  lhs_term = makepattern(lhs, pvars, slots, __module__)
-  bind = Expr(
-    :block,
-    map(key -> :($(esc(key)) = getindex(__MATCHES__, findfirst((==)($(QuoteNode(key))), $pvars))), pvars)...,
-  )
-  quote
+  lhs = makepattern(l, pvars, slots, __module__)
+  bind_exprs = Expr[]
+
+  for key in pvars
+    idx = findfirst((==)(key), pvars)
+    push!(bind_exprs, :($(esc(key)) = __MATCHES__[$idx]))
+  end
+
+  setdebrujin!(lhs, pvars)
+
+  matcher_left_expr = match_compile(lhs, pvars)
+
+
+  ret = quote
     $(__source__)
-    lhs_pattern = $(esc(lhs_term))
-    __MATCHES__ = DynamicRule(lhs_pattern, (_lhs_expr, _egraph, pvars...) -> pvars, nothing)($(esc(ex)))
-    if __MATCHES__ !== nothing
-      $bind
+    rule = DynamicRule(;
+      op = (|>),
+      patvars = $pvars,
+      left = $lhs,
+      right = $(pat_empty()),
+      right_fun = (_lhs_expr, _egraph, pvars...) -> pvars,
+      matcher_left = $matcher_left_expr,
+      ematcher_left! = () -> (),
+    )
+    __MATCHES__ = rule($(esc(ex)))
+    if !isnothing(__MATCHES__)
+      $(bind_exprs...)
       true
     else
       false
     end
   end
+  ret
 end
+
+macro match(target, rules)
+  # @show target
+  # println(target)
+  # println(rules)
+  t = _theory(:_, rules)
+  quote
+    $(Metatheory.Rewriters.RestartedChain)($t)($(esc(target)))
+  end
+end
+
+export @match
 
 
 end

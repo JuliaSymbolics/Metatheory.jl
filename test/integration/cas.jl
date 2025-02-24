@@ -1,8 +1,6 @@
-using Test
-using Metatheory
+using Metatheory, Test
 using Metatheory.Library
 using Metatheory.Schedulers
-using TermInterface
 
 mult_t = @commutative_monoid (*) 1
 plus_t = @commutative_monoid (+) 0
@@ -62,25 +60,49 @@ end
 
 # Dynamic rules
 fold_t = @theory a b begin
-  -(a::Number) => -a
+  -(a::Number)          => -a
   a::Number + b::Number => a + b
+  a::Number - b::Number => a - b
   a::Number * b::Number => a * b
-  a::Number^b::Number => begin
+  a::Number^b::Number   => begin
+    a == 0 && b <= 0 && return nothing
+    a < 0 && b != round(b) && return nothing # only allow integer exponents for negative base
     b < 0 && a isa Int && (a = float(a))
     a^b
   end
   a::Number / b::Number => a / b
 end
 
-using Calculus: differentiate
-function ∂ end
-
-diff_t = @theory x y begin
-  ∂(y, x::Symbol) => begin
-    z = extract!(_egraph, simplcost; root = y.id)
-    differentiate(z, x)
-  end
+diff_t_onearg = @theory x begin
+  diff(sqrt(x), x) --> 1 / 2 / sqrt(x)
+  diff(cbrt(x), x) --> 1 / 3 / cbrt(x)^2
+  diff(log(x), x) --> 1 / x
+  diff(exp(x), x) --> exp(x)
+  diff(sin(x), x) --> cos(x)
+  diff(cos(x), x) --> -sin(x)
+  diff(tan(x), x) --> (1 + tan(x)^2)
+  diff(sec(x), x) --> sec(x) * tan(x)
+  diff(csc(x), x) --> -csc(x) * cot(x)
+  diff(cot(x), x) --> -(1 + cot(x)^2)
 end
+
+diff_t_base = @theory x y n begin
+  diff(x, x) --> 1
+  diff(n::Number, x) --> 0
+  # diff(x^1, x) --> 1 # special case of next rule
+  diff(x^(n::Number), x) --> n * x^(n - 1)
+end
+
+diff_t_composite = @theory x a b c begin
+  diff(a + b, x) == diff(a, x) + diff(b, x)
+  diff(a * b, x) == diff(a, x) * b + a * diff(b, x) # product rule
+  # if diff(b,x) == 0
+  #         return :( $y * $xp * ($x ^ ($y - 1)) )
+
+  diff(a^b, x) == a^b * (diff(b, x) * log(a) + b * (diff(a, x) / a))
+end
+
+diff_t = diff_t_base ∪ diff_t_onearg ∪ diff_t_composite
 
 cas = fold_t ∪ mult_t ∪ plus_t ∪ minus_t ∪ mulplus_t ∪ pow_t ∪ div_t ∪ trig_t ∪ diff_t
 
@@ -116,40 +138,35 @@ canonical_t = @theory x y n xs ys begin
 end
 
 
-function simplcost(n::ENodeTerm, g::EGraph)
-  cost = 0 + arity(n)
-  if operation(n) == :∂
-    cost += 20
-  end
-  for id in arguments(n)
-    eclass = g[id]
-    !hasdata(eclass, simplcost) && (cost += Inf; break)
-    cost += last(getdata(eclass, simplcost))
-  end
-  return cost
-end
+function simplcost(n::VecExpr, op, costs)
+  v_isexpr(n) || return 1
+  op === :block && return sum(costs)
+  cost = 1
+  (op ∈ (:∂, diff, :diff)) && (cost += 200)
 
-simplcost(n::ENodeLiteral, g::EGraph) = 0
+  cost + sum(costs)
+end
 
 function simplify(ex; steps = 4)
   params = SaturationParams(
-    scheduler = ScoredScheduler,
-    eclasslimit = 5000,
-    timeout = 7,
-    schedulerparams = (1000, 5, Schedulers.exprsize),
-    #stopwhen=stopwhen,
+  # scheduler = ScoredScheduler,
+  # eclasslimit = 5000,
+  # timeout = 7,
+  # schedulerparams = (match_limit = 1000, ban_length = 5),
+  #stopwhen=stopwhen,
   )
   hist = UInt64[]
   push!(hist, hash(ex))
   for i in 1:steps
     g = EGraph(ex)
-    @profview_allocs saturate!(g, cas, params)
+    # TODO FIXME After https://github.com/JuliaSymbolics/Metatheory.jl/pull/261/ the order of application of
+    # matches in ematch_buffer has been reversed. There is likely some issue in rebuilding such that the
+    # order of application of rules changes the resulting e-graph, while this should not be the case.
+    # See comments in https://github.com/JuliaSymbolics/Metatheory.jl/pull/261#pullrequestreview-2609050078
+    saturate!(g, reverse(cas), params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)
-    if !TermInterface.istree(ex)
-      return ex
-    end
-    if hash(ex) ∈ hist
+    if !isexpr(ex) || hash(ex) ∈ hist
       return ex
     end
     push!(hist, hash(ex))
@@ -177,36 +194,25 @@ end
 @test :(y + sec(x)^2) == simplify(:(1 + y + tan(x)^2))
 @test :(y + csc(x)^2) == simplify(:(1 + y + cot(x)^2))
 
+@test simplify(:(diff(x^2, x))) == :(2x)
+@test_broken simplify(:(diff(x^(cos(x)), x))) == :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x))
+@test simplify(:(x * diff(x^2, x) * x)) == :(2x^3)
 
+@test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x^2) # :(3y * 2x^2)
 
-# simplify(:( ∂(x^2, x)))
+@test simplify(:(6 * x * x * y)) == :(6 * y * x^2)
+@test simplify(:(diff(y^3, y) / y)) == :(3y)
 
-simplify(:(∂(x^(cos(x)), x)))
-
-@test :(2x^3) == simplify(:(x * ∂(x^2, x) * x))
-
-# @simplify ∂(y^3, y) * ∂(x^2 + 2, x) / y * x
-
-# @simplify (6 * x * x * y)
-
-# @simplify ∂(y^3, y) / y
-
-# # ex = :( ∂(x^(cos(x)), x) )
-# ex = :( (6 * x * x * y) )
-# g = EGraph(ex)
-# saturate!(g, cas)
-# g.classes
-# extract!(g, simplcost; root=g.root)
 
 # params = SaturationParams(
-#     scheduler=BackoffScheduler,
-#     eclasslimit=5000,
-#     timeout=7,
-#     schedulerparams=(1000,5),
-#     #stopwhen=stopwhen,
+#   scheduler = BackoffScheduler,
+#   eclasslimit = 5000,
+#   timeout = 7,
+#   # (match_limit = 1000, ban_length = 5),
+#   #stopwhen=stopwhen,
 # )
 
-# ex = :((x+y)^(a*0) / (y+x)^0)
+# ex = :((x + y)^(a * 0) / (y + x)^0)
 # g = EGraph(ex)
 # @profview println(saturate!(g, cas, params))
 
@@ -214,63 +220,28 @@ simplify(:(∂(x^(cos(x)), x)))
 # ex = rewrite(ex, canonical_t; clean=false)
 
 
-# FIXME this is a hack to get the test to work.
-if VERSION < v"1.9.0-DEV"
-  function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeLiteral)
-    v = n.value
-    if v == :im
-      typeof(im)
-    else
-      typeof(v)
-    end
-  end
+function EGraphs.make(g::EGraph{Expr,Type}, n::VecExpr)
+  h = get_constant(g, v_head(n))
+  v_isexpr(n) || return (h in (:im, im) ? Complex : typeof(h))
+  v_iscall(n) || return (Any)
 
-  function EGraphs.make(::Val{:type_analysis}, g::EGraph, n::ENodeTerm)
-    symtype(n) !== Expr && return Any
-    if exprhead(n) != :call
-      # println("$n is not a call")
-      t = Any
-      # println("analyzed type of $n is $t")
-      return t
-    end
-    sym = operation(n)
-    if !(sym isa Symbol)
-      # println("head $sym is not a symbol")
-      t = Any
-      # println("analyzed type of $n is $t")
-      return t
-    end
-
-    symval = getfield(@__MODULE__, sym)
-    child_classes = map(x -> g[x], arguments(n))
-    child_types = Tuple(map(x -> getdata(x, :type_analysis, Any), child_classes))
-
-    # t = t_arr[1]
-    t = Core.Compiler.return_type(symval, child_types)
-
-    if t == Union{}
-      throw(MethodError(symval, child_types))
-    end
-    # println("analyzed type of $n is $t")
-    return t
-  end
-
-  EGraphs.join(::Val{:type_analysis}, from, to) = typejoin(from, to)
-
-  EGraphs.islazy(::Val{:type_analysis}) = true
-
-  function infer(e)
-    g = EGraph(e)
-    analyze!(g, :type_analysis)
-    getdata(g[g.root], :type_analysis)
-  end
-
-
-  ex1 = :(cos(1 + 3.0) + 4 + (4 - 4im))
-  ex2 = :("ciao" * 2)
-  ex3 = :("ciao" * " mondo")
-
-  @test ComplexF64 == infer(ex1)
-  @test_throws MethodError infer(ex2)
-  @test String == infer(ex3)
+  op = (h isa Symbol) ? getfield(@__MODULE__, h) : op
+  child_types = map(id -> g[id].data, v_children(n))
+  return Base.promote_op(op, child_types...)
 end
+
+
+EGraphs.join(from::Type, to::Type) = typejoin(from, to)
+
+function infer(e)
+  g = EGraph{Expr,Type}(e)
+  g[g.root].data
+end
+
+
+ex1 = :(cos(1 + 3.0) + 4 + (4 - 4im))
+ex2 = :("ciao" * 2)
+ex3 = :("ciao" * " mondo")
+
+@test Complex == infer(ex1)
+@test String == infer(ex3)

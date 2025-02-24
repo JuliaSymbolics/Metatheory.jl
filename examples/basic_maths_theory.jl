@@ -40,8 +40,8 @@ function customlt(x, y)
   end
 end
 
+# restores n-arity of binarized + and * expressions
 canonical_t = @theory x y xs ys begin
-  # restore n-arity
   (x + (+)(ys...)) --> +(x, ys...)
   ((+)(xs...) + y) --> +(xs..., y)
   (x * (*)(ys...)) --> *(x, ys...)

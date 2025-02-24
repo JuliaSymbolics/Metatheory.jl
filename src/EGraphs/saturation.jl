@@ -1,26 +1,3 @@
-abstract type SaturationGoal end
-
-reached(g::EGraph, goal::Nothing) = false
-reached(g::EGraph, goal::SaturationGoal) = false
-reached(g::EGraph, goal::Function) = goal(g)
-
-"""
-This goal is reached when the `exprs` list of expressions are in the 
-same equivalence class.
-"""
-struct EqualityGoal <: SaturationGoal
-  exprs::Vector{Any}
-  ids::Vector{EClassId}
-  function EqualityGoal(exprs, eclasses)
-    @assert length(exprs) == length(eclasses) && length(exprs) != 0
-    new(exprs, eclasses)
-  end
-end
-
-function reached(g::EGraph, goal::EqualityGoal)
-  all(x -> in_same_class(g, goal.ids[1], x), @view goal.ids[2:end])
-end
-
 mutable struct SaturationReport
   reason::Union{Symbol,Nothing}
   egraph::EGraph
@@ -31,7 +8,7 @@ end
 SaturationReport() = SaturationReport(nothing, EGraph(), 0, TimerOutput())
 SaturationReport(g::EGraph) = SaturationReport(nothing, g, 0, TimerOutput())
 
-
+const Bindings = SubArray{UInt64,1,Vector{UInt64},Tuple{UnitRange{Int64}},true}
 
 # string representation of timedata
 function Base.show(io::IO, x::SaturationReport)
@@ -40,7 +17,7 @@ function Base.show(io::IO, x::SaturationReport)
   println(io, "=================")
   println(io, "\tStop Reason: $(x.reason)")
   println(io, "\tIterations: $(x.iterations)")
-  println(io, "\tEGraph Size: $(g.numclasses) eclasses, $(length(g.memo)) nodes")
+  println(io, "\tEGraph Size: $(length(g.classes)) eclasses, $(length(g.memo)) nodes")
   print_timer(io, x.to)
 end
 
@@ -54,80 +31,77 @@ Base.@kwdef mutable struct SaturationParams
   "Maximum number of eclasses allowed"
   eclasslimit::Int = 5000
   enodelimit::Int = 15000
-  goal::Union{Nothing,SaturationGoal,Function} = nothing
-  stopwhen::Function = () -> false
+  goal::Function = (g::EGraph) -> false
   scheduler::Type{<:AbstractScheduler} = BackoffScheduler
-  schedulerparams::Tuple = ()
+  schedulerparams::NamedTuple = (;)
   threaded::Bool = false
   timer::Bool = true
+  "Activate check for memoization of nodes (hashcons) after rebuilding"
+  check_memo::Bool = false
+  "Activate check for join-semilattice invariant for semantic analysis values after rebuilding"
+  check_analysis::Bool = false
 end
 
-# function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
-#   if isground(p)
-#     id = lookup_pat(g, p)
-#     !isnothing(id) && return [id]
-#   else
-#     return keys(g.classes)
-#   end
-#   return []
-# end
+function cached_ids(g::EGraph, p::Pat)
+  p.type === PAT_VARIABLE && return Iterators.map(x -> x.val, keys(g.classes))
 
-function cached_ids(g::EGraph, p::AbstractPattern) # p is a literal
-  @warn "Pattern matching against the whole e-graph"
-  return keys(g.classes)
+  if p.isground
+    id = lookup_pat(g, p)
+    id > 0 ? [id] : UNDEF_ID_VEC
+  else
+    get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
+  end
 end
-
-function cached_ids(g::EGraph, p) # p is a literal
-  id = lookup(g, ENodeLiteral(p))
-  id > 0 && return [id]
-  return []
-end
-
-
-# function cached_ids(g::EGraph, p::PatTerm)
-#   arr = get(g.symcache, operation(p), EClassId[])
-#   if operation(p) isa Union{Function,DataType}
-#     append!(arr, get(g.symcache, nameof(operation(p)), EClassId[]))
-#   end
-#   arr
-# end
-
-function cached_ids(g::EGraph, p::PatTerm)
-  keys(g.classes)
-end
-
 
 """
 Returns an iterator of `Match`es.
 """
 function eqsat_search!(
   g::EGraph,
-  theory::Vector{<:AbstractRule},
+  theory::Theory,
   scheduler::AbstractScheduler,
   report::SaturationReport,
+  ematch_buffer::OptBuffer{UInt64},
 )::Int
   n_matches = 0
 
-  maybelock!(g) do
-    empty!(g.buffer)
-  end
+  g.needslock && lock(g.lock)
+  empty!(ematch_buffer)
+  g.needslock && unlock(g.lock)
+
 
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
+    prev_matches = n_matches
     @timeit report.to string(rule_idx) begin
       prev_matches = n_matches
       # don't apply banned rules
-      if !cansearch(scheduler, rule)
+      if !cansearch(scheduler, rule_idx)
         @debug "$rule is banned"
         continue
       end
-      ids = cached_ids(g, rule.left)
-      rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
-      for i in ids
-        n_matches += rule.ematcher!(g, rule_idx, i)
+
+      ids_left = cached_ids(g, rule.left)
+      for i in ids_left
+        cansearch(scheduler, rule_idx, i) || continue
+        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
+        inform!(scheduler, rule_idx, i, n_matches)
       end
+
+      if is_bidirectional(rule)
+        ids_right = cached_ids(g, rule.right)
+        for i in ids_right
+          cansearch(scheduler, rule_idx, i) || continue
+          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
+          inform!(scheduler, rule_idx, i, n_matches)
+        end
+      end
+
       n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
-      inform!(scheduler, rule, n_matches)
+      # if n_matches - prev_matches > 2 && rule_idx == 2
+      #   @debug buffer_readable(g, old_len)
+      # end
+      inform!(scheduler, rule_idx, n_matches)
     end
   end
 
@@ -136,108 +110,152 @@ function eqsat_search!(
 end
 
 
-function drop_n!(D::CircularDeque, nn)
-  D.n -= nn
-  tmp = D.first + nn
-  D.first = tmp > D.capacity ? 1 : tmp
-end
+function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat)::Id
+  if p.type === PAT_VARIABLE
+    return if v_bitvec_check(isliteral_bitvec, p.idx)
+      add!(g, v_new_literal(bindings[p.idx]), true)
+    else
+      bindings[p.idx]
+    end
+  elseif p.type === PAT_LITERAL
+    add_constant_hashed!(g, p.head, p.head_hash)
+  elseif p.type === PAT_EXPR
+    add_constant_hashed!(g, p.head, p.head_hash)
 
-instantiate_enode!(bindings::Bindings, g::EGraph, p::Any)::EClassId = add!(g, ENodeLiteral(p))
-instantiate_enode!(bindings::Bindings, g::EGraph, p::PatVar)::EClassId = bindings[p.idx][1]
-function instantiate_enode!(bindings::Bindings, g::EGraph, p::PatTerm)::EClassId
-  eh = exprhead(p)
-  op = operation(p)
-  ar = arity(p)
-  args = arguments(p)
-  T = gettermtype(g, op, ar)
-  # TODO add predicate check `quotes_operation`
-  new_op = T == Expr && op isa Union{Function,DataType} ? nameof(op) : op
-  add!(g, ENodeTerm(eh, new_op, T, map(arg -> instantiate_enode!(bindings, g, arg), args)))
-end
+    if needs_operation_quoting(g)
+      add_constant_hashed!(g, p.name, p.name_hash)
+      v_set_head!(p.n, p.name_hash)
+    end
 
-function apply_rule!(buf, g::EGraph, rule::RewriteRule, id, direction)
-  push!(g.merges_buffer, (id, instantiate_enode!(buf, g, rule.right)))
-  nothing
-end
-
-function apply_rule!(bindings::Bindings, g::EGraph, rule::EqualityRule, id::EClassId, direction::Int)
-  pat_to_inst = direction == 1 ? rule.right : rule.left
-  push!(g.merges_buffer, (id, instantiate_enode!(bindings, g, pat_to_inst)))
-  nothing
-end
-
-
-function apply_rule!(bindings::Bindings, g::EGraph, rule::UnequalRule, id::EClassId, direction::Int)
-  pat_to_inst = direction == 1 ? rule.right : rule.left
-  other_id = instantiate_enode!(bindings, g, pat_to_inst)
-
-  if find(g, id) == find(g, other_id)
-    @debug "$rule produced a contradiction!"
-    return :contradiction
+    for i in v_children_range(p.n)
+      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
+    end
   end
-  nothing
+
+  add!(g, p.n, true)
 end
 
 """
 Instantiate argument for dynamic rule application in e-graph
 """
-function instantiate_actual_param!(bindings::Bindings, g::EGraph, i)
-  ecid, literal_position = bindings[i]
-  ecid <= 0 && error("unbound pattern variable")
-  eclass = g[ecid]
-  if literal_position > 0
-    @assert eclass[literal_position] isa ENodeLiteral
-    return eclass[literal_position].value
+function instantiate_actual_param!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, i)
+  val = bindings[i]
+  if v_bitvec_check(isliteral_bitvec, i)
+    get_constant(g, bindings[i])
+  else
+    val <= 0 && error("unbound pattern variable")
+    g[val]
   end
-  return eclass
-end
-
-function apply_rule!(bindings::Bindings, g::EGraph, rule::DynamicRule, id::EClassId, direction::Int)
-  f = rule.rhs_fun
-  r = f(id, g, (instantiate_actual_param!(bindings, g, i) for i in 1:length(rule.patvars))...)
-  isnothing(r) && return nothing
-  rcid = addexpr!(g, r)
-  push!(g.merges_buffer, (id, rcid))
-  return nothing
 end
 
 
+struct RuleApplicationResult
+  halt_reason::Symbol
+  l::Id
+  r::Id
+end
 
-function eqsat_apply!(g::EGraph, theory::Vector{<:AbstractRule}, rep::SaturationReport, params::SaturationParams)
-  i = 0
-  @assert isempty(g.merges_buffer)
+function apply_rule!(
+  bindings::Bindings,
+  isliteral_bitvec::UInt64,
+  g::EGraph,
+  rule::RewriteRule,
+  id::Id,
+  direction::Int,
+)::RuleApplicationResult
+  if rule.op === (-->) # DirectedRule
+    new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right)
+    RuleApplicationResult(:nothing, new_id, id)
+  elseif rule.op === (==) # EqualityRule
+    pat_to_inst = direction == 1 ? rule.right : rule.left
+    new_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
+    RuleApplicationResult(:nothing, new_id, id)
+  elseif rule.op === (!=) # UnequalRule
+    pat_to_inst = direction == 1 ? rule.right : rule.left
+    other_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
 
-  @debug "APPLYING $(length(g.buffer)) matches"
-  maybelock!(g) do
-    while !isempty(g.buffer)
-
-      if reached(g, params.goal)
-        @debug "Goal reached"
-        rep.reason = :goalreached
-        return
-      end
-
-      bindings = pop!(g.buffer)
-      rule_idx, id = bindings[0]
-      direction = sign(rule_idx)
-      rule_idx = abs(rule_idx)
-      rule = theory[rule_idx]
-
-
-      halt_reason = apply_rule!(bindings, g, rule, id, direction)
-
-      if !isnothing(halt_reason)
-        rep.reason = halt_reason
-        return
-      end
+    if find(g, id) == find(g, other_id)
+      @debug "$rule produced a contradiction!"
+      return RuleApplicationResult(:contradiction, 0, 0)
     end
+    RuleApplicationResult(:nothing, 0, 0)
+  elseif rule.op === (|>) # DynamicRule
+    r = rule.right_fun(
+      id,
+      g,
+      (instantiate_actual_param!(bindings, isliteral_bitvec, g, i) for i in 1:length(rule.patvars))...,
+    )
+    isnothing(r) && return RuleApplicationResult(:nothing, 0, 0)
+    rcid = addexpr!(g, r)
+    RuleApplicationResult(:nothing, rcid, id)
+  else
+    RuleApplicationResult(:error, 0, 0)
   end
-  maybelock!(g) do
-    while !isempty(g.merges_buffer)
-      (l, r) = pop!(g.merges_buffer)
-      merge!(g, l, r)
+end
+
+const CHECK_GOAL_EVERY_N_MATCHES = 20
+
+function eqsat_apply!(
+  g::EGraph,
+  theory::Theory,
+  rep::SaturationReport,
+  params::SaturationParams,
+  ematch_buffer::OptBuffer{UInt64},
+)
+  n_matches = 0
+  g.needslock && lock(g.lock)
+
+  k = 1
+  while k < length(ematch_buffer)
+    if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
+      @debug "Goal reached"
+      rep.reason = :goalreached
+      return
     end
+
+    n_matches += 1
+
+
+    id = ematch_buffer[k]
+    rule_idx = reinterpret(Int, ematch_buffer[k + 1])
+    isliteral_bitvec = ematch_buffer[k + 2]
+    direction = sign(rule_idx)
+    rule_idx = abs(rule_idx)
+    rule = theory[rule_idx]
+
+    bind_start = k + 3
+
+    bind_end = bind_start + length(rule.patvars) - 1
+
+    bindings = @view ematch_buffer[bind_start:bind_end]
+
+    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction)
+
+    k = bind_end + 1
+
+    if res.halt_reason !== :nothing
+      rep.reason = res.halt_reason
+      return
+    end
+
+    if params.enodelimit > 0 && length(g.memo) > params.enodelimit
+      @debug "Too many enodes"
+      rep.reason = :enodelimit
+      break
+    end
+
+    !iszero(res.l) && !iszero(res.r) && union!(g, res.l, res.r)
   end
+
+  empty!(ematch_buffer)
+
+  if params.goal(g)
+    @debug "Goal reached"
+    rep.reason = :goalreached
+    return
+  end
+
+  g.needslock && unlock(g.lock)
 end
 
 
@@ -246,25 +264,31 @@ Core algorithm of the library: the equality saturation step.
 """
 function eqsat_step!(
   g::EGraph,
-  theory::Vector{<:AbstractRule},
-  curr_iter,
+  theory::Theory,
+  curr_iter::Int,
   scheduler::AbstractScheduler,
   params::SaturationParams,
-  report,
+  report::SaturationReport,
+  ematch_buffer::OptBuffer{UInt64},
 )
 
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
+  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
 
-  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
-
-  if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
+  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer)
+  if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
-  @timeit report.to "Rebuild" rebuild!(g)
+  @timeit report.to "Rebuild" rebuild!(
+    g;
+    should_check_memo = params.check_memo,
+    should_check_analysis = params.check_analysis,
+  )
 
-  @debug smallest_expr = extract!(g, astsize)
+  Schedulers.rebuild!(scheduler)
+
+  @debug "Smallest expression is" extract!(g, astsize)
 
   return report
 end
@@ -273,83 +297,59 @@ end
 Given an [`EGraph`](@ref) and a collection of rewrite rules,
 execute the equality saturation algorithm.
 """
-function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = SaturationParams())
+function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
   curr_iter = 0
 
-  sched = params.scheduler(g, theory, params.schedulerparams...)
+  sched = params.scheduler(g, theory; params.schedulerparams...)
   report = SaturationReport(g)
 
   start_time = time_ns()
 
-  !params.timer && disable_timer!(report.to)
-  timelimit = params.timelimit > 0
+  params.timer || disable_timer!(report.to)
+
+  # Buffer for e-matching. Use a local buffer for generated functions.
+  ematch_buffer = OptBuffer{UInt64}(64)
 
   while true
     curr_iter += 1
 
     @debug "================ EQSAT ITERATION $curr_iter  ================"
+    @debug g
 
-    report = eqsat_step!(g, theory, curr_iter, sched, params, report)
+    report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer)
 
     elapsed = time_ns() - start_time
 
-    if timelimit && params.timelimit <= elapsed
+    if params.goal(g)
+      @debug "Goal reached"
+      report.reason = :goalreached
+      break
+    end
+
+    if report.reason !== nothing
+      @debug "Reason" report.reason
+      break
+    end
+
+    if params.timelimit > 0 && params.timelimit <= elapsed
+      @debug "Time limit reached"
       report.reason = :timelimit
       break
     end
 
-    if !(report.reason isa Nothing)
-      break
-    end
-
     if curr_iter >= params.timeout
+      @debug "Too many iterations"
       report.reason = :timeout
       break
     end
 
-    if params.eclasslimit > 0 && g.numclasses > params.eclasslimit
+    if params.eclasslimit > 0 && length(g.classes) > params.eclasslimit
+      @debug "Too many eclasses"
       report.reason = :eclasslimit
-      break
-    end
-
-    if reached(g, params.goal)
-      report.reason = :goalreached
       break
     end
   end
   report.iterations = curr_iter
 
   return report
-end
-
-function areequal(theory::Vector, exprs...; params = SaturationParams())
-  g = EGraph(exprs[1])
-  areequal(g, theory, exprs...; params = params)
-end
-
-function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = SaturationParams())
-  if length(exprs) == 1
-    return true
-  end
-
-  n = length(exprs)
-  ids = map(Base.Fix1(addexpr!, g), collect(exprs))
-  goal = EqualityGoal(collect(exprs), ids)
-
-  params.goal = goal
-
-  report = saturate!(g, t, params)
-
-  if !(report.reason === :saturated) && !reached(g, goal)
-    return missing # failed to prove
-  end
-  return reached(g, goal)
-end
-
-macro areequal(theory, exprs...)
-  esc(:(areequal($theory, $exprs...)))
-end
-
-macro areequalg(G, theory, exprs...)
-  esc(:(areequal($G, $theory, $exprs...)))
 end

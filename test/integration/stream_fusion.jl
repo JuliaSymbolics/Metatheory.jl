@@ -1,8 +1,6 @@
 using Metatheory
 using Metatheory.Rewriters
 using Test
-using TermInterface
-# using SymbolicUtils
 
 apply(f, x) = f(x)
 fand(f, g) = x -> f(x) && g(x)
@@ -42,7 +40,7 @@ end
 asymptot_t = @theory x y z n m f g begin
   (length(filter(f, x)) <= length(x)) => true
   length(cat(x, y)) --> length(x) + length(y)
-  length(map(f, x)) => length(map)
+  length(map(f, x)) --> length(x)
   length(x::UnitRange) => length(x)
 end
 
@@ -50,7 +48,7 @@ fold_theory = @theory x y z begin
   x::Number * y::Number => x * y
   x::Number + y::Number => x + y
   x::Number / y::Number => x / y
-  x::Number - y::Number => x / y
+  x::Number - y::Number => x - y
   # etc...
 end
 
@@ -60,33 +58,40 @@ import Base.Cartesian: inlineanonymous
 
 tryinlineanonymous(x) = nothing
 function tryinlineanonymous(ex::Expr)
-  exprhead(ex) != :call && return nothing
-  f = operation(ex)
-  (!(f isa Expr) || exprhead(f) !== :->) && return nothing
-  arg = arguments(ex)[1]
+  iscall(ex) || return nothing
+  op = operation(ex)
+  (!(op isa Expr) || op.head !== :->) && return nothing
+  args = arguments(ex)[1]
+  # TODO more args?
   try
-    return inlineanonymous(f, arg)
+    return inlineanonymous(op, args)
   catch e
     return nothing
   end
 end
 
 normalize_theory = @theory x y z f g begin
-  fand(f, g)  => Expr(:->, :x, :(($f)(x) && ($g)(x)))
+  fand(f, g)  => :(x -> ($f)(x) && ($g)(x))
   apply(f, x) => Expr(:call, f, x)
 end
 
-params = SaturationParams()
+
+function stream_fusion_cost(n::VecExpr, op, costs::Vector{Float64})::Float64
+  v_isexpr(n) || return 1
+  op === :block && return sum(costs)
+  # cost = 1 + v_arity(n)
+  cost = 1
+  op ∈ (:map, :filter) && (cost += 10)
+  cost + sum(costs)
+end
 
 function stream_optimize(ex)
   g = EGraph(ex)
-  saturate!(g, array_theory, params)
-  ex = extract!(g, astsize) # TODO cost fun with asymptotic complexity
-  ex = Fixpoint(Postwalk(Chain([tryinlineanonymous, normalize_theory..., fold_theory...])))(ex)
+  saturate!(g, array_theory)
+  ex = extract!(g, stream_fusion_cost) # TODO cost fun with asymptotic complexity
+  ex = Fixpoint(Postwalk(Chain([tryinlineanonymous; normalize_theory; fold_theory])))(ex)
   return ex
 end
-
-build_fun(ex) = eval(:(() -> $ex))
 
 
 @testset "Stream Fusion" begin
@@ -101,13 +106,16 @@ end
 
 # ['a','1','2','3','4']
 ex = :(filter(ispow2, filter(iseven, reverse(reverse(fill(4, 100))))))
-opt = stream_optimize(ex)
+
+@test Base.remove_linenums!(stream_optimize(ex)) == Base.remove_linenums!(:(
+  if ispow2(4) && iseven(4)
+    fill(4, 100)
+  else
+    fill(4, 0)
+  end
+))
 
 
 ex = :(map(x -> 7 * x, reverse(reverse(fill(13, 40)))))
-opt = stream_optimize(ex)
-opt = stream_optimize(opt)
+@test stream_optimize(ex) == :(fill(91, 40))
 
-macro stream_optimize(ex)
-  stream_optimize(ex)
-end

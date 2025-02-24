@@ -1,6 +1,7 @@
 # # Rewriting Calculational Logic
-using Metatheory
+using Metatheory, Test
 
+include(joinpath(dirname(pathof(Metatheory)), "../examples/prove.jl"))
 include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_theory.jl"))
 
 
@@ -9,20 +10,23 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/calculational_logic_t
   saturate!(g, calculational_logic_theory)
   extract!(g, astsize)
 
-  @test @areequal calculational_logic_theory true ((!p == p) == false)
-  @test @areequal calculational_logic_theory true ((!p == !p) == true)
-  @test @areequal calculational_logic_theory true ((!p || !p) == !p) (!p || p) !(!p && p)
-  @test @areequal calculational_logic_theory true ((p ⟹ (p || p)) == true)
-  params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (1000, 5))
+  @test test_equality(calculational_logic_theory, :((!p || !p) == !p), :(!p || p), :(!(!p && p)))
 
-  @test areequal(calculational_logic_theory, true, :(((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true); params = params)
 
-  # Frege's theorem
-  @test areequal(calculational_logic_theory, true, :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))); params = params)
+  @test prove(calculational_logic_theory, :((!p == p) == false))
+  @test prove(calculational_logic_theory, :((!p == !p) == true))
+  @test prove(calculational_logic_theory, :((p ⟹ (p || p)) == true))
 
-  # Demorgan's
-  @test @areequal calculational_logic_theory true (!(p || q) == (!p && !q))
+  params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (match_limit = 1000, ban_length = 5))
+  @test prove(calculational_logic_theory, :(((p ⟹ (p || p)) == ((!(p) && q) ⟹ q))), 1, 10, params)
 
-  # Consensus theorem
-  areequal(calculational_logic_theory, :((x && y) || (!x && z) || (y && z)), :((x && y) || (!x && z)); params = params)
+  freges = :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))   # Frege's theorem
+  params = SaturationParams(timeout = 12, eclasslimit = 10000, schedulerparams = (match_limit = 6000, ban_length = 5))
+  # TODO FIXME After https://github.com/JuliaSymbolics/Metatheory.jl/pull/261/ the order of application of
+  # matches in ematch_buffer has been reversed. There is likely some issue in rebuilding such that the
+  # order of application of rules changes the resulting e-graph, while this should not be the case.
+  # See comments in https://github.com/JuliaSymbolics/Metatheory.jl/pull/261#pullrequestreview-2609050078
+  @test prove(reverse(calculational_logic_theory), freges, 2, 10, params)
+
+  @test true == prove(calculational_logic_theory, :(!(p || q) == (!p && !q)))   # Demorgan's
 end

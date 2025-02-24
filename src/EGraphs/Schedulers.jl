@@ -7,14 +7,8 @@ using Metatheory.EGraphs
 using Metatheory.Patterns
 using DocStringExtensions
 
-export AbstractScheduler
-export SimpleScheduler
-export BackoffScheduler
-export ScoredScheduler
-export cansaturate
-export cansearch
-export inform!
-export setiter!
+export AbstractScheduler,
+  SimpleScheduler, BackoffScheduler, FreezingScheduler, ScoredScheduler, cansaturate, cansearch, inform!, setiter!
 
 """
 Represents a rule scheduler for the equality saturation process
@@ -23,32 +17,60 @@ Represents a rule scheduler for the equality saturation process
 abstract type AbstractScheduler end
 
 """
+    cansaturate(s::AbstractScheduler)
+
 Should return `true` if the e-graph can be said to be saturated
-```
-cansaturate(s::AbstractScheduler)
-```
 """
 function cansaturate end
 
 """
-Should return `false` if the rule `r` should be skipped
-```
-cansearch(s::AbstractScheduler, r::Rule)
-```
+    cansearch(s::AbstractScheduler, i::Int)
+    cansearch(s::AbstractScheduler, i::Int, eclass_id::Id)
+
+Given a theory `t` and a rule `r` with index `i` in the theory,
+should return `false` if the search for rule with index `i` should be skipped
+for the current iteration. An extra `eclass_id::Id` arguments can be passed 
+in order to filter out specific e-classes.
 """
 function cansearch end
 
 """
-This function is called **after** pattern matching on the e-graph,
-informs the scheduler about the yielded matches.
-Returns `false` if the matches should not be yielded and ignored. 
-```
-inform!(s::AbstractScheduler, r::AbstractRule, n_matches)
-```
+    inform!(s::AbstractScheduler, i::Int, n_matches)
+    inform!(s::AbstractScheduler, i::Int, eclass_id::Id, n_matches)
+
+
+Given a theory `t` and a rule `r` with index `i` in the theory,
+This function is called **after** pattern matching (searching) the e-graph,
+it informs the scheduler about the number of yielded matches.
 """
 function inform! end
 
+"""
+    setiter!(s::AbstractScheduler, i::Int)
+
+Inform a scheduler about the current iteration number.
+"""
 function setiter! end
+
+"""
+    rebuild!(s::AbstractScheduler, g::EGraph)
+
+Some schedulers may hold data that need to be re-canonicalized 
+after an iteration of equality saturation, such as references to e-class IDs.
+This is called by equality saturation after e-graph `rebuild!`
+"""
+function rebuild! end
+
+# ===========================================================================
+# Defaults
+# ===========================================================================
+
+@inline inform!(::AbstractScheduler, ::Int, ::Int) = nothing
+@inline inform!(::AbstractScheduler, ::Int, ::Id, ::Int) = nothing
+@inline setiter!(::AbstractScheduler, ::Int) = nothing
+@inline rebuild!(::AbstractScheduler) = nothing
+
+
 
 # ===========================================================================
 # SimpleScheduler
@@ -60,26 +82,16 @@ A simple Rewrite Scheduler that applies every rule every time
 """
 struct SimpleScheduler <: AbstractScheduler end
 
-cansaturate(s::SimpleScheduler) = true
-cansearch(s::SimpleScheduler, r::AbstractRule) = true
-function SimpleScheduler(G::EGraph, theory::Vector{<:AbstractRule})
-  SimpleScheduler()
-end
-inform!(s::SimpleScheduler, r, n_matches) = true
-setiter!(s::SimpleScheduler, iteration) = nothing
+SimpleScheduler(::EGraph, ::Theory) = SimpleScheduler()
 
+@inline cansaturate(s::SimpleScheduler) = true
+@inline cansearch(s::SimpleScheduler, ::Int) = true
+@inline cansearch(s::SimpleScheduler, ::Int, ::Id) = true
 
 # ===========================================================================
 # BackoffScheduler
 # ===========================================================================
 
-mutable struct BackoffSchedulerEntry
-  match_limit::Int
-  ban_length::Int
-  times_banned::Int
-  banned_until::Int
-end
-
 """
 A Rewrite Scheduler that implements exponential rule backoff.
 For each rewrite, there exists a configurable initial match limit.
@@ -90,163 +102,100 @@ will be banned next time.
 This seems effective at preventing explosive rules like
 associativity from taking an unfair amount of resources.
 """
-mutable struct BackoffScheduler <: AbstractScheduler
-  data::IdDict{AbstractRule,BackoffSchedulerEntry}
-  G::EGraph
-  theory::Vector{<:AbstractRule}
-  curr_iter::Int
+Base.@kwdef mutable struct BackoffScheduler <: AbstractScheduler
+  data::Vector{Tuple{Int,Int}} # TimesBanned ⊗ BannedUntil
+  g::EGraph
+  theory::Theory
+  curr_iter::Int = 1
+  match_limit::Int = 1000
+  ban_length::Int = 5
 end
 
-cansearch(s::BackoffScheduler, r::AbstractRule)::Bool = s.curr_iter > s.data[r].banned_until
+@inline cansearch(s::BackoffScheduler, rule_idx::Int)::Bool = s.curr_iter > last(s.data[rule_idx])
+@inline cansearch(s::BackoffScheduler, rule_idx::Int, eclass_id::Id) = true
 
-
-function BackoffScheduler(g::EGraph, theory::Vector{<:AbstractRule})
-  # BackoffScheduler(g, theory, 128, 4)
-  BackoffScheduler(g, theory, 1000, 5)
-end
-
-function BackoffScheduler(G::EGraph, theory::Vector{<:AbstractRule}, match_limit::Int, ban_length::Int)
-  gsize = length(G.uf)
-  data = IdDict{AbstractRule,BackoffSchedulerEntry}()
-
-  for rule in theory
-    data[rule] = BackoffSchedulerEntry(match_limit, ban_length, 0, 0)
-  end
-
-  return BackoffScheduler(data, G, theory, 1)
-end
+BackoffScheduler(g::EGraph, theory::Theory; kwargs...) =
+  BackoffScheduler(; data = fill((0, 0), length(theory)), g, theory, kwargs...)
 
 # can saturate if there's no banned rule
-cansaturate(s::BackoffScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_until, s.data)
+cansaturate(s::BackoffScheduler)::Bool = all((<)(s.curr_iter) ∘ last, s.data)
 
 
-function inform!(s::BackoffScheduler, rule::AbstractRule, n_matches)
-  rd = s.data[rule]
-  treshold = rd.match_limit << rd.times_banned
-  if n_matches > treshold
-    ban_length = rd.ban_length << rd.times_banned
-    rd.times_banned += 1
-    rd.banned_until = s.curr_iter + ban_length
-    return false
+function inform!(s::BackoffScheduler, rule_idx::Int, n_matches::Int)
+  (times_banned, _) = s.data[rule_idx]
+  threshold = s.match_limit << times_banned
+  if n_matches > threshold
+    s.data[rule_idx] = (times_banned += 1, s.curr_iter + (s.ban_length << times_banned))
   end
-  return true
 end
 
-function setiter!(s::BackoffScheduler, curr_iter)
+function setiter!(s::BackoffScheduler, curr_iter::Int)
   s.curr_iter = curr_iter
 end
 
+
 # ===========================================================================
-# ScoredScheduler
+# FreezingScheduler
 # ===========================================================================
 
-
-mutable struct ScoredSchedulerEntry
-  match_limit::Int
-  ban_length::Int
+struct FreezingSchedulerStat
   times_banned::Int
   banned_until::Int
-  weight::Int
+  size_limit::Int
+  ban_length::Int
 end
 
-"""
-A Rewrite Scheduler that implements exponential rule backoff.
-For each rewrite, there exists a configurable initial match limit.
-If a rewrite search yield more than this limit, then we ban this rule
-for number of iterations, double its limit, and double the time it
-will be banned next time.
-
-This seems effective at preventing explosive rules like
-associativity from taking an unfair amount of resources.
-"""
-mutable struct ScoredScheduler <: AbstractScheduler
-  data::IdDict{AbstractRule,ScoredSchedulerEntry}
-  G::EGraph
-  theory::Vector{<:AbstractRule}
-  curr_iter::Int
+Base.@kwdef mutable struct FreezingScheduler <: AbstractScheduler
+  data::Dict{Id,FreezingSchedulerStat} = Dict{Id,FreezingSchedulerStat}()
+  g::EGraph
+  theory::Theory
+  curr_iter::Int = 1
+  default_eclass_size_limit::Int = 10
+  default_eclass_size_increment::Int = 3
+  default_eclass_ban_length::Int = 3
+  default_eclass_ban_increment::Int = 2
 end
 
-cansearch(s::ScoredScheduler, r::AbstractRule)::Bool = s.curr_iter > s.data[r].banned_until
+FreezingScheduler(g::EGraph, theory::Theory; kwargs...) = FreezingScheduler(; g, theory, kwargs...)
 
-exprsize(a) = 1
+@inline cansearch(s::FreezingScheduler, rule_idx::Int)::Bool = true
+@inline cansearch(s::FreezingScheduler, ::Int, eclass_id::Id) = s.curr_iter > s[eclass_id].banned_until
 
-function exprsize(e::PatTerm)
-  c = 1 + length(e.args)
-  for a in e.args
-    c += exprsize(a)
-  end
-  return c
-end
+function Base.getindex(s::FreezingScheduler, id::Id)
+  haskey(s.data, id) && return s.data[id]
+  nid = find(s.g, id)
+  haskey(s.data, nid) && return s.data[nid]
 
-function exprsize(e::Expr)
-  start = Meta.isexpr(e, :call) ? 2 : 1
-
-  c = 1 + length(e.args[start:end])
-  for a in e.args[start:end]
-    c += exprsize(a)
-  end
-
-  return c
-end
-
-function ScoredScheduler(g::EGraph, theory::Vector{<:AbstractRule})
-  # BackoffScheduler(g, theory, 128, 4)
-  ScoredScheduler(g, theory, 1000, 5, exprsize)
-end
-
-function ScoredScheduler(
-  G::EGraph,
-  theory::Vector{<:AbstractRule},
-  match_limit::Int,
-  ban_length::Int,
-  complexity::Function,
-)
-  gsize = length(G.uf)
-  data = IdDict{AbstractRule,ScoredSchedulerEntry}()
-
-  for rule in theory
-    if rule isa DynamicRule
-      w = 2
-      data[rule] = ScoredSchedulerEntry(match_limit, ban_length, 0, 0, w)
-      continue
-    end
-    (l, r) = rule.left, rule.right
-
-    cl = complexity(l)
-    cr = complexity(r)
-    if cl > cr
-      w = 1   # reduces complexity
-    elseif cr > cl
-      w = 3   # augments complexity
-    else
-      w = 2   # complexity is equal
-    end
-    data[rule] = ScoredSchedulerEntry(match_limit, ban_length, 0, 0, w)
-  end
-
-  return ScoredScheduler(data, G, theory, 1)
+  s.data[id] = FreezingSchedulerStat(0, 0, s.default_eclass_size_limit, s.default_eclass_ban_length)
 end
 
 # can saturate if there's no banned rule
-cansaturate(s::ScoredScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_until, s.data)
+cansaturate(s::FreezingScheduler)::Bool = all(stat -> stat.banned_until < s.curr_iter, values(s.data))
 
+function inform!(s::FreezingScheduler, rule_idx::Int, n_matches::Int, eclass_id::Id)
+  stats = s[eclass_id]
+  threshold = stats.size_limit + s.default_eclass_size_increment * stats.times_banned
+  len = length(s.g[eclass_id])
 
-function inform!(s::ScoredScheduler, rule::AbstractRule, n_matches)
-  rd = s.data[rule]
-  treshold = rd.match_limit * (rd.weight^rd.times_banned)
-  if n_matches > treshold
-    ban_length = rd.ban_length * (rd.weight^rd.times_banned)
-    rd.times_banned += 1
-    rd.banned_until = s.curr_iter + ban_length
-    # @info "banning rule $rule until $(rd.banned_until)!"
-    return false
+  if len > threshold
+    ban_length = stats.ban_length + s.default_eclass_ban_increment * stats.times_banned
+    stats.times_banned += 1
+    stats.banned_until = s.curr_iter + ban_length
   end
-  return true
 end
 
-function setiter!(s::ScoredScheduler, curr_iter)
+function setiter!(s::FreezingScheduler, curr_iter::Int)
   s.curr_iter = curr_iter
 end
 
+function rebuild!(s::FreezingScheduler)
+  new_data = Dict{Id,FreezingSchedulerStat}()
+  for (id, stats) in s.data
+    new_data[find(s.g, id)] = stats
+  end
+  finalize(s.data)
+  s.data = new_data
+  true
+end
 
 end
