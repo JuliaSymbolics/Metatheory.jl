@@ -375,7 +375,6 @@ function yield_expr(patvar_to_addr, direction::Int)
     push!(ematch_buffer, isliteral_bitvec)
 
     $(push_exprs...)
-    n_matches += 1
     g.needslock && unlock(g.lock)
     n_matches += 1
     @goto backtrack

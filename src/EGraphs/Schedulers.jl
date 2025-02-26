@@ -29,7 +29,7 @@ Should return `true` if the e-graph can be said to be saturated
 function cansaturate end
 
 """
-    search_matches!(s::AbstractScheduler, ematch_buffer::OptBuffer{UInt128}, rule_idx::Int)
+    search_matches!(s::AbstractScheduler, ematch_buffer::OptBuffer{UInt64}, rule_idx::Int)
 
 Uses the scheduler `s` to search for matches for rule with index `rule_idx`.
 Matches are stored in the ematch_buffer. Returns the number of matches.
@@ -56,7 +56,7 @@ function rebuild! end
 # Defaults
 # ===========================================================================
 
-@inline search_matches!(::AbstractScheduler, ::OptBuffer{UInt128}, ::Int) = 0
+@inline search_matches!(::AbstractScheduler, ::OptBuffer{UInt64}, ::Int) = 0
 @inline cansaturate(::AbstractScheduler) = true
 @inline setiter!(::AbstractScheduler, ::Int) = nothing
 @inline rebuild!(::AbstractScheduler) = nothing
@@ -114,7 +114,7 @@ end
 Apply all rules to all eclasses.
 """
 function search_matches!(s::SimpleScheduler,
-                         ematch_buffer::OptBuffer{UInt128},
+                         ematch_buffer::OptBuffer{UInt64},
                          rule_idx::Int)
   n_matches = 0
   rule = s.theory[rule_idx]
@@ -164,7 +164,7 @@ end
 
 
 function search_matches!(s::BackoffScheduler,
-                         ematch_buffer::OptBuffer{UInt128},
+                         ematch_buffer::OptBuffer{UInt64},
                          rule_idx::Int)
 
   (times_banned, banned_until) = s.data[rule_idx]
@@ -263,7 +263,7 @@ function cansearch!(s::FreezingScheduler, eclass_id)
 end
 
 function search_matches!(s::FreezingScheduler,
-                         ematch_buffer::OptBuffer{UInt128},
+                         ematch_buffer::OptBuffer{UInt64},
                          rule_idx::Int)
   n_matches = 0
   rule = s.theory[rule_idx]
