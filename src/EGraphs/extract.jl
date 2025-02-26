@@ -49,6 +49,7 @@ function find_best_node(extractor::Extractor, eclass_id::Id)
   eclass.nodes[node_index]
 end
 
+# TODO avoid multiple dispatch
 function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   did_something = true
   while did_something
@@ -92,7 +93,7 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
 end
 
 """
-A basic cost function, where the computed cost is the number 
+A basic cost function, where the computed cost is the number
 of expression tree nodes.
 """
 function astsize(n::VecExpr, op, costs)::Float64

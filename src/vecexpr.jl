@@ -24,7 +24,10 @@ export Id,
   v_set_signature!,
   v_pair,
   v_pair_first,
-  v_pair_last
+  v_pair_last,
+  v_new_literal,
+  v_bitvec_set,
+  v_bitvec_check
 
 const Id = UInt64
 
@@ -64,9 +67,11 @@ const VECEXPR_FLAG_ISTREE = 0x01
 const VECEXPR_FLAG_ISCALL = 0x10
 const VECEXPR_META_LENGTH = 4
 
+
+@inline v_new_literal(val::UInt64)::VecExpr = VecExpr(Id[0, 0, 0, val])
 @inline v_flags(n::VecExpr)::Id = @inbounds n.data[2]
 @inline v_unset_flags!(n::VecExpr) = @inbounds (n.data[2] = 0)
-@inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flags)
+@inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flag)
 @inline v_set_flag!(n::VecExpr, flag)::Id = @inbounds (n.data[2] = n.data[2] | flag)
 
 """Returns `true` if the e-node ID points to a an expression tree."""
@@ -133,5 +138,9 @@ v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 @inline Base.copy(n::VecExpr) = VecExpr(copy(n.data))
 @inline Base.lastindex(n::VecExpr) = lastindex(n.data)
 @inline Base.firstindex(n::VecExpr) = firstindex(n.data)
+
+
+@inline v_bitvec_set(x::UInt64, n::Int) = x | UInt64(1) << (n - 1)
+@inline v_bitvec_check(x::UInt64, n::Int) = Bool(x >> (n - 1) & UInt64(1))
 
 end

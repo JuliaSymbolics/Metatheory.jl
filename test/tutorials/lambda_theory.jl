@@ -43,7 +43,7 @@ x = Variable(:x)
 λ(:x, Apply(x, x))
 
 # The $\beta$-reduction can be implemented via an additional type `Let`. To get started we can ignore
-# the cases where we need $\alpha$-conversion and already implement 
+# the cases where we need $\alpha$-conversion and already implement
 
 @matchable struct Let <: LambdaExpr
   variable
@@ -186,13 +186,9 @@ x = Variable(:x)
 y = Variable(:y)
 ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
-params = SaturationParams(
-  timer = false,
-  check_memo = true,
-  check_analysis = true
-)
+params = SaturationParams(timer = false, check_memo = true, check_analysis = true)
 saturate!(g, λT, params)
-@test λ(:a₄, Apply(y, Variable(:a₄))) == extract!(g, astsize)
+@test λ(:a₂, Apply(y, Variable(:a₂))) == extract!(g, astsize)
 @test Set([:y]) == g[g.root].data
 
 
@@ -216,7 +212,7 @@ params = SaturationParams(
   schedulerparams = (match_limit = 6000, ban_length = 5),
   timer = false,
   check_memo = true,
-  check_analysis = true
+  check_analysis = true,
 )
 saturate!(g, λT, params)
 two_ = extract!(g, astsize)

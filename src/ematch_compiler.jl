@@ -6,7 +6,7 @@ Base.@kwdef mutable struct EMatchCompilerState
   first_nonground::Int = 0
 
   "Ground terms e-class IDs can be stored in a single σ variable"
-  ground_terms_to_addr::Dict{AbstractPat,Int} = Dict{AbstractPat,Int}()
+  ground_terms_to_addr::Dict{Pat,Int} = Dict{Pat,Int}()
 
   """
   Given a pattern variable with Debrujin index i
@@ -48,7 +48,7 @@ function ematch_compile(p, pvars, direction)
       rule_idx::Int,
       root_id::$(Metatheory.Id),
       stack::$(Metatheory.OptBuffer){UInt16},
-      ematch_buffer::$(Metatheory.OptBuffer){UInt128},
+      ematch_buffer::$(Metatheory.OptBuffer){UInt64},
       limit::$(Int)=$(typemax(Int))
     )::Int
       iszero(limit) && return 0 # return immediately when no matches are allowed
@@ -56,11 +56,19 @@ function ematch_compile(p, pvars, direction)
       $(pat_constants_checks...)
       # Initialize σ variables (e-classes memory) and enode iteration indexes
       $(make_memory(state.memsize, state.first_nonground)...)
+      # Each node in the pattern can store an index of an enode to iterate the e-classes
       $([:($(Symbol(:enode_idx, i)) = 1) for i in state.enode_idx_addresses]...)
+      # Each pattern variable can yield a literal. Store enode literal hashes in these variables
+      $([:($(Symbol(:literal_hash, i)) = UInt64(0)) for i in state.patvar_to_addr]...)
 
       n_matches = 0
       # Backtracking stack
-      # Instruction 0 is used to return when  the backtracking stack is empty. 
+      stack_idx = 0
+
+      # TODO: comment
+      isliteral_bitvec = UInt64(0)
+
+      # Instruction 0 is used to return when  the backtracking stack is empty.
       # We start from 1.
       push!(stack, 0x0000)
       pc = 0x0001
@@ -96,18 +104,21 @@ function ematch_compile(p, pvars, direction)
   end
 end
 
-
-check_constant_exprs!(buf, p::PatLiteral) = push!(buf, :(has_constant(g, $(last(p.n))) || return 0))
-check_constant_exprs!(buf, ::AbstractPat) = buf
-function check_constant_exprs!(buf, p::PatExpr)
-  if !(p.head isa AbstractPat)
-    push!(buf, :(has_constant(g, $(p.head_hash)) || has_constant(g, $(p.quoted_head_hash)) || return 0))
-  end
-  for child in children(p)
-    check_constant_exprs!(buf, child)
+# TODO document
+function check_constant_exprs!(buf, pat::Pat)
+  if pat.type === PAT_LITERAL
+    push!(buf, :(has_constant(g, $(pat.head_hash)) || return 0))
+  elseif pat.type === PAT_EXPR
+    if !(pat.head isa Pat)
+      push!(buf, :(has_constant(g, $(pat.head_hash)) || has_constant(g, $(pat.name_hash)) || return 0))
+    end
+    for child in pat.children
+      check_constant_exprs!(buf, child)
+    end
   end
   buf
 end
+
 
 """
 Create a vector of assignment expressions in the form of
@@ -123,23 +134,21 @@ make_memory(n, first_nonground) = [:($(Symbol(:σ, i)) = $(i == first_nonground 
 # TODO explain what is a ground term
 # ==============================================================
 
-"Don't compile non-ground terms as ground terms"
-ematch_compile_ground!(::AbstractPat, ::EMatchCompilerState, ::Int) = nothing
-
 # Ground e-matchers
-function ematch_compile_ground!(p::Union{PatExpr,PatLiteral}, state::EMatchCompilerState, addr::Int)
-  haskey(state.ground_terms_to_addr, p) && return nothing
+function ematch_compile_ground!(pat::Pat, state::EMatchCompilerState, addr::Int)
+  # Don't compile non-ground terms as ground terms
+  pat.type === PAT_VARIABLE || pat.type === PAT_SEGMENT || haskey(state.ground_terms_to_addr, pat) && return nothing
 
-  if isground(p)
+  if pat.isground
     # Remember that it has been searched and its stored in σaddr
-    state.ground_terms_to_addr[p] = addr
+    state.ground_terms_to_addr[pat] = addr
     # Add the lookup instruction to the program
-    push!(state.program, lookup_expr(addr, p))
+    push!(state.program, lookup_expr(addr, pat))
     # Memory needs one more register
     state.memsize += 1
-  else
+  elseif pat.type === PAT_EXPR
     # Search for ground patterns in the children.
-    for child_p in children(p)
+    for child_p in pat.children
       ematch_compile_ground!(child_p, state, state.memsize)
     end
   end
@@ -149,7 +158,25 @@ end
 # Term E-Matchers
 # ==============================================================
 
-function ematch_compile!(p::PatExpr, state::EMatchCompilerState, addr::Int)
+function ematch_compile!(p::Pat, state::EMatchCompilerState, addr::Int)
+  if p.type === PAT_EXPR
+    ematch_compile_expr!(p, state, addr)
+  elseif p.type === PAT_VARIABLE
+    ematch_compile_var!(p, state, addr)
+  elseif p.type === PAT_LITERAL
+    ematch_compile_literal!(p, state, addr)
+  else
+    # Pattern is not supported
+    push!(
+      state.program,
+      :(throw(DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")); return 0),
+    )
+  end
+end
+
+function ematch_compile_expr!(p::Pat, state::EMatchCompilerState, addr::Int)
+  @assert p.type === PAT_EXPR
+
   if haskey(state.ground_terms_to_addr, p)
     push!(state.program, check_eq_expr(addr, state.ground_terms_to_addr[p]))
     return
@@ -168,7 +195,9 @@ function ematch_compile!(p::PatExpr, state::EMatchCompilerState, addr::Int)
 end
 
 
-function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
+function ematch_compile_var!(p::Pat, state::EMatchCompilerState, addr::Int)
+  @assert p.type === PAT_VARIABLE
+
   instruction = if state.patvar_to_addr[p.idx] != -1
     # Pattern variable with the same Debrujin index has appeared in the
     # pattern before this. Just check if the current e-class id matches the one
@@ -179,22 +208,15 @@ function ematch_compile!(p::PatVar, state::EMatchCompilerState, addr::Int)
     state.patvar_to_addr[p.idx] = addr
     # insert instruction for checking predicates or type.
     push!(state.enode_idx_addresses, addr)
-    check_var_expr(addr, p.predicate)
+    # Runtime dispatch needed
+    check_var_expr(addr, p.predicate, p.idx)
   end
   push!(state.program, instruction)
 end
 
-# Pattern not supported.
-function ematch_compile!(p::AbstractPat, state::EMatchCompilerState, ::Int)
-  push!(
-    state.program,
-    :(throw(DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")); return 0),
-  )
-end
 
-
-
-function ematch_compile!(p::PatLiteral, state::EMatchCompilerState, addr::Int)
+function ematch_compile_literal!(p::Pat, state::EMatchCompilerState, addr::Int)
+  @assert p.type === PAT_LITERAL
   push!(state.program, check_eq_expr(addr, state.ground_terms_to_addr[p]))
 end
 
@@ -203,7 +225,8 @@ end
 # Actual Instructions
 # ==============================================================
 
-function bind_expr(addr::Int, p::PatExpr, memrange)
+function bind_expr(addr::Int, p::Pat, memrange)
+  @assert p.type === PAT_EXPR
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
@@ -214,7 +237,7 @@ function bind_expr(addr::Int, p::PatExpr, memrange)
 
       v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
       v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
-      v_head(n) === $(v_head(p.n)) || (v_head(n) === $(p.quoted_head_hash) || @goto $(Symbol(:skip_node, addr)))
+      v_head(n) === $(v_head(p.n)) || (v_head(n) === $(p.name_hash) || @goto $(Symbol(:skip_node, addr)))
 
       # Node has matched.
       $([:($(Symbol(:σ, j)) = n[$i + $VECEXPR_META_LENGTH]) for (i, j) in enumerate(memrange)]...)
@@ -235,7 +258,7 @@ function bind_expr(addr::Int, p::PatExpr, memrange)
   end
 end
 
-function check_var_expr(::Int, ::typeof(alwaystrue))
+function check_var_expr(::Int, ::typeof(alwaystrue), idx::Int64)
   quote
     # TODO: see if this is needed
     # eclass = g[$(Symbol(:σ, addr))]
@@ -250,7 +273,7 @@ function check_var_expr(::Int, ::typeof(alwaystrue))
   end
 end
 
-function check_var_expr(addr::Int, predicate::Function)
+function check_var_expr(addr::Int, predicate::Function, idx::Int64)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
@@ -258,6 +281,8 @@ function check_var_expr(addr::Int, predicate::Function)
         # TODO does this make sense? This should be unset.
         if !v_isexpr(n)
           $(Symbol(:enode_idx, addr)) = j + 1
+          $(Symbol(:literal_hash, addr)) = v_head(n)
+          isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           break
         end
       end
@@ -275,7 +300,7 @@ and a predicate checking a type `T`, iterates an e-class stored in the e-graph `
 pattern-matcher local variable `σaddr`, and matches if the
 e-class contains at least a literal that is of type
 """
-function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type})
+function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type}, idx::Int64)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     eclass_length = length(eclass.nodes)
@@ -284,9 +309,12 @@ function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type})
       n = eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       if !v_isexpr(n)
-        hn = Metatheory.EGraphs.get_constant(g, v_head(n))
+        h = v_head(n)
+        hn = Metatheory.EGraphs.get_constant(g, h)
         if $(predicate)(hn)
           $(Symbol(:enode_idx, addr)) += 1
+          $(Symbol(:literal_hash, addr)) = h
+          isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           pc += 0x0001
           @goto compute
         end
@@ -320,7 +348,8 @@ function check_eq_expr(addr_a::Int, addr_b::Int)
   end
 end
 
-function lookup_expr(addr::Int, p::AbstractPat)
+function lookup_expr(addr::Int, p::Pat)
+  @assert p.type === PAT_EXPR || p.type === PAT_LITERAL
   quote
     ecid = lookup_pat(g, $p)
     if ecid > 0
@@ -334,25 +363,19 @@ end
 
 function yield_expr(patvar_to_addr, direction::Int)
   push_exprs = [
-    quote
-      id = $(Symbol(:σ, addr))
-      eclass = g[id]
-      node_idx = $(Symbol(:enode_idx, addr)) - 1
-      if node_idx <= 0
-        push!(ematch_buffer, v_pair(id, reinterpret(UInt64, 0)))
-      else
-        n = eclass.nodes[node_idx]
-        push!(ematch_buffer, v_pair(id, v_head(n)))
-      end
-    end for
-    addr in patvar_to_addr
+    :(push!(
+      ematch_buffer,
+      v_bitvec_check(isliteral_bitvec, $i) ? $(Symbol(:literal_hash, addr)) : $(Symbol(:σ, addr)),
+    )) for (i, addr) in enumerate(patvar_to_addr)
   ]
   quote
     g.needslock && lock(g.lock)
-    push!(ematch_buffer, v_pair(root_id, reinterpret(UInt64, rule_idx * $direction)))
+    push!(ematch_buffer, root_id)
+    push!(ematch_buffer, reinterpret(UInt64, rule_idx * $direction))
+    push!(ematch_buffer, isliteral_bitvec)
+
     $(push_exprs...)
-    # Add delimiter to buffer.
-    push!(ematch_buffer, 0xffffffffffffffffffffffffffffffff)
+    n_matches += 1
     g.needslock && unlock(g.lock)
     n_matches += 1
     @goto backtrack

@@ -63,23 +63,35 @@ function rebuild! end
 
 
 
+function cached_ids(g::EGraph, p::Pat)
+  p.type === PAT_VARIABLE && return Iterators.map(x -> x.val, keys(g.classes))
 
-function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
-  if isground(p)
+  if p.isground
     id = lookup_pat(g, p)
-    iszero(id) ? UNDEF_ID_VEC : [id]
+    id > 0 ? [id] : UNDEF_ID_VEC
   else
     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
   end
 end
 
-function cached_ids(g::EGraph, p::PatLiteral)
-  id = lookup_pat(g, p)
-  id > 0 && return [id]
-  return UNDEF_ID_VEC
-end
 
-cached_ids(g::EGraph, ::PatVar) = Iterators.map(x -> x.val, keys(g.classes))
+
+# function cached_ids(g::EGraph, p::PatExpr)::Vector{Id}
+#   if isground(p)
+#     id = lookup_pat(g, p)
+#     iszero(id) ? UNDEF_ID_VEC : [id]
+#   else
+#     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
+#   end
+# end
+# 
+# function cached_ids(g::EGraph, p::PatLiteral)
+#   id = lookup_pat(g, p)
+#   id > 0 && return [id]
+#   return UNDEF_ID_VEC
+# end
+# 
+# cached_ids(g::EGraph, ::PatVar) = Iterators.map(x -> x.val, keys(g.classes))
 
 
 

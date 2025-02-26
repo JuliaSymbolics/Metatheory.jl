@@ -35,7 +35,9 @@ function Base.resize!(b::OptBuffer{T}, n::Int) where {T}
   @assert n <= b.i "Increasing the length of OptBuffer is not supported"
   b.i = n
 end
+Base.getindex(b::OptBuffer{T}, idx) where {T} = b.v[idx]
+Base.view(b::OptBuffer{T}, idx) where {T} = view(b.v, idx)
 Base.isempty(b::OptBuffer{T}) where {T} = b.i === 0
 Base.empty!(b::OptBuffer{T}) where {T} = (b.i = 0)
 @inline Base.length(b::OptBuffer{T}) where {T} = b.i
-Base.iterate(b::OptBuffer{T}, i=1) where {T} = iterate(b.v[1:b.i], i)
+Base.iterate(b::OptBuffer{T}, i=1) where {T} = i <= b.i ? (b.v[i], i + 1) : nothing
