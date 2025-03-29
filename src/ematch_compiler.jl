@@ -277,12 +277,14 @@ function check_var_expr(addr::Int, predicate::Function, idx::Int64)
   quote
     eclass = g[$(Symbol(:σ, addr))]
     if ($predicate)(g, eclass)
+      # @debug "$eclass matches predictate"
       for (j, n) in enumerate(eclass.nodes)
         # TODO does this make sense? This should be unset.
         if !v_isexpr(n)
+          # @debug "found literal node at index $j"
           $(Symbol(:enode_idx, addr)) = j + 1
-          $(Symbol(:literal_hash, addr)) = v_head(n)
-          isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
+          # $(Symbol(:literal_hash, addr)) = v_head(n)
+          # isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           break
         end
       end
