@@ -275,8 +275,6 @@ function check_var_expr(addr::Int, predicate::Function, idx::Int64)
         # TODO does this make sense? This should be unset.
         if !v_isexpr(n)
           $(Symbol(:enode_idx, addr)) = j + 1
-          $(Symbol(:literal_hash, addr)) = v_head(n)
-          isliteral_bitvec = v_bitvec_set(isliteral_bitvec, $idx)
           break
         end
       end
