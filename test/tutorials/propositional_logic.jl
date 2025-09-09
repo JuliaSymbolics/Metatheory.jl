@@ -17,10 +17,10 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
   @test prove(propositional_logic_theory, :((p ⟹ (p || p))))
   @test prove(propositional_logic_theory, :((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)))
 
-  @test prove(propositional_logic_theory, :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))))# Frege's theorem
+  @test prove(propositional_logic_theory, :((p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r)))) # Frege's theorem
 
   @test prove(propositional_logic_theory, :(!(p || q) == (!p && !q))) # Demorgan's
 end
 
 # Consensus theorem
-@test true == prove(propositional_logic_theory, :(((x && y) || (!x && z) || (y && z)) == ((x && y) || (!x && z))))
+@test prove(propositional_logic_theory, :(((x && y) || (!x && z) || (y && z)) == ((x && y) || (!x && z))))
