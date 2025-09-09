@@ -77,9 +77,9 @@ end
 
 
 function stream_fusion_cost(n::VecExpr, op, costs::Vector{Float64})::Float64
-  v_isexpr(n) || return 1
+  isexpr(n) || return 1
   op === :block && return sum(costs)
-  # cost = 1 + v_arity(n)
+  # cost = 1 + arity(n)
   cost = 1
   op ∈ (:map, :filter) && (cost += 10)
   cost + sum(costs)

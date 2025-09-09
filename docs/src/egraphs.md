@@ -17,7 +17,7 @@ using Metatheory.Library
 ```
 
 ```@meta
-DocTestSetup = quote 
+DocTestSetup = quote
     using Metatheory
     using Metatheory.Library
 end
@@ -34,7 +34,7 @@ of effort and time. When studying any computational, mathematical or scientific
 system governed by equational rules, about non obviously oriented equations, such as `(a + b) + c = a + (b + c
 )`?
 
-E-Graphs come to our help. 
+E-Graphs come to our help.
 EGraphs are bipartite graphs of e-nodes (stored in [`VecExpr`](@ref)s) and [`EClass`](@ref)es:
 a data structure for efficiently represent and rewrite on many equivalent expressions at the same time. A sort of fast data structure for sets of trees. Subtrees and parents are shared if possible. This makes EGraphs similar to DAGs.
 Most importantly, with EGraph rewriting you can use **bidirectional rewrite rules**, such as **equalities** without worrying about
@@ -80,7 +80,7 @@ comm_monoid = @commutative_monoid (*) 1
 
 **The e-graphs backend can directly handle associativity, equalities
 commutativity and distributivity**, rules that are
-otherwise known of causing loops and require extensive user reasoning 
+otherwise known of causing loops and require extensive user reasoning
 in classical rewriting.
 
 ```@example basic_theory
@@ -110,7 +110,7 @@ report = saturate!(g, t);
 ```
 
 With the EGraph equality saturation backend, Metatheory.jl can prove **simple**
-equalities very efficiently. 
+equalities very efficiently.
 
 
 ## Configurable Parameters
@@ -201,17 +201,17 @@ saturate!(g, t)
 ex = extract!(g, astsize)
 ```
 
-The second argument to `extract!` is a **cost function**. [astsize](@ref) is 
+The second argument to `extract!` is a **cost function**. [astsize](@ref) is
 a cost function provided by default, which computes the size of expressions.
 
 
 ## Defining custom cost functions for extraction.
 
 A *cost function* for *EGraph extraction* is a function used to determine
-which *e-node* will be extracted from an *e-class*. 
+which *e-node* will be extracted from an *e-class*.
 
 It must return a positive, non-complex number value and, must accept 3 arguments.
-1) The current e-node [VecExpr](@ref) `n` that is being inspected. 
+1) The current e-node [VecExpr](@ref) `n` that is being inspected.
 2) The object corresponding to the e-node operation.
 3) The cost of children as a `Vector`.
 
@@ -222,18 +222,18 @@ Here's an example:
 
 ```@example cost_function
 using Metatheory
-# This is a cost function that behaves like `astsize` but increments the cost 
-# of nodes containing the `^` operation. This results in a tendency to avoid 
+# This is a cost function that behaves like `astsize` but increments the cost
+# of nodes containing the `^` operation. This results in a tendency to avoid
 # extraction of expressions containing '^'.
 function cost_function(n::VecExpr, op, children_costs::Vector{Float64})::Float64
     # All literal expressions (e.g `a`, 123, 0.42, "hello") have cost 1
-    v_isexpr(n) || return 1
+    isexpr(n) || return 1
     cost = op == :^ ? 2 : 1
     cost + sum(children_costs)
 end
 ```
 
-We can now compare how the two cost functions behave. 
+We can now compare how the two cost functions behave.
 
 ```@example cost_function
 t = @theory begin
@@ -252,23 +252,23 @@ saturate!(g, t)
 extract!(g, astsize), extract!(g, cost_function)
 ```
 
-We can see that our custom `cost_function` tends to avoid terms that 
+We can see that our custom `cost_function` tends to avoid terms that
 contain the `^` operator as it yields a higher cost for such terms.
 
 ## EGraph Analyses
 
 An *EGraph Analysis* is an efficient and automated way of analyzing all the possible
-terms contained in an e-graph. Metatheory.jl provides a toolkit to ease and 
-automate the process of EGraph Analysis. 
+terms contained in an e-graph. Metatheory.jl provides a toolkit to ease and
+automate the process of EGraph Analysis.
 
-An *EGraph Analysis* defines a domain of values and associates a value from the domain to each [EClass](@ref) in the graph. Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).  Rewrites can cooperate with e-class analyses by depending on analysis facts and adding equivalences that in turn establish additional facts. 
+An *EGraph Analysis* defines a domain of values and associates a value from the domain to each [EClass](@ref) in the graph. Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).  Rewrites can cooperate with e-class analyses by depending on analysis facts and adding equivalences that in turn establish additional facts.
 
 In Metatheory.jl, **EGraph Analyses are uniquely identified** by a type:
-The `EGraph{E,A}` type is parametrized by the expression type `E` and the 
-**analysis type** `A`. 
+The `EGraph{E,A}` type is parametrized by the expression type `E` and the
+**analysis type** `A`.
 
 The following functions define an interface for analyses based on multiple dispatch:
- 
+
 * [make(g::EGraph{ExprType, AnalysisType}, n)](@ref) should take an e-node `n::VecExpr` and return a value from the analysis domain.
 * [join(x::AnalysisType, y::AnalysisType)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?* or *how should they be merged?*).`Base.isless` must be defined.
 * [modify!(g::EGraph{ExprType, AnalysisType}, eclass::EClass{AnalysisType})](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclass.id]` on-the-fly during an e-graph saturation iteration, given its analysis value, typically by adding an e-node.
@@ -295,7 +295,7 @@ associate an analysis value only to the *literals* contained in the EGraph (the 
 using Metatheory
 
 struct OddEvenAnalysis
-    s::Symbol # :odd or :even 
+    s::Symbol # :odd or :even
 end
 
 # Should be called only if isexpr(n) is false
@@ -307,39 +307,39 @@ odd_even_base_case(val) = nothing
 # ... Rest of code defined below
 ```
 
-Now we have to consider the *induction step*. 
+Now we have to consider the *induction step*.
 Knowing that our language contains only `*` and `+` operations, and knowing that:
 * odd * odd = odd
 * odd * even = even
 * even * even = even
 
-And we know that 
-* odd + odd = even 
-* odd + even = odd 
+And we know that
+* odd + odd = even
+* odd + even = odd
 * even + even = even
 
-We can now extend the function defined above to compute the analysis value for *nested* symbolic terms. 
-We take advantage of the methods in [TermInterface](https://github.com/JuliaSymbolics/TermInterface.jl) 
+We can now extend the function defined above to compute the analysis value for *nested* symbolic terms.
+We take advantage of the methods in [TermInterface](https://github.com/JuliaSymbolics/TermInterface.jl)
 to inspect the children of an e-node that is a tree-like expression and not a literal.
 From the definition of an e-node, we know that children of e-nodes are always IDs pointing
 to e-classes in the `EGraph`.
 
 ```@example custom_analysis
 function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::VecExpr) where {ExpressionType}
-    op = get_constant(g, v_head(n))
-    v_isexpr(n) || return odd_even_base_case(op)
+    op = get_constant(g, head(n))
+    isexpr(n) || return odd_even_base_case(op)
     # The e-node is not a literal value,
     # Let's consider only binary function call terms.
-    child_eclasses = v_children(n)
-    if v_iscall(n) && length(child_eclasses) == 2
+    child_eclasses = children(n)
+    if iscall(n) && length(child_eclasses) == 2
         # Get the left and right child eclasses
         l,r = g[child_eclasses[1]],  g[child_eclasses[2]]
 
-        if !isnothing(l.data) && !isnothing(r.data) 
+        if !isnothing(l.data) && !isnothing(r.data)
             if op == :*
                 if l.data == r.data
                     l.data
-                elseif (l.data.s == :even || r.data.s == :even) 
+                elseif (l.data.s == :even || r.data.s == :even)
                     OddEvenAnalysis(:even)
                 end
             elseif op == :+
@@ -354,8 +354,8 @@ function EGraphs.make(g::EGraph{ExpressionType,OddEvenAnalysis}, n::VecExpr) whe
 end
 ```
 
-We have now defined a way of tagging each e-node in the EGraph with `:odd` or `:even`, reasoning 
-inductively on the analyses values. The [analyze!](@ref) function will do the dirty job of doing 
+We have now defined a way of tagging each e-node in the EGraph with `:odd` or `:even`, reasoning
+inductively on the analyses values. The [analyze!](@ref) function will do the dirty job of doing
 a recursive walk over the EGraph. The missing piece, is now telling Metatheory.jl how to merge together
 analysis values. Since EClasses represent many equal ENodes, we have to inform the automated analysis
 how to extract a single value out of the many analyses values contained in an EGraph.
@@ -365,7 +365,7 @@ We do this by defining a method for [join](@ref).
 function EGraphs.join(a::OddEvenAnalysis, b::OddEvenAnalysis)
     # an expression cannot be odd and even at the same time!
     # this is contradictory, so we ignore the analysis value
-    a != b && error("contradiction") 
+    a != b && error("contradiction")
     a
 end
 ```
@@ -375,7 +375,7 @@ Therefore, we can skip the definition of [modify!](@ref).
 We are now ready to test our analysis.
 
 ```@example custom_analysis
-t = @theory a b c begin 
+t = @theory a b c begin
     a * (b * c) == (a * b) * c
     a + (b + c) == (a + b) + c
     a * b == b * a

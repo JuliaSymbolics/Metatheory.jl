@@ -49,7 +49,7 @@ end
 
 
 function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::VecExpr)
-  label = get_constant(g, v_head(node))
+  label = get_constant(g, head(node))
   # (mr, style) = if node in diff && get(report.cause, node, missing) !== missing
   #   pair = get(report.cause, node, missing)
   #   split(split("$(pair[1].rule) ", "=>")[1], "-->")[1], " color=\"red\""
@@ -61,11 +61,11 @@ function render_enode_node!(io::IO, g::EGraph, eclass_id, i::Int, node::VecExpr)
 end
 
 function render_enode_edges!(io::IO, g::EGraph, eclass_id, i, node::VecExpr)
-  v_isexpr(node) || return nothing
-  len = length(v_children(node))
-  for (ite, child) in enumerate(v_children(node))
+  isexpr(node) || return nothing
+  len = length(children(node))
+  for (ite, child) in enumerate(children(node))
     cluster_id = find(g, child)
-    # The limitation of graphviz is that it cannot point to the eclass outer frame, 
+    # The limitation of graphviz is that it cannot point to the eclass outer frame,
     # so when pointing to the same e-class, the next best thing is to point to the same e-node.
     target_id = "$cluster_id" * (cluster_id == eclass_id ? ".$i" : ".1")
 

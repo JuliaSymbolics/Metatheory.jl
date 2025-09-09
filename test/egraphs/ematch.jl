@@ -69,7 +69,7 @@ end
   r = @rule ~a::iseven --> true
   Base.iseven(g, ec::EClass) =
     any(ec.nodes) do n
-      h = v_head(n)
+      h = head(n)
       if has_constant(g, h)
         c = get_constant(g, h)
         return c isa Number && iseven(c)
@@ -312,7 +312,7 @@ end
   zero_id = addexpr!(g, 0)
 
   some_theory = @theory begin
-    ~a * ~b => 0 where (iszero(a) || iszero(b))
+    ~a * ~b => 0 where {(iszero(a) || iszero(b))}
     ~a * ~b --> ~b * ~a
   end
 
