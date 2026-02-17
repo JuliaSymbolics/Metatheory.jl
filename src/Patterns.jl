@@ -61,14 +61,14 @@ function pat_expr(iscall::Bool, op, qop, args::Vector{Pat})
   n = v_new(ar)
   v_set_flag!(n, VECEXPR_FLAG_ISTREE)
   iscall && v_set_flag!(n, VECEXPR_FLAG_ISCALL)
-  v_set_head!(n, op_hash)
+  v_set_head!(n, qop_hash)  # FIX: Use quoted operation hash to match e-graph
   v_set_signature!(n, signature)
 
   for i in v_children_range(n)
     @inbounds n[i] = 0
   end
 
-  Pat(PAT_EXPR, all(x -> x.isground, args), -1, alwaystrue, op, op_hash, qop, qop_hash, args, n)
+  Pat(PAT_EXPR, all(x -> x.isground, args), -1, alwaystrue, op, qop_hash, qop, qop_hash, args, n)  # FIX: Use qop_hash for head_hash too!
 end
 
 pat_expr(iscall, op, args::Vector{Pat}) = pat_expr(iscall, op, maybe_quote_operation(op), args)
