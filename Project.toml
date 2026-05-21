@@ -5,10 +5,6 @@ authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
 
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
-Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
-ProfileCanvas = "efd6af41-a80b-495e-886c-e51b0c7d77a3"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
@@ -21,10 +17,6 @@ Plotting = ["GraphViz"]
 
 [compat]
 AutoHashEquals = "2.2.0"
-BenchmarkTools = "1.8.0"
-JET = "0.11.3"
-Profile = "1.11.0"
-ProfileCanvas = "0.1.7"
 Reexport = "0.2, 1"
 TermInterface = "2.0"
 TimerOutputs = "0.5"
