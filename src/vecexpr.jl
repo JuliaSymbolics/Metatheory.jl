@@ -27,7 +27,8 @@ export Id,
   v_pair_last,
   v_new_literal,
   v_bitvec_set,
-  v_bitvec_check
+  v_bitvec_check,
+  v_bitvec_clear
 
 const Id = UInt64
 
@@ -141,6 +142,7 @@ v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 
 
 @inline v_bitvec_set(x::UInt64, n::Int) = x | UInt64(1) << (n - 1)
+@inline v_bitvec_clear(x::UInt64, n::Int) = x & ~(UInt64(1) << (n - 1))
 @inline v_bitvec_check(x::UInt64, n::Int) = Bool(x >> (n - 1) & UInt64(1))
 
 end

@@ -1,6 +1,7 @@
-using Metatheory, Test
+using Metatheory
 using Metatheory.Library
 using Metatheory.Schedulers
+using Test
 
 mult_t = @commutative_monoid (*) 1
 plus_t = @commutative_monoid (+) 0
@@ -159,10 +160,6 @@ function simplify(ex; steps = 4)
   push!(hist, hash(ex))
   for i in 1:steps
     g = EGraph(ex)
-    # TODO FIXME After https://github.com/JuliaSymbolics/Metatheory.jl/pull/261/ the order of application of
-    # matches in ematch_buffer has been reversed. There is likely some issue in rebuilding such that the
-    # order of application of rules changes the resulting e-graph, while this should not be the case.
-    # See comments in https://github.com/JuliaSymbolics/Metatheory.jl/pull/261#pullrequestreview-2609050078
     saturate!(g, reverse(cas), params)
     ex = extract!(g, simplcost)
     ex = rewrite(ex, canonical_t)

@@ -564,14 +564,26 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
+function rebuild_memo!(g::EGraph)
+  empty!(g.memo)
+  for (eclass_id, eclass) in g.classes
+    for n in eclass.nodes
+      g.memo[n] = eclass_id.val
+    end
+  end
+end
+
 function rebuild!(g::EGraph; should_check_memo = false, should_check_analysis = false)
   n_unions = process_unions!(g)
-  trimmed_nodes = rebuild_classes!(g)
+  rebuild_classes!(g)
+  # rebuild_memo! is only needed when merges occurred: canonicalize! modifies VecExpr
+  # hashes in-place, invalidating Dict bucket positions for those entries.
+  n_unions > 0 && rebuild_memo!(g)
   @assert !should_check_memo || check_memo(g)
   @assert !should_check_analysis || check_analysis(g)
   g.clean = true
 
-  @debug "REBUILT" n_unions trimmed_nodes
+  @debug "REBUILT" n_unions
 end
 
 # Thanks to Max Willsey and Yihong Zhang

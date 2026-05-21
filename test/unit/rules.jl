@@ -29,10 +29,10 @@ end
 
 @testset "String representation" begin
   r = @rule f(~x) --> ~x
-  r == eval(:(@rule $(Meta.parse(repr(r)))))
+  @test r == eval(:(@rule $(Meta.parse(repr(r)))))
 
   r = @rule Main.f(~~x) --> ~x
-  r == eval(:(@rule $(Meta.parse(repr(r)))))
+  @test r == eval(:(@rule $(Meta.parse(repr(r)))))
 end
 
 

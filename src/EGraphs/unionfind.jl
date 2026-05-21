@@ -115,3 +115,27 @@ function find(uf::UnionFind, i::Id)
   end
   i
 end
+
+
+# """
+#     find(uf::UnionFind, i::Id)
+
+# This computes the fixed point of `uf.parents` when applied to `i`, with path
+# compression: all nodes on the path are updated to point directly to the root,
+# keeping future lookups O(1).
+# """
+# function find(uf::UnionFind, i::Id)
+#   # Find root
+#   root = i
+#   while root != uf.parents[root]
+#     root = uf.parents[root]
+#   end
+#   # Path compression
+#   while i != root
+#     next = uf.parents[i]
+#     uf.parents[i] = root
+#     i = next
+#   end
+#   root
+# end
+

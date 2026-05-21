@@ -188,7 +188,20 @@ direct(@rule f(~x) == g(~x)) == f(~x) --> g(~x)
 ```
 """
 function direct(r::EqualityRule)
-  RewriteRule(r.name, -->, (getfield(r, k) for k in fieldnames(DirectedRule)[3:end])...)
+  RewriteRule(
+    name = r.name,
+    op = (-->),
+    left = r.left,
+    right = r.right,
+    right_fun = r.right_fun,
+    patvars = r.patvars,
+    ematcher_left! = r.ematcher_left!,
+    ematcher_right! = r.ematcher_right!,
+    matcher_left = r.matcher_left,
+    matcher_right = r.matcher_right,
+    lhs_original = r.lhs_original,
+    rhs_original = r.rhs_original,
+  )
 end
 
 """

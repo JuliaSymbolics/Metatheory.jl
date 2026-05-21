@@ -58,6 +58,7 @@ function match_compile(p::Pat, pvars)::Expr
 
       # Instruction 0 is used to return when  the backtracking stack is empty.
       # We start from 1.
+      empty!(stack)
       push!(stack, 0x0000)
       local pc = 0x0001
 

@@ -138,7 +138,7 @@ end
 # FreezingScheduler
 # ===========================================================================
 
-struct FreezingSchedulerStat
+mutable struct FreezingSchedulerStat
   times_banned::Int
   banned_until::Int
   size_limit::Int

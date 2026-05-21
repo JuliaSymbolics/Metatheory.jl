@@ -48,6 +48,13 @@ function makepredicate(mod, predicate::Symbol)
   obj isa Type ? Base.Fix2(isa, obj) : obj
 end
 
+function makepredicate(mod, predicate::Expr)
+  T = Core.eval(mod, predicate)
+  T isa Type ||
+    error("Predicate expression `$predicate` does not evaluate to a Type; got $(typeof(T))")
+  Base.Fix2(isa, T)
+end
+
 function makevar(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
   pat_var(PAT_VARIABLE, name)
@@ -206,8 +213,10 @@ function addslots(expr, slots)
       if expr.args[1] == Symbol("@rule")
         name = expr.args[3] isa String ? expr.args[3] : ""
         Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
-      elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+      elseif expr.args[1] in [Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
         Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+      else
+        expr  # unknown macrocall: pass through unchanged
       end
     else
       Expr(expr.head, addslots.(expr.args, (slots,))...)

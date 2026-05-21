@@ -195,7 +195,7 @@ end
 
 const CHECK_GOAL_EVERY_N_MATCHES = 20
 
-function eqsat_apply!(
+function _eqsat_apply_impl!(
   g::EGraph,
   theory::Theory,
   rep::SaturationReport,
@@ -203,8 +203,6 @@ function eqsat_apply!(
   ematch_buffer::OptBuffer{UInt64},
 )
   n_matches = 0
-  g.needslock && lock(g.lock)
-
   k = 1
   while k < length(ematch_buffer)
     if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
@@ -215,7 +213,6 @@ function eqsat_apply!(
 
     n_matches += 1
 
-
     id = ematch_buffer[k]
     rule_idx = reinterpret(Int, ematch_buffer[k + 1])
     isliteral_bitvec = ematch_buffer[k + 2]
@@ -224,9 +221,7 @@ function eqsat_apply!(
     rule = theory[rule_idx]
 
     bind_start = k + 3
-
     bind_end = bind_start + length(rule.patvars) - 1
-
     bindings = @view ematch_buffer[bind_start:bind_end]
 
     res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction)
@@ -252,10 +247,26 @@ function eqsat_apply!(
   if params.goal(g)
     @debug "Goal reached"
     rep.reason = :goalreached
-    return
   end
+end
 
-  g.needslock && unlock(g.lock)
+function eqsat_apply!(
+  g::EGraph,
+  theory::Theory,
+  rep::SaturationReport,
+  params::SaturationParams,
+  ematch_buffer::OptBuffer{UInt64},
+)
+  if g.needslock
+    lock(g.lock)
+    try
+      _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer)
+    finally
+      unlock(g.lock)
+    end
+  else
+    _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer)
+  end
 end
 
 

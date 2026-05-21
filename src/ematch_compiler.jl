@@ -68,6 +68,7 @@ function ematch_compile(p, pvars, direction)
 
       # Instruction 0 is used to return when  the backtracking stack is empty.
       # We start from 1.
+      empty!(stack)
       push!(stack, 0x0000)
       pc = 0x0001
 
@@ -270,9 +271,10 @@ end
 function check_var_expr(addr::Int, predicate::Function, idx::Int64)
   quote
     eclass = g[$(Symbol(:σ, addr))]
+    isliteral_bitvec = v_bitvec_clear(isliteral_bitvec, $idx)
+    $(Symbol(:literal_hash, addr)) = UInt64(0)
     if ($predicate)(g, eclass)
       for (j, n) in enumerate(eclass.nodes)
-        # TODO does this make sense? This should be unset.
         if !v_isexpr(n)
           $(Symbol(:enode_idx, addr)) = j + 1
           $(Symbol(:literal_hash, addr)) = v_head(n)
@@ -314,12 +316,16 @@ function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type}, idx
         end
       end
 
-      # This node did not match. Try next node and backtrack.
+      # This node did not match. Try next node; clear stale literal state for this variable.
+      isliteral_bitvec = v_bitvec_clear(isliteral_bitvec, $idx)
+      $(Symbol(:literal_hash, addr)) = UInt64(0)
       $(Symbol(:enode_idx, addr)) += 1
       @goto backtrack
     end
 
     # Restart from first option
+    isliteral_bitvec = v_bitvec_clear(isliteral_bitvec, $idx)
+    $(Symbol(:literal_hash, addr)) = UInt64(0)
     $(Symbol(:enode_idx, addr)) = 1
     @goto backtrack
   end

@@ -89,12 +89,11 @@ end
     1 * ~x --> ~x
   end
 
-
   g = EGraph(:(1 * x))
   params = SaturationParams(timeout = 100)
   saturate!(g, boson, params)
   ex = extract!(g, astsize)
-
+  @test ex == :x
 
   boson = @theory begin
     (:c * :cdag) --> :cdag * :c + 1
@@ -106,8 +105,10 @@ end
   end
 
   g = EGraph(:(c * c * cdag * cdag))
-  saturate!(g, boson)
+  report = saturate!(g, boson)
+  @test report.reason !== :error
   ex = extract!(g, astsize_inv)
+  @test isexpr(ex)  # expands to a larger expression, not a literal
 
 end
 

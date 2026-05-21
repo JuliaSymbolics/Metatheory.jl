@@ -1,10 +1,11 @@
 name = "Metatheory"
 uuid = "e9d8d322-4543-424a-9be4-0cc815abe26c"
-authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
 version = "3.0.0"
+authors = ["Alessandro Cheli - 0x0f0f0f <sudo-woodo3@protonmail.com>"]
 
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
@@ -18,6 +19,7 @@ Plotting = ["GraphViz"]
 
 [compat]
 AutoHashEquals = "2.2.0"
+BenchmarkTools = "1.8.0"
 DocStringExtensions = "0.8, 0.9"
 Reexport = "0.2, 1"
 TermInterface = "2.0"
