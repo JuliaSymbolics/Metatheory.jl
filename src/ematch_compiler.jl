@@ -63,7 +63,7 @@ function ematch_compile(p, pvars, direction)
       # Backtracking stack
       stack_idx = 0
 
-      # TODO: comment
+      # Bit i set when pattern variable i bound to a literal hash (not an e-class id).
       isliteral_bitvec = UInt64(0)
 
       # Instruction 0 is used to return when  the backtracking stack is empty.
@@ -99,7 +99,7 @@ function ematch_compile(p, pvars, direction)
   end
 end
 
-# TODO document
+"""Emit early `return 0` checks when ground constants from `pat` are absent from the e-graph."""
 function check_constant_exprs!(buf, pat::Pat)
   if pat.type === PAT_LITERAL
     push!(buf, :(has_constant(g, $(pat.head_hash)) || return 0))
@@ -126,7 +126,7 @@ make_memory(n, first_nonground) = [:($(Symbol(:σ, i)) = $(i == first_nonground 
 
 # ==============================================================
 # Ground Term E-Matchers
-# TODO explain what is a ground term
+# A ground term has no pattern variables: it is matched once via `lookup_pat` and stored in σ.
 # ==============================================================
 
 # Ground e-matchers

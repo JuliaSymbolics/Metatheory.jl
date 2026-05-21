@@ -7,7 +7,22 @@ using Reexport
 
 function to_expr end
 
-# TODO: document
+"""
+  maybe_quote_operation(x)
+
+Normalize pattern/e-node heads for hashing: callable and type objects become
+`nameof`, other values are kept as-is.
+
+Example:
+
+```julia
+maybe_quote_operation(sin) == :sin
+maybe_quote_operation(sin::Function) == :sin
+maybe_quote_operation(SomeType::Type) == :SomeType
+maybe_quote_operation(SomeType::UnionAll) == :SomeType
+maybe_quote_operation(SomeType::UnionAll) == :SomeType
+```
+"""
 Base.@inline maybe_quote_operation(x::Union{Function,DataType,UnionAll}) = nameof(x)
 Base.@inline maybe_quote_operation(x) = x
 

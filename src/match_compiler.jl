@@ -124,7 +124,8 @@ function make_coord_symbol(coordinate)::Symbol
   Symbol("_term_being_matched_", join(coordinate, "_"))
 end
 
-# TODO document
+# Cumulative argument offset from segment variables matched earlier in the same term.
+# Each segment binds a `view` into `_term_being_matched_args`; child coordinates add this offset.
 offset_so_far(segments) = foldl(
   (x, y) -> :($x + $y),
   map(n -> :(length(($(Symbol(varname(n), :_start))):($(Symbol(varname(n), :_end)))) - 1), segments);
