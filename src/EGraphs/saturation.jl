@@ -8,7 +8,7 @@ end
 SaturationReport() = SaturationReport(nothing, EGraph(), 0, TimerOutput())
 SaturationReport(g::EGraph) = SaturationReport(nothing, g, 0, TimerOutput())
 
-const Bindings = SubArray{UInt64,1,Vector{UInt64},Tuple{UnitRange{Int64}},true}
+const Bindings = SubArray{UInt64,1,Memory{UInt64},Tuple{UnitRange{Int64}},true}
 
 # string representation of timedata
 function Base.show(io::IO, x::SaturationReport)
@@ -49,14 +49,21 @@ function cached_ids(g::EGraph, p::Pat)
     id = lookup_pat(g, p)
     id > 0 ? [id] : UNDEF_ID_VEC
   elseif p.has_segment_children
-    # EXPENSIVE: segment patterns cannot use the arity-indexed classes_by_op cache
-    # because the segment matches e-nodes of any arity ≥ n_min with the right head.
-    # Fall back to filtering all e-classes by head hash.
+    # EXPENSIVE: O(eclasses × nodes) scan — segment patterns match any arity so
+    # the arity-indexed classes_by_op cache cannot be used.
     head_h  = v_head(p.n)
     name_h  = p.name_hash
     flags_p = v_flags(p.n)
-    (class_key.val for (class_key, eclass) in g.classes
-      if any(n -> v_flags(n) == flags_p && (v_head(n) == head_h || v_head(n) == name_h), eclass.nodes))
+    ids = Id[]
+    for (class_key, eclass) in g.classes
+      for n in eclass.nodes
+        if v_flags(n) == flags_p && (v_head(n) == head_h || v_head(n) == name_h)
+          push!(ids, class_key.val)
+          break
+        end
+      end
+    end
+    ids
   else
     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
   end

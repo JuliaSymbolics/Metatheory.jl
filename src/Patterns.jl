@@ -48,7 +48,7 @@ end
 
 function pat_var(type::PatternType, var::Symbol, idx::Int, predicate::Function)
   h = hash(var)
-  Pat(type, false, false, idx, predicate, var, h, var, h, Pat[], VecExpr(Id[]))
+  Pat(type, false, false, idx, predicate, var, h, var, h, Pat[], VecExpr(Memory{Id}(undef, 0)))
 end
 pat_var(type::PatternType, var::Symbol, idx::Int) = pat_var(type, var, idx, alwaystrue)
 pat_var(type::PatternType, var::Symbol) = pat_var(type, var, -1)

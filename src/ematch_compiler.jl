@@ -34,6 +34,26 @@ Base.@kwdef mutable struct EMatchCompilerState
   segment_patvar_syms::Dict{Int,Symbol} = Dict{Int,Symbol}()
 end
 
+"""
+Build a single `if pc === 1 elseif pc === 2 ... else error end` chain from the
+instruction list. A contiguous if/elseif chain is reliably lowered by LLVM into a
+jump table (switch instruction), whereas independent `if` blocks are not.
+"""
+function build_dispatch_chain(program::Vector{Expr})
+  n = length(program)
+  isempty(program) && return :(error("empty ematcher program"))
+
+  # Build inside-out: last elseif first
+  unreachable = :(error("ematcher: unreachable instruction"))
+  tail = Expr(:elseif, :(pc === $(UInt16(n))), program[n], unreachable)
+  for i in (n - 1):-1:2
+    tail = Expr(:elseif, :(pc === $(UInt16(i))), program[i], tail)
+  end
+
+  n == 1 ? Expr(:if, :(pc === $(UInt16(1))), program[1], unreachable) :
+           Expr(:if, :(pc === $(UInt16(1))), program[1], tail)
+end
+
 function ematch_compile(p, pvars, direction)
   # Create the compiler state with the right number of pattern variables
   state = EMatchCompilerState(; patvar_to_addr = fill(-1, length(pvars)))
@@ -96,15 +116,10 @@ function ematch_compile(p, pvars, direction)
       # Instruction 0 is used to return when  the backtracking stack is empty.
       pc === 0x0000 && return n_matches
 
-      # For each instruction in the program, create an if statement,
-      # Checking if the current value
-      $([:(
-        if pc === $(UInt16(i))
-          $code
-        end
-      ) for (i, code) in enumerate(state.program)]...)
-
-      error("unreachable code!")
+      # Dispatch to the current instruction via an if/elseif chain.
+      # A single chain (not independent if blocks) lets LLVM recognise the switch
+      # pattern and emit a jump table instead of a linear sequence of comparisons.
+      $(build_dispatch_chain(state.program))
 
       @label backtrack
       pc = pop!(stack)
@@ -312,7 +327,7 @@ function bind_expr(addr::Int, p::Pat, memrange)
     if $(Symbol(:enode_idx, addr)) <= eclass_length
       push!(stack, pc)
 
-      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
+      n = @inbounds eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_node, addr))
       v_signature(n) === $(v_signature(p.n)) || @goto $(Symbol(:skip_node, addr))
@@ -385,7 +400,7 @@ function bind_segment_expr(
     if $(Symbol(:enode_idx, addr)) <= eclass_length
       push!(stack, pc)
 
-      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
+      n = @inbounds eclass.nodes[$(Symbol(:enode_idx, addr))]
       $(Symbol(:enode_idx, addr)) += 1
 
       # Check flags, head, and minimum required arity
@@ -396,14 +411,12 @@ function bind_segment_expr(
       # Assign fixed prefix children
       $(prefix_assigns...)
 
-      # Save pre-push position then write [seg_len, child_ids...] to seg_buf.
-      # EXPENSIVE: O(segment_length) pushes.
+      # Save pre-push position, then write [seg_len, child_ids...] to seg_buf.
+      # Uses push_many! for a single unsafe_copyto! instead of per-element pushes.
       $(seg_offset_sym) = UInt64(length(seg_buf))
       let seg_len = v_arity(n) - $n_min
         push!(seg_buf, UInt64(seg_len))
-        for _seg_i in $seg_start_data_idx:(length(n.data) - $n_suffix)
-          push!(seg_buf, n.data[_seg_i])
-        end
+        Metatheory.push_many!(seg_buf, n.data, $seg_start_data_idx, length(n.data) - $n_suffix)
       end
 
       # Assign fixed suffix children (read from end of data array)
@@ -472,7 +485,7 @@ function check_var_expr(addr::Int, predicate::Base.Fix2{typeof(isa),<:Type}, idx
     eclass_length = length(eclass.nodes)
     if $(Symbol(:enode_idx, addr)) <= eclass_length
       push!(stack, pc)
-      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
+      n = @inbounds eclass.nodes[$(Symbol(:enode_idx, addr))]
 
       if !v_isexpr(n)
         h = v_head(n)

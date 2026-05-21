@@ -384,7 +384,7 @@ function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
 
-  isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
+  isexpr(e) || return add!(g, v_new_literal(add_constant!(g, e)), false)
 
   args = iscall(e) ? arguments(e) : children(e)
   ar = length(args)
