@@ -36,20 +36,20 @@ jobs:
 
       - name: Run egg benchmarks
         run: |
+          mkdir -p target
           cd ./egg-benchmark
-          cargo bench
+          cargo bench 2>&1 | tee ../target/egg-log.txt
           # cargo bench -- "basic_maths/simpl1"
           cd ../
 
       - name: Run Metatheory benchmarks
         run: |
-          echo $PATH
-          ls -l ~/.julia/bin
-          mkdir results
+          mkdir -p results target/mt_results
           benchpkg Metatheory \
             --rev="${{github.event.pull_request.base.sha}},${{github.event.pull_request.head.sha}}" \
             --url=${{ github.event.repository.clone_url }} \
-            --output-dir=results/ --tune
+            --output-dir=results/ --tune \
+            2>&1 | tee target/mt_results/mt-log.txt
 
       # - name: Create plots from benchmarks
       #   run: |

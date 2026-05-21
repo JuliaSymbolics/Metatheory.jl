@@ -86,10 +86,13 @@ function eqsat_search!(
   g.needslock && unlock(g.lock)
 
 
+  # Pre-compute timer label strings once (avoid String allocation inside the hot loop).
+  rule_labels = [string(i) for i in 1:length(theory)]
+
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
     prev_matches = n_matches
-    @timeit report.to string(rule_idx) begin
+    @timeit report.to rule_labels[rule_idx] begin
       prev_matches = n_matches
       # don't apply banned rules
       if !cansearch(scheduler, rule_idx)
@@ -385,8 +388,9 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
 
   params.timer || disable_timer!(report.to)
 
-  # Buffer for e-matching. Use a local buffer for generated functions.
-  ematch_buffer = OptBuffer{UInt64}(64)
+  # Buffer for e-matching. Pre-size generously: large graphs produce many matches
+  # and a small initial capacity forces many growth/copy cycles.
+  ematch_buffer = OptBuffer{UInt64}(1024)
 
   while true
     curr_iter += 1

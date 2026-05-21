@@ -104,7 +104,17 @@ end
 """The hash of the e-node."""
 @inline v_hash(n::VecExpr)::Id = @inbounds n.data[1]
 Base.hash(n::VecExpr, h::UInt) = hash(v_hash(n), h) # IdKey not necessary here
-Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:end])
+function Base.:(==)(a::VecExpr, b::VecExpr)
+  la = length(a.data)
+  la == length(b.data) || return false
+  # Skip position 1 (the cached hash); compare structural data directly from Memory.
+  # A plain @inbounds loop beats ccall(:memcmp) for the tiny arrays (~4-8 elements)
+  # typical of e-nodes, because ccall overhead dominates at that scale.
+  @inbounds for i in 2:la
+    a.data[i] == b.data[i] || return false
+  end
+  true
+end
 
 """Set e-node hash to zero."""
 @inline v_unset_hash!(n::VecExpr)::Id = @inbounds (n.data[1] = Id(0))

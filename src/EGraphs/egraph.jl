@@ -331,7 +331,7 @@ end
 
 function add_class_by_op(g::EGraph, n, eclass_id)
   key = IdKey(v_signature(n))
-  vec = get!(g.classes_by_op, key, Vector{Id}())
+  vec = get!(g.classes_by_op, key) do; Vector{Id}(); end
   push!(vec, eclass_id)
 end
 
@@ -471,12 +471,13 @@ function rebuild_classes!(g::EGraph)
   end
 
   for (eclass_id, eclass) in g.classes
-    # old_len = length(eclass.nodes)
     for n in eclass.nodes
       canonicalize!(g, n)
     end
-    # Sort to go in order?
-    unique!(eclass.nodes)
+    # Dedup eclass nodes by hash (after canonicalize! hashes are fresh).
+    # Sort-then-scan avoids allocating a Set{VecExpr} that unique! would use.
+    sort!(eclass.nodes, by = v_hash)
+    dedup_sorted_vecexpr!(eclass.nodes)
 
     for n in eclass.nodes
       add_class_by_op(g, n, eclass_id.val)
@@ -485,8 +486,33 @@ function rebuild_classes!(g::EGraph)
 
   for v in values(g.classes_by_op)
     sort!(v)
-    unique!(v)
+    # Two-pointer dedup for sorted UInt64 vector — avoids Set allocation.
+    dedup_sorted_ids!(v)
   end
+end
+
+function dedup_sorted_vecexpr!(v::Vector{VecExpr})
+  isempty(v) && return
+  j = 1
+  @inbounds for i in 2:length(v)
+    if v[i] != v[j]
+      j += 1
+      v[j] = v[i]
+    end
+  end
+  resize!(v, j)
+end
+
+function dedup_sorted_ids!(v::Vector{Id})
+  isempty(v) && return
+  j = 1
+  @inbounds for i in 2:length(v)
+    if v[i] != v[j]
+      j += 1
+      v[j] = v[i]
+    end
+  end
+  resize!(v, j)
 end
 
 function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {ExpressionType,AnalysisType}
