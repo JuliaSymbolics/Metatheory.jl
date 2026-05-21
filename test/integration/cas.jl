@@ -139,7 +139,7 @@ end
 
 
 function simplcost(n::VecExpr, op, costs)
-  v_isexpr(n) || return 1
+  isexpr(n) || return 1
   op === :block && return sum(costs)
   cost = 1
   (op ∈ (:∂, diff, :diff)) && (cost += 200)
@@ -221,12 +221,12 @@ end
 
 
 function EGraphs.make(g::EGraph{Expr,Type}, n::VecExpr)
-  h = get_constant(g, v_head(n))
-  v_isexpr(n) || return (h in (:im, im) ? Complex : typeof(h))
-  v_iscall(n) || return (Any)
+  h = get_constant(g, head(n))
+  isexpr(n) || return (h in (:im, im) ? Complex : typeof(h))
+  iscall(n) || return (Any)
 
   op = (h isa Symbol) ? getfield(@__MODULE__, h) : op
-  child_types = map(id -> g[id].data, v_children(n))
+  child_types = map(id -> g[id].data, children(n))
   return Base.promote_op(op, child_types...)
 end
 

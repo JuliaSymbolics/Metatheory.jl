@@ -91,7 +91,7 @@ extract!(g, astsize)
 
 function isfree(g::EGraph, eclass, var)
   @assert length(var.nodes) == 1
-  var_sym = get_constant(g, v_head(var.nodes[1]))
+  var_sym = get_constant(g, head(var.nodes[1]))
   @assert var_sym isa Symbol
   var_sym ∈ getdata(eclass)
 end
@@ -105,20 +105,20 @@ const LambdaAnalysis = Set{Symbol}
 getdata(eclass) = eclass.data
 
 function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr) where {ExprType}
-  v_isexpr(n) || return LambdaAnalysis()
-  if v_iscall(n)
-    h = v_head(n)
+  isexpr(n) || return LambdaAnalysis()
+  if iscall(n)
+    h = head(n)
     op = get_constant(g, h)
-    args = v_children(n)
+    args = children(n)
     eclass = g[args[1]]
     free = copy(getdata(eclass))
 
     if op == Variable
-      push!(free, get_constant(g, v_head(eclass.nodes[1])))
+      push!(free, get_constant(g, head(eclass.nodes[1])))
     elseif op == Let
       v, a, b = args[1:3] # v=a in b
       vclass = g[v]
-      vsy = get_constant(g, v_head(vclass.nodes[1]))
+      vsy = get_constant(g, head(vclass.nodes[1]))
       adata = getdata(g[a])
       bdata = getdata(g[b])
       union!(free, bdata)
@@ -127,7 +127,7 @@ function EGraphs.make(g::EGraph{ExprType,LambdaAnalysis}, n::VecExpr) where {Exp
     elseif op == λ
       v, b = args[1:2]
       vclass = g[v]
-      vsy = get_constant(g, v_head(vclass.nodes[1]))
+      vsy = get_constant(g, head(vclass.nodes[1]))
       bdata = getdata(g[b])
       union!(free, bdata)
       delete!(free, vsy)

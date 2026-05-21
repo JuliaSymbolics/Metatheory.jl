@@ -97,8 +97,8 @@ end
 
 @testset "Custom Cost Function 1" begin
   function cust_astsize(n::VecExpr, head, children_costs::Vector{Float64})::Float64
-    v_isexpr(n) || return 1
-    cost = 1 + v_arity(n)
+    isexpr(n) || return 1
+    cost = 1 + arity(n)
 
     if head == :^
       cost += 2
@@ -120,10 +120,10 @@ end
   a_id = addexpr!(g, :a)
 
   function costfun(n::VecExpr, op, children_costs::Vector{Float64})::Float64
-    v_isexpr(n) || return 1
-    v_arity(n) == 2 || return 1
+    isexpr(n) || return 1
+    arity(n) == 2 || return 1
 
-    left = v_children(n)[1]
+    left = children(n)[1]
     in_same_class(g, left, a_id) ? 1 : 100
   end
 
