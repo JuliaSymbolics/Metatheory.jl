@@ -48,6 +48,15 @@ function cached_ids(g::EGraph, p::Pat)
   if p.isground
     id = lookup_pat(g, p)
     id > 0 ? [id] : UNDEF_ID_VEC
+  elseif p.has_segment_children
+    # EXPENSIVE: segment patterns cannot use the arity-indexed classes_by_op cache
+    # because the segment matches e-nodes of any arity ≥ n_min with the right head.
+    # Fall back to filtering all e-classes by head hash.
+    head_h  = v_head(p.n)
+    name_h  = p.name_hash
+    flags_p = v_flags(p.n)
+    (class_key.val for (class_key, eclass) in g.classes
+      if any(n -> v_flags(n) == flags_p && (v_head(n) == head_h || v_head(n) == name_h), eclass.nodes))
   else
     get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
   end
@@ -81,10 +90,14 @@ function eqsat_search!(
         continue
       end
 
+      # Reset per-rule segment buffer before ematch; offset values in ematch_buffer
+      # will index into this buffer during the apply phase.
+      empty!(rule.segment_buffer)
+
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
-        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer)
+        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer, rule.segment_buffer)
         inform!(scheduler, rule_idx, i, n_matches)
       end
 
@@ -92,7 +105,7 @@ function eqsat_search!(
         ids_right = cached_ids(g, rule.right)
         for i in ids_right
           cansearch(scheduler, rule_idx, i) || continue
-          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer)
+          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer, rule.segment_buffer)
           inform!(scheduler, rule_idx, i, n_matches)
         end
       end
@@ -110,7 +123,7 @@ function eqsat_search!(
 end
 
 
-function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat)::Id
+function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat, seg_buf::OptBuffer{UInt64} = OptBuffer{UInt64}(0))::Id
   if p.type === PAT_VARIABLE
     return if v_bitvec_check(isliteral_bitvec, p.idx)
       add!(g, v_new_literal(bindings[p.idx]), true)
@@ -120,6 +133,52 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
   elseif p.type === PAT_LITERAL
     add_constant_hashed!(g, p.head, p.head_hash)
   elseif p.type === PAT_EXPR
+    if p.has_segment_children
+      # Variable-arity instantiation: compute total child count from segment bindings.
+      # EXPENSIVE: allocates a fresh VecExpr each call (cannot reuse p.n in-place).
+      total_arity = 0
+      for child in p.children
+        if child.type === PAT_SEGMENT
+          O = Int(bindings[child.idx])       # offset into seg_buf
+          total_arity += Int(seg_buf[O + 1]) # seg_len stored at O+1 (1-indexed)
+        else
+          total_arity += 1
+        end
+      end
+
+      fresh_n = v_new(total_arity)
+      fresh_n.data[2] = p.n.data[2]  # copy flags (istree, iscall)
+
+      if needs_operation_quoting(g)
+        add_constant_hashed!(g, p.name, p.name_hash)
+        fresh_n.data[4] = p.name_hash
+      else
+        add_constant_hashed!(g, p.head, p.head_hash)
+        fresh_n.data[4] = p.head_hash
+      end
+      # Signature encodes (quoted_op, actual_arity) — must use runtime total_arity
+      fresh_n.data[3] = hash(p.name, hash(total_arity))
+
+      # Fill children: splat segments, insert scalar children directly
+      ci = VECEXPR_META_LENGTH + 1
+      for child in p.children
+        if child.type === PAT_SEGMENT
+          O   = Int(bindings[child.idx])
+          L   = Int(seg_buf[O + 1])
+          for j in 1:L
+            fresh_n.data[ci] = seg_buf[O + 1 + j]
+            ci += 1
+          end
+        else
+          fresh_n.data[ci] = instantiate_enode!(bindings, isliteral_bitvec, g, child, seg_buf)
+          ci += 1
+        end
+      end
+
+      return add!(g, fresh_n, false)
+    end
+
+    # --- Fast path: no segment children (zero extra allocations) ---
     add_constant_hashed!(g, p.head, p.head_hash)
 
     if needs_operation_quoting(g)
@@ -128,7 +187,7 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
     end
 
     for i in v_children_range(p.n)
-      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
+      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH], seg_buf)
     end
   end
 
@@ -162,17 +221,18 @@ function apply_rule!(
   rule::RewriteRule,
   id::Id,
   direction::Int,
+  seg_buf::OptBuffer{UInt64},
 )::RuleApplicationResult
   if rule.op === (-->) # DirectedRule
-    new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right)
+    new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right, seg_buf)
     RuleApplicationResult(:nothing, new_id, id)
   elseif rule.op === (==) # EqualityRule
     pat_to_inst = direction == 1 ? rule.right : rule.left
-    new_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
+    new_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst, seg_buf)
     RuleApplicationResult(:nothing, new_id, id)
   elseif rule.op === (!=) # UnequalRule
     pat_to_inst = direction == 1 ? rule.right : rule.left
-    other_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
+    other_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst, seg_buf)
 
     if find(g, id) == find(g, other_id)
       @debug "$rule produced a contradiction!"
@@ -224,7 +284,7 @@ function _eqsat_apply_impl!(
     bind_end = bind_start + length(rule.patvars) - 1
     bindings = @view ematch_buffer[bind_start:bind_end]
 
-    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction)
+    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction, rule.segment_buffer)
 
     k = bind_end + 1
 

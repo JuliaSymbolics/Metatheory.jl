@@ -10,7 +10,8 @@ Base.@kwdef mutable struct EMatchCompilerState
 
   """
   Given a pattern variable with Debrujin index i
-  This vector stores the σ variable index (address) for that variable at position i
+  This vector stores the σ variable index (address) for that variable at position i.
+  Sentinel -2 marks a segment patvar (no σ; uses segment_patvar_syms instead).
   """
   patvar_to_addr::Vector{Int} = Int[]
 
@@ -25,6 +26,12 @@ Base.@kwdef mutable struct EMatchCompilerState
 
   "How many σ variables are needed to e-match"
   memsize = 1
+
+  """
+  Maps de Bruijn index of a segment patvar → local Symbol for its seg_buf offset.
+  E.g., de Bruijn index 2 → :seg_offset_2
+  """
+  segment_patvar_syms::Dict{Int,Symbol} = Dict{Int,Symbol}()
 end
 
 function ematch_compile(p, pvars, direction)
@@ -38,9 +45,16 @@ function ematch_compile(p, pvars, direction)
 
   ematch_compile!(p, state, state.first_nonground)
 
-  push!(state.program, yield_expr(state.patvar_to_addr, direction))
+  push!(state.program, yield_expr(state.patvar_to_addr, state.segment_patvar_syms, direction))
 
   pat_constants_checks = check_constant_exprs!(Expr[], p)
+
+  # Declare local variables for segment buffer offsets (one per segment patvar).
+  # Initialized to typemax(UInt64) = "no previous push" sentinel.
+  seg_offset_decls = [:($(sym) = typemax(UInt64)) for (_, sym) in state.segment_patvar_syms]
+
+  # literal_hash locals: only for non-segment patvars (addr > 0)
+  lit_hash_decls = [:($(Symbol(:literal_hash, i)) = UInt64(0)) for i in state.patvar_to_addr if i > 0]
 
   quote
     function ($(gensym("ematcher")))(
@@ -49,6 +63,7 @@ function ematch_compile(p, pvars, direction)
       root_id::$(Metatheory.Id),
       stack::$(Metatheory.OptBuffer){UInt16},
       ematch_buffer::$(Metatheory.OptBuffer){UInt64},
+      seg_buf::$(Metatheory.OptBuffer){UInt64} = $(Metatheory.OptBuffer){UInt64}(0),
     )::Int
       # If the constants in the pattern are not all present in the e-graph, just return
       $(pat_constants_checks...)
@@ -56,8 +71,10 @@ function ematch_compile(p, pvars, direction)
       $(make_memory(state.memsize, state.first_nonground)...)
       # Each node in the pattern can store an index of an enode to iterate the e-classes
       $([:($(Symbol(:enode_idx, i)) = 1) for i in state.enode_idx_addresses]...)
-      # Each pattern variable can yield a literal. Store enode literal hashes in these variables
-      $([:($(Symbol(:literal_hash, i)) = UInt64(0)) for i in state.patvar_to_addr]...)
+      # Each non-segment pattern variable can yield a literal hash
+      $(lit_hash_decls...)
+      # Segment patvar offset locals: typemax = "no prior push" sentinel
+      $(seg_offset_decls...)
 
       n_matches = 0
       # Backtracking stack
@@ -160,11 +177,11 @@ function ematch_compile!(p::Pat, state::EMatchCompilerState, addr::Int)
     ematch_compile_var!(p, state, addr)
   elseif p.type === PAT_LITERAL
     ematch_compile_literal!(p, state, addr)
-  else
-    # Pattern is not supported
+  elseif p.type === PAT_SEGMENT
+    # Segments are only valid as children of PAT_EXPR; reaching here is a bug or invalid pattern.
     push!(
       state.program,
-      :(throw(DomainError(p, "Pattern type $(typeof(p)) not supported in e-graph pattern matching")); return 0),
+      :(throw(DomainError($(QuoteNode(p.name)), "Segment variable ~~$(p.name) cannot appear at the root of an e-graph pattern")); return 0),
     )
   end
 end
@@ -177,6 +194,12 @@ function ematch_compile_expr!(p::Pat, state::EMatchCompilerState, addr::Int)
     return
   end
 
+  # Route to segment variant when any immediate child is a segment variable
+  if p.has_segment_children
+    ematch_compile_segment_expr!(p, state, addr)
+    return
+  end
+
   c = state.memsize
   nargs = arity(p)
   memrange = c:(c + nargs - 1)
@@ -186,6 +209,67 @@ function ematch_compile_expr!(p::Pat, state::EMatchCompilerState, addr::Int)
   push!(state.program, bind_expr(addr, p, memrange))
   for (i, child_p) in enumerate(arguments(p))
     ematch_compile!(child_p, state, memrange[i])
+  end
+end
+
+
+"""
+Compile a PAT_EXPR that contains exactly one segment child (~~x).
+Supports any mix of fixed-arity children before and after the segment.
+Multiple segments within a single expression are not supported.
+"""
+function ematch_compile_segment_expr!(p::Pat, state::EMatchCompilerState, addr::Int)
+  @assert p.type === PAT_EXPR
+
+  # Locate the single segment child
+  seg_positions = findall(c -> c.type === PAT_SEGMENT, p.children)
+  if length(seg_positions) != 1
+    push!(
+      state.program,
+      :(throw(DomainError(nothing, "E-graph matching requires exactly one segment variable per expression; got $(length($seg_positions))")); return 0),
+    )
+    return
+  end
+
+  seg_child_pos = only(seg_positions)   # 1-based position in p.children
+  seg_pat = p.children[seg_child_pos]
+
+  n_prefix = seg_child_pos - 1               # fixed children before segment
+  n_suffix = length(p.children) - seg_child_pos  # fixed children after segment
+  n_min    = n_prefix + n_suffix             # minimum e-node arity to match
+
+  # Allocate σ addresses for fixed children (non-segment), in order
+  fixed_children = [p.children[i] for i in eachindex(p.children) if i != seg_child_pos]
+  n_fixed = length(fixed_children)
+  c = state.memsize
+  state.memsize += n_fixed
+  fixed_addr_range = c:(c + n_fixed - 1)
+
+  # Register segment patvar: mark with sentinel -2, create a unique local symbol
+  seg_dbi = seg_pat.idx
+  if state.patvar_to_addr[seg_dbi] == -2
+    # Repeated segment variable — not yet supported
+    push!(
+      state.program,
+      :(throw(DomainError($(QuoteNode(seg_pat.name)), "Repeated segment variable ~~$(seg_pat.name) in one e-graph pattern is not yet supported")); return 0),
+    )
+    return
+  end
+  state.patvar_to_addr[seg_dbi] = -2
+  seg_offset_sym = Symbol(:seg_offset_, seg_dbi)
+  state.segment_patvar_syms[seg_dbi] = seg_offset_sym
+
+  push!(state.enode_idx_addresses, addr)
+
+  # Emit the segment bind instruction
+  push!(state.program, bind_segment_expr(addr, p, fixed_addr_range, seg_offset_sym, n_prefix, n_suffix, n_min))
+
+  # Compile each fixed child at its allocated σ address
+  fixed_slot = 1
+  for (ci, child_p) in enumerate(p.children)
+    ci == seg_child_pos && continue  # handled by bind_segment_expr
+    ematch_compile!(child_p, state, fixed_addr_range[fixed_slot])
+    fixed_slot += 1
   end
 end
 
@@ -249,6 +333,92 @@ function bind_expr(addr::Int, p::Pat, memrange)
 
     # # Restart from first option
     $(Symbol(:enode_idx, addr)) = 1
+    @goto backtrack
+  end
+end
+
+"""
+Bind instruction for a PAT_EXPR containing one segment variable.
+
+On each entry (including re-entries after backtracking), restores `seg_buf` to its
+pre-push position using the `typemax(UInt64)` sentinel protocol:
+  - `typemax(UInt64)` means "no previous push at this level" (first entry or after exhaustion).
+  - Any other value is the `seg_buf.i` saved before the previous successful push.
+
+# EXPENSIVE: this instruction iterates all e-nodes in an e-class and writes to seg_buf.
+# Called once per candidate e-class per iteration. Cost is proportional to eclass size.
+"""
+function bind_segment_expr(
+  addr::Int, p::Pat, fixed_addr_range, seg_offset_sym::Symbol,
+  n_prefix::Int, n_suffix::Int, n_min::Int,
+)
+  # Assignment expressions for fixed prefix children:
+  #   σ[fixed_addr_range[i]] = n.data[VECEXPR_META_LENGTH + i]  for i in 1:n_prefix
+  prefix_assigns = [
+    :($(Symbol(:σ, fixed_addr_range[i])) = n.data[$(VECEXPR_META_LENGTH + i)])
+    for i in 1:n_prefix
+  ]
+
+  # Assignment expressions for fixed suffix children (from end of e-node):
+  #   σ[fixed_addr_range[n_prefix+i]] = n.data[length(n.data) - (n_suffix - i)]
+  #   i=1,n_suffix=1 → n.data[length-0] = last child  ✓
+  #   i=1,n_suffix=2 → n.data[length-1] = penultimate  ✓
+  suffix_assigns = [
+    :($(Symbol(:σ, fixed_addr_range[n_prefix + i])) = n.data[length(n.data) - $(n_suffix - i)])
+    for i in 1:n_suffix
+  ]
+
+  # Segment data loop: children at positions n_prefix+1 .. arity-n_suffix (1-indexed).
+  # In n.data those are indices VECEXPR_META_LENGTH+n_prefix+1 .. length(n.data)-n_suffix.
+  seg_start_data_idx = VECEXPR_META_LENGTH + n_prefix + 1
+
+  quote
+    # --- Buffer restore protocol ---
+    # On re-entry after backtracking: typemax sentinel absent → restore to pre-push position,
+    # undoing this segment's data AND any inner segment data pushed after it.
+    if $(seg_offset_sym) != typemax(UInt64)
+      seg_buf.i = Int($(seg_offset_sym))
+    end
+
+    eclass = g[$(Symbol(:σ, addr))]
+    eclass_length = length(eclass.nodes)
+    if $(Symbol(:enode_idx, addr)) <= eclass_length
+      push!(stack, pc)
+
+      n = eclass.nodes[$(Symbol(:enode_idx, addr))]
+      $(Symbol(:enode_idx, addr)) += 1
+
+      # Check flags, head, and minimum required arity
+      v_flags(n) === $(v_flags(p.n)) || @goto $(Symbol(:skip_seg_node, addr))
+      v_head(n) === $(v_head(p.n)) || (v_head(n) === $(p.name_hash) || @goto $(Symbol(:skip_seg_node, addr)))
+      v_arity(n) >= $n_min || @goto $(Symbol(:skip_seg_node, addr))
+
+      # Assign fixed prefix children
+      $(prefix_assigns...)
+
+      # Save pre-push position then write [seg_len, child_ids...] to seg_buf.
+      # EXPENSIVE: O(segment_length) pushes.
+      $(seg_offset_sym) = UInt64(length(seg_buf))
+      let seg_len = v_arity(n) - $n_min
+        push!(seg_buf, UInt64(seg_len))
+        for _seg_i in $seg_start_data_idx:(length(n.data) - $n_suffix)
+          push!(seg_buf, n.data[_seg_i])
+        end
+      end
+
+      # Assign fixed suffix children (read from end of data array)
+      $(suffix_assigns...)
+
+      pc += 0x0001
+      @goto compute
+
+      @label $(Symbol(:skip_seg_node, addr))
+      @goto backtrack
+    end
+
+    # All nodes exhausted: reset enode index and sentinel for clean re-entry.
+    $(Symbol(:enode_idx, addr)) = 1
+    $(seg_offset_sym) = typemax(UInt64)
     @goto backtrack
   end
 end
@@ -361,13 +531,30 @@ function lookup_expr(addr::Int, p::Pat)
   end
 end
 
-function yield_expr(patvar_to_addr, direction::Int)
-  push_exprs = [
-    :(push!(
-      ematch_buffer,
-      v_bitvec_check(isliteral_bitvec, $i) ? $(Symbol(:literal_hash, addr)) : $(Symbol(:σ, addr)),
-    )) for (i, addr) in enumerate(patvar_to_addr)
-  ]
+"""
+Yield instruction: push one match record to `ematch_buffer`.
+
+Record layout (N = number of patvars):
+  [root_id, signed_rule_idx, isliteral_bitvec, binding_1, ..., binding_N]
+
+For regular patvars: binding_i = e-class ID or literal hash (as before).
+For segment patvars: binding_i = offset into rule.segment_buffer where
+  [seg_len, child_id_1, ..., child_id_seg_len] is stored.
+"""
+function yield_expr(patvar_to_addr, segment_patvar_syms::Dict{Int,Symbol}, direction::Int)
+  push_exprs = map(enumerate(patvar_to_addr)) do (i, addr)
+    if addr == -2
+      # Segment patvar: push the buffer offset stored in the local seg_offset symbol
+      seg_sym = segment_patvar_syms[i]
+      :(push!(ematch_buffer, $(seg_sym)))
+    else
+      # Regular patvar: push e-class ID or literal hash
+      :(push!(
+        ematch_buffer,
+        v_bitvec_check(isliteral_bitvec, $i) ? $(Symbol(:literal_hash, addr)) : $(Symbol(:σ, addr)),
+      ))
+    end
+  end
   quote
     g.needslock && lock(g.lock)
     push!(ematch_buffer, root_id)
@@ -380,4 +567,3 @@ function yield_expr(patvar_to_addr, direction::Int)
     @goto backtrack
   end
 end
-

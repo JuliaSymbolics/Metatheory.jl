@@ -428,6 +428,9 @@ macro rule(args...)
 
   setdebrujin!(lhs, pvars)
 
+  # Compute which patvars are segment variables (for apply-phase instantiation)
+  seg_patvars_bv = BitVector([Patterns.is_segment_patvar(lhs, name) for name in ppvars])
+  has_segs = any(seg_patvars_bv)
 
   ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
 
@@ -460,6 +463,8 @@ macro rule(args...)
       matcher_right = $matcher_right_expr,
       lhs_original = $(QuoteNode(l)),
       rhs_original = $(QuoteNode(rhs_original)),
+      has_segments = $has_segs,
+      segment_patvars = $seg_patvars_bv,
     )
   end
 end
@@ -561,7 +566,7 @@ macro capture(args...)
       right = $(pat_empty()),
       right_fun = (_lhs_expr, _egraph, pvars...) -> pvars,
       matcher_left = $matcher_left_expr,
-      ematcher_left! = () -> (),
+      ematcher_left! = (args...) -> 0,
     )
     __MATCHES__ = rule($(esc(ex)))
     if !isnothing(__MATCHES__)

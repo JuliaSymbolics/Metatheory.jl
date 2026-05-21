@@ -74,6 +74,12 @@ Base.@kwdef struct RewriteRule{Op<:Function}
   stack::OptBuffer{UInt16} = OptBuffer{UInt16}(STACK_SIZE)
   lhs_original = nothing
   rhs_original = nothing
+  "true when any patvar in this rule is a segment variable (~~x)"
+  has_segments::Bool = false
+  "bit i is set when patvars[i] is a segment variable; used by instantiate_enode!"
+  segment_patvars::BitVector = BitVector()
+  "per-rule segment storage; ematch writes offsets here, apply reads from it"
+  segment_buffer::OptBuffer{UInt64} = OptBuffer{UInt64}(64)
 end
 
 function --> end
@@ -175,6 +181,8 @@ function Base.inv(r::RewriteRule)
     matcher_right = r.matcher_left,
     lhs_original = r.rhs_original,
     rhs_original = r.lhs_original,
+    has_segments = r.has_segments,
+    segment_patvars = r.segment_patvars,
   )
 end
 
@@ -201,6 +209,8 @@ function direct(r::EqualityRule)
     matcher_right = r.matcher_right,
     lhs_original = r.lhs_original,
     rhs_original = r.rhs_original,
+    has_segments = r.has_segments,
+    segment_patvars = r.segment_patvars,
   )
 end
 
