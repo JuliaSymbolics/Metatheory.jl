@@ -49,7 +49,6 @@ jobs:
           benchpkg Metatheory \
             --rev="${{github.event.pull_request.base.sha}},${{github.event.pull_request.head.sha}}" \
             --url=${{ github.event.repository.clone_url }} \
-            --bench-on="${{github.event.pull_request.head.sha}}" \
             --output-dir=results/ --tune
 
       # - name: Create plots from benchmarks
