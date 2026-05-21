@@ -104,38 +104,22 @@ end
 """
     find(uf::UnionFind, i::Id)
 
-This computes the fixed point of `uf.parents` when applied to `i`.
-
-We know we are at a fixed point once `i == uf.parents[i]`. So, we continually
-set `i = uf.parents[i]` until this becomes true.
+This computes the fixed point of `uf.parents` when applied to `i`, with path
+compression: all nodes on the path are updated to point directly to the root,
+keeping future lookups O(1).
 """
 function find(uf::UnionFind, i::Id)
-  while i != uf.parents[i]
-    i = uf.parents[i]
+  # Find root
+  root = i
+  while root != uf.parents[root]
+    root = uf.parents[root]
   end
-  i
+  # Path compression: make all nodes on the path point directly to root
+  while i != root
+    next = uf.parents[i]
+    uf.parents[i] = root
+    i = next
+  end
+  root
 end
-
-
-# """
-#     find(uf::UnionFind, i::Id)
-
-# This computes the fixed point of `uf.parents` when applied to `i`, with path
-# compression: all nodes on the path are updated to point directly to the root,
-# keeping future lookups O(1).
-# """
-# function find(uf::UnionFind, i::Id)
-#   # Find root
-#   root = i
-#   while root != uf.parents[root]
-#     root = uf.parents[root]
-#   end
-#   # Path compression
-#   while i != root
-#     next = uf.parents[i]
-#     uf.parents[i] = root
-#     i = next
-#   end
-#   root
-# end
 

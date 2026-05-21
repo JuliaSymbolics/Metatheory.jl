@@ -214,15 +214,19 @@ end
 Construct an EGraph from a starting symbolic expression `expr`.
 """
 function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
+  classes = Dict{IdKey,EClass{Analysis}}(); sizehint!(classes, 64)
+  memo = Dict{VecExpr,Id}(); sizehint!(memo, 64)
+  constants = Dict{UInt64,Any}(); sizehint!(constants, 16)
+  classes_by_op = Dict{IdKey,Vector{Id}}(); sizehint!(classes_by_op, 32)
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
-    Dict{IdKey,EClass{Analysis}}(),
-    Dict{VecExpr,Id}(),
-    Dict{UInt64,Any}(),
+    classes,
+    memo,
+    constants,
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
     0,
-    Dict{IdKey,Vector{Id}}(),
+    classes_by_op,
     false,
     needslock,
     ReentrantLock(),

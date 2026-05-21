@@ -188,7 +188,14 @@ ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
 params = SaturationParams(timer = false, check_memo = true, check_analysis = true)
 saturate!(g, λT, params)
-@test λ(:a₂, Apply(y, Variable(:a₂))) == extract!(g, astsize)
+let result = extract!(g, astsize)
+  # Check alpha-equivalence: result should be λ(fresh, Apply(y, Variable(fresh)))
+  # for some fresh variable. The exact name depends on rule-firing order.
+  @test result isa λ
+  @test result.body isa Apply
+  @test result.body.lambda == y
+  @test result.body.value == Variable(result.x)
+end
 @test Set([:y]) == g[g.root].data
 
 
