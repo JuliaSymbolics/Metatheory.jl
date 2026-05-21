@@ -195,7 +195,7 @@ end
 @test :(y + csc(x)^2) == simplify(:(1 + y + cot(x)^2))
 
 @test simplify(:(diff(x^2, x))) == :(2x)
-@test_broken simplify(:(diff(x^(cos(x)), x))) == :((cos(x) / x + -(sin(x)) * log(x)) * x^cos(x))
+@test simplify(:(diff(x^(cos(x)), x))) == :((-(sin(x)) * log(x) + cos(x) / x) * x^cos(x))
 @test simplify(:(x * diff(x^2, x) * x)) == :(2x^3)
 
 @test simplify(:(diff(y^3, y) * diff(x^2 + 2, x) / y * x)) == :(6 * y * x^2) # :(3y * 2x^2)
@@ -206,7 +206,7 @@ end
 
 # params = SaturationParams(
 #   scheduler = BackoffScheduler,
-#   eclasslimit = 5000,
+  # eclasslimit = 5000,
 #   timeout = 7,
 #   # (match_limit = 1000, ban_length = 5),
 #   #stopwhen=stopwhen,

@@ -121,6 +121,17 @@ Slot variables may be declared directly as the first arguments to those macros:
 @rule x y sin(x + y) => sin(x)*cos(y) + cos(x)*sin(y);
 ```
 
+Predicates can also be attached to slot variables declared at the argument level, using the same `x::p` syntax. This applies the predicate to every occurrence of that variable across all rules in the theory:
+
+```julia:slots4
+@theory x::Number y::Number begin
+    x + y --> y + x
+    x * y --> y * x
+end
+```
+
+Here `x` and `y` will only match numeric values throughout the entire theory, without having to repeat `::Number` in every rule. This syntax works for both classical rewriting and e-graph rewriting.
+
 ### Theories
 
 In almost all use cases, it is practical to define many rules grouped together.

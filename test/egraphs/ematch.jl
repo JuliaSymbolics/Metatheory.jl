@@ -291,6 +291,20 @@ end
 end
 
 
+@testset "Theory-level predicate slots in Ematcher" begin
+  some_theory2 = @theory a::Number b::Number begin
+    a * b --> sin(a, b)
+  end
+
+  g = EGraph(:(2 * 3))
+  saturate!(g, some_theory2)
+  @test test_equality(some_theory2, :(2 * 3), :(sin(2, 3)); g)
+
+  g2 = EGraph(:(x * 3))
+  saturate!(g2, some_theory2)
+  @test !in_same_class(g2, addexpr!(g2, :(sin(x, 3))), g2.root)
+end
+
 @testset "Predicates in Ematcher" begin
   g = EGraph(:(2 * 3))
   zero_id = addexpr!(g, 0)

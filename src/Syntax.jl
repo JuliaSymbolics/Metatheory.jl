@@ -86,9 +86,19 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
+# Returns the slot spec (Symbol or x::Pred Expr) for `name`, or nothing if not a slot.
+function _slot_match(name::Symbol, slots)
+  for s in slots
+    s === name && return s
+    s isa Expr && s.head === :(::) && s.args[1] === name && return s
+  end
+  nothing
+end
+
 function makepattern(x, pvars, slots, mod, splat = false)::Pat
-  if x in slots
-    splat ? makesegment(x, pvars, mod) : makevar(x, pvars, mod)
+  slot = x isa Symbol ? _slot_match(x, slots) : (x in slots ? x : nothing)
+  if !isnothing(slot)
+    splat ? makesegment(slot, pvars, mod) : makevar(slot, pvars, mod)
   elseif x isa Symbol
     pat_literal(getfield(mod, x))
   elseif x isa QuoteNode
@@ -134,7 +144,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)::
 
   elseif h === :...
     makepattern(ex.args[1], pvars, slots, mod, true)
-  elseif h == :(::) && ex.args[1] in slots
+  elseif h == :(::) && ex.args[1] isa Symbol && !isnothing(_slot_match(ex.args[1], slots))
     splat ? makesegment(ex, pvars, mod) : makevar(ex, pvars, mod)
   elseif h === :$
     ex.args[1]
