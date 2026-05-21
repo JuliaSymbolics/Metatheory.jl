@@ -5,7 +5,6 @@ include("../docstrings.jl")
 using Metatheory.Rules
 using Metatheory.EGraphs
 using Metatheory.Patterns
-using DocStringExtensions
 
 export AbstractScheduler,
   SimpleScheduler, BackoffScheduler, FreezingScheduler, ScoredScheduler, cansaturate, cansearch, inform!, setiter!
