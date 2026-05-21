@@ -43,7 +43,7 @@ Base.@kwdef mutable struct SaturationParams
 end
 
 function cached_ids(g::EGraph, p::Pat)
-  p.type === PAT_VARIABLE && return Iterators.map(x -> x.val, keys(g.classes))
+  p.type === PAT_VARIABLE && return sorted_class_ids(g)
 
   if p.isground
     id = lookup_pat(g, p)
@@ -55,10 +55,11 @@ function cached_ids(g::EGraph, p::Pat)
     name_h  = p.name_hash
     flags_p = v_flags(p.n)
     ids = Id[]
-    for (class_key, eclass) in g.classes
+    for class_id in sorted_class_ids(g)
+      eclass = g.classes[IdKey(class_id)]
       for n in eclass.nodes
         if v_flags(n) == flags_p && (v_head(n) == head_h || v_head(n) == name_h)
-          push!(ids, class_key.val)
+          push!(ids, class_id)
           break
         end
       end

@@ -55,9 +55,12 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   while did_something
     did_something = false
 
-    for (id, eclass) in extractor.g.classes
+    for eclass_id in sorted_class_ids(extractor.g)
+      id = IdKey(eclass_id)
+      eclass = extractor.g.classes[id]
       min_cost = typemax(CT)
       min_cost_node_idx = 0
+      min_node_hash = typemax(UInt64)
 
       for (idx, n) in enumerate(eclass.nodes)
         has_all = true
@@ -71,9 +74,11 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
             get_constant(extractor.g, v_head(n)),
             CT[extractor.costs[IdKey(child_id)][1] for child_id in v_children(n)],
           )
-          if cost < min_cost
+          node_hash = v_hash(n)
+          if cost < min_cost || (cost == min_cost && node_hash < min_node_hash)
             min_cost = cost
             min_cost_node_idx = idx
+            min_node_hash = node_hash
           end
         end
       end
@@ -85,7 +90,8 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
     end
   end
 
-  for (id, _) in extractor.g.classes
+  for eclass_id in sorted_class_ids(extractor.g)
+    id = IdKey(eclass_id)
     if !haskey(extractor.costs, id)
       error("failed to compute extraction costs for eclass ", id.val)
     end

@@ -10,6 +10,18 @@ end
 
 
 
+@testset "Deterministic extraction" begin
+  t = comm_monoid ∪ fold_mul
+  ex = :(a * 3 * b * 4)
+  results = String[]
+  for _ in 1:10
+    g = EGraph(ex)
+    saturate!(g, t, SaturationParams(timeout = 15, timer = false))
+    push!(results, string(extract!(g, astsize)))
+  end
+  @test all(==(results[1]), results)
+end
+
 @testset "Extraction 1 - Commutative Monoid" begin
   t = comm_monoid ∪ fold_mul
   g = EGraph(:(3 * 4))

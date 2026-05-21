@@ -244,6 +244,19 @@ end
 EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(e; kwargs...)
 EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
 
+"""
+    sorted_class_ids(g::EGraph) -> Vector{Id}
+
+Return e-class ids in deterministic order. `Dict` iteration order is not stable
+across Julia versions or runs; use this wherever saturation or extraction would
+otherwise depend on `keys(g.classes)`.
+"""
+function sorted_class_ids(g::EGraph)::Vector{Id}
+  ids = Id[k.val for k in keys(g.classes)]
+  sort!(ids)
+  ids
+end
+
 # Fallback implementation for analysis methods make and modify
 @inline make(::EGraph, ::VecExpr) = nothing
 @inline modify!(::EGraph, ::EClass{Analysis}) where {Analysis} = nothing

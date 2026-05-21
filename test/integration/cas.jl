@@ -145,6 +145,7 @@ function simplcost(n::VecExpr, op, costs)
   cost = 1
   (op ∈ (:∂, diff, :diff)) && (cost += 200)
 
+
   cost + sum(costs)
 end
 
