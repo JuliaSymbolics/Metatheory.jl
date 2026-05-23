@@ -1,4 +1,4 @@
-using Metatheory
+using Metatheory, Test
 
 struct Σ end
 

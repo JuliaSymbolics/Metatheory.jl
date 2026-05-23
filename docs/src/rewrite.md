@@ -27,9 +27,9 @@ The `@rule` macro takes a pair of patterns  -- the _matcher_ and the _consequent
 
 **Rule operators**:
 - `LHS => RHS`: create a `DynamicRule`. The RHS is *evaluated* on rewrite.
-- `LHS --> RHS`: create a `RewriteRule`. The RHS is **not** evaluated but *symbolically substituted* on rewrite.
-- `LHS == RHS`: create a `EqualityRule`. In e-graph rewriting, this rule behaves like `RewriteRule` but can go in both directions. Doesn't work in classical rewriting.
-- `LHS ≠ RHS`: create a `UnequalRule`. Can only be used in e-graphs, and is used to eagerly stop the process of rewriting if LHS is found to be equal to RHS.
+- `LHS --> RHS`: create a `DirectedRule`. The RHS is **not** evaluated but *symbolically substituted* on rewrite.
+- `LHS == RHS`: create a `EqualityRule`. In e-graph rewriting, this rule behaves like `DirectedRule` but can go in both directions. Doesn't work in classical rewriting.
+- `LHS != RHS`: create a `UnequalRule`. Can only be used in e-graphs, and is used to eagerly stop the process of rewriting if LHS is found to be equal to RHS.
 
 
 You can use **dynamic rules**, defined with the `=>`
@@ -120,6 +120,17 @@ Slot variables may be declared directly as the first arguments to those macros:
 ```julia:slots3
 @rule x y sin(x + y) => sin(x)*cos(y) + cos(x)*sin(y);
 ```
+
+Predicates can also be attached to slot variables declared at the argument level, using the same `x::p` syntax. This applies the predicate to every occurrence of that variable across all rules in the theory:
+
+```julia:slots4
+@theory x::Number y::Number begin
+    x + y --> y + x
+    x * y --> y * x
+end
+```
+
+Here `x` and `y` will only match numeric values throughout the entire theory, without having to repeat `::Number` in every rule. This syntax works for both classical rewriting and e-graph rewriting.
 
 ### Theories
 

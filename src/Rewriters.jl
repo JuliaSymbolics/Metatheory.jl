@@ -13,7 +13,7 @@ rewriters.
 - `RestartedChain(itr)` like `Chain(itr)` but restarts from the first rewriter once on the
    first successful application of one of the chained rewriters.
 - `IfElse(cond, rw1, rw2)` runs the `cond` function on the input, applies `rw1` if cond
-   returns true, `rw2` if it retuns false
+   returns true, `rw2` if it returns false
 - `If(cond, rw)` is the same as `IfElse(cond, rw, Empty())`
 - `Prewalk(rw; threaded=false, thread_cutoff=100)` returns a rewriter which does a pre-order
    traversal of a given expression and applies the rewriter `rw`. Note that if
@@ -160,22 +160,22 @@ end
 struct Walk{ord,C,F,threaded}
   rw::C
   thread_cutoff::Int
-  similarterm::F
+  maketerm::F
 end
 
 function instrument(x::Walk{ord,C,F,threaded}, f) where {ord,C,F,threaded}
   irw = instrument(x.rw, f)
-  Walk{ord,typeof(irw),typeof(x.similarterm),threaded}(irw, x.thread_cutoff, x.similarterm)
+  Walk{ord,typeof(irw),typeof(x.maketerm),threaded}(irw, x.thread_cutoff, x.maketerm)
 end
 
 using .Threads
 
-function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
-  Walk{:post,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
+function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, maketerm = maketerm)
+  Walk{:post,typeof(rw),typeof(maketerm),threaded}(rw, thread_cutoff, maketerm)
 end
 
-function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
-  Walk{:pre,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
+function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, maketerm = maketerm)
+  Walk{:pre,typeof(rw),typeof(maketerm),threaded}(rw, thread_cutoff, maketerm)
 end
 
 struct PassThrough{C}
@@ -188,12 +188,12 @@ instrument(x::PassThrough, f) = PassThrough(instrument(x.rw, f))
 passthrough(x, default) = x === nothing ? default : x
 function (p::Walk{ord,C,F,false})(x) where {ord,C,F}
   @assert ord === :pre || ord === :post
-  if istree(x)
+  if isexpr(x)
     if ord === :pre
       x = p.rw(x)
     end
-    if istree(x)
-      x = p.similarterm(x, operation(x), map(PassThrough(p), unsorted_arguments(x)); exprhead = exprhead(x))
+    if isexpr(x)
+      x = p.maketerm(typeof(x), head(x), map(PassThrough(p), children(x)), nothing)
     end
     return ord === :post ? p.rw(x) : x
   else
@@ -203,20 +203,20 @@ end
 
 function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
   @assert ord === :pre || ord === :post
-  if istree(x)
+  if isexpr(x)
     if ord === :pre
       x = p.rw(x)
     end
-    if istree(x)
-      _args = map(arguments(x)) do arg
+    if isexpr(x)
+      _args = map(children(x)) do arg
         if node_count(arg) > p.thread_cutoff
           Threads.@spawn p(arg)
         else
           p(arg)
         end
       end
-      args = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, arguments(x))
-      t = p.similarterm(x, operation(x), args; exprhead = exprhead(x))
+      ntail = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, children(x))
+      t = p.maketerm(typeof(x), head(x), ntail, nothing)
     end
     return ord === :post ? p.rw(t) : t
   else

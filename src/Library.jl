@@ -6,59 +6,58 @@ include("docstrings.jl")
 
 module Library
 
-using Metatheory.Patterns
-using Metatheory.Rules
-
+using Metatheory
 
 macro commutativity(op)
-  RewriteRule(PatTerm(:call, op, [PatVar(:a), PatVar(:b)]), PatTerm(:call, op, [PatVar(:b), PatVar(:a)]))
+  :(@rule $(op)(~a, ~b) --> $(op)(~b, ~a))
 end
 
 macro right_associative(op)
-  RewriteRule(
-    PatTerm(:call, op, [PatVar(:a), PatTerm(:call, op, [PatVar(:b), PatVar(:c)])]),
-    PatTerm(:call, op, [PatTerm(:call, op, [PatVar(:a), PatVar(:b)]), PatVar(:c)]),
-  )
+  :(@rule a b c $(op)(a, $(op)(b, c)) --> $(op)($(op)(a, b), c))
 end
 macro left_associative(op)
-  RewriteRule(
-    PatTerm(:call, op, [PatTerm(:call, op, [PatVar(:a), PatVar(:b)]), PatVar(:c)]),
-    PatTerm(:call, op, [PatVar(:a), PatTerm(:call, op, [PatVar(:b), PatVar(:c)])]),
-  )
+  :(@rule a b c $(op)($(op)(a, b), c) --> $(op)(a, $(op)(b, c)))
 end
 
 
 macro identity_left(op, id)
-  RewriteRule(PatTerm(:call, op, [id, PatVar(:a)]), PatVar(:a))
+  :(@rule $(op)($id, ~a) --> ~a)
 end
 
 macro identity_right(op, id)
-  RewriteRule(PatTerm(:call, op, [PatVar(:a), id]), PatVar(:a))
+  :(@rule $(op)(~a, $id) --> ~a)
 end
 
 macro inverse_left(op, id, invop)
-  RewriteRule(PatTerm(:call, op, [PatTerm(:call, invop, [PatVar(:a)]), PatVar(:a)]), id)
+  :(@rule $(op)($(invop)(~a), ~a) --> $id)
 end
 macro inverse_right(op, id, invop)
-  RewriteRule(PatTerm(:call, op, [PatVar(:a), PatTerm(:call, invop, [PatVar(:a)])]), id)
+  :(@rule $(op)(~a, $(invop)(~a)) --> $id)
 end
 
 
 macro associativity(op)
   esc(quote
-    [(@left_associative $op), (@right_associative $op)]
+    RewriteRule[(@left_associative $op), (@right_associative $op)]
   end)
 end
 
 macro monoid(op, id)
-  esc(quote
-    [(@left_associative($op)), (@right_associative($op)), (@identity_left($op, $id)), (@identity_right($op, $id))]
-  end)
+  esc(
+    quote
+      RewriteRule[
+        (@left_associative($op)),
+        (@right_associative($op)),
+        (@identity_left($op, $id)),
+        (@identity_right($op, $id)),
+      ]
+    end,
+  )
 end
 
 macro commutative_monoid(op, id)
   esc(quote
-    [(@commutativity $op), (@left_associative $op), (@right_associative $op), (@identity_left $op $id)]
+    RewriteRule[(@commutativity $op), (@left_associative $op), (@right_associative $op), (@identity_left $op $id)]
   end)
 end
 

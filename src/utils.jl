@@ -1,48 +1,16 @@
 using Base: ImmutableDict
-
-function binarize(e::T) where {T}
-  !istree(e) && return e
-  head = exprhead(e)
-  if head == :call
-    op = operation(e)
-    args = arguments(e)
-    meta = metadata(e)
-    if op ∈ binarize_ops && arity(e) > 2
-      return foldl((x, y) -> similarterm(e, op, [x, y], symtype(e); metadata = meta, exprhead = head), args)
-    end
-  end
-  return e
-end
-
-"""
-Recursive version of binarize
-"""
-function binarize_rec(e::T) where {T}
-  !istree(e) && return e
-  head = exprhead(e)
-  op = operation(e)
-  args = map(binarize_rec, arguments(e))
-  meta = metadata(e)
-  if head == :call
-    if op ∈ binarize_ops && arity(e) > 2
-      return foldl((x, y) -> similarterm(e, op, [x, y], symtype(e); metadata = meta, exprhead = head), args)
-    end
-  end
-  return similarterm(e, op, args, symtype(e); metadata = meta, exprhead = head)
-end
-
-
+using TimerOutputs
 
 const binarize_ops = [:(+), :(*), (+), (*)]
 
 function cleanast(e::Expr)
-  # TODO better line removal 
-  if isexpr(e, :block)
+  # TODO better line removal
+  if e.head === :block
     return Expr(e.head, filter(x -> !(x isa LineNumberNode), e.args)...)
   end
 
   # Binarize
-  if isexpr(e, :call)
+  if iscall(e)
     op = e.args[1]
     if op ∈ binarize_ops && length(e.args) > 3
       return foldl((x, y) -> Expr(:call, op, x, y), @view e.args[2:end])
@@ -50,127 +18,6 @@ function cleanast(e::Expr)
   end
   return e
 end
-
-# Linked List interface
-@inline assoc(d::ImmutableDict, k, v) = ImmutableDict(d, k => v)
-
-struct LL{V}
-  v::V
-  i::Int
-end
-
-islist(x) = istree(x) || !isempty(x)
-
-Base.empty(l::LL) = empty(l.v)
-Base.isempty(l::LL) = l.i > length(l.v)
-
-Base.length(l::LL) = length(l.v) - l.i + 1
-@inline car(l::LL) = l.v[l.i]
-@inline cdr(l::LL) = isempty(l) ? empty(l) : LL(l.v, l.i + 1)
-
-# Base.length(t::Term) = length(arguments(t)) + 1 # PIRACY
-# Base.isempty(t::Term) = false
-# @inline car(t::Term) = operation(t)
-# @inline cdr(t::Term) = arguments(t)
-
-@inline car(v) = istree(v) ? operation(v) : first(v)
-@inline function cdr(v)
-  if istree(v)
-    arguments(v)
-  else
-    islist(v) ? LL(v, 2) : error("asked cdr of empty")
-  end
-end
-
-@inline take_n(ll::LL, n) = isempty(ll) || n == 0 ? empty(ll) : @views ll.v[(ll.i):(n + ll.i - 1)] # @views handles Tuple
-@inline take_n(ll, n) = @views ll[1:n]
-
-@inline function drop_n(ll, n)
-  if n === 0
-    return ll
-  else
-    istree(ll) ? drop_n(arguments(ll), n - 1) : drop_n(cdr(ll), n - 1)
-  end
-end
-@inline drop_n(ll::Union{Tuple,AbstractArray}, n) = drop_n(LL(ll, 1), n)
-@inline drop_n(ll::LL, n) = LL(ll.v, ll.i + n)
-
-
-
-isliteral(::Type{T}) where {T} = x -> x isa T
-is_literal_number(x) = isliteral(Number)(x)
-
-# are there nested ⋆ terms?
-function isnotflat(⋆)
-  function (x)
-    args = arguments(x)
-    for t in args
-      if istree(t) && operation(t) === (⋆)
-        return true
-      end
-    end
-    return false
-  end
-end
-
-function hasrepeats(x)
-  length(x) <= 1 && return false
-  for i in 1:(length(x) - 1)
-    if isequal(x[i], x[i + 1])
-      return true
-    end
-  end
-  return false
-end
-
-function merge_repeats(merge, xs)
-  length(xs) <= 1 && return false
-  merged = Any[]
-  i = 1
-
-  while i <= length(xs)
-    l = 1
-    for j in (i + 1):length(xs)
-      if isequal(xs[i], xs[j])
-        l += 1
-      else
-        break
-      end
-    end
-    if l > 1
-      push!(merged, merge(xs[i], l))
-    else
-      push!(merged, xs[i])
-    end
-    i += l
-  end
-  return merged
-end
-
-# Take a struct definition and make it be able to match in `@rule`
-macro matchable(expr)
-  @assert expr.head == :struct
-  name = expr.args[2]
-  if name isa Expr
-    name.head === :(<:) && (name = name.args[1])
-    name isa Expr && name.head === :curly && (name = name.args[1])
-  end
-  fields = filter(x -> !(x isa LineNumberNode), expr.args[3].args)
-  get_name(s::Symbol) = s
-  get_name(e::Expr) = (@assert(e.head == :(::)); e.args[1])
-  fields = map(get_name, fields)
-  quote
-    $expr
-    TermInterface.istree(::$name) = true
-    TermInterface.operation(::$name) = $name
-    TermInterface.arguments(x::$name) = getfield.((x,), ($(QuoteNode.(fields)...),))
-    TermInterface.arity(x::$name) = $(length(fields))
-    Base.length(x::$name) = $(length(fields) + 1)
-  end |> esc
-end
-
-
-using TimerOutputs
 
 const being_timed = Ref{Bool}(false)
 
@@ -184,54 +31,33 @@ macro timer(name, expr)
   )
 end
 
-macro iftimer(expr)
-  esc(expr)
-end
+# TODO adjust
+"Useful for debugging: prints the content of the e-graph match buffer in readable format."
+function buffer_readable(g, theory, ematch_buffer::OptBuffer{UInt64}, limit = length(ematch_buffer))
+  k = 1
+  while k < limit
+    id = ematch_buffer[k]
+    rule_idx = reinterpret(Int, ematch_buffer[k + 1])
+    isliteral_bitvec = ematch_buffer[k + 2]
+    direction = sign(rule_idx)
+    rule_idx = abs(rule_idx)
+    rule = theory[rule_idx]
 
-function timerewrite(f)
-  reset_timer!()
-  being_timed[] = true
-  x = f()
-  being_timed[] = false
-  print_timer()
-  println()
-  x
-end
+    bind_start = k + 3
 
-"""
-    @timerewrite expr
+    bind_end = bind_start + length(rule.patvars) - 1
 
-If `expr` calls `simplify` or a `RuleSet` object, track the amount of time
-it spent on applying each rule and pretty print the timing.
+    bindings = @view ematch_buffer[bind_start:bind_end]
 
-This uses [TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl).
+    # Print literal hashes as UInt64 hashes, and e-class IDs as ints with %
+    print(
+      "Rule $rule_idx on %$id bindings: [",
+      join(map(enumerate(bindings)) do (i, x)
+        v_bitvec_check(isliteral_bitvec, i) ? "$x" : "%$(reinterpret(Int64, x))"
+      end, ", "),
+      "]\n",
+    )
 
-## Example:
-
-```julia
-
-julia> expr = foldr(*, rand([a,b,c,d], 100))
-(a ^ 26) * (b ^ 30) * (c ^ 16) * (d ^ 28)
-
-julia> @timerewrite simplify(expr)
- ────────────────────────────────────────────────────────────────────────────────────────────────
-                                                         Time                   Allocations
-                                                 ──────────────────────   ───────────────────────
-                Tot / % measured:                     340ms / 15.3%           92.2MiB / 10.8%
-
- Section                                 ncalls     time   %tot     avg     alloc   %tot      avg
- ────────────────────────────────────────────────────────────────────────────────────────────────
- Rule((~y) ^ ~n * ~y => (~y) ^ (~n ...    667   11.1ms  21.3%  16.7μs   2.66MiB  26.8%  4.08KiB
-   RHS                                       92    277μs  0.53%  3.01μs   14.4KiB  0.14%     160B
- Rule((~x) ^ ~n * (~x) ^ ~m => (~x)...    575   7.63ms  14.6%  13.3μs   1.83MiB  18.4%  3.26KiB
- (*)(~(~(x::!issortedₑ))) => sort_arg...    831   6.31ms  12.1%  7.59μs    738KiB  7.26%     910B
-   RHS                                      164   3.03ms  5.81%  18.5μs    250KiB  2.46%  1.52KiB
-   ...
-   ...
- ────────────────────────────────────────────────────────────────────────────────────────────────
-(a ^ 26) * (b ^ 30) * (c ^ 16) * (d ^ 28)
-```
-"""
-macro timerewrite(expr)
-  :(timerewrite(() -> $(esc(expr))))
+    k = bind_end + 1
+  end
 end

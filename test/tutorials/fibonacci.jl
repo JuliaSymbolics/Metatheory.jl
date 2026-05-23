@@ -1,7 +1,6 @@
 # # Benchmarking Fibonacci. E-Graphs memoize computation.
 
-using Metatheory
-using Test
+using Metatheory, Test
 
 function fib end
 
