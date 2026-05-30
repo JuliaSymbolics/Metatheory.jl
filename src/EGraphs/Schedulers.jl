@@ -180,13 +180,13 @@ function search_matches!(s::BackoffScheduler,
   # Search matches in the egraph with the theshold (+1) as a limit.
   # Stop early when we found more matches than the threshold
   for i in cached_ids(s.g, rule.left)
-    eclass_matches = rule.ematcher_left!(s.g, rule_idx, i, rule.stack, ematch_buffer, threshold + 1 - n_matches)
+    eclass_matches = rule.ematcher_left!(s.g, rule_idx, i, rule.stack, ematch_buffer, limit = threshold + 1 - n_matches)
     n_matches += eclass_matches
     n_matches <= threshold || break
   end
   if is_bidirectional(rule) && n_matches <= threshold
     for i in cached_ids(s.g, rule.right)
-      eclass_matches = rule.ematcher_right!(s.g, rule_idx, i, rule.stack, ematch_buffer, threshold + 1 - n_matches)
+      eclass_matches = rule.ematcher_right!(s.g, rule_idx, i, rule.stack, ematch_buffer, limit = threshold + 1 - n_matches)
       n_matches += eclass_matches
       n_matches <= threshold || break
     end

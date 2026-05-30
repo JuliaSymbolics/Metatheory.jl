@@ -83,7 +83,7 @@ function ematch_compile(p, pvars, direction)
       root_id::$(Metatheory.Id),
       stack::$(Metatheory.OptBuffer){UInt16},
       ematch_buffer::$(Metatheory.OptBuffer){UInt64},
-      seg_buf::$(Metatheory.OptBuffer){UInt64} = $(Metatheory.OptBuffer){UInt64}(0),
+      seg_buf::$(Metatheory.OptBuffer){UInt64} = $(Metatheory.OptBuffer){UInt64}(0);
       limit::$(Int)=$(typemax(Int))
     )::Int
       iszero(limit) && return 0 # return immediately when no matches are allowed
