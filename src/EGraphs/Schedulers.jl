@@ -6,7 +6,6 @@ using Metatheory
 using Metatheory.Rules
 using Metatheory.EGraphs
 using Metatheory.Patterns
-using DocStringExtensions
 
 import Metatheory: UNDEF_ID_VEC
 import Metatheory.EGraphs: IdKey

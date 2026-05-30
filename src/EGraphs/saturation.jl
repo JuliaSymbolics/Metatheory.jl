@@ -8,7 +8,7 @@ end
 SaturationReport() = SaturationReport(nothing, EGraph(), 0, TimerOutput())
 SaturationReport(g::EGraph) = SaturationReport(nothing, g, 0, TimerOutput())
 
-const Bindings = SubArray{UInt64,1,Vector{UInt64},Tuple{UnitRange{Int64}},true}
+const Bindings = SubArray{UInt64,1,Memory{UInt64},Tuple{UnitRange{Int64}},true}
 
 # string representation of timedata
 function Base.show(io::IO, x::SaturationReport)
@@ -42,6 +42,34 @@ Base.@kwdef mutable struct SaturationParams
   check_analysis::Bool = false
 end
 
+function cached_ids(g::EGraph, p::Pat)
+  p.type === PAT_VARIABLE && return sorted_class_ids(g)
+
+  if p.isground
+    id = lookup_pat(g, p)
+    id > 0 ? [id] : UNDEF_ID_VEC
+  elseif p.has_segment_children
+    # EXPENSIVE: O(eclasses × nodes) scan — segment patterns match any arity so
+    # the arity-indexed classes_by_op cache cannot be used.
+    head_h  = v_head(p.n)
+    name_h  = p.name_hash
+    flags_p = v_flags(p.n)
+    ids = Id[]
+    for class_id in sorted_class_ids(g)
+      eclass = g.classes[IdKey(class_id)]
+      for n in eclass.nodes
+        if v_flags(n) == flags_p && (v_head(n) == head_h || v_head(n) == name_h)
+          push!(ids, class_id)
+          break
+        end
+      end
+    end
+    ids
+  else
+    get(g.classes_by_op, IdKey(v_signature(p.n)), UNDEF_ID_VEC)
+  end
+end
+
 """
 Returns the number of matches
 """
@@ -58,9 +86,12 @@ function eqsat_search!(
   empty!(ematch_buffer)
   g.needslock && unlock(g.lock)
 
+  # Pre-compute timer label strings once (avoid String allocation inside the hot loop).
+  rule_labels = [string(i) for i in 1:length(theory)]
+
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
-    @timeit report.to string(rule_idx) begin
+    @timeit report.to rule_labels[rule_idx] begin
       rule_n_matches = search_matches!(scheduler, ematch_buffer, rule_idx)
     end
     rule_n_matches > 0 && @debug "Rule $rule_idx: $rule produced $(rule_n_matches) matches"
@@ -71,7 +102,7 @@ function eqsat_search!(
 end
 
 
-function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat)::Id
+function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGraph, p::Pat, seg_buf::OptBuffer{UInt64} = OptBuffer{UInt64}(0))::Id
   if p.type === PAT_VARIABLE
     return if v_bitvec_check(isliteral_bitvec, p.idx)
       add!(g, v_new_literal(bindings[p.idx]), true)
@@ -81,6 +112,52 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
   elseif p.type === PAT_LITERAL
     add_constant_hashed!(g, p.head, p.head_hash)
   elseif p.type === PAT_EXPR
+    if p.has_segment_children
+      # Variable-arity instantiation: compute total child count from segment bindings.
+      # EXPENSIVE: allocates a fresh VecExpr each call (cannot reuse p.n in-place).
+      total_arity = 0
+      for child in p.children
+        if child.type === PAT_SEGMENT
+          O = Int(bindings[child.idx])       # offset into seg_buf
+          total_arity += Int(seg_buf[O + 1]) # seg_len stored at O+1 (1-indexed)
+        else
+          total_arity += 1
+        end
+      end
+
+      fresh_n = v_new(total_arity)
+      fresh_n.data[2] = p.n.data[2]  # copy flags (istree, iscall)
+
+      if needs_operation_quoting(g)
+        add_constant_hashed!(g, p.name, p.name_hash)
+        fresh_n.data[4] = p.name_hash
+      else
+        add_constant_hashed!(g, p.head, p.head_hash)
+        fresh_n.data[4] = p.head_hash
+      end
+      # Signature encodes (quoted_op, actual_arity) — must use runtime total_arity
+      fresh_n.data[3] = hash(p.name, hash(total_arity))
+
+      # Fill children: splat segments, insert scalar children directly
+      ci = VECEXPR_META_LENGTH + 1
+      for child in p.children
+        if child.type === PAT_SEGMENT
+          O   = Int(bindings[child.idx])
+          L   = Int(seg_buf[O + 1])
+          for j in 1:L
+            fresh_n.data[ci] = seg_buf[O + 1 + j]
+            ci += 1
+          end
+        else
+          fresh_n.data[ci] = instantiate_enode!(bindings, isliteral_bitvec, g, child, seg_buf)
+          ci += 1
+        end
+      end
+
+      return add!(g, fresh_n, false)
+    end
+
+    # --- Fast path: no segment children (zero extra allocations) ---
     add_constant_hashed!(g, p.head, p.head_hash)
 
     if needs_operation_quoting(g)
@@ -89,7 +166,7 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
     end
 
     for i in v_children_range(p.n)
-      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH])
+      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH], seg_buf)
     end
   end
 
@@ -123,17 +200,18 @@ function apply_rule!(
   rule::RewriteRule,
   id::Id,
   direction::Int,
+  seg_buf::OptBuffer{UInt64},
 )::RuleApplicationResult
   if rule.op === (-->) # DirectedRule
-    new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right)
+    new_id::Id = instantiate_enode!(bindings, isliteral_bitvec, g, rule.right, seg_buf)
     RuleApplicationResult(:nothing, new_id, id)
   elseif rule.op === (==) # EqualityRule
     pat_to_inst = direction == 1 ? rule.right : rule.left
-    new_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
+    new_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst, seg_buf)
     RuleApplicationResult(:nothing, new_id, id)
   elseif rule.op === (!=) # UnequalRule
     pat_to_inst = direction == 1 ? rule.right : rule.left
-    other_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst)
+    other_id = instantiate_enode!(bindings, isliteral_bitvec, g, pat_to_inst, seg_buf)
 
     if find(g, id) == find(g, other_id)
       @debug "$rule produced a contradiction!"
@@ -156,7 +234,7 @@ end
 
 const CHECK_GOAL_EVERY_N_MATCHES = 20
 
-function eqsat_apply!(
+function _eqsat_apply_impl!(
   g::EGraph,
   theory::Theory,
   rep::SaturationReport,
@@ -164,8 +242,6 @@ function eqsat_apply!(
   ematch_buffer::OptBuffer{UInt64},
 )
   n_matches = 0
-  g.needslock && lock(g.lock)
-
   k = 1
   while k < length(ematch_buffer)
     if n_matches % CHECK_GOAL_EVERY_N_MATCHES == 0 && params.goal(g)
@@ -176,7 +252,6 @@ function eqsat_apply!(
 
     n_matches += 1
 
-
     id = ematch_buffer[k]
     rule_idx = reinterpret(Int, ematch_buffer[k + 1])
     isliteral_bitvec = ematch_buffer[k + 2]
@@ -185,12 +260,10 @@ function eqsat_apply!(
     rule = theory[rule_idx]
 
     bind_start = k + 3
-
     bind_end = bind_start + length(rule.patvars) - 1
-
     bindings = @view ematch_buffer[bind_start:bind_end]
 
-    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction)
+    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction, rule.segment_buffer)
 
     k = bind_end + 1
 
@@ -213,10 +286,26 @@ function eqsat_apply!(
   if params.goal(g)
     @debug "Goal reached"
     rep.reason = :goalreached
-    return
   end
+end
 
-  g.needslock && unlock(g.lock)
+function eqsat_apply!(
+  g::EGraph,
+  theory::Theory,
+  rep::SaturationReport,
+  params::SaturationParams,
+  ematch_buffer::OptBuffer{UInt64},
+)
+  if g.needslock
+    lock(g.lock)
+    try
+      _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer)
+    finally
+      unlock(g.lock)
+    end
+  else
+    _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer)
+  end
 end
 
 
@@ -268,8 +357,9 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
 
   params.timer || disable_timer!(report.to)
 
-  # Buffer for e-matching. Use a local buffer for generated functions.
-  ematch_buffer = OptBuffer{UInt64}(64)
+  # Buffer for e-matching. Pre-size generously: large graphs produce many matches
+  # and a small initial capacity forces many growth/copy cycles.
+  ematch_buffer = OptBuffer{UInt64}(1024)
 
   while true
     curr_iter += 1

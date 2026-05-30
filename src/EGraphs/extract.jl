@@ -18,7 +18,7 @@ end
 function extract_expr_recursive(g::EGraph{T}, n::VecExpr, get_node::Function) where {T}
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return h
-  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
+  children = Any[extract_expr_recursive(g, get_node(c), get_node) for c in v_children(n)]
   # TODO metadata?
   maketerm(T, h, children, nothing)
 end
@@ -26,7 +26,7 @@ end
 function extract_expr_recursive(g::EGraph{Expr}, n::VecExpr, get_node::Function)
   h = get_constant(g, v_head(n))
   v_isexpr(n) || return h
-  children = map(c -> extract_expr_recursive(g, c, get_node), get_node.(v_children(n)))
+  children = Any[extract_expr_recursive(g, get_node(c), get_node) for c in v_children(n)]
 
   if v_iscall(n)
     maketerm(Expr, :call, [h; children], nothing)
@@ -55,9 +55,12 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
   while did_something
     did_something = false
 
-    for (id, eclass) in extractor.g.classes
+    for eclass_id in sorted_class_ids(extractor.g)
+      id = IdKey(eclass_id)
+      eclass = extractor.g.classes[id]
       min_cost = typemax(CT)
       min_cost_node_idx = 0
+      min_node_hash = typemax(UInt64)
 
       for (idx, n) in enumerate(eclass.nodes)
         has_all = true
@@ -69,11 +72,13 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
           cost = extractor.cost_function(
             n,
             get_constant(extractor.g, v_head(n)),
-            map(child_id -> extractor.costs[IdKey(child_id)][1], v_children(n)),
+            CT[extractor.costs[IdKey(child_id)][1] for child_id in v_children(n)],
           )
-          if cost < min_cost
+          node_hash = v_hash(n)
+          if cost < min_cost || (cost == min_cost && node_hash < min_node_hash)
             min_cost = cost
             min_cost_node_idx = idx
+            min_node_hash = node_hash
           end
         end
       end
@@ -85,7 +90,8 @@ function find_costs!(extractor::Extractor{CF,CT}) where {CF,CT}
     end
   end
 
-  for (id, _) in extractor.g.classes
+  for eclass_id in sorted_class_ids(extractor.g)
+    id = IdKey(eclass_id)
     if !haskey(extractor.costs, id)
       error("failed to compute extraction costs for eclass ", id.val)
     end
@@ -106,7 +112,7 @@ A basic cost function, where the computed cost is the number
 of expression tree nodes times -1.
 Strives to get the largest expression. This may lead to stack overflow for egraphs with loops.
 """
-function astsize_inv(n::VecExpr, op, costs::Vector{Float64})::Float64
+function astsize_inv(n::VecExpr, op, costs::AbstractVector{Float64})::Float64
   v_isexpr(n) || return -1
   cost = -1 + sum(costs)
 end

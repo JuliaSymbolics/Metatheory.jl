@@ -30,7 +30,7 @@ Manifest.toml
 coverage/
 
 .vscode/
-ideas/
+# ideas/
 benchmarks/target
 benchmarks/Cargo.lock
 .lh

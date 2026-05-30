@@ -27,16 +27,17 @@ export Id,
   v_pair_last,
   v_new_literal,
   v_bitvec_set,
-  v_bitvec_check
+  v_bitvec_check,
+  v_bitvec_clear
 
 const Id = UInt64
 
 """
     struct VecExpr
-      data::Vector{Id}
+      data::Memory{Id}
     end
 
-An e-node is represented by `Vector{Id}` where:
+An e-node is represented by `Memory{Id}` (a single GC object, no Array wrapper) where:
 * Position 1 stores the hash of the rest of the `VecExpr`.
 * Position 2 stores the bit flags (`isexpr` or `iscall`).
 * Position 3 stores the signature
@@ -60,7 +61,7 @@ The expression is represented as an array of integers to improve performance.
 The hash value for the VecExpr is cached in the first position for faster lookup performance in dictionaries.
 """
 struct VecExpr
-  data::Vector{Id}
+  data::Memory{Id}
 end
 
 const VECEXPR_FLAG_ISTREE = 0x01
@@ -68,7 +69,11 @@ const VECEXPR_FLAG_ISCALL = 0x10
 const VECEXPR_META_LENGTH = 4
 
 
-@inline v_new_literal(val::UInt64)::VecExpr = VecExpr(Id[0, 0, 0, val])
+@inline function v_new_literal(val::UInt64)::VecExpr
+  m = Memory{Id}(undef, 4)
+  m[1] = 0; m[2] = 0; m[3] = 0; m[4] = val
+  VecExpr(m)
+end
 @inline v_flags(n::VecExpr)::Id = @inbounds n.data[2]
 @inline v_unset_flags!(n::VecExpr) = @inbounds (n.data[2] = 0)
 @inline v_check_flags(n::VecExpr, flag::Id)::Bool = !iszero(v_flags(n) & flag)
@@ -99,7 +104,17 @@ end
 """The hash of the e-node."""
 @inline v_hash(n::VecExpr)::Id = @inbounds n.data[1]
 Base.hash(n::VecExpr, h::UInt) = hash(v_hash(n), h) # IdKey not necessary here
-Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:end])
+function Base.:(==)(a::VecExpr, b::VecExpr)
+  la = length(a.data)
+  la == length(b.data) || return false
+  # Skip position 1 (the cached hash); compare structural data directly from Memory.
+  # A plain @inbounds loop beats ccall(:memcmp) for the tiny arrays (~4-8 elements)
+  # typical of e-nodes, because ccall overhead dominates at that scale.
+  @inbounds for i in 2:la
+    a.data[i] == b.data[i] || return false
+  end
+  true
+end
 
 """Set e-node hash to zero."""
 @inline v_unset_hash!(n::VecExpr)::Id = @inbounds (n.data[1] = Id(0))
@@ -119,10 +134,10 @@ Base.:(==)(a::VecExpr, b::VecExpr) = (@view a.data[2:end]) == (@view b.data[2:en
 
 """Construct a new, empty `VecExpr` with `len` children."""
 @inline function v_new(len::Int)::VecExpr
-  n = VecExpr(Vector{Id}(undef, len + VECEXPR_META_LENGTH))
-  v_unset_hash!(n)
-  v_unset_flags!(n)
-  n
+  m = Memory{Id}(undef, len + VECEXPR_META_LENGTH)
+  m[1] = Id(0)  # hash slot — zeroed so v_hash! recomputes
+  m[2] = Id(0)  # flags slot
+  VecExpr(m)
 end
 
 @inline v_children_range(n::VecExpr) = ((VECEXPR_META_LENGTH + 1):length(n.data))
@@ -135,12 +150,17 @@ v_pair_last(p::UInt128)::UInt64 = UInt64(p & 0xffffffffffffffff)
 @inline Base.length(n::VecExpr) = length(n.data)
 @inline Base.getindex(n::VecExpr, i) = n.data[i]
 @inline Base.setindex!(n::VecExpr, val, i) = n.data[i] = val
-@inline Base.copy(n::VecExpr) = VecExpr(copy(n.data))
+@inline function Base.copy(n::VecExpr)
+  m = Memory{Id}(undef, length(n.data))
+  unsafe_copyto!(m, 1, n.data, 1, length(n.data))
+  VecExpr(m)
+end
 @inline Base.lastindex(n::VecExpr) = lastindex(n.data)
 @inline Base.firstindex(n::VecExpr) = firstindex(n.data)
 
 
 @inline v_bitvec_set(x::UInt64, n::Int) = x | UInt64(1) << (n - 1)
+@inline v_bitvec_clear(x::UInt64, n::Int) = x & ~(UInt64(1) << (n - 1))
 @inline v_bitvec_check(x::UInt64, n::Int) = Bool(x >> (n - 1) & UInt64(1))
 
 end

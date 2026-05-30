@@ -152,17 +152,12 @@ function EGraphs.join(from::LambdaAnalysis, to::LambdaAnalysis)
   end
 end
 
-function fresh_var_generator()
-  idx = 0
-  function generate()
-    idx += 1
-    chars = collect(string(idx))
-    subs = map(digit -> Char(Int(digit) + Int('₀') - Int('0')), chars)
-    Symbol("a$(String(subs))")
-  end
+"""Deterministic α-renaming symbol from binder names (not a global counter)."""
+function alpha_fresh(g::EGraph, v1::EClass, v2::EClass)
+  v1_sym = get_constant(g, v_head(v1.nodes[1]))
+  v2_sym = get_constant(g, v_head(v2.nodes[1]))
+  Symbol("α", string(v1_sym), '_', string(v2_sym))
 end
-
-freshvar = fresh_var_generator()
 
 # The final ruleset then looks like below and correctly renames variables when needed:
 
@@ -175,7 +170,7 @@ freshvar = fresh_var_generator()
   Apply(λ(v, body), e) --> Let(v, e, body)
   Let(v, e, Apply(a, b)) --> Apply(Let(v, e, a), Let(v, e, b))
   Let(v1, e, λ(v2, body)) => if isfree(_egraph, e, v2)
-    fresh = freshvar()
+    fresh = alpha_fresh(_egraph, v1, v2)
     λ(fresh, Let(v1, e, Let(v2, Variable(fresh), body)))
   else
     λ(v2, Let(v1, e, body))
@@ -188,7 +183,14 @@ ex = Apply(λ(:x, λ(:y, Apply(x, y))), y)
 g = EGraph{LambdaExpr,LambdaAnalysis}(ex)
 params = SaturationParams(timer = false, check_memo = true, check_analysis = true)
 saturate!(g, λT, params)
-@test λ(:a₂, Apply(y, Variable(:a₂))) == extract!(g, astsize)
+let result = extract!(g, astsize)
+  # α-renaming uses αx_y (see alpha_fresh)
+  @test result isa λ
+  @test result.x == Symbol("αx_y")
+  @test result.body isa Apply
+  @test result.body.lambda == y
+  @test result.body.value == Variable(result.x)
+end
 @test Set([:y]) == g[g.root].data
 
 
@@ -204,7 +206,6 @@ suc = λ(:n, λ(:x, λ(:y, Apply(x, Apply(Apply(n, x), y)))))
 
 # Compute the successor of `one`:
 
-freshvar = fresh_var_generator()
 g = EGraph{LambdaExpr,LambdaAnalysis}(Apply(suc, one))
 params = SaturationParams(
   timeout = 20,
@@ -239,7 +240,6 @@ end
 let_expr = Let(:x, Variable(:z), λ(:x, Variable(:y)))
 @test test_free_variable_analysis(let_expr, Set([:z, :y]))
 # after saturation the expression becomes λ(:x, Variable(:y)) where only :y is left as free variable
-freshvar = fresh_var_generator()
 g = EGraph{LambdaExpr,LambdaAnalysis}(let_expr)
 saturate!(g, λT, params)
 @test extract!(g, astsize) == λ(:x, Variable(:y))

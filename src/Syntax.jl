@@ -48,6 +48,13 @@ function makepredicate(mod, predicate::Symbol)
   obj isa Type ? Base.Fix2(isa, obj) : obj
 end
 
+function makepredicate(mod, predicate::Expr)
+  T = Core.eval(mod, predicate)
+  T isa Type ||
+    error("Predicate expression `$predicate` does not evaluate to a Type; got $(typeof(T))")
+  Base.Fix2(isa, T)
+end
+
 function makevar(name::Symbol, pvars, mod)
   name ∉ pvars && push!(pvars, name)
   pat_var(PAT_VARIABLE, name)
@@ -86,9 +93,19 @@ end
 
 makeconsequent(x) = x
 # treat as a literal
+# Returns the slot spec (Symbol or x::Pred Expr) for `name`, or nothing if not a slot.
+function _slot_match(name::Symbol, slots)
+  for s in slots
+    s === name && return s
+    s isa Expr && s.head === :(::) && s.args[1] === name && return s
+  end
+  nothing
+end
+
 function makepattern(x, pvars, slots, mod, splat = false)::Pat
-  if x in slots
-    splat ? makesegment(x, pvars, mod) : makevar(x, pvars, mod)
+  slot = x isa Symbol ? _slot_match(x, slots) : (x in slots ? x : nothing)
+  if !isnothing(slot)
+    splat ? makesegment(slot, pvars, mod) : makevar(slot, pvars, mod)
   elseif x isa Symbol
     pat_literal(getfield(mod, x))
   elseif x isa QuoteNode
@@ -134,7 +151,7 @@ function makepattern(ex::Expr, pvars, slots, mod = @__MODULE__, splat = false)::
 
   elseif h === :...
     makepattern(ex.args[1], pvars, slots, mod, true)
-  elseif h == :(::) && ex.args[1] in slots
+  elseif h == :(::) && ex.args[1] isa Symbol && !isnothing(_slot_match(ex.args[1], slots))
     splat ? makesegment(ex, pvars, mod) : makevar(ex, pvars, mod)
   elseif h === :$
     ex.args[1]
@@ -196,8 +213,10 @@ function addslots(expr, slots)
       if expr.args[1] == Symbol("@rule")
         name = expr.args[3] isa String ? expr.args[3] : ""
         Expr(:macrocall, expr.args[1:2]..., name, slots..., expr.args[3:end]...)
-      elseif expr.args[1] in [Symbol("@rule"), Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
+      elseif expr.args[1] in [Symbol("@capture"), Symbol("@slots"), Symbol("@theory")]
         Expr(:macrocall, expr.args[1:2]..., slots..., expr.args[3:end]...)
+      else
+        expr  # unknown macrocall: pass through unchanged
       end
     else
       Expr(expr.head, addslots.(expr.args, (slots,))...)
@@ -409,6 +428,9 @@ macro rule(args...)
 
   setdebrujin!(lhs, pvars)
 
+  # Compute which patvars are segment variables (for apply-phase instantiation)
+  seg_patvars_bv = BitVector([Patterns.is_segment_patvar(lhs, name) for name in ppvars])
+  has_segs = any(seg_patvars_bv)
 
   ematcher_left_expr = esc(ematch_compile(lhs, pvars, 1))
 
@@ -441,6 +463,8 @@ macro rule(args...)
       matcher_right = $matcher_right_expr,
       lhs_original = $(QuoteNode(l)),
       rhs_original = $(QuoteNode(rhs_original)),
+      has_segments = $has_segs,
+      segment_patvars = $seg_patvars_bv,
     )
   end
 end
@@ -542,7 +566,7 @@ macro capture(args...)
       right = $(pat_empty()),
       right_fun = (_lhs_expr, _egraph, pvars...) -> pvars,
       matcher_left = $matcher_left_expr,
-      ematcher_left! = () -> (),
+      ematcher_left! = (args...) -> 0,
     )
     __MATCHES__ = rule($(esc(ex)))
     if !isnothing(__MATCHES__)

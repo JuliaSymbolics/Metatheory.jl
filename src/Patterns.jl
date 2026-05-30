@@ -24,6 +24,8 @@ export Pat,
 mutable struct Pat
   type::PatternType
   isground::Bool
+  "true if any immediate child is PAT_SEGMENT (cached for hot-path instantiation check)"
+  has_segment_children::Bool
   idx::Int
   predicate::Function
   head
@@ -41,12 +43,12 @@ end
 
 function pat_literal(val)::Pat
   h = hash(val)
-  Pat(PAT_LITERAL, true, -1, alwaystrue, val, h, val, h, Pat[], v_new_literal(h))
+  Pat(PAT_LITERAL, true, false, -1, alwaystrue, val, h, val, h, Pat[], v_new_literal(h))
 end
 
 function pat_var(type::PatternType, var::Symbol, idx::Int, predicate::Function)
   h = hash(var)
-  Pat(type, false, idx, predicate, var, h, var, h, Pat[], VecExpr(Id[]))
+  Pat(type, false, false, idx, predicate, var, h, var, h, Pat[], VecExpr(Memory{Id}(undef, 0)))
 end
 pat_var(type::PatternType, var::Symbol, idx::Int) = pat_var(type, var, idx, alwaystrue)
 pat_var(type::PatternType, var::Symbol) = pat_var(type, var, -1)
@@ -68,12 +70,28 @@ function pat_expr(iscall::Bool, op, qop, args::Vector{Pat})
     @inbounds n[i] = 0
   end
 
-  Pat(PAT_EXPR, all(x -> x.isground, args), -1, alwaystrue, op, op_hash, qop, qop_hash, args, n)
+  has_segs = any(x -> x.type === PAT_SEGMENT, args)
+  Pat(PAT_EXPR, all(x -> x.isground, args), has_segs, -1, alwaystrue, op, op_hash, qop, qop_hash, args, n)
 end
 
 pat_expr(iscall, op, args::Vector{Pat}) = pat_expr(iscall, op, maybe_quote_operation(op), args)
 
-pat_empty() = Pat(PAT_EXPR, true, -1, alwaystrue, nothing, 0, nothing, 0, Pat[], v_new(0))
+pat_empty() = Pat(PAT_EXPR, true, false, -1, alwaystrue, nothing, 0, nothing, 0, Pat[], v_new(0))
+
+"""
+Return `true` if a pattern variable named `name` appears as a segment (PAT_SEGMENT) in `p`.
+"""
+function is_segment_patvar(p::Pat, name::Symbol)::Bool
+  if p.type === PAT_SEGMENT && p.name === name
+    return true
+  elseif p.type === PAT_EXPR
+    p.head isa Pat && is_segment_patvar(p.head, name) && return true
+    for child in p.children
+      is_segment_patvar(child, name) && return true
+    end
+  end
+  false
+end
 
 function Base.:(==)(a::Pat, b::Pat)
   a.type === b.type || return false

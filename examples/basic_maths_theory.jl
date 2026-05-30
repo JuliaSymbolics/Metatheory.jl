@@ -29,8 +29,8 @@ pow_t = @theory x y z n m p q begin
 end
 
 function customlt(x, y)
-  if typeof(x) == Expr && Expr == typeof(y)
-    false
+  if typeof(x) == Expr && typeof(y) == Expr
+    string(x) < string(y)
   elseif typeof(x) == typeof(y)
     isless(x, y)
   elseif x isa Symbol && y isa Number

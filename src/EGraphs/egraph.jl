@@ -213,15 +213,19 @@ end
 Construct an EGraph from a starting symbolic expression `expr`.
 """
 function EGraph{ExpressionType,Analysis}(; needslock::Bool = false) where {ExpressionType,Analysis}
+  classes = Dict{IdKey,EClass{Analysis}}(); sizehint!(classes, 64)
+  memo = Dict{VecExpr,Id}(); sizehint!(memo, 64)
+  constants = Dict{UInt64,Any}(); sizehint!(constants, 16)
+  classes_by_op = Dict{IdKey,Vector{Id}}(); sizehint!(classes_by_op, 32)
   EGraph{ExpressionType,Analysis}(
     UnionFind(),
-    Dict{IdKey,EClass{Analysis}}(),
-    Dict{VecExpr,Id}(),
-    Dict{UInt64,Any}(),
+    classes,
+    memo,
+    constants,
     Pair{VecExpr,Id}[],
     UniqueQueue{Pair{VecExpr,Id}}(),
     0,
-    Dict{IdKey,Vector{Id}}(),
+    classes_by_op,
     false,
     needslock,
     ReentrantLock(),
@@ -238,6 +242,19 @@ end
 
 EGraph{ExpressionType}(e; kwargs...) where {ExpressionType} = EGraph{ExpressionType,Nothing}(e; kwargs...)
 EGraph(e; kwargs...) = EGraph{typeof(e),Nothing}(e; kwargs...)
+
+"""
+    sorted_class_ids(g::EGraph) -> Vector{Id}
+
+Return e-class ids in deterministic order. `Dict` iteration order is not stable
+across Julia versions or runs; use this wherever saturation or extraction would
+otherwise depend on `keys(g.classes)`.
+"""
+function sorted_class_ids(g::EGraph)::Vector{Id}
+  ids = Id[k.val for k in keys(g.classes)]
+  sort!(ids)
+  ids
+end
 
 # Fallback implementation for analysis methods make and modify
 @inline make(::EGraph, ::VecExpr) = nothing
@@ -326,7 +343,7 @@ end
 
 function add_class_by_op(g::EGraph, n, eclass_id)
   key = IdKey(v_signature(n))
-  vec = get!(g.classes_by_op, key, Vector{Id}())
+  vec = get!(g.classes_by_op, key) do; Vector{Id}(); end
   push!(vec, eclass_id)
 end
 
@@ -383,7 +400,7 @@ function addexpr!(g::EGraph, se)::Id
   se isa EClass && return se.id
   e = preprocess(se)
 
-  isexpr(e) || return add!(g, VecExpr(Id[Id(0), Id(0), Id(0), add_constant!(g, e)]), false)
+  isexpr(e) || return add!(g, v_new_literal(add_constant!(g, e)), false)
 
   args = iscall(e) ? arguments(e) : children(e)
   ar = length(args)
@@ -469,8 +486,10 @@ function rebuild_classes!(g::EGraph)
     for n in eclass.nodes
       canonicalize!(g, n)
     end
-    # Sort to go in order?
-    unique!(eclass.nodes)
+    # Dedup eclass nodes by hash (after canonicalize! hashes are fresh).
+    # Sort-then-scan avoids allocating a Set{VecExpr} that unique! would use.
+    sort!(eclass.nodes, by = v_hash)
+    dedup_sorted_vecexpr!(eclass.nodes)
 
     for n in eclass.nodes
       add_class_by_op(g, n, eclass_id.val)
@@ -479,8 +498,33 @@ function rebuild_classes!(g::EGraph)
 
   for v in values(g.classes_by_op)
     sort!(v)
-    unique!(v)
+    # Two-pointer dedup for sorted UInt64 vector — avoids Set allocation.
+    dedup_sorted_ids!(v)
   end
+end
+
+function dedup_sorted_vecexpr!(v::Vector{VecExpr})
+  isempty(v) && return
+  j = 1
+  @inbounds for i in 2:length(v)
+    if v[i] != v[j]
+      j += 1
+      v[j] = v[i]
+    end
+  end
+  resize!(v, j)
+end
+
+function dedup_sorted_ids!(v::Vector{Id})
+  isempty(v) && return
+  j = 1
+  @inbounds for i in 2:length(v)
+    if v[i] != v[j]
+      j += 1
+      v[j] = v[i]
+    end
+  end
+  resize!(v, j)
 end
 
 function process_unions!(g::EGraph{ExpressionType,AnalysisType})::Int where {ExpressionType,AnalysisType}
@@ -562,14 +606,26 @@ upwards merging in an [`EGraph`](@ref). See
 the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
 for more details.
 """
+function rebuild_memo!(g::EGraph)
+  empty!(g.memo)
+  for (eclass_id, eclass) in g.classes
+    for n in eclass.nodes
+      g.memo[n] = eclass_id.val
+    end
+  end
+end
+
 function rebuild!(g::EGraph; should_check_memo = false, should_check_analysis = false)
   n_unions = process_unions!(g)
-  trimmed_nodes = rebuild_classes!(g)
+  rebuild_classes!(g)
+  # rebuild_memo! is only needed when merges occurred: canonicalize! modifies VecExpr
+  # hashes in-place, invalidating Dict bucket positions for those entries.
+  n_unions > 0 && rebuild_memo!(g)
   @assert !should_check_memo || check_memo(g)
   @assert !should_check_analysis || check_analysis(g)
   g.clean = true
 
-  @debug "REBUILT" n_unions trimmed_nodes
+  @debug "REBUILT" n_unions
 end
 
 # Thanks to Max Willsey and Yihong Zhang
