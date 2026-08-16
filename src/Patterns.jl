@@ -1,3 +1,9 @@
+"""
+    Patterns
+
+Pattern types and utilities used by Metatheory's matching and rewriting
+backends.
+"""
 module Patterns
 
 using Metatheory: binarize, cleanast, alwaystrue
@@ -11,6 +17,15 @@ Abstract type representing a pattern used in all the various pattern matching ba
 abstract type AbstractPat end
 
 
+"""
+    UnsupportedPatternException(pattern)
+
+Exception thrown when a backend cannot match `pattern`.
+
+# Fields
+
+- `p`: Unsupported [`AbstractPat`](@ref).
+"""
 struct UnsupportedPatternException <: Exception
   p::AbstractPat
 end
@@ -113,6 +128,20 @@ patvars(p) = unique!(patvars(p, Symbol[]))
 # ================== DEBRUJIN INDEXING =========
 # ==============================================
 
+"""
+    setdebrujin!(pattern, variables)
+
+Assign de Bruijn indices to pattern variables in `pattern`.
+
+# Arguments
+
+- `pattern`: Pattern to mutate.
+- `variables`: Ordered collection of variable names; each pattern variable's
+  index is its position in this collection.
+
+The operation mutates `PatVar` and `PatSegment` instances and recursively visits
+`PatTerm` arguments. Literal values are ignored.
+"""
 function setdebrujin!(p::Union{PatVar,PatSegment}, pvars)
   p.idx = findfirst((==)(p.name), pvars)
 end

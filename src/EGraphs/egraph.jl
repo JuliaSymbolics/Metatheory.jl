@@ -2,17 +2,43 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 
+"""
+    AbstractENode
+
+Abstract supertype for the nodes stored in an [`EGraph`](@ref).
+
+Concrete node types must be hashable and comparable. Tree nodes should provide
+the TermInterface methods `istree`, `operation`, `arguments`, `arity`, and
+`symtype`; literal nodes should report `istree(node) == false`.
+"""
 abstract type AbstractENode end
 
 import Metatheory: maybelock!
 
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
+"""
+    EClassId
+
+Integer type used to identify e-classes inside an [`EGraph`](@ref).
+"""
 const EClassId = Int64
 const TermTypes = Dict{Tuple{Any,Int},Type}
 # TODO document bindings
 const Bindings = Base.ImmutableDict{Int,Tuple{Int,Int}}
 const DEFAULT_BUFFER_SIZE = 1048576
 
+"""
+    ENodeLiteral(value)
+
+Represent a literal value as an e-node.
+
+# Fields
+
+- `value`: Literal stored in the e-graph.
+
+Literal nodes are leaves: `TermInterface.istree(node)` is `false` and
+`operation(node)` returns `value`.
+"""
 struct ENodeLiteral <: AbstractENode
   value
   hash::Ref{UInt}
@@ -36,6 +62,23 @@ function Base.hash(t::ENodeLiteral, salt::UInt)
 end
 
 
+"""
+    ENodeTerm(exprhead, operation, symtype, class_ids)
+
+Represent a compound term whose children are e-class identifiers.
+
+# Arguments
+
+- `exprhead`: Expression head, such as `:call`.
+- `operation`: Function or operator represented by the node.
+- `symtype`: Symbolic result type.
+- `class_ids`: Vector of child [`EClassId`](@ref)s.
+
+# Fields
+
+- `exprhead`, `operation`, `symtype`, `args`: TermInterface data.
+- `hash`: Mutable hash cache; callers should not mutate it directly.
+"""
 mutable struct ENodeTerm <: AbstractENode
   exprhead::Union{Symbol,Nothing}
   operation::Any
@@ -72,6 +115,22 @@ end
 
 
 # parametrize metadata by M
+"""
+    EClass(g, id, nodes, parents, data)
+
+Store all equivalent e-nodes and analysis data for one e-class.
+
+# Fields
+
+- `g`: Owning [`EGraph`](@ref).
+- `id`: Canonical [`EClassId`](@ref).
+- `nodes`: E-nodes in this equivalence class.
+- `parents`: Parent e-nodes and their e-class identifiers.
+- `data`: Named tuple of analysis references.
+
+Use `EClass(g, id)` for an empty class associated with `g`; the shorter
+constructor initializes the node and parent collections.
+"""
 mutable struct EClass
   g # EGraph
   id::EClassId
@@ -144,14 +203,34 @@ function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
 end
 
 # Thanks to Shashi Gowda
+"""
+    hasdata(eclass, analysis)
+
+Return whether `eclass` contains a value for an analysis identified by a symbol
+or analysis function.
+"""
 hasdata(a::EClass, analysis_name::Symbol) = hasproperty(a.data, analysis_name)
 hasdata(a::EClass, f::Function) = hasproperty(a.data, nameof(f))
+"""
+    getdata(eclass, analysis[, default])
+
+Return the value stored for `analysis` in `eclass`. When `default` is supplied,
+return it if no analysis value exists.
+"""
 getdata(a::EClass, analysis_name::Symbol) = getproperty(a.data, analysis_name)[]
 getdata(a::EClass, f::Function) = getproperty(a.data, nameof(f))[]
 getdata(a::EClass, analysis_ref::Union{Symbol,Function}, default) =
   hasdata(a, analysis_ref) ? getdata(a, analysis_ref) : default
 
 
+"""
+    setdata!(eclass, analysis, value)
+
+Store `value` as the analysis result for `analysis` in `eclass`.
+
+The value is wrapped in a mutable reference so that analysis updates do not
+replace the e-class named tuple.
+"""
 setdata!(a::EClass, f::Function, value) = setdata!(a, nameof(f), value)
 function setdata!(a::EClass, analysis_name::Symbol, value)
   if hasdata(a, analysis_name)
@@ -249,6 +328,12 @@ function addanalysis!(g::EGraph, analysis_name::Symbol)
   g.analyses[analysis_name] = analysis_name
 end
 
+"""
+    settermtype!(g, operation, arity, type)
+
+Register the symbolic result type used when reconstructing terms with
+`operation` and `arity` in `g`.
+"""
 function settermtype!(g::EGraph, f, ar, T)
   g.termtypes[(f, ar)] = T
 end
@@ -257,6 +342,12 @@ function settermtype!(g::EGraph, T)
   g.default_termtype = T
 end
 
+"""
+    gettermtype(g, operation, arity)
+
+Return the registered result type for a term, or `g.default_termtype` when no
+specific registration exists.
+"""
 function gettermtype(g::EGraph, f, ar)
   if haskey(g.termtypes, (f, ar))
     g.termtypes[(f, ar)]
@@ -304,6 +395,12 @@ function canonicalize!(g::EGraph, e::EClass)
   e.id = find(g, e.id)
 end
 
+"""
+    lookup(g, node) -> EClassId
+
+Return the e-class containing `node`, or `-1` when the canonical node is not in
+`g`.
+"""
 function lookup(g::EGraph, n::AbstractENode)::EClassId
   cc = canonicalize(g, n)
   haskey(g.memo, cc) ? find(g, g.memo[cc]) : -1
@@ -411,6 +508,12 @@ function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
   return to
 end
 
+"""
+    in_same_class(g, a, b) -> Bool
+
+Return whether e-class identifiers `a` and `b` denote the same equivalence
+class in `g`.
+"""
 function in_same_class(g::EGraph, a, b)
   find(g, a) == find(g, b)
 end

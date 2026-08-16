@@ -39,6 +39,11 @@ export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, Pa
 const repr_cache = IdDict()
 cached_repr(x) = Base.get!(() -> repr(x), repr_cache, x)
 
+"""
+    Empty()
+
+A rewriter that always returns `nothing`.
+"""
 struct Empty end
 
 (rw::Empty)(x) = nothing
@@ -46,6 +51,18 @@ struct Empty end
 instrument(x, f) = f(x)
 instrument(x::Empty, f) = x
 
+"""
+    IfElse(cond, yes, no)
+
+Apply `yes` when `cond(x)` is true and `no` otherwise. Each branch is a
+callable rewriter returning a value or `nothing`.
+
+# Fields
+
+- `cond`: Predicate callable on the input.
+- `yes`: True branch rewriter.
+- `no`: False branch rewriter.
+"""
 struct IfElse{F,A,B}
   cond::F
   yes::A
@@ -58,8 +75,19 @@ function (rw::IfElse)(x)
   rw.cond(x) ? rw.yes(x) : rw.no(x)
 end
 
+"""
+    If(cond, rw)
+
+Construct an [`IfElse`](@ref) with [`Empty`](@ref) as its false branch.
+"""
 If(f, x) = IfElse(f, x, Empty())
 
+"""
+    Chain(rws)
+
+Apply an iterable of rewriters in order, retaining the current value when a
+rewriter returns `nothing`.
+"""
 struct Chain
   rws
 end
@@ -76,6 +104,12 @@ end
 
 instrument(c::Chain, f) = Chain(map(x -> instrument(x, f), c.rws))
 
+"""
+    RestartedChain(rws)
+
+Apply rewriters in order and restart at the first rewriter after a successful
+rewrite.
+"""
 struct RestartedChain{Cs}
   rws::Cs
 end
@@ -107,6 +141,11 @@ end
 end
 
 
+"""
+    Fixpoint(rw)
+
+Apply `rw` until it returns `nothing` or an equal value.
+"""
 struct Fixpoint{C}
   rw::C
 end
@@ -170,14 +209,43 @@ end
 
 using .Threads
 
+"""
+    Postwalk(rw; threaded=false, thread_cutoff=100, similarterm=similarterm)
+
+Construct a bottom-up TermInterface tree traversal that applies `rw` after
+rewriting children.
+
+# Keyword Arguments
+
+- `threaded`: Spawn tasks for sufficiently large child subtrees.
+- `thread_cutoff`: Minimum `node_count` for spawning a child task.
+- `similarterm`: TermInterface reconstruction function.
+"""
 function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:post,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
 
+"""
+    Prewalk(rw; threaded=false, thread_cutoff=100, similarterm=similarterm)
+
+Construct a top-down TermInterface tree traversal that applies `rw` before
+rewriting children.
+
+# Keyword Arguments
+
+- `threaded`: Spawn tasks for sufficiently large child subtrees.
+- `thread_cutoff`: Minimum `node_count` for spawning a child task.
+- `similarterm`: TermInterface reconstruction function.
+"""
 function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:pre,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
 
+"""
+    PassThrough(rw)
+
+Wrap `rw` so that a `nothing` result is replaced with the original input.
+"""
 struct PassThrough{C}
   rw::C
 end

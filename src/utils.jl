@@ -148,6 +148,16 @@ function merge_repeats(merge, xs)
 end
 
 # Take a struct definition and make it be able to match in `@rule`
+"""
+    @matchable struct_definition
+
+Declare a struct and add the TermInterface methods required for pattern
+matching.
+
+The generated `operation` is the struct type and the generated `arguments` are
+its fields in declaration order. The input must be a plain Julia `struct`
+expression.
+"""
 macro matchable(expr)
   @assert expr.head == :struct
   name = expr.args[2]
@@ -174,6 +184,12 @@ using TimerOutputs
 
 const being_timed = Ref{Bool}(false)
 
+"""
+    @timer name expr
+
+Evaluate `expr` and record its time under `name` when Metatheory timing is
+enabled.
+"""
 macro timer(name, expr)
   :(
     if being_timed[]
@@ -184,6 +200,11 @@ macro timer(name, expr)
   )
 end
 
+"""
+    @iftimer expr
+
+Evaluate `expr` while preserving Metatheory's timing instrumentation setting.
+"""
 macro iftimer(expr)
   esc(expr)
 end

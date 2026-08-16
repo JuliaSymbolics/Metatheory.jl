@@ -199,6 +199,23 @@ function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
 end
 
 
+"""
+    getcost!(g, costfun; root=-1)
+
+Compute and return the minimum cost of the root e-class according to
+`costfun`.
+
+# Arguments
+
+- `g`: E-graph to analyze.
+- `costfun`: Function receiving `(enode, g)` and returning a numeric cost.
+
+# Keyword Arguments
+
+- `root::EClassId=-1`: Root e-class; `-1` uses `g.root`.
+
+The analysis data in `g` is updated in place.
+"""
 function getcost!(g::EGraph, costfun; root = -1)
   if root == -1
     root = g.root

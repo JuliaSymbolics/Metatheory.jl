@@ -110,6 +110,15 @@ customizable parameters include a `timeout` on the number of iterations, a
 that stops saturation when it evaluates to true.
 
 ```@example
+using Metatheory
+using Metatheory.EGraphs
+
+t = @theory a b c begin
+    a * b == b * a
+    a * 1 == a
+    a * (b * c) == (a * b) * c
+end
+
 g = EGraph(:((a * b) * (1 * (b + c))));
 report = saturate!(g, t);
 ```

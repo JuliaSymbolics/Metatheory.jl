@@ -1,5 +1,25 @@
 # API Documentation
 
+## Metatheory
+
+```@docs
+Metatheory
+rewrite
+Metatheory.@matchable
+Metatheory.@timer
+Metatheory.@iftimer
+Metatheory.@timerewrite
+```
+
+---
+
+## Library
+
+```@autodocs
+Modules = [Metatheory.Library]
+```
+
+---
 
 ## Syntax
 
@@ -13,14 +33,6 @@ Modules = [Metatheory.Syntax]
 
 ```@autodocs
 Modules = [Metatheory.Patterns]
-```
-
----
-
-## Rules 
-
-```@autodocs
-Modules = [Metatheory.Rules]
 ```
 
 ---

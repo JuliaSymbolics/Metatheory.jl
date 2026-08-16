@@ -1,3 +1,11 @@
+"""
+    Schedulers
+
+Scheduler implementations for e-graph rule search.
+
+Custom schedulers subtype [`AbstractScheduler`](@ref) and implement
+`cansaturate`, `cansearch`, `inform!`, and `setiter!`.
+"""
 module Schedulers
 
 include("../docstrings.jl")
@@ -17,37 +25,56 @@ export inform!
 export setiter!
 
 """
-Represents a rule scheduler for the equality saturation process
+    AbstractScheduler
 
+Abstract interface for controlling rule search during [`saturate!`](@ref).
+
+A custom scheduler must provide a constructor accepting an [`EGraph`](@ref)
+and a vector of [`AbstractRule`](@ref)s, plus methods for [`cansaturate`](@ref),
+[`cansearch`](@ref), [`inform!`](@ref), and [`setiter!`](@ref). The scheduler
+may keep mutable state, but it must return a Boolean from the first three hooks.
 """
 abstract type AbstractScheduler end
 
 """
-Should return `true` if the e-graph can be said to be saturated
-```
-cansaturate(s::AbstractScheduler)
-```
+    cansaturate(scheduler) -> Bool
+
+Return `true` when the scheduler has no rule search left to perform. This is
+checked after each saturation iteration; returning `false` lets another stop
+condition, such as a goal or timeout, decide when to stop.
+
+Implement this method for custom [`AbstractScheduler`](@ref) types.
 """
 function cansaturate end
 
 """
-Should return `false` if the rule `r` should be skipped
-```
-cansearch(s::AbstractScheduler, r::Rule)
-```
+    cansearch(scheduler, rule) -> Bool
+
+Return `true` when `rule` should be searched during the current iteration and
+`false` when the scheduler wants to skip it.
+
+Implement this method for custom [`AbstractScheduler`](@ref) types.
 """
 function cansearch end
 
 """
-This function is called **after** pattern matching on the e-graph,
-informs the scheduler about the yielded matches.
-Returns `false` if the matches should not be yielded and ignored. 
-```
-inform!(s::AbstractScheduler, r::AbstractRule, n_matches)
-```
+    inform!(scheduler, rule, n_matches) -> Bool
+
+Notify the scheduler how many matches were produced for `rule` in the current
+iteration. Return `true` to keep the matches and `false` to discard them.
+
+Implement this method for custom [`AbstractScheduler`](@ref) types.
 """
 function inform! end
 
+"""
+    setiter!(scheduler, iteration)
+
+Notify a scheduler that saturation has advanced to `iteration`.
+
+Custom schedulers should update any state used by `cansearch` or
+`cansaturate`. The default scheduler interface returns `nothing`.
+"""
 function setiter! end
 
 # ===========================================================================

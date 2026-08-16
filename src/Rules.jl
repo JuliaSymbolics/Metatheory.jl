@@ -1,3 +1,9 @@
+"""
+    Rules
+
+Rule types used by Metatheory's pattern matcher and equality-saturation
+engine. Rules are callable and return a rewritten value or `nothing`.
+"""
 module Rules
 
 using TermInterface
@@ -9,12 +15,31 @@ using Metatheory: cleanast, binarize, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 
+"""
+    AbstractRule
+
+Abstract supertype for all Metatheory rules.
+
+Concrete subtypes must be callable on a term. A rule returns the rewritten term
+when it matches and `nothing` otherwise.
+"""
 abstract type AbstractRule end
 # Must override
 Base.:(==)(a::AbstractRule, b::AbstractRule) = false
 
+"""
+    SymbolicRule <: AbstractRule
+
+Abstract supertype for rules whose left and right sides are symbolic patterns.
+"""
 abstract type SymbolicRule <: AbstractRule end
 
+"""
+    BidirRule <: SymbolicRule
+
+Abstract supertype for rules that may be matched in either direction by an
+e-graph.
+"""
 abstract type BidirRule <: SymbolicRule end
 
 struct RuleRewriteError

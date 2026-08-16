@@ -1,3 +1,9 @@
+"""
+    Syntax
+
+Macros for constructing patterns, rewrite rules, and rewrite theories from
+Julia syntax.
+"""
 module Syntax
 using Metatheory.Patterns
 using Metatheory.Rules

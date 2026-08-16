@@ -1,3 +1,13 @@
+"""
+    EGraphs
+
+Equality graphs for retaining and saturating many equivalent representations
+of a term.
+
+Build an [`EGraph`](@ref), add terms with [`addexpr!`](@ref), and call
+[`saturate!`](@ref) with a rule theory. Custom analyses implement the generic
+`make`, `join`, `modify!`, and `islazy` hooks documented in the analysis API.
+"""
 module EGraphs
 
 include("../docstrings.jl")
@@ -40,8 +50,6 @@ export extract!
 export astsize
 export astsize_inv
 export getcost!
-
-export Sub
 
 include("Schedulers.jl")
 export Schedulers
