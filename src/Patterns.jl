@@ -76,7 +76,7 @@ The short constructor `PatVar(:x)` creates an unrestricted variable. In user
 syntax, the equivalent pattern is `~x`; a type or predicate can be written as
 `~x::Number` or `~x::is_valid`.
 
-# Example
+# Examples
 
 ```julia
 r = @rule sin(~x::Number) --> cos(~x)
@@ -117,7 +117,7 @@ The short constructor `PatSegment(:xs)` creates an unrestricted segment. In
 user syntax, the equivalent pattern is `~xs...`. A segment predicate receives
 the vector of matched terms and must return a Boolean.
 
-# Example
+# Examples
 
 ```julia
 r = @rule f(~xs...) --> g(~xs...)

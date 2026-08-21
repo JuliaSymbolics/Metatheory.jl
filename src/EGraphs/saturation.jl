@@ -7,7 +7,7 @@ Concrete goals should implement `reached(g::EGraph, goal)` and return `true`
 when the requested condition has been met. A function goal is also accepted
 and is called with the current e-graph.
 
-# Example
+# Examples
 
 ```julia
 struct MatchGoal <: SaturationGoal end
@@ -32,9 +32,9 @@ reached(g::EGraph, goal::SaturationGoal) = false
 reached(g::EGraph, goal::Function) = goal(g)
 
 """
-    EqualityGoal(exprs, eclasses)
+    EqualityGoal(exprs, ids)
 
-Stop saturation when all identifiers in `eclasses` are in one equivalence
+Stop saturation when all identifiers in `ids` are in one equivalence
 class.
 
 # Fields
@@ -42,7 +42,7 @@ class.
 - `exprs`: Expressions corresponding to the identifiers.
 - `ids`: E-class identifiers to compare.
 
-`exprs` and `eclasses` must have the same nonzero length.
+`exprs` and `ids` must have the same nonzero length.
 """
 struct EqualityGoal <: SaturationGoal
   exprs::Vector{Any}
@@ -85,7 +85,7 @@ end
 
 Configure equality saturation.
 
-# Keyword Arguments
+# Keywords
 
 - `timeout::Int=8`: Iteration or backend timeout limit.
 - `timelimit::UInt64=0`: Wall-clock limit in nanoseconds; `0` disables it.
@@ -98,29 +98,19 @@ Configure equality saturation.
 - `threaded::Bool=false`: Enable threaded matching where supported.
 - `timer::Bool=true`: Record timing information in the report.
 """
-mutable struct SaturationParams
-  timeout::Int
+Base.@kwdef mutable struct SaturationParams
+  timeout::Int = 8
   "Timeout in nanoseconds"
-  timelimit::UInt64
+  timelimit::UInt64 = 0
   "Maximum number of eclasses allowed"
-  eclasslimit::Int
-  enodelimit::Int
-  goal::Union{Nothing,SaturationGoal,Function}
-  stopwhen::Function
-  scheduler::Type{<:AbstractScheduler}
-  schedulerparams::Tuple
-  threaded::Bool
-  timer::Bool
-end
-
-function SaturationParams(; timeout::Int=8, timelimit::UInt64=UInt64(0),
-    eclasslimit::Int=5000, enodelimit::Int=15000,
-    goal::Union{Nothing,SaturationGoal,Function}=nothing,
-    stopwhen::Function=() -> false,
-    scheduler::Type{<:AbstractScheduler}=BackoffScheduler,
-    schedulerparams::Tuple=(), threaded::Bool=false, timer::Bool=true)
-  SaturationParams(timeout, timelimit, eclasslimit, enodelimit, goal, stopwhen,
-    scheduler, schedulerparams, threaded, timer)
+  eclasslimit::Int = 5000
+  enodelimit::Int = 15000
+  goal::Union{Nothing,SaturationGoal,Function} = nothing
+  stopwhen::Function = () -> false
+  scheduler::Type{<:AbstractScheduler} = BackoffScheduler
+  schedulerparams::Tuple = ()
+  threaded::Bool = false
+  timer::Bool = true
 end
 
 # function cached_ids(g::EGraph, p::PatTerm)# ::Vector{Int64}
@@ -403,7 +393,7 @@ end
 Check whether `exprs` become equivalent after saturating an e-graph with
 `theory`.
 
-# Keyword Arguments
+# Keywords
 
 - `params`: Saturation configuration.
 """

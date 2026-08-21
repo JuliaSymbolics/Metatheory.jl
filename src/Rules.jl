@@ -28,7 +28,7 @@ Implement `(::MyRule)(term)`, return `nothing` for a non-match, and define
 equality if rules are stored in dictionaries or scheduler state. Subtype
 [`SymbolicRule`](@ref Metatheory.Rules.SymbolicRule) when the rule has symbolic left and right patterns.
 
-# Example
+# Examples
 
 ```julia
 struct IdentityRule <: AbstractRule end
@@ -86,7 +86,7 @@ pattern positions become variables.
 - `matcher`, `patvars`, `ematcher!`: Compiled matcher state. These fields are
   implementation details and should not be mutated after construction.
 
-# Example
+# Examples
 
 
 ```julia

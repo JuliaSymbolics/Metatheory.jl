@@ -215,7 +215,7 @@ import Base.Threads
 Construct a bottom-up TermInterface tree traversal that applies `rw` after
 rewriting children.
 
-# Keyword Arguments
+# Keywords
 
 - `threaded`: Spawn tasks for sufficiently large child subtrees.
 - `thread_cutoff`: Minimum `node_count` for spawning a child task.
@@ -231,7 +231,7 @@ end
 Construct a top-down TermInterface tree traversal that applies `rw` before
 rewriting children.
 
-# Keyword Arguments
+# Keywords
 
 - `threaded`: Spawn tasks for sufficiently large child subtrees.
 - `thread_cutoff`: Minimum `node_count` for spawning a child task.

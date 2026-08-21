@@ -46,7 +46,7 @@ join(an, a, b) = join(analysis_reference(an), a, b)
 Return the analysis value contributed by e-node `n` in `g`. The value is then
 combined with other values by [`join`](@ref).
 
-# Example
+# Examples
 
 ```julia
 Metatheory.EGraphs.make(::Val{:constant}, g, node) =
@@ -189,7 +189,7 @@ Extract the expression with the smallest `costfun` value from `egraph`.
 - `egraph`: Graph to analyze and extract from.
 - `costfun`: Function of `(enode, egraph)` returning a numeric cost.
 
-# Keyword Arguments
+# Keywords
 
 - `root::EClassId=-1`: Root e-class; `-1` uses `egraph.root`.
 - `cse::Bool=false`: Return a `let` expression that names repeated
@@ -245,7 +245,7 @@ Compute and return the minimum cost of the root e-class according to
 - `g`: E-graph to analyze.
 - `costfun`: Function receiving `(enode, g)` and returning a numeric cost.
 
-# Keyword Arguments
+# Keywords
 
 - `root::EClassId=-1`: Root e-class; `-1` uses `g.root`.
 

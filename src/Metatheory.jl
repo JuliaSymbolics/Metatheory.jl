@@ -62,7 +62,7 @@ Repeatedly apply `theory` to an expression using tree traversal.
 - `expr`: Expression or TermInterface-compatible tree to rewrite.
 - `theory`: Iterable of callable rewrite rules.
 
-# Keyword Arguments
+# Keywords
 
 - `order::Symbol=:outer`: Use `:outer` for post-order rewriting or `:inner`
   for pre-order rewriting.

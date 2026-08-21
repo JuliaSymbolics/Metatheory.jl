@@ -354,12 +354,12 @@ its root e-class.
 - `expr`: A term accepted by the `TermInterface` traversal used by
   [`addexpr!`](@ref).
 
-# Keyword Arguments
+# Keywords
 
 - `keepmeta::Bool=false`: Preserve term metadata through the metadata analysis.
 - `needslock`, `buffer_size`: Forwarded to the empty-graph constructor.
 
-# Example
+# Examples
 
 ```julia
 g = EGraph(:(x + 1))
@@ -525,7 +525,7 @@ compound terms are hash-consed as [`ENodeTerm`](@ref) values.
 - `egraph`: Graph to mutate.
 - `expr`: Term accepted by the `TermInterface` interface.
 
-# Keyword Arguments
+# Keywords
 
 - `keepmeta::Bool=false`: Preserve metadata for later reconstruction.
 
@@ -729,7 +729,7 @@ produce; the default methods handle `Expr` values.
 - `operation`: Operation or head stored in the e-node.
 - `args`: Extracted child expressions.
 
-# Keyword Arguments
+# Keywords
 
 - `metadata=nothing`: Metadata preserved by the metadata analysis.
 - `exprhead=:call`: Expression head used when `T == Expr`.
