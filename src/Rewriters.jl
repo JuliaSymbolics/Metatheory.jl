@@ -30,7 +30,7 @@ rewriters.
 
 """
 module Rewriters
-import TermInterface: arguments, exprhead, istree, operation, similarterm, unsorted_arguments
+import TermInterface: arguments, exprhead, istree, node_count, operation, similarterm, unsorted_arguments
 import Metatheory: @timer
 
 export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, PassThrough
@@ -285,6 +285,8 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
       end
       args = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, arguments(x))
       t = p.similarterm(x, operation(x), args; exprhead = exprhead(x))
+    else
+      t = x
     end
     return ord === :post ? p.rw(t) : t
   else

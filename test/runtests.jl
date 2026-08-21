@@ -37,6 +37,10 @@ function run_core_tests()
     @test Metatheory.EGraphs.Schedulers.inform!(scheduler, rule, 0)
     Metatheory.EGraphs.Schedulers.setiter!(scheduler, 3)
     @test scheduler.iteration == 3
+
+    leaf_rewriter = Metatheory.Rewriters.IfElse(x -> x isa Expr, _ -> :leaf, Metatheory.Rewriters.Empty())
+    @test Metatheory.Rewriters.Prewalk(leaf_rewriter; threaded = true, thread_cutoff = 0)(:(f(x))) === :leaf
+    @test Metatheory.Rewriters.Postwalk(leaf_rewriter; threaded = true, thread_cutoff = 0)(:(f(x))) === :leaf
   end
 
   function test(file::String)
