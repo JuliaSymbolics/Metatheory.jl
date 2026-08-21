@@ -14,7 +14,7 @@ include("../docstrings.jl")
 
 import DataStructures: CircularDeque, LittleDict, OrderedDict
 import TermInterface: arguments, arity, exprhead, istree, operation, similarterm, symtype
-import TimerOutputs: @timeit, TimerOutput, disable_timer!, print_timer
+import TimerOutputs: TimerOutput, disable_timer!, print_timer, timeit
 import Metatheory: cleanast
 import Metatheory.Patterns: AbstractPat, PatTerm, PatVar, UnsupportedPatternException, isground
 import Metatheory.Rules: AbstractRule, BidirRule, DynamicRule, EqualityRule, RewriteRule, UnequalRule

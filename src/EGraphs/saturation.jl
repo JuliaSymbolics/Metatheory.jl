@@ -175,21 +175,25 @@ function eqsat_search!(
 
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
-    @timeit report.to string(rule_idx) begin
-      prev_matches = n_matches
-      # don't apply banned rules
-      if !cansearch(scheduler, rule)
-        @debug "$rule is banned"
-        continue
-      end
-      ids = cached_ids(g, rule.left)
-      rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
-      for i in ids
-        n_matches += rule.ematcher!(g, rule_idx, i)
-      end
-      n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
-      inform!(scheduler, rule, n_matches)
-    end
+    timeit(
+      () -> begin
+        prev_matches = n_matches
+        # don't apply banned rules
+        if cansearch(scheduler, rule)
+          ids = cached_ids(g, rule.left)
+          rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
+          for i in ids
+            n_matches += rule.ematcher!(g, rule_idx, i)
+          end
+          n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
+          inform!(scheduler, rule, n_matches)
+        else
+          @debug "$rule is banned"
+        end
+      end,
+      report.to,
+      string(rule_idx),
+    )
   end
 
 
@@ -316,14 +320,14 @@ function eqsat_step!(
 
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
+  timeit(() -> eqsat_search!(g, theory, scheduler, report), report.to, "Search")
 
-  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
+  timeit(() -> eqsat_apply!(g, theory, report, params), report.to, "Apply")
 
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
     report.reason = :saturated
   end
-  @timeit report.to "Rebuild" rebuild!(g)
+  timeit(() -> rebuild!(g), report.to, "Rebuild")
 
   @debug smallest_expr = extract!(g, astsize)
 

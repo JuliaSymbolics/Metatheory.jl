@@ -180,7 +180,7 @@ macro matchable(expr)
 end
 
 
-import TimerOutputs: @timeit, print_timer, reset_timer!
+import TimerOutputs: print_timer, reset_timer!, timeit
 
 const being_timed = Ref{Bool}(false)
 
@@ -193,7 +193,7 @@ enabled.
 macro timer(name, expr)
   :(
     if being_timed[]
-      @timeit $(esc(name)) $(esc(expr))
+      timeit(() -> $(esc(expr)), $(esc(name)))
     else
       $(esc(expr))
     end
