@@ -14,6 +14,7 @@ the TermInterface methods `istree`, `operation`, `arguments`, `arity`, and
 abstract type AbstractENode end
 
 import Metatheory: maybelock!
+import TermInterface
 
 const AnalysisData = NamedTuple{N,T} where {N,T<:Tuple}
 """
@@ -252,9 +253,30 @@ function funs_arity(a::EClass)
 end
 
 """
-A concrete type representing an [`EGraph`].
-See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
-for implementation details.
+    EGraph
+
+Mutable equality graph containing e-classes, e-nodes, rewrite analyses, and
+the memoization state needed to maintain congruence closure.
+
+Use [`EGraph(expr)`](@ref) to build a graph from a term. Use the zero-argument
+constructor when the graph will be populated incrementally with
+[`addexpr!`](@ref).
+
+# Fields
+
+- `uf`: Union-find structure for canonical e-class identifiers.
+- `classes`: E-class storage indexed by [`EClassId`](@ref).
+- `memo`: Hash-consing table for canonical e-nodes.
+- `dirty`: E-classes awaiting invariant repair.
+- `root`: Root e-class identifier for the initial expression.
+- `analyses`: Registered analysis functions and names.
+- `symcache`: Operation-to-e-class index used by matching.
+- `default_termtype`, `termtypes`: Types used to reconstruct extracted terms.
+- `numclasses`, `numnodes`: Current graph size counters.
+- `needslock`, `buffer`, `merges_buffer`, `lock`: Matching and merge workspaces.
+
+See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for the
+congruence-closure design used by this implementation.
 """
 mutable struct EGraph
   "stores the equality relations over e-class ids"
@@ -285,8 +307,17 @@ end
 
 
 """
-    EGraph(expr)
-Construct an EGraph from a starting symbolic expression `expr`.
+    EGraph(; needslock=false, buffer_size=DEFAULT_BUFFER_SIZE)
+
+Construct an empty equality graph.
+
+# Arguments
+
+- `needslock::Bool=false`: Use the graph's lock around shared matching and
+  merge buffers.
+- `buffer_size`: Initial capacity requested for matching buffers.
+
+Use [`addexpr!`](@ref) to insert expressions after construction.
 """
 function EGraph(; needslock::Bool = false, buffer_size = DEFAULT_BUFFER_SIZE)
   EGraph(
@@ -312,6 +343,30 @@ function maybelock!(f::Function, g::EGraph)
   g.needslock ? lock(f, g.buffer_lock) : f()
 end
 
+"""
+    EGraph(expr; keepmeta=false, kwargs...)
+
+Construct an [`EGraph`](@ref) containing `expr` and return it with `expr` as
+its root e-class.
+
+# Arguments
+
+- `expr`: A term accepted by the `TermInterface` traversal used by
+  [`addexpr!`](@ref).
+
+# Keyword Arguments
+
+- `keepmeta::Bool=false`: Preserve term metadata through the metadata analysis.
+- `needslock`, `buffer_size`: Forwarded to the empty-graph constructor.
+
+# Example
+
+```julia
+g = EGraph(:(x + 1))
+root = g.root
+g[root]
+```
+"""
 function EGraph(e; keepmeta = false, kwargs...)
   g = EGraph(kwargs...)
   keepmeta && addanalysis!(g, :metadata_analysis)
@@ -358,7 +413,11 @@ end
 
 
 """
-Returns the canonical e-class id for a given e-class.
+    find(egraph, eclass_or_id) -> EClassId
+
+Return the canonical e-class identifier for an [`EClass`](@ref) or
+[`EClassId`](@ref). The result is the representative used by the e-graph
+after union-find path compression.
 """
 find(g::EGraph, a::EClassId)::EClassId = find_root(g.uf, a)
 find(g::EGraph, a::EClass)::EClassId = find(g, a.id)
@@ -455,9 +514,25 @@ end
 preprocess(x) = x
 
 """
-Recursively traverse an type satisfying the `TermInterface` and insert terms into an
-[`EGraph`](@ref). If `e` has no children (has an arity of 0) then directly
-insert the literal into the [`EGraph`](@ref).
+    addexpr!(egraph, expr; keepmeta=false) -> EClassId
+
+Recursively traverse `expr` using `TermInterface` and insert its terms into the
+[`EGraph`](@ref). A zero-arity term is inserted as an [`ENodeLiteral`](@ref);
+compound terms are hash-consed as [`ENodeTerm`](@ref) values.
+
+# Arguments
+
+- `egraph`: Graph to mutate.
+- `expr`: Term accepted by the `TermInterface` interface.
+
+# Keyword Arguments
+
+- `keepmeta::Bool=false`: Preserve metadata for later reconstruction.
+
+# Returns
+
+The e-class identifier containing the inserted expression. Calling this on an
+equivalent expression returns the existing canonical class.
 """
 function addexpr!(g::EGraph, se; keepmeta = false)::EClassId
   e = preprocess(se)
@@ -482,8 +557,14 @@ function addexpr!(g::EGraph, ec::EClass; keepmeta = false)
 end
 
 """
-Given an [`EGraph`](@ref) and two e-class ids, set
-the two e-classes as equal.
+    merge!(egraph, left, right) -> EClassId
+
+Merge the e-classes identified by `left` and `right`, preserving their
+analysis data and scheduling congruence repair. The returned identifier is the
+canonical representative after the union.
+
+Call [`rebuild!`](@ref) before relying on all congruence invariants or running
+matching over the result.
 """
 function Base.merge!(g::EGraph, a::EClassId, b::EClassId)::EClassId
   id_a = find(g, a)
@@ -521,10 +602,15 @@ end
 
 # TODO new rebuilding from egg
 """
-This function restores invariants and executes
-upwards merging in an [`EGraph`](@ref). See
-the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)
-for more details.
+    rebuild!(egraph) -> EGraph
+
+Restore e-graph congruence invariants after calls to [`merge!`](@ref) and
+perform the pending upward merges. This is the operation that makes newly
+equivalent compound terms discoverable by lookup and matching.
+
+The graph is mutated in place and returned for convenient chaining. See the
+[egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) for the underlying
+rebuild algorithm.
 """
 function rebuild!(g::EGraph)
   # normalize!(g.uf)
@@ -630,9 +716,33 @@ end
 
 
 """
-When extracting symbolic expressions from an e-graph, we need 
-to instruct the e-graph how to rebuild expressions of a certain type. 
-This function must be extended by the user to add new types of expressions that can be manipulated by e-graphs.
+    egraph_reconstruct_expression(T, operation, args; metadata=nothing,
+        exprhead=:call)
+
+Reconstruct an extracted expression of type `T` from an operation and its
+children. Extend this function for a term type that [`extract!`](@ref) must
+produce; the default methods handle `Expr` values.
+
+# Arguments
+
+- `T`: Target term type.
+- `operation`: Operation or head stored in the e-node.
+- `args`: Extracted child expressions.
+
+# Keyword Arguments
+
+- `metadata=nothing`: Metadata preserved by the metadata analysis.
+- `exprhead=:call`: Expression head used when `T == Expr`.
+
+# Extension rule
+
+Define a method in the module that owns `T`, for example:
+
+```julia
+Metatheory.EGraphs.egraph_reconstruct_expression(
+    ::Type{MyTerm}, op, args; metadata=nothing, exprhead=:call,
+) = MyTerm(op, args)
+```
 """
 function egraph_reconstruct_expression(T::Type{Expr}, op, args; metadata = nothing, exprhead = :call)
   similarterm(Expr(:call, :_), op, args; metadata = metadata, exprhead = exprhead)

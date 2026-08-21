@@ -13,7 +13,7 @@ rewriters.
 - `RestartedChain(itr)` like `Chain(itr)` but restarts from the first rewriter once on the
    first successful application of one of the chained rewriters.
 - `IfElse(cond, rw1, rw2)` runs the `cond` function on the input, applies `rw1` if cond
-   returns true, `rw2` if it retuns false
+   returns true, `rw2` if it returns false
 - `If(cond, rw)` is the same as `IfElse(cond, rw, Empty())`
 - `Prewalk(rw; threaded=false, thread_cutoff=100)` returns a rewriter which does a pre-order
    traversal of a given expression and applies the rewriter `rw`. Note that if
@@ -30,8 +30,8 @@ rewriters.
 
 """
 module Rewriters
-using TermInterface
-using Metatheory: @timer
+import TermInterface: arguments, exprhead, istree, operation, similarterm, unsorted_arguments
+import Metatheory: @timer
 
 export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, PassThrough
 
@@ -128,7 +128,7 @@ end
 
 @generated function (rw::RestartedChain{<:NTuple{N,Any}})(x) where {N}
   quote
-    Base.@nexprs $N i -> begin
+    for i in 1:($N)
       let f = rw.rws[i]
         y = @timer cached_repr(repr(f)) f(x)
         if y !== nothing
@@ -207,7 +207,7 @@ function instrument(x::Walk{ord,C,F,threaded}, f) where {ord,C,F,threaded}
   Walk{ord,typeof(irw),typeof(x.similarterm),threaded}(irw, x.thread_cutoff, x.similarterm)
 end
 
-using .Threads
+import Base.Threads
 
 """
     Postwalk(rw; threaded=false, thread_cutoff=100, similarterm=similarterm)

@@ -6,12 +6,10 @@ engine. Rules are callable and return a rewritten value or `nothing`.
 """
 module Rules
 
-using TermInterface
-using AutoHashEquals
-using Metatheory.EMatchCompiler
-using Metatheory.Patterns
-using Metatheory.Patterns: to_expr
-using Metatheory: cleanast, binarize, matcher, instantiate
+import AutoHashEquals: @auto_hash_equals
+import Metatheory.EMatchCompiler: ematcher_yield, ematcher_yield_bidir
+import Metatheory.Patterns: patvars, setdebrujin!
+import Metatheory: instantiate, matcher
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 
@@ -21,7 +19,21 @@ const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
 Abstract supertype for all Metatheory rules.
 
 Concrete subtypes must be callable on a term. A rule returns the rewritten term
-when it matches and `nothing` otherwise.
+when it matches and `nothing` otherwise. E-graph saturation additionally
+expects the rule to expose the pattern information required by its matcher.
+
+# Interface contract
+
+Implement `(::MyRule)(term)`, return `nothing` for a non-match, and define
+equality if rules are stored in dictionaries or scheduler state. Subtype
+[`SymbolicRule`](@ref) when the rule has symbolic left and right patterns.
+
+# Example
+
+```julia
+struct IdentityRule <: AbstractRule end
+(::IdentityRule)(term) = term === :x ? :y : nothing
+```
 """
 abstract type AbstractRule end
 # Must override
@@ -31,6 +43,7 @@ Base.:(==)(a::AbstractRule, b::AbstractRule) = false
     SymbolicRule <: AbstractRule
 
 Abstract supertype for rules whose left and right sides are symbolic patterns.
+Subtypes store pattern data and are normally constructed by [`@rule`](@ref).
 """
 abstract type SymbolicRule <: AbstractRule end
 
@@ -38,7 +51,7 @@ abstract type SymbolicRule <: AbstractRule end
     BidirRule <: SymbolicRule
 
 Abstract supertype for rules that may be matched in either direction by an
-e-graph.
+e-graph. Both sides must bind the same variables so either direction is valid.
 """
 abstract type BidirRule <: SymbolicRule end
 
@@ -60,14 +73,20 @@ end
 
 
 """
-Rules defined as `left_hand --> right_hand` are
-called *symbolic rewrite* rules. Application of a *rewrite* Rule
-is a replacement of the `left_hand` pattern with
-the `right_hand` substitution, with the correct instantiation
-of pattern variables. Function call symbols are not treated as pattern
-variables, all other identifiers are treated as pattern variables.
-Literals such as `5, :e, "hello"` are not treated as pattern
-variables.
+    RewriteRule(left, right)
+
+Represent a one-way symbolic substitution rule. Applying the rule replaces the
+matched `left` pattern with `right`, instantiating bound variables. Function
+call symbols and literals are treated as operations/literals; identifiers in
+pattern positions become variables.
+
+# Fields
+
+- `left`, `right`: Pattern trees.
+- `matcher`, `patvars`, `ematcher!`: Compiled matcher state. These fields are
+  implementation details and should not be mutated after construction.
+
+# Example
 
 
 ```julia
@@ -109,9 +128,17 @@ end
 # ============================================================
 
 """
-An `EqualityRule` can is a symbolic substitution rule that 
-can be rewritten bidirectional. Therefore, it should only be used 
-with the EGraphs backend.
+    EqualityRule(left, right)
+
+Represent a bidirectional symbolic equality. It is intended for the EGraphs
+backend, where both orientations are searched; it is not a classical rewriter.
+
+# Fields
+
+- `left`, `right`: Patterns that must bind the same variable names.
+- `patvars`, `ematcher!`: Compiled bidirectional matcher state.
+
+Creating a rule with a variable present on only one side throws an error.
 
 ```julia
 @rule ~a * ~b == ~b * ~a
@@ -149,9 +176,15 @@ end
 # ============================================================
 
 """
-This type of *anti*-rules is used for checking contradictions in the EGraph
-backend. If two terms, corresponding to the left and right hand side of an
-*anti-rule* are found in an [`EGraph`], saturation is halted immediately. 
+    UnequalRule(left, right)
+
+Represent an anti-rule for detecting a contradiction in an EGraph. If both
+patterns are found in one equivalence class, saturation stops immediately.
+
+# Fields
+
+- `left`, `right`: Patterns that must bind the same variable names.
+- `patvars`, `ematcher!`: Compiled matcher state.
 
 ```julia
 !a ≠ a
@@ -183,13 +216,20 @@ Base.show(io::IO, r::UnequalRule) = print(io, :($(r.left) ≠ $(r.right)))
 # DynamicRule
 # ============================================================
 """
-Rules defined as `left_hand => right_hand` are
-called `dynamic` rules. Dynamic rules behave like anonymous functions.
-Instead of a symbolic substitution, the right hand of
-a dynamic `=>` rule is evaluated during rewriting:
-matched values are bound to pattern variables as in a
-regular function call. This allows for dynamic computation
-of right hand sides.
+    DynamicRule(left, rhs_fun[, rhs_code])
+
+Represent a rule whose right-hand side is evaluated for each match. The
+function receives the input term, an analysis context (currently `nothing` for
+classical rewriting), and one positional value per pattern variable.
+
+# Fields
+
+- `left`: Pattern to match.
+- `rhs_fun`: Callable right-hand-side implementation.
+- `rhs_code`, `matcher`, `patvars`, `ematcher!`: Display and compiled matcher
+  state.
+
+Use the [`@rule`](@ref) `=>` form unless constructing a custom rule backend.
 
 Dynamic rule
 ```julia

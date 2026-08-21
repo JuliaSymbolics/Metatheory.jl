@@ -180,7 +180,7 @@ macro matchable(expr)
 end
 
 
-using TimerOutputs
+import TimerOutputs: @timeit, print_timer, reset_timer!
 
 const being_timed = Ref{Bool}(false)
 

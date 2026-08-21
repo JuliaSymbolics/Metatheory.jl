@@ -11,8 +11,9 @@ Macros that generate common algebraic rewrite theories.
 """
 module Library
 
-using Metatheory.Patterns
-using Metatheory.Rules
+import Metatheory.Patterns: PatTerm, PatVar
+import Metatheory.Rules: RewriteRule
+import Metatheory.Syntax: @rule
 
 
 """

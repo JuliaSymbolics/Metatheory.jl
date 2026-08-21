@@ -12,13 +12,12 @@ module EGraphs
 
 include("../docstrings.jl")
 
-using DataStructures
-using TermInterface
-using TimerOutputs
-using Metatheory: alwaystrue, cleanast, binarize
-using Metatheory.Patterns
-using Metatheory.Rules
-using Metatheory.EMatchCompiler
+import DataStructures: CircularDeque, LittleDict, OrderedDict
+import TermInterface: arguments, arity, exprhead, istree, operation, similarterm, symtype
+import TimerOutputs: @timeit, TimerOutput, disable_timer!, print_timer
+import Metatheory: cleanast
+import Metatheory.Patterns: AbstractPat, PatTerm, PatVar, UnsupportedPatternException, isground
+import Metatheory.Rules: AbstractRule, BidirRule, DynamicRule, EqualityRule, RewriteRule, UnequalRule
 
 include("intdisjointmap.jl")
 export IntDisjointSet
@@ -53,7 +52,7 @@ export getcost!
 
 include("Schedulers.jl")
 export Schedulers
-using .Schedulers
+import .Schedulers: AbstractScheduler, BackoffScheduler, cansaturate, cansearch, inform!, setiter!
 
 include("saturation.jl")
 export SaturationGoal

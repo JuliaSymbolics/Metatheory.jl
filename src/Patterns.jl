@@ -6,13 +6,21 @@ backends.
 """
 module Patterns
 
-using Metatheory: binarize, cleanast, alwaystrue
-using AutoHashEquals
-using TermInterface
+import Metatheory: alwaystrue
+import TermInterface
+import TermInterface: arguments, exprhead, operation, similarterm
 
 
 """
-Abstract type representing a pattern used in all the various pattern matching backends. 
+    AbstractPat
+
+Abstract supertype for patterns consumed by Metatheory's classical and e-graph
+matchers.
+
+Concrete patterns must expose the TermInterface tree methods when they represent
+compound terms. Pattern variables and segment patterns are the two built-in
+binding forms. Users normally construct them through [`@rule`](@ref) rather
+than calling these constructors directly.
 """
 abstract type AbstractPat end
 
@@ -36,8 +44,11 @@ Base.showerror(io::IO, e::UnsupportedPatternException) = print(io, "Pattern ", e
 Base.:(==)(a::AbstractPat, b::AbstractPat) = false
 TermInterface.arity(p::AbstractPat) = 0
 """
-A ground pattern contains no pattern variables and 
-only literal values to match.
+    isground(pattern) -> Bool
+
+Return `true` when `pattern` contains no [`PatVar`](@ref) or
+[`PatSegment`](@ref) bindings and can therefore be looked up as a literal
+term. Non-pattern values are ground by definition.
 """
 isground(p::AbstractPat) = false
 isground(x) = true # literals
@@ -46,8 +57,31 @@ isground(x) = true # literals
 """
     PatVar{P}(name, debrujin_index, predicate::P)
 
-Pattern variables will first match on one subterm
-and instantiate the substitution to that subterm.
+Represent a pattern variable that matches exactly one subterm.
+
+# Arguments
+
+- `name::Symbol`: Name used when displaying the pattern.
+- `debrujin_index::Int`: Matcher binding index; `-1` means it has not yet been
+  assigned by [`setdebrujin!`](@ref).
+- `predicate`: Function or type restriction applied to each candidate match.
+
+# Fields
+
+- `name`, `idx`, `predicate`, `predicate_code`: Mutable matcher state. The
+  `idx` and `predicate_code` fields are compiler bookkeeping and should be
+  left to the rule constructors.
+
+The short constructor `PatVar(:x)` creates an unrestricted variable. In user
+syntax, the equivalent pattern is `~x`; a type or predicate can be written as
+`~x::Number` or `~x::is_valid`.
+
+# Example
+
+```julia
+r = @rule sin(~x::Number) --> cos(~x)
+r(:(sin(1)))
+```
 
 Matcher pattern may contain pattern variables with attached predicates,
 where `predicate` is a function that takes a matched expression and returns a
@@ -68,11 +102,27 @@ PatVar(var) = PatVar(var, -1, alwaystrue, nothing)
 PatVar(var, i) = PatVar(var, i, alwaystrue, nothing)
 
 """
-If you want to match a variable number of subexpressions at once, you will need
-a **segment pattern**. 
-A segment pattern represents a vector of subexpressions matched. 
-You can attach a predicate `g` to a segment variable. In the case of segment variables `g` gets a vector of 0 or more 
-expressions and must return a boolean value. 
+    PatSegment{P}(name, debrujin_index, predicate::P)
+
+Represent a pattern variable that matches zero or more consecutive arguments.
+
+# Arguments
+
+- `name::Symbol`: Name used when displaying the pattern.
+- `debrujin_index::Int`: Matcher binding index, assigned by
+  [`setdebrujin!`](@ref).
+- `predicate`: Function applied to the complete vector of matched arguments.
+
+The short constructor `PatSegment(:xs)` creates an unrestricted segment. In
+user syntax, the equivalent pattern is `~xs...`. A segment predicate receives
+the vector of matched terms and must return a Boolean.
+
+# Example
+
+```julia
+r = @rule f(~xs...) --> g(~xs...)
+r(:(f(a, b)))
+```
 """
 mutable struct PatSegment{P} <: AbstractPat
   name::Symbol
@@ -86,9 +136,20 @@ PatSegment(v, i) = PatSegment(v, i, alwaystrue, nothing)
 
 
 """
-Term patterns will match
-on terms of the same `arity` and with the same 
-function symbol `operation` and expression head `exprhead`.
+    PatTerm(exprhead, operation, args)
+
+Represent a compound pattern with a term-interface head, operation, and child
+patterns.
+
+# Arguments
+
+- `exprhead`: Expression head, usually `:call`.
+- `operation`: Function, operator, or literal operation to match.
+- `args::Vector`: Child patterns, matched in order.
+
+A `PatTerm` matches only a term with the same expression head, operation, and
+arity. It is normally produced by [`@rule`](@ref); direct construction is
+useful for implementing custom matchers.
 """
 struct PatTerm <: AbstractPat
   exprhead::Any
@@ -115,7 +176,10 @@ isground(p::PatTerm) = all(isground, p.args)
 # ==============================================
 
 """
-Collects pattern variables appearing in a pattern into a vector of symbols
+    patvars(pattern) -> Vector{Symbol}
+
+Collect the unique pattern-variable names appearing in `pattern`, in traversal
+order. Literal values do not contribute names.
 """
 patvars(p::PatVar, s) = push!(s, p.name)
 patvars(p::PatSegment, s) = push!(s, p.name)

@@ -18,6 +18,11 @@ DataStructures = "0.18"
 DocStringExtensions = "0.8, 0.9"
 PrecompileTools = "1.2"
 Reexport = "0.2, 1"
+SciMLTesting = "2.4"
+Documenter = "1"
+Literate = "2"
+SafeTestsets = "0.1"
+Test = "1"
 TermInterface = "0.3.3"
 TimerOutputs = "0.5"
 julia = "1.8"
@@ -26,7 +31,8 @@ julia = "1.8"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+SciMLTesting = "09d9d899-5365-40a9-917a-5f67fddea283"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Documenter", "SafeTestsets", "Literate"]
+test = ["Test", "Documenter", "SafeTestsets", "Literate", "SciMLTesting"]

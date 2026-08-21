@@ -10,11 +10,11 @@ the syntax macros, then use [`rewrite`](@ref) for ordinary rewriting or
 """
 module Metatheory
 
-using DataStructures
-
-using Base.Meta
-using Reexport
-using TermInterface
+import DataStructures
+import Base.Meta: isexpr
+import Reexport: @reexport
+import TermInterface
+import TermInterface: arguments, arity, exprhead, istree, metadata, operation, similarterm, symtype
 using PrecompileTools: @compile_workload, @setup_workload
 
 @inline alwaystrue(x) = true
@@ -49,7 +49,7 @@ include("Library.jl")
 export Library
 
 include("Rewriters.jl")
-using .Rewriters
+import .Rewriters: Chain, Fixpoint, Postwalk, Prewalk
 export Rewriters
 
 """

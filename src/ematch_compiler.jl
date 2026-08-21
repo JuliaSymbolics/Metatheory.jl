@@ -8,9 +8,9 @@ rule backends; ordinary users should construct rules with [`@rule`](@ref).
 """
 module EMatchCompiler
 
-using TermInterface
-using ..Patterns
-using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, LL, maybelock!
+import TermInterface: arguments, arity, exprhead, istree, operation, symtype
+import ..Patterns: PatTerm, PatVar, isground
+import Metatheory: assoc, car, cdr, drop_n, islist, LL, lookup_pat, maybelock!
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
@@ -72,8 +72,8 @@ function ematcher(p::PatVar)
   end
 end
 
-Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
-Base.@pure @inline checkop(x, op) = isequal(x, op)
+@inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
+@inline checkop(x, op) = isequal(x, op)
 
 function canbind(p::PatTerm)
   eh = exprhead(p)

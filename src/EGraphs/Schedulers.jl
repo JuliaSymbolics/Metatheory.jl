@@ -10,10 +10,9 @@ module Schedulers
 
 include("../docstrings.jl")
 
-using Metatheory.Rules
-using Metatheory.EGraphs
-using Metatheory.Patterns
-using DocStringExtensions
+import Metatheory.Rules: AbstractRule, DynamicRule
+import Metatheory.EGraphs: EGraph
+import Metatheory.Patterns: PatTerm
 
 export AbstractScheduler
 export SimpleScheduler
@@ -83,7 +82,15 @@ function setiter! end
 
 
 """
-A simple Rewrite Scheduler that applies every rule every time
+    SimpleScheduler()
+
+A scheduler that searches every rule on every iteration and never stops due to
+scheduler state. It is useful as a reference implementation for custom
+schedulers and for small theories.
+
+The scheduler constructor used by [`saturate!`](@ref) is
+`SimpleScheduler(egraph, theory)`; the arguments are accepted for interface
+compatibility and are not stored.
 """
 struct SimpleScheduler <: AbstractScheduler end
 
@@ -108,14 +115,23 @@ mutable struct BackoffSchedulerEntry
 end
 
 """
-A Rewrite Scheduler that implements exponential rule backoff.
-For each rewrite, there exists a configurable initial match limit.
-If a rewrite search yield more than this limit, then we ban this rule
-for number of iterations, double its limit, and double the time it
-will be banned next time.
+    BackoffScheduler(egraph, theory[, match_limit, ban_length])
 
-This seems effective at preventing explosive rules like
-associativity from taking an unfair amount of resources.
+A scheduler that applies exponential rule backoff. When a rule yields more
+than its match limit, it is skipped for a number of iterations; both limits
+grow after each ban. This bounds explosive theories such as associativity.
+
+# Arguments
+
+- `egraph`: E-graph being saturated.
+- `theory`: Rules being searched.
+- `match_limit::Int=1000`: Initial matches permitted for one rule.
+- `ban_length::Int=5`: Initial number of iterations to skip after a ban.
+
+# Fields
+
+- `data`: Per-rule backoff state.
+- `G`, `theory`, `curr_iter`: E-graph, rule collection, and iteration state.
 """
 mutable struct BackoffScheduler <: AbstractScheduler
   data::IdDict{AbstractRule,BackoffSchedulerEntry}
@@ -149,8 +165,8 @@ cansaturate(s::BackoffScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned
 
 function inform!(s::BackoffScheduler, rule::AbstractRule, n_matches)
   rd = s.data[rule]
-  treshold = rd.match_limit << rd.times_banned
-  if n_matches > treshold
+  threshold = rd.match_limit << rd.times_banned
+  if n_matches > threshold
     ban_length = rd.ban_length << rd.times_banned
     rd.times_banned += 1
     rd.banned_until = s.curr_iter + ban_length
@@ -177,14 +193,24 @@ mutable struct ScoredSchedulerEntry
 end
 
 """
-A Rewrite Scheduler that implements exponential rule backoff.
-For each rewrite, there exists a configurable initial match limit.
-If a rewrite search yield more than this limit, then we ban this rule
-for number of iterations, double its limit, and double the time it
-will be banned next time.
+    ScoredScheduler(egraph, theory[, match_limit, ban_length, complexity])
 
-This seems effective at preventing explosive rules like
-associativity from taking an unfair amount of resources.
+A backoff scheduler that weights rules by how their complexity changes. Rules
+that increase expression complexity are penalized more heavily than rules that
+reduce it.
+
+# Arguments
+
+- `egraph`: E-graph being saturated.
+- `theory`: Rules being searched.
+- `match_limit::Int=1000`: Initial matches permitted for one rule.
+- `ban_length::Int=5`: Initial number of iterations to skip after a ban.
+- `complexity`: Callable returning a comparable complexity score for a pattern.
+
+# Fields
+
+- `data`: Per-rule match limits, weights, and ban state.
+- `G`, `theory`, `curr_iter`: E-graph, rule collection, and iteration state.
 """
 mutable struct ScoredScheduler <: AbstractScheduler
   data::IdDict{AbstractRule,ScoredSchedulerEntry}
@@ -260,8 +286,8 @@ cansaturate(s::ScoredScheduler)::Bool = all(kv -> s.curr_iter > last(kv).banned_
 
 function inform!(s::ScoredScheduler, rule::AbstractRule, n_matches)
   rd = s.data[rule]
-  treshold = rd.match_limit * (rd.weight^rd.times_banned)
-  if n_matches > treshold
+  threshold = rd.match_limit * (rd.weight^rd.times_banned)
+  if n_matches > threshold
     ban_length = rd.ban_length * (rd.weight^rd.times_banned)
     rd.times_banned += 1
     rd.banned_until = s.curr_iter + ban_length
