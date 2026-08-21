@@ -5,6 +5,7 @@ using DataStructures
 using Base.Meta
 using Reexport
 using TermInterface
+using PrecompileTools: @compile_workload, @setup_workload
 
 @inline alwaystrue(x) = true
 
@@ -49,5 +50,6 @@ function rewrite(expr, theory; order = :outer)
 end
 export rewrite
 
+include("precompile.jl")
 
 end # module
