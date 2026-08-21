@@ -26,7 +26,7 @@ expects the rule to expose the pattern information required by its matcher.
 
 Implement `(::MyRule)(term)`, return `nothing` for a non-match, and define
 equality if rules are stored in dictionaries or scheduler state. Subtype
-[`SymbolicRule`](@ref) when the rule has symbolic left and right patterns.
+[`SymbolicRule`](@ref Metatheory.Rules.SymbolicRule) when the rule has symbolic left and right patterns.
 
 # Example
 
@@ -43,7 +43,7 @@ Base.:(==)(a::AbstractRule, b::AbstractRule) = false
     SymbolicRule <: AbstractRule
 
 Abstract supertype for rules whose left and right sides are symbolic patterns.
-Subtypes store pattern data and are normally constructed by [`@rule`](@ref).
+Subtypes store pattern data and are normally constructed by [`@rule`](@ref Metatheory.Syntax.@rule).
 """
 abstract type SymbolicRule <: AbstractRule end
 
@@ -229,7 +229,7 @@ classical rewriting), and one positional value per pattern variable.
 - `rhs_code`, `matcher`, `patvars`, `ematcher!`: Display and compiled matcher
   state.
 
-Use the [`@rule`](@ref) `=>` form unless constructing a custom rule backend.
+Use the [`@rule`](@ref Metatheory.Syntax.@rule) `=>` form unless constructing a custom rule backend.
 
 Dynamic rule
 ```julia

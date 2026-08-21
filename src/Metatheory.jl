@@ -3,10 +3,10 @@
 
 Term-rewriting and equality-saturation tools for symbolic expressions.
 
-The public interface is organized into [`Patterns`](@ref), [`Rules`](@ref),
-[`Rewriters`](@ref), and [`EGraphs`](@ref). Construct patterns and rules with
-the syntax macros, then use [`rewrite`](@ref) for ordinary rewriting or
-[`EGraphs.saturate!`](@ref) for equality saturation.
+The public interface is organized into [`Patterns`](@ref Metatheory.Patterns), [`Rules`](@ref Metatheory.Rules),
+[`Rewriters`](@ref Metatheory.Rewriters), and [`EGraphs`](@ref Metatheory.EGraphs). Construct patterns and rules with
+the syntax macros, then use [`rewrite`](@ref Metatheory.rewrite) for ordinary rewriting or
+[`EGraphs.saturate!`](@ref Metatheory.EGraphs.saturate!) for equality saturation.
 """
 module Metatheory
 
@@ -68,7 +68,7 @@ Repeatedly apply `theory` to an expression using tree traversal.
   for pre-order rewriting.
 
 The function preserves the input when a rule does not apply. Use
-[`EGraphs.saturate!`](@ref) when all equivalent forms should be retained.
+[`EGraphs.saturate!`](@ref Metatheory.EGraphs.saturate!) when all equivalent forms should be retained.
 """
 function rewrite(expr, theory; order = :outer)
   if order == :inner

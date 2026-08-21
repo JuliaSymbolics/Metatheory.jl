@@ -19,7 +19,7 @@ matchers.
 
 Concrete patterns must expose the TermInterface tree methods when they represent
 compound terms. Pattern variables and segment patterns are the two built-in
-binding forms. Users normally construct them through [`@rule`](@ref) rather
+binding forms. Users normally construct them through [`@rule`](@ref Metatheory.Syntax.@rule) rather
 than calling these constructors directly.
 """
 abstract type AbstractPat end
@@ -63,7 +63,7 @@ Represent a pattern variable that matches exactly one subterm.
 
 - `name::Symbol`: Name used when displaying the pattern.
 - `debrujin_index::Int`: Matcher binding index; `-1` means it has not yet been
-  assigned by [`setdebrujin!`](@ref).
+  assigned by [`setdebrujin!`](@ref Metatheory.Patterns.setdebrujin!).
 - `predicate`: Function or type restriction applied to each candidate match.
 
 # Fields
@@ -110,7 +110,7 @@ Represent a pattern variable that matches zero or more consecutive arguments.
 
 - `name::Symbol`: Name used when displaying the pattern.
 - `debrujin_index::Int`: Matcher binding index, assigned by
-  [`setdebrujin!`](@ref).
+  [`setdebrujin!`](@ref Metatheory.Patterns.setdebrujin!).
 - `predicate`: Function applied to the complete vector of matched arguments.
 
 The short constructor `PatSegment(:xs)` creates an unrestricted segment. In
@@ -148,7 +148,7 @@ patterns.
 - `args::Vector`: Child patterns, matched in order.
 
 A `PatTerm` matches only a term with the same expression head, operation, and
-arity. It is normally produced by [`@rule`](@ref); direct construction is
+arity. It is normally produced by [`@rule`](@ref Metatheory.Syntax.@rule); direct construction is
 useful for implementing custom matchers.
 """
 struct PatTerm <: AbstractPat

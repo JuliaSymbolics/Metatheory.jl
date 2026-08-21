@@ -185,7 +185,7 @@ julia> @slots x y z a b c Chain([
     (@rule +(x...) => sum(x)),
 ])
 ```
-See also: [`@rule`](@ref), [`@capture`](@ref)
+See also: [`@rule`](@ref Metatheory.Syntax.@rule), [`@capture`](@ref Metatheory.Syntax.@capture)
 """
 macro slots(args...)
   length(args) >= 1 || ArgumentError("@slots requires at least one argument")
@@ -328,7 +328,7 @@ Note that this is syntactic sugar and that it is the same as
 
 **Compatibility**:
 Segment variables may still be written as (`~~x`), and slot (`~x`) and segment (`~x...` or `~~x`) syntaxes on the RHS will still substitute the result of the matches.
-See also: [`@capture`](@ref), [`@slots`](@ref)
+See also: [`@capture`](@ref Metatheory.Syntax.@capture), [`@slots`](@ref Metatheory.Syntax.@slots)
 """
 macro rule(args...)
   length(args) >= 1 || ArgumentError("@rule requires at least one argument")
@@ -421,7 +421,7 @@ julia> if @capture ex (~x)^(~x)
        end;
 x = a
 ```
-See also: [`@rule`](@ref)
+See also: [`@rule`](@ref Metatheory.Syntax.@rule)
 """
 macro capture(args...)
   length(args) >= 2 || ArgumentError("@capture requires at least two arguments")

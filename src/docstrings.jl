@@ -1,13 +1,9 @@
 ## Docstring Templates
 
-import DocStringExtensions: @template, DOCSTRING, IMPORTS, TYPEDEF, TYPEDFIELDS, TYPEDSIGNATURES
+import DocStringExtensions: @template, DOCSTRING, IMPORTS, TYPEDEF, TYPEDFIELDS
 
 @template (FUNCTIONS, METHODS, MACROS) = """
                                          $(DOCSTRING)
-
-                                         ---
-                                         # Signatures
-                                         $(TYPEDSIGNATURES)
                                          """
 
 @template (TYPES) = """

@@ -4,8 +4,8 @@
 Equality graphs for retaining and saturating many equivalent representations
 of a term.
 
-Build an [`EGraph`](@ref), add terms with [`addexpr!`](@ref), and call
-[`saturate!`](@ref) with a rule theory. Custom analyses implement the generic
+Build an [`EGraph`](@ref Metatheory.EGraphs.EGraph), add terms with [`addexpr!`](@ref Metatheory.EGraphs.addexpr!), and call
+[`saturate!`](@ref Metatheory.EGraphs.saturate!) with a rule theory. Custom analyses implement the generic
 `make`, `join`, `modify!`, and `islazy` hooks documented in the analysis API.
 """
 module EGraphs
@@ -18,6 +18,14 @@ import TimerOutputs: TimerOutput, disable_timer!, print_timer, timeit
 import Metatheory: cleanast
 import Metatheory.Patterns: AbstractPat, PatTerm, PatVar, UnsupportedPatternException, isground
 import Metatheory.Rules: AbstractRule, BidirRule, DynamicRule, EqualityRule, RewriteRule, UnequalRule
+
+"""
+    arity(term)
+
+Return the number of child arguments in a term. This is the
+TermInterface.arity function reexported for e-graph implementations.
+"""
+arity
 
 include("intdisjointmap.jl")
 export IntDisjointSet

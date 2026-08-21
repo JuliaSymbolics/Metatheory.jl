@@ -3,7 +3,7 @@
 
 Scheduler implementations for e-graph rule search.
 
-Custom schedulers subtype [`AbstractScheduler`](@ref) and implement
+Custom schedulers subtype [`AbstractScheduler`](@ref Metatheory.EGraphs.Schedulers.AbstractScheduler) and implement
 `cansaturate`, `cansearch`, `inform!`, and `setiter!`.
 """
 module Schedulers
@@ -26,11 +26,11 @@ export setiter!
 """
     AbstractScheduler
 
-Abstract interface for controlling rule search during [`saturate!`](@ref).
+Abstract interface for controlling rule search during [`saturate!`](@ref Metatheory.EGraphs.saturate!).
 
-A custom scheduler must provide a constructor accepting an [`EGraph`](@ref)
-and a vector of [`AbstractRule`](@ref)s, plus methods for [`cansaturate`](@ref),
-[`cansearch`](@ref), [`inform!`](@ref), and [`setiter!`](@ref). The scheduler
+A custom scheduler must provide a constructor accepting an [`EGraph`](@ref Metatheory.EGraphs.EGraph)
+and a vector of [`AbstractRule`](@ref Metatheory.Rules.AbstractRule)s, plus methods for [`cansaturate`](@ref Metatheory.EGraphs.Schedulers.cansaturate),
+[`cansearch`](@ref Metatheory.EGraphs.Schedulers.cansearch), [`inform!`](@ref Metatheory.EGraphs.Schedulers.inform!), and [`setiter!`](@ref Metatheory.EGraphs.Schedulers.setiter!). The scheduler
 may keep mutable state, but it must return a Boolean from the first three hooks.
 """
 abstract type AbstractScheduler end
@@ -42,7 +42,7 @@ Return `true` when the scheduler has no rule search left to perform. This is
 checked after each saturation iteration; returning `false` lets another stop
 condition, such as a goal or timeout, decide when to stop.
 
-Implement this method for custom [`AbstractScheduler`](@ref) types.
+Implement this method for custom [`AbstractScheduler`](@ref Metatheory.EGraphs.Schedulers.AbstractScheduler) types.
 """
 function cansaturate end
 
@@ -52,7 +52,7 @@ function cansaturate end
 Return `true` when `rule` should be searched during the current iteration and
 `false` when the scheduler wants to skip it.
 
-Implement this method for custom [`AbstractScheduler`](@ref) types.
+Implement this method for custom [`AbstractScheduler`](@ref Metatheory.EGraphs.Schedulers.AbstractScheduler) types.
 """
 function cansearch end
 
@@ -62,7 +62,7 @@ function cansearch end
 Notify the scheduler how many matches were produced for `rule` in the current
 iteration. Return `true` to keep the matches and `false` to discard them.
 
-Implement this method for custom [`AbstractScheduler`](@ref) types.
+Implement this method for custom [`AbstractScheduler`](@ref Metatheory.EGraphs.Schedulers.AbstractScheduler) types.
 """
 function inform! end
 
@@ -88,7 +88,7 @@ A scheduler that searches every rule on every iteration and never stops due to
 scheduler state. It is useful as a reference implementation for custom
 schedulers and for small theories.
 
-The scheduler constructor used by [`saturate!`](@ref) is
+The scheduler constructor used by [`saturate!`](@ref Metatheory.EGraphs.saturate!) is
 `SimpleScheduler(egraph, theory)`; the arguments are accepted for interface
 compatibility and are not stored.
 """

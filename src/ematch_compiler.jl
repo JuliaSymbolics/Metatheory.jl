@@ -4,7 +4,7 @@
 Internal compiler support for turning patterns into e-graph matchers.
 
 The exported matcher constructors are developer-facing APIs used by custom
-rule backends; ordinary users should construct rules with [`@rule`](@ref).
+rule backends; ordinary users should construct rules with [`@rule`](@ref Metatheory.Syntax.@rule).
 """
 module EMatchCompiler
 
@@ -167,7 +167,7 @@ Compile both directions of a bidirectional pattern match.
 
 # Arguments
 
-- `left`, `right`: Left and right patterns of a [`BidirRule`](@ref).
+- `left`, `right`: Left and right patterns of a [`BidirRule`](@ref Metatheory.Rules.BidirRule).
 - `npvars::Int`: Number of pattern variables.
 
 The returned callable accepts `(egraph, rule_index, eclass_id)`, appends

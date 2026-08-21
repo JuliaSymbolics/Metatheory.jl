@@ -25,16 +25,12 @@ and_alg = @theory p q r begin
 end
 
 comb = @theory p q r begin
-  # DeMorgan
   !(p || q) == (!p && !q)
   !(p && q) == (!p || !q)
-  # distrib
   (p && (q || r)) == ((p && q) || (p && r))
   (p || (q && r)) == ((p || q) && (p || r))
-  # absorb
   (p && (p || q)) --> p
   (p || (p && q)) --> p
-  # complement
   (p && (!p || q)) --> p && q
   (p || (!p && q)) --> p || q
 end
@@ -90,4 +86,3 @@ function prove(
   end
   return ex
 end
-
