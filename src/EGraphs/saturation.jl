@@ -1,12 +1,48 @@
+"""
+    SaturationGoal
+
+Abstract interface for stopping conditions passed to [`saturate!`](@ref Metatheory.EGraphs.saturate!).
+
+Concrete goals should implement `reached(g::EGraph, goal)` and return `true`
+when the requested condition has been met. A function goal is also accepted
+and is called with the current e-graph.
+
+# Examples
+
+```julia
+struct MatchGoal <: SaturationGoal end
+Metatheory.EGraphs.reached(g::EGraph, ::MatchGoal) = length(g.classes) > 1
+
+params = SaturationParams(goal=MatchGoal())
+saturate!(EGraph(1), AbstractRule[], params)
+```
+"""
 abstract type SaturationGoal end
 
+"""
+    reached(g, goal) -> Bool
+
+Return whether `goal` has been reached in `g`.
+
+Extend this function for custom [`SaturationGoal`](@ref Metatheory.EGraphs.SaturationGoal) types. Function goals
+are called with `g`; `nothing` and unimplemented goals return `false`.
+"""
 reached(g::EGraph, goal::Nothing) = false
 reached(g::EGraph, goal::SaturationGoal) = false
 reached(g::EGraph, goal::Function) = goal(g)
 
 """
-This goal is reached when the `exprs` list of expressions are in the 
-same equivalence class.
+    EqualityGoal(exprs, ids)
+
+Stop saturation when all identifiers in `ids` are in one equivalence
+class.
+
+# Fields
+
+- `exprs`: Expressions corresponding to the identifiers.
+- `ids`: E-class identifiers to compare.
+
+`exprs` and `ids` must have the same nonzero length.
 """
 struct EqualityGoal <: SaturationGoal
   exprs::Vector{Any}
@@ -45,7 +81,22 @@ function Base.show(io::IO, x::SaturationReport)
 end
 
 """
-Configurable Parameters for the equality saturation process.
+    SaturationParams(; kwargs...)
+
+Configure equality saturation.
+
+# Keywords
+
+- `timeout::Int=8`: Iteration or backend timeout limit.
+- `timelimit::UInt64=0`: Wall-clock limit in nanoseconds; `0` disables it.
+- `eclasslimit::Int=5000`: Maximum number of e-classes.
+- `enodelimit::Int=15000`: Maximum number of e-nodes.
+- `goal`: Optional [`SaturationGoal`](@ref Metatheory.EGraphs.SaturationGoal) or function stopping condition.
+- `stopwhen`: Function requesting an early stop.
+- `scheduler`: Scheduler type used for rule search.
+- `schedulerparams`: Positional scheduler constructor arguments.
+- `threaded::Bool=false`: Enable threaded matching where supported.
+- `timer::Bool=true`: Record timing information in the report.
 """
 Base.@kwdef mutable struct SaturationParams
   timeout::Int = 8
@@ -114,21 +165,25 @@ function eqsat_search!(
 
   @debug "SEARCHING"
   for (rule_idx, rule) in enumerate(theory)
-    @timeit report.to string(rule_idx) begin
-      prev_matches = n_matches
-      # don't apply banned rules
-      if !cansearch(scheduler, rule)
-        @debug "$rule is banned"
-        continue
-      end
-      ids = cached_ids(g, rule.left)
-      rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
-      for i in ids
-        n_matches += rule.ematcher!(g, rule_idx, i)
-      end
-      n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
-      inform!(scheduler, rule, n_matches)
-    end
+    timeit(
+      () -> begin
+        prev_matches = n_matches
+        # don't apply banned rules
+        if cansearch(scheduler, rule)
+          ids = cached_ids(g, rule.left)
+          rule isa BidirRule && (ids = ids ∪ cached_ids(g, rule.right))
+          for i in ids
+            n_matches += rule.ematcher!(g, rule_idx, i)
+          end
+          n_matches - prev_matches > 0 && @debug "Rule $rule_idx: $rule produced $(n_matches - prev_matches) matches"
+          inform!(scheduler, rule, n_matches)
+        else
+          @debug "$rule is banned"
+        end
+      end,
+      report.to,
+      string(rule_idx),
+    )
   end
 
 
@@ -255,14 +310,14 @@ function eqsat_step!(
 
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report)
+  timeit(() -> eqsat_search!(g, theory, scheduler, report), report.to, "Search")
 
-  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params)
+  timeit(() -> eqsat_apply!(g, theory, report, params), report.to, "Apply")
 
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.dirty)
     report.reason = :saturated
   end
-  @timeit report.to "Rebuild" rebuild!(g)
+  timeit(() -> rebuild!(g), report.to, "Rebuild")
 
   @debug smallest_expr = extract!(g, astsize)
 
@@ -270,8 +325,18 @@ function eqsat_step!(
 end
 
 """
-Given an [`EGraph`](@ref) and a collection of rewrite rules,
-execute the equality saturation algorithm.
+    saturate!(g, theory, params=SaturationParams()) -> SaturationReport
+
+Apply `theory` to `g` until a stopping condition or resource limit is reached.
+
+# Arguments
+
+- `g`: E-graph to mutate.
+- `theory`: Vector of rewrite rules.
+- `params`: Saturation limits and scheduler configuration.
+
+The returned report records the stop reason, final e-graph, iteration count,
+and timing data.
 """
 function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = SaturationParams())
   curr_iter = 0
@@ -322,6 +387,16 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   return report
 end
 
+"""
+    areequal(theory, exprs...; params=SaturationParams()) -> Bool
+
+Check whether `exprs` become equivalent after saturating an e-graph with
+`theory`.
+
+# Keywords
+
+- `params`: Saturation configuration.
+"""
 function areequal(theory::Vector, exprs...; params = SaturationParams())
   g = EGraph(exprs[1])
   areequal(g, theory, exprs...; params = params)
@@ -346,10 +421,20 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = Satur
   return reached(g, goal)
 end
 
+"""
+    @areequal theory exprs...
+
+Macro form of [`areequal`](@ref Metatheory.EGraphs.areequal).
+"""
 macro areequal(theory, exprs...)
   esc(:(areequal($theory, $exprs...)))
 end
 
+"""
+    @areequalg G theory exprs...
+
+Check equivalence of `exprs` in existing e-graph `G` using `theory`.
+"""
 macro areequalg(G, theory, exprs...)
   esc(:(areequal($G, $theory, $exprs...)))
 end

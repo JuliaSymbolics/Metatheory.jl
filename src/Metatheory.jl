@@ -1,10 +1,20 @@
+"""
+    Metatheory
+
+Term-rewriting and equality-saturation tools for symbolic expressions.
+
+The public interface is organized into [`Patterns`](@ref Metatheory.Patterns), [`Rules`](@ref Metatheory.Rules),
+[`Rewriters`](@ref Metatheory.Rewriters), and [`EGraphs`](@ref Metatheory.EGraphs). Construct patterns and rules with
+the syntax macros, then use [`rewrite`](@ref Metatheory.rewrite) for ordinary rewriting or
+[`EGraphs.saturate!`](@ref Metatheory.EGraphs.saturate!) for equality saturation.
+"""
 module Metatheory
 
-using DataStructures
-
-using Base.Meta
-using Reexport
-using TermInterface
+import DataStructures
+import Base.Meta: isexpr
+import Reexport: @reexport
+import TermInterface
+import TermInterface: arguments, arity, exprhead, istree, metadata, operation, similarterm, symtype
 using PrecompileTools: @compile_workload, @setup_workload
 
 @inline alwaystrue(x) = true
@@ -32,15 +42,34 @@ include("Rules.jl")
 include("Syntax.jl")
 @reexport using .Syntax
 include("EGraphs/EGraphs.jl")
+import .EGraphs: in_same_set
 @reexport using .EGraphs
 
 include("Library.jl")
 export Library
 
 include("Rewriters.jl")
-using .Rewriters
+import .Rewriters: Chain, Fixpoint, Postwalk, Prewalk
 export Rewriters
 
+"""
+    rewrite(expr, theory; order=:outer)
+
+Repeatedly apply `theory` to an expression using tree traversal.
+
+# Arguments
+
+- `expr`: Expression or TermInterface-compatible tree to rewrite.
+- `theory`: Iterable of callable rewrite rules.
+
+# Keywords
+
+- `order::Symbol=:outer`: Use `:outer` for post-order rewriting or `:inner`
+  for pre-order rewriting.
+
+The function preserves the input when a rule does not apply. Use
+[`EGraphs.saturate!`](@ref Metatheory.EGraphs.saturate!) when all equivalent forms should be retained.
+"""
 function rewrite(expr, theory; order = :outer)
   if order == :inner
     Fixpoint(Prewalk(Fixpoint(Chain(theory))))(expr)

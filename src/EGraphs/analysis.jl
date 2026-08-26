@@ -5,11 +5,12 @@ analysis_reference(x) = error("$x is not a valid analysis reference")
 """
     islazy(::Val{analysis_name})
 
-Should return `true` if the EGraph Analysis `an` is lazy
-and false otherwise. A *lazy* EGraph Analysis is computed 
-only when [analyze!](@ref) is called. *Non-lazy* 
-analyses are instead computed on-the-fly every time ENodes are added to the EGraph or
-EClasses are merged.  
+Return whether an analysis is lazy. A lazy analysis is computed only when
+[`analyze!`](@ref) is called; a non-lazy analysis is updated as e-nodes are
+inserted and e-classes are merged.
+
+Extend `islazy(::Val{:name})` for a custom symbolic analysis. Cost functions
+are lazy by default.
 """
 islazy(::Val{analysis_name}) where {analysis_name} = false
 islazy(analysis_name) = islazy(analysis_reference(analysis_name))
@@ -17,10 +18,11 @@ islazy(analysis_name) = islazy(analysis_reference(analysis_name))
 """
     modify!(::Val{analysis_name}, g, id)
 
-The `modify!` function for EGraph Analysis can optionally modify the eclass
-`g[id]` after it has been analyzed, typically by adding an ENode.
-It should be **idempotent** if no other changes occur to the EClass. 
-(See the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304)).
+Optionally modify `g[id]` after an analysis value has been computed, typically
+by adding an e-node. The method must be idempotent when the e-class has not
+otherwise changed, or saturation can fail to converge.
+
+Return `nothing` when no modification is needed.
 """
 modify!(::Val{analysis_name}, g, id) where {analysis_name} = nothing
 modify!(an, g, id) = modify!(analysis_reference(an), g, id)
@@ -29,8 +31,10 @@ modify!(an, g, id) = modify!(analysis_reference(an), g, id)
 """
     join(::Val{analysis_name}, a, b)
 
-Joins two analyses values into a single one, used by [analyze!](@ref)
-when two eclasses are being merged or the analysis is being constructed.
+Combine two analysis values into one value in the analysis domain. The method
+is used when e-classes merge and when an e-class contains multiple e-nodes.
+It should be associative and, when the analysis is a semilattice, commutative
+and idempotent.
 """
 join(analysis::Val{analysis_name}, a, b) where {analysis_name} =
   error("Analysis $analysis_name does not implement join")
@@ -39,7 +43,16 @@ join(an, a, b) = join(analysis_reference(an), a, b)
 """
     make(::Val{analysis_name}, g, n)
 
-Given an ENode `n`, `make` should return the corresponding analysis value. 
+Return the analysis value contributed by e-node `n` in `g`. The value is then
+combined with other values by [`join`](@ref).
+
+# Examples
+
+```julia
+Metatheory.EGraphs.make(::Val{:constant}, g, node) =
+    node isa ENodeLiteral ? node.value : nothing
+Metatheory.EGraphs.join(::Val{:constant}, a, b) = a == b ? a : nothing
+```
 """
 make(::Val{analysis_name}, g, n) where {analysis_name} = error("Analysis $analysis_name does not implement make")
 make(an, g, n) = make(analysis_reference(an), g, n)
@@ -51,12 +64,16 @@ analyze!(g::EGraph, analysis_ref) = analyze!(g, analysis_ref, collect(keys(g.cla
 """
     analyze!(egraph, analysis_name, [ECLASS_IDS])
 
-Given an [EGraph](@ref) and an `analysis` identified by name `analysis_name`, 
-do an automated bottom up trasversal of the EGraph, associating a value from the 
-domain of analysis to each ENode in the egraph by the [make](@ref) function. 
-Then, for each [EClass](@ref), compute the [join](@ref) of the children ENodes analyses values.
-After `analyze!` is called, an analysis value will be associated to each EClass in the EGraph.
-One can inspect and retrieve analysis values by using [hasdata](@ref) and [getdata](@ref).
+Run a bottom-up analysis over the e-graph. `analysis_ref` may be a symbol or a
+function; `ids` optionally restricts the traversal to selected reachable
+e-classes. The analysis uses [`make`](@ref) for each e-node and [`join`](@ref)
+to combine values, then stores the result for [`getdata`](@ref).
+
+# Arguments
+
+- `egraph`: Graph to analyze in place.
+- `analysis_ref`: Symbolic analysis name or cost function.
+- `ids`: Optional vector of root e-class identifiers.
 """
 function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
   addanalysis!(g, analysis_ref)
@@ -92,8 +109,10 @@ function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
 end
 
 """
-A basic cost function, where the computed cost is the size
-(number of children) of the current expression.
+    astsize(enode, egraph) -> Int
+
+Return a cost equal to one plus the number of child e-nodes, plus the cost of
+each child. This is the default small-expression extraction heuristic.
 """
 function astsize(n::ENodeTerm, g::EGraph)
   cost = 1 + arity(n)
@@ -108,9 +127,10 @@ end
 astsize(n::ENodeLiteral, g::EGraph) = 1
 
 """
-A basic cost function, where the computed cost is the size
-(number of children) of the current expression, times -1.
-Strives to get the largest expression
+    astsize_inv(enode, egraph) -> Int
+
+Return the negative of [`astsize`](@ref), causing extraction to prefer larger
+expressions instead of smaller ones.
 """
 function astsize_inv(n::ENodeTerm, g::EGraph)
   cost = -(1 + arity(n)) # minus sign here is the only difference vs astsize
@@ -126,7 +146,10 @@ astsize_inv(n::ENodeLiteral, g::EGraph) = -1
 
 
 """
-When passing a function to analysis functions it is considered as a cost function
+    make(costfun, egraph, enode)
+
+Adapt a cost function to the analysis interface. The returned pair contains
+the original e-node and its numeric cost.
 """
 make(f::Function, g::EGraph, n::AbstractENode) = (n, f(n, g))
 
@@ -157,8 +180,20 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
 end
 
 """
-Given a cost function, extract the expression
-with the smallest computed cost from an [`EGraph`](@ref)
+    extract!(egraph, costfun; root=-1, cse=false)
+
+Extract the expression with the smallest `costfun` value from `egraph`.
+
+# Arguments
+
+- `egraph`: Graph to analyze and extract from.
+- `costfun`: Function of `(enode, egraph)` returning a numeric cost.
+
+# Keywords
+
+- `root::EClassId=-1`: Root e-class; `-1` uses `egraph.root`.
+- `cse::Bool=false`: Return a `let` expression that names repeated
+  subexpressions when `true`.
 """
 function extract!(g::EGraph, costfun::Function; root = -1, cse = false)
   if root == -1
@@ -199,6 +234,23 @@ function collect_cse!(g::EGraph, costfun, id, cse_env, seen)
 end
 
 
+"""
+    getcost!(g, costfun; root=-1)
+
+Compute and return the minimum cost of the root e-class according to
+`costfun`.
+
+# Arguments
+
+- `g`: E-graph to analyze.
+- `costfun`: Function receiving `(enode, g)` and returning a numeric cost.
+
+# Keywords
+
+- `root::EClassId=-1`: Root e-class; `-1` uses `g.root`.
+
+The analysis data in `g` is updated in place.
+"""
 function getcost!(g::EGraph, costfun; root = -1)
   if root == -1
     root = g.root

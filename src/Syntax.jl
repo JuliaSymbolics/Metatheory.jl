@@ -1,9 +1,13 @@
-module Syntax
-using Metatheory.Patterns
-using Metatheory.Rules
-using TermInterface
+"""
+    Syntax
 
-using Metatheory: alwaystrue, cleanast, binarize
+Macros for constructing patterns, rewrite rules, and rewrite theories from
+Julia syntax.
+"""
+module Syntax
+import Metatheory.Patterns: PatSegment, PatTerm, PatVar
+import Metatheory.Rules: DynamicRule, EqualityRule, RewriteRule, SymbolicRule, UnequalRule
+import TermInterface: arguments, exprhead, istree, operation
 
 export @rule
 export @theory
@@ -181,7 +185,7 @@ julia> @slots x y z a b c Chain([
     (@rule +(x...) => sum(x)),
 ])
 ```
-See also: [`@rule`](@ref), [`@capture`](@ref)
+See also: [`@rule`](@ref Metatheory.Syntax.@rule), [`@capture`](@ref Metatheory.Syntax.@capture)
 """
 macro slots(args...)
   length(args) >= 1 || ArgumentError("@slots requires at least one argument")
@@ -199,10 +203,10 @@ Creates an `AbstractRule` object. A rule object is callable, and takes an
 expression and rewrites it if it matches the LHS pattern to the RHS pattern,
 returns `nothing` otherwise. The rule language is described below.
 
-LHS can be any possibly nested function call expression where any of the arugments can
+LHS can be any possibly nested function call expression where any of the arguments can
 optionally be a Slot (`~x`) or a Segment (`~x...`) (described below).
 
-SLOTS is an optional list of symbols to be interpeted as slots or segments
+SLOTS is an optional list of symbols to be interpreted as slots or segments
 directly (without using `~`).  To declare slots for several rules at once, see
 the `@slots` macro.
 
@@ -324,7 +328,7 @@ Note that this is syntactic sugar and that it is the same as
 
 **Compatibility**:
 Segment variables may still be written as (`~~x`), and slot (`~x`) and segment (`~x...` or `~~x`) syntaxes on the RHS will still substitute the result of the matches.
-See also: [`@capture`](@ref), [`@slots`](@ref)
+See also: [`@capture`](@ref Metatheory.Syntax.@capture), [`@slots`](@ref Metatheory.Syntax.@slots)
 """
 macro rule(args...)
   length(args) >= 1 || ArgumentError("@rule requires at least one argument")
@@ -417,7 +421,7 @@ julia> if @capture ex (~x)^(~x)
        end;
 x = a
 ```
-See also: [`@rule`](@ref)
+See also: [`@rule`](@ref Metatheory.Syntax.@rule)
 """
 macro capture(args...)
   length(args) >= 2 || ArgumentError("@capture requires at least two arguments")
