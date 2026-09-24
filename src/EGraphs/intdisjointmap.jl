@@ -1,3 +1,12 @@
+"""
+    IntDisjointSet()
+
+Create an integer disjoint-set forest with union-by-size and path compression.
+
+The object is used by [`EGraph`](@ref) to store equivalence-class roots. Use
+`push!` to allocate identifiers, `union!` to merge sets, and `find` to retrieve
+canonical roots.
+"""
 struct IntDisjointSet
   parents::Vector{Int}
   normalized::Ref{Bool}
@@ -18,6 +27,11 @@ function find_root(x::IntDisjointSet, i::Int)::Int
   return i
 end
 
+"""
+    in_same_set(sets, a, b) -> Bool
+
+Return whether integer identifiers `a` and `b` belong to the same set.
+"""
 function in_same_set(x::IntDisjointSet, a::Int, b::Int)
   find_root(x, a) == find_root(x, b)
 end

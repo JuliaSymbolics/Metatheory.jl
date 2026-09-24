@@ -24,7 +24,7 @@ WHILE is implemented in around 55 readable lines of code, and reaches around 80 
 
 The goal of this tutorial is to show an implementation of a programming language interpreter that is very, very very close to the
 simple theory used to describe it in a textbook. Each denotational semantics rule in the course notes is a Metatheory.jl rewrite rule, with a few extras and minor naming changes. 
-The idea, is that Julia is a really valid didactical programming language! 
+The idea, is that Julia is a really valid didactic programming language!
 
 =#
 
@@ -99,23 +99,23 @@ end
 
 # ## Evaluation strategy
 # We now have some nice denotational semantic rules for arithmetics, but in what order should we apply them?
-# Metatheory.jl provides a flexible rewriter combinator library. You can read more in the [Rewriters](@ref) module docs. 
+# Metatheory.jl provides a flexible rewriter combinator library. You can read more in the [Rewriters](@ref Metatheory.Rewriters) module docs.
 #
 # Given a set of rules, we can define  a rewriter strategy by functionally composing rewriters.
 # First, we want to use `Chain` to combine together the many rules in the theory, and to try to apply them one-by-one on our expressions.
 #
 # But should we first evaluate the outermost operations in the expression, or the innermost?
 # Intuitively, if we have the program `(1 + 2) - 3`, it can hint us that we do want to first evaluate the innermost expressions.
-# To do so, we then pass the result to the [Postwalk](@ref) rewriter, which recursively walks the input expression tree, and applies the rewriter first on 
-# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what [Prewalk](@ref) does?).
+# To do so, we then pass the result to the [Postwalk](@ref Metatheory.Rewriters.Postwalk) rewriter, which recursively walks the input expression tree, and applies the rewriter first on
+# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what [Prewalk](@ref Metatheory.Rewriters.Prewalk) does?).
 #
-# The last component of our strategy is the [Fixpoint](@ref) combinator. This combinator repeatedly applies the rewriter on the input expression,
+# The last component of our strategy is the [Fixpoint](@ref Metatheory.Rewriters.Fixpoint) combinator. This combinator repeatedly applies the rewriter on the input expression,
 # and it does stop looping only when the output expression is the unchanged input expression.
 
 using Metatheory.Rewriters
 strategy = (Fixpoint ∘ Postwalk ∘ Chain)
 
-# In Metatheory.jl, rewrite theories are just vectors of [Rules](@ref). It means we can compose them by concatenating the vectors, or elegantly using the 
+# In Metatheory.jl, rewrite theories are just vectors of [Rules](@ref Metatheory.Rules). It means we can compose them by concatenating the vectors, or elegantly using the
 # built-in set operations provided by the Julia language.
 arithm_lang = read_mem ∪ arithm_rules
 

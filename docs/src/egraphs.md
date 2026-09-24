@@ -35,7 +35,7 @@ system governed by equational rules, about non obviously oriented equations, suc
 )`?
 
 E-Graphs come to our help. 
-EGraphs are bipartite graphs of [ENode](@ref)s and [EClass](@ref)es:
+EGraphs are bipartite graphs of [`AbstractENode`](@ref Metatheory.EGraphs.AbstractENode)s and [`EClass`](@ref Metatheory.EGraphs.EClass)es:
 a data structure for efficiently represent and rewrite on many equivalent expressions at the same time. A sort of fast data structure for sets of trees. Subtrees and parents are shared if possible. This makes EGraphs similar to DAGs.
 Most importantly, with EGraph rewriting you can use **bidirectional rewrite rules**, such as **equalities** without worrying about
 the ordering and confluence of your rewrite system!
@@ -47,7 +47,7 @@ lost.
 The EGraph backend for Metatheory.jl allows you to create an
 EGraph from a starting expression, to add more expressions to the EGraph with
 `addexpr!`, and then to effectively fill the EGraph with all possible equivalent
-expressions resulting from applying rewrite rules from a [theory](../rewrite#Theories), by using the
+expressions resulting from applying rewrite rules from a [theory](rewrite.md#Theories), by using the
 `saturate!` function. You can then easily extract expressions from an e-graph by calling `extract!` with a cost
 function.
 
@@ -110,6 +110,15 @@ customizable parameters include a `timeout` on the number of iterations, a
 that stops saturation when it evaluates to true.
 
 ```@example
+using Metatheory
+using Metatheory.EGraphs
+
+t = @theory a b c begin
+    a * b == b * a
+    a * 1 == a
+    a * (b * c) == (a * b) * c
+end
+
 g = EGraph(:((a * b) * (1 * (b + c))));
 report = saturate!(g, t);
 ```
@@ -126,9 +135,9 @@ julia> @areequal some_theory (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))
 
 ## Configurable Parameters
 
-[`EGraphs.saturate!`](@ref) can accept an additional parameter of type
-[`EGraphs.SaturationParams`](@ref) to configure the equality saturation algorithm.
-Extensive documentation for the configurable parameters is available in the [`EGraphs.SaturationParams`](@ref) API docstring.
+[`EGraphs.saturate!`](@ref Metatheory.EGraphs.saturate!) can accept an additional parameter of type
+[`EGraphs.SaturationParams`](@ref Metatheory.EGraphs.SaturationParams) to configure the equality saturation algorithm.
+Extensive documentation for the configurable parameters is available in the [`EGraphs.SaturationParams`](@ref Metatheory.EGraphs.SaturationParams) API docstring.
 
 ```julia
 # create the saturation params
@@ -212,7 +221,7 @@ saturate!(g, t)
 ex = extract!(g, astsize)
 ```
 
-The second argument to `extract!` is a **cost function**. [astsize](@ref) is 
+The second argument to `extract!` is a **cost function**. [`astsize`](@ref Metatheory.EGraphs.astsize) is
 a cost function provided by default, which computes the size of expressions.
 
 
@@ -222,16 +231,16 @@ A *cost function* for *EGraph extraction* is a function used to determine
 which *e-node* will be extracted from an *e-class*. 
 
 It must return a positive, non-complex number value and, must accept 3 arguments.
-1) The current [ENode](@ref) `n` that is being inspected. 
-2) The current [EGraph](@ref) `g`.
+1) The current [`AbstractENode`](@ref Metatheory.EGraphs.AbstractENode) `n` that is being inspected.
+2) The current [`EGraph`](@ref Metatheory.EGraphs.EGraph) `g`.
 3) The current analysis name `an::Symbol`.
 
 From those 3 parameters, one can access all the data needed to compute
 the cost of an e-node recursively.
 
 * One can use [TermInterface.jl](https://github.com/JuliaSymbolics/TermInterface.jl) methods to access the operation and child arguments of an e-node: `operation(n)`, `arity(n)` and `arguments(n)`
-* Since e-node children always point to e-classes in the same e-graph, one can retrieve the [EClass](@ref) object for each child of the currently visited enode with `g[id] for id in arguments(n)`
-* One can inspect the analysis data for a given eclass and a given analysis name `an`, by using [hasdata](@ref) and [getdata](@ref).
+* Since e-node children always point to e-classes in the same e-graph, one can retrieve the [`EClass`](@ref Metatheory.EGraphs.EClass) object for each child of the currently visited enode with `g[id] for id in arguments(n)`
+* One can inspect the analysis data for a given eclass and a given analysis name `an`, by using [`hasdata`](@ref Metatheory.EGraphs.hasdata) and [`getdata`](@ref Metatheory.EGraphs.getdata).
 * Extraction analyses always associate a tuple of 2 values to a single e-class: which e-node is the one that minimizes the cost
 and its cost. More details can be found in the [egg paper](https://dl.acm.org/doi/pdf/10.1145/3434304) in the *Analyses* section. 
 
@@ -265,7 +274,7 @@ An *EGraph Analysis* is an efficient and automated way of analyzing all the poss
 terms contained in an e-graph. Metatheory.jl provides a toolkit to ease and 
 automate the process of EGraph Analysis. 
 
-An *EGraph Analysis* defines a domain of values and associates a value from the domain to each [EClass](@ref) in the graph. Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).  Rewrites can cooperate with e-class analyses by depending on analysis facts and adding equivalences that in turn establish additional facts. 
+An *EGraph Analysis* defines a domain of values and associates a value from the domain to each [`EClass`](@ref Metatheory.EGraphs.EClass) in the graph. Theoretically, the domain should form a [join semilattice](https://en.wikipedia.org/wiki/Semilattice).  Rewrites can cooperate with e-class analyses by depending on analysis facts and adding equivalences that in turn establish additional facts.
 
 In Metatheory.jl, **EGraph Analyses are uniquely identified** by either
 
@@ -275,10 +284,10 @@ In Metatheory.jl, **EGraph Analyses are uniquely identified** by either
 If you are specifying a custom analysis by its `Symbol` name, 
 the following functions define an interface for analyses based on multiple dispatch 
 on `Val{analysis_name::Symbol}`: 
-* [islazy(an)](@ref) should return true if the analysis name `an` should NOT be computed on-the-fly during egraphs operation, but only when inspected.  
-* [make(an, egraph, n)](@ref) should take an ENode `n` and return a value from the analysis domain.
-* [join(an, x,y)](@ref) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*). If `an` is a `Function`, it is treated as a cost function analysis, it is automatically defined to be the minimum analysis value between `x` and `y`. Typically, the domain value of cost functions are real numbers, but if you really do want to have your own cost type, make sure that `Base.isless` is defined.
-* [modify!(an, egraph, eclassid)](@ref) Can be optionally implemented. This can be used modify an EClass `egraph[eclassid]` on-the-fly during an e-graph saturation iteration, given its analysis value.
+* [`islazy`](@ref Metatheory.EGraphs.islazy) should return true if the analysis name `an` should NOT be computed on-the-fly during egraphs operation, but only when inspected.
+* [`make`](@ref Metatheory.EGraphs.make) should take an [`AbstractENode`](@ref Metatheory.EGraphs.AbstractENode) `n` and return a value from the analysis domain.
+* [`join`](@ref Metatheory.EGraphs.join) should return the semilattice join of `x` and `y` in the analysis domain (e.g. *given two analyses value from ENodes in the same EClass, which one should I choose?*). If `an` is a `Function`, it is treated as a cost function analysis, it is automatically defined to be the minimum analysis value between `x` and `y`. Typically, the domain value of cost functions are real numbers, but if you really do want to have your own cost type, make sure that `Base.isless` is defined.
+* [`modify!`](@ref Metatheory.EGraphs.modify!) can be optionally implemented. This can be used modify an EClass `egraph[eclassid]` on-the-fly during an e-graph saturation iteration, given its analysis value.
 
 ### Defining a custom analysis
 
@@ -300,7 +309,7 @@ using Metatheory.EGraphs
 ```
 
 The next step, the base case of induction, is to define a method for
-[make](@ref) dispatching against our `OddEvenAnalysis`. First, we want to
+[`make`](@ref Metatheory.EGraphs.make) dispatching against our `OddEvenAnalysis`. First, we want to
 associate an analysis value only to the *literals* contained in the EGraph. To do this we
 take advantage of multiple dispatch against `ENodeLiteral`.
 
@@ -329,7 +338,7 @@ We can now define a method for `make` dispatching against
 `OddEvenAnalysis` and `ENodeTerm`s to compute the analysis value for *nested* symbolic terms. 
 We take advantage of the methods in [TermInterface](https://github.com/JuliaSymbolics/TermInterface.jl) 
 to inspect the content of an `ENodeTerm`.
-From the definition of an [ENode](@ref), we know that children of ENodes are always IDs pointing
+From the definition of an [`AbstractENode`](@ref Metatheory.EGraphs.AbstractENode), we know that children of ENodes are always IDs pointing
 to EClasses in the EGraph.
 
 ```julia
@@ -371,11 +380,11 @@ end
 ```
 
 We have now defined a way of tagging each ENode in the EGraph with `:odd` or `:even`, reasoning 
-inductively on the analyses values. The [analyze!](@ref) function will do the dirty job of doing 
+inductively on the analyses values. The [`analyze!`](@ref Metatheory.EGraphs.analyze!) function will do the dirty job of doing
 a recursive walk over the EGraph. The missing piece, is now telling Metatheory.jl how to merge together
 analysis values. Since EClasses represent many equal ENodes, we have to inform the automated analysis
 how to extract a single value out of the many analyses values contained in an EGraph.
-We do this by defining a method for [join](@ref).
+We do this by defining a method for [`join`](@ref Metatheory.EGraphs.join).
 
 ```julia
 function EGraphs.join(::Val{:OddEvenAnalysis}, a, b)
@@ -390,7 +399,7 @@ end
 ```
 
 We do not care to modify the content of EClasses in consequence of our analysis.
-Therefore, we can skip the definition of [modify!](@ref).
+Therefore, we can skip the definition of [`modify!`](@ref Metatheory.EGraphs.modify!).
 We are now ready to test our analysis.
 
 ```julia

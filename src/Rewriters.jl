@@ -13,7 +13,7 @@ rewriters.
 - `RestartedChain(itr)` like `Chain(itr)` but restarts from the first rewriter once on the
    first successful application of one of the chained rewriters.
 - `IfElse(cond, rw1, rw2)` runs the `cond` function on the input, applies `rw1` if cond
-   returns true, `rw2` if it retuns false
+   returns true, `rw2` if it returns false
 - `If(cond, rw)` is the same as `IfElse(cond, rw, Empty())`
 - `Prewalk(rw; threaded=false, thread_cutoff=100)` returns a rewriter which does a pre-order
    traversal of a given expression and applies the rewriter `rw`. Note that if
@@ -30,8 +30,8 @@ rewriters.
 
 """
 module Rewriters
-using TermInterface
-using Metatheory: @timer
+import TermInterface: arguments, exprhead, istree, node_count, operation, similarterm, unsorted_arguments
+import Metatheory: @timer
 
 export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, PassThrough
 
@@ -39,6 +39,11 @@ export Empty, IfElse, If, Chain, RestartedChain, Fixpoint, Postwalk, Prewalk, Pa
 const repr_cache = IdDict()
 cached_repr(x) = Base.get!(() -> repr(x), repr_cache, x)
 
+"""
+    Empty()
+
+A rewriter that always returns `nothing`.
+"""
 struct Empty end
 
 (rw::Empty)(x) = nothing
@@ -46,6 +51,18 @@ struct Empty end
 instrument(x, f) = f(x)
 instrument(x::Empty, f) = x
 
+"""
+    IfElse(cond, yes, no)
+
+Apply `yes` when `cond(x)` is true and `no` otherwise. Each branch is a
+callable rewriter returning a value or `nothing`.
+
+# Fields
+
+- `cond`: Predicate callable on the input.
+- `yes`: True branch rewriter.
+- `no`: False branch rewriter.
+"""
 struct IfElse{F,A,B}
   cond::F
   yes::A
@@ -58,8 +75,19 @@ function (rw::IfElse)(x)
   rw.cond(x) ? rw.yes(x) : rw.no(x)
 end
 
+"""
+    If(cond, rw)
+
+Construct an [`IfElse`](@ref) with [`Empty`](@ref) as its false branch.
+"""
 If(f, x) = IfElse(f, x, Empty())
 
+"""
+    Chain(rws)
+
+Apply an iterable of rewriters in order, retaining the current value when a
+rewriter returns `nothing`.
+"""
 struct Chain
   rws
 end
@@ -76,6 +104,12 @@ end
 
 instrument(c::Chain, f) = Chain(map(x -> instrument(x, f), c.rws))
 
+"""
+    RestartedChain(rws)
+
+Apply rewriters in order and restart at the first rewriter after a successful
+rewrite.
+"""
 struct RestartedChain{Cs}
   rws::Cs
 end
@@ -94,7 +128,7 @@ end
 
 @generated function (rw::RestartedChain{<:NTuple{N,Any}})(x) where {N}
   quote
-    Base.@nexprs $N i -> begin
+    for i in 1:($N)
       let f = rw.rws[i]
         y = @timer cached_repr(repr(f)) f(x)
         if y !== nothing
@@ -107,6 +141,11 @@ end
 end
 
 
+"""
+    Fixpoint(rw)
+
+Apply `rw` until it returns `nothing` or an equal value.
+"""
 struct Fixpoint{C}
   rw::C
 end
@@ -168,16 +207,45 @@ function instrument(x::Walk{ord,C,F,threaded}, f) where {ord,C,F,threaded}
   Walk{ord,typeof(irw),typeof(x.similarterm),threaded}(irw, x.thread_cutoff, x.similarterm)
 end
 
-using .Threads
+import Base.Threads
 
+"""
+    Postwalk(rw; threaded=false, thread_cutoff=100, similarterm=similarterm)
+
+Construct a bottom-up TermInterface tree traversal that applies `rw` after
+rewriting children.
+
+# Keywords
+
+- `threaded`: Spawn tasks for sufficiently large child subtrees.
+- `thread_cutoff`: Minimum `node_count` for spawning a child task.
+- `similarterm`: TermInterface reconstruction function.
+"""
 function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:post,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
 
+"""
+    Prewalk(rw; threaded=false, thread_cutoff=100, similarterm=similarterm)
+
+Construct a top-down TermInterface tree traversal that applies `rw` before
+rewriting children.
+
+# Keywords
+
+- `threaded`: Spawn tasks for sufficiently large child subtrees.
+- `thread_cutoff`: Minimum `node_count` for spawning a child task.
+- `similarterm`: TermInterface reconstruction function.
+"""
 function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:pre,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
 
+"""
+    PassThrough(rw)
+
+Wrap `rw` so that a `nothing` result is replaced with the original input.
+"""
 struct PassThrough{C}
   rw::C
 end
@@ -217,6 +285,8 @@ function (p::Walk{ord,C,F,true})(x) where {ord,C,F}
       end
       args = map((t, a) -> passthrough(t isa Task ? fetch(t) : t, a), _args, arguments(x))
       t = p.similarterm(x, operation(x), args; exprhead = exprhead(x))
+    else
+      t = x
     end
     return ord === :post ? p.rw(t) : t
   else

@@ -8,7 +8,7 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
 
 @testset "Prop logic" begin
   ex = rewrite(:(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s)), impl)
-  @test prove(propositional_logic_theory, ex, 5, 10, 5000)
+  @test prove(propositional_logic_theory, ex, 5, 10)
 
 
   @test @areequal propositional_logic_theory true ((!p == p) == false)
@@ -18,12 +18,16 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)))
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true
 
-  # Frege's theorem
+  #= Frege's theorem =#
   @test @areequal propositional_logic_theory true (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))
 
-  # Demorgan's
+  #= Demorgan's =#
   @test @areequal propositional_logic_theory true (!(p || q) == (!p && !q))
 
-  # Consensus theorem
-  # @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
+  @test areequal(
+    propositional_logic_theory,
+    :((x && y) || (!x && z) || (y && z)),
+    :((x && y) || (!x && z));
+    params = SaturationParams(timeout = 120),
+  )
 end

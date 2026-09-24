@@ -1,8 +1,16 @@
+"""
+    EMatchCompiler
+
+Internal compiler support for turning patterns into e-graph matchers.
+
+The exported matcher constructors are developer-facing APIs used by custom
+rule backends; ordinary users should construct rules with [`@rule`](@ref Metatheory.Syntax.@rule).
+"""
 module EMatchCompiler
 
-using TermInterface
-using ..Patterns
-using Metatheory: islist, car, cdr, assoc, drop_n, lookup_pat, LL, maybelock!
+import TermInterface: arguments, arity, exprhead, istree, operation, symtype
+import ..Patterns: PatTerm, PatVar, isground
+import Metatheory: assoc, car, cdr, drop_n, islist, LL, lookup_pat, maybelock!
 
 function ematcher(p::Any)
   function literal_ematcher(next, g, data, bindings)
@@ -64,8 +72,8 @@ function ematcher(p::PatVar)
   end
 end
 
-Base.@pure @inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
-Base.@pure @inline checkop(x, op) = isequal(x, op)
+@inline checkop(x::Union{Function,DataType}, op) = isequal(x, op) || isequal(nameof(x), op)
+@inline checkop(x, op) = isequal(x, op)
 
 function canbind(p::PatTerm)
   eh = exprhead(p)
@@ -152,6 +160,19 @@ end
 
 ematcher_yield(p, npvars) = ematcher_yield(p, npvars, 1)
 
+"""
+    ematcher_yield_bidir(left, right, npvars)
+
+Compile both directions of a bidirectional pattern match.
+
+# Arguments
+
+- `left`, `right`: Left and right patterns of a [`BidirRule`](@ref Metatheory.Rules.BidirRule).
+- `npvars::Int`: Number of pattern variables.
+
+The returned callable accepts `(egraph, rule_index, eclass_id)`, appends
+matches to the e-graph buffer, and returns the number of matches.
+"""
 function ematcher_yield_bidir(l, r, npvars::Int)
   eml, emr = ematcher_yield(l, npvars, 1), ematcher_yield(r, npvars, -1)
   function ematcher_yield_bidir(g, rule_idx, id)::Int

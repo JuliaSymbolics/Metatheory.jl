@@ -38,4 +38,4 @@ g
 
 And you will see a nice e-graph drawing in the Julia Plots VSCode panel:
 
-![E-Graph Drawing](/assets/graphviz.svg)
+![E-Graph Drawing](assets/graphviz.svg)
