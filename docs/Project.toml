@@ -5,4 +5,7 @@ Metatheory = "e9d8d322-4543-424a-9be4-0cc815abe26c"
 TermInterface = "8ea1fca8-c5ef-4a55-8b96-4e9afe9c9a3c"
 
 [compat]
-Documenter = "~0.26"
+Documenter = "~0.26, 1.16"
+Literate = "2.21.0"
+Metatheory = "2.0.2"
+TermInterface = "2.0.0"
