@@ -3,6 +3,8 @@
 using Metatheory
 using Metatheory.EGraphs
 using Metatheory.EGraphs: in_same_set, find_root
+using Metatheory.EGraphs.Schedulers
+using Test
 
 @testset "Merging" begin
   testexpr = :((a * 2) / 2)
@@ -70,4 +72,38 @@ end
 
   @test in_same_set(G.uf, t5, EClassId(1)) == true
   @test in_same_set(G.uf, t6, EClassId(1)) == true
+end
+
+@testset "BackoffScheduler informed with per-rule match counts (#248)" begin
+  theory = @theory begin
+    ~a + ~b --> ~b + ~a
+    f(~x) --> g(~x)
+  end
+  comm = theory[1]
+  fg = theory[2]
+
+  # match_limit=3: comm yields 3 matches, fg yields 1 — neither exceeds the limit
+  g = EGraph(:(((f(a) + b) + c) + d))
+  sched = BackoffScheduler(g, theory, 3, 5)
+  report = Metatheory.EGraphs.SaturationReport(g)
+  n = Metatheory.EGraphs.eqsat_search!(g, theory, sched, report)
+
+  @test n == 4
+  @test sched.data[comm].times_banned == 0
+  @test sched.data[fg].times_banned == 0
+  setiter!(sched, 2)
+  @test cansearch(sched, comm)
+  @test cansearch(sched, fg)
+
+  # match_limit=2: comm (3) must be banned; fg (1) must not. Guards against
+  # inform!(..., 0) / skipped inform! regressions that the case above would miss.
+  g2 = EGraph(:(((f(a) + b) + c) + d))
+  sched2 = BackoffScheduler(g2, theory, 2, 5)
+  n2 = Metatheory.EGraphs.eqsat_search!(g2, theory, sched2, Metatheory.EGraphs.SaturationReport(g2))
+  @test n2 == 4
+  @test sched2.data[comm].times_banned == 1
+  @test sched2.data[fg].times_banned == 0
+  setiter!(sched2, 2)
+  @test !cansearch(sched2, comm)
+  @test cansearch(sched2, fg)
 end
