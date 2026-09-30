@@ -59,6 +59,10 @@ end
 
 function RewriteRule(l, r)
   pvars = patvars(l) ∪ patvars(r)
+  extravars = setdiff(patvars(r), patvars(l))
+  if !isempty(extravars)
+    error("unbound pattern variables $extravars on the RHS of rule $l --> $r; RHS-only symbols must be quoted, e.g. :a")
+  end
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
