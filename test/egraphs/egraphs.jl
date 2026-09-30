@@ -3,6 +3,8 @@
 using Metatheory
 using Metatheory.EGraphs
 using Metatheory.EGraphs: in_same_set, find_root
+using Metatheory.EGraphs.Schedulers
+using Test
 
 @testset "Merging" begin
   testexpr = :((a * 2) / 2)
@@ -70,4 +72,26 @@ end
 
   @test in_same_set(G.uf, t5, EClassId(1)) == true
   @test in_same_set(G.uf, t6, EClassId(1)) == true
+end
+
+@testset "BackoffScheduler informed with per-rule match counts (#248)" begin
+  theory = @theory begin
+    ~a + ~b --> ~b + ~a
+    f(~x) --> g(~x)
+  end
+  comm = theory[1]
+  fg = theory[2]
+
+  g = EGraph(:(((f(a) + b) + c) + d))
+  # match_limit=3: comm yields 3 matches, fg yields 1 — neither exceeds the limit
+  sched = BackoffScheduler(g, theory, 3, 5)
+  report = Metatheory.EGraphs.SaturationReport(g)
+  n = Metatheory.EGraphs.eqsat_search!(g, theory, sched, report)
+
+  @test n == 4
+  @test sched.data[comm].times_banned == 0
+  @test sched.data[fg].times_banned == 0
+  setiter!(sched, 2)
+  @test cansearch(sched, comm)
+  @test cansearch(sched, fg)
 end
