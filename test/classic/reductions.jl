@@ -218,3 +218,16 @@ using TermInterface
   @test (@capture qux(1, 2) qux(1, 2))
   @test false == (@capture qux(1, 2) qux(3, 4))
 end
+
+# Issue #266: directed rewrite rules must not leave unbound pattern variables on the RHS
+@testset "Unbound RHS pattern variables (#266)" begin
+  @test_throws r"unbound pattern variables .*RHS-only symbols must be quoted" (@rule a 0 --> a - a)
+
+  # Quoted symbols on the RHS are literals, not pattern variables
+  f = @theory a begin
+    0 --> :a - :a
+  end
+  g = EGraph(:(0))
+  saturate!(g, f)
+  @test length(g.classes) == 2
+end
