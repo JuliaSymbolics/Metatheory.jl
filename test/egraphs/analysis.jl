@@ -348,4 +348,21 @@ end
     saturate!(g, t)
     @test extract!(g, astsize) == 2
   end
+
+  @testset "Common subexpression extraction (cse=true)" begin
+    g = EGraph(:((a + b) * (a + b)))
+    @test extract!(g, astsize) == :((a + b) * (a + b))
+
+    ex = extract!(g, astsize; cse = true)
+    @test Meta.isexpr(ex, :let)
+    assignments = ex.args[1]
+    body = ex.args[2]
+    @test Meta.isexpr(assignments, :block)
+    @test length(assignments.args) == 1
+    binding = assignments.args[1]
+    @test Meta.isexpr(binding, :(=))
+    sym, val = binding.args
+    @test val == :(a + b)
+    @test body == :($sym * $sym)
+  end
 end

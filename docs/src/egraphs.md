@@ -215,6 +215,25 @@ ex = extract!(g, astsize)
 The second argument to `extract!` is a **cost function**. [astsize](@ref) is 
 a cost function provided by default, which computes the size of expressions.
 
+## Common subexpression extraction
+
+By default, `extract!` returns a tree that may duplicate shared subexpressions.
+Pass `cse=true` to factor out common subexpressions into a `let` block:
+
+```julia
+g = EGraph(:((a + b) * (a + b)))
+extract!(g, astsize)
+# => :((a + b) * (a + b))
+
+extract!(g, astsize; cse = true)
+# => :(let var"##…" = a + b; var"##…" * var"##…" end)
+```
+
+The CSE pass walks the cheapest e-node DAG chosen by the cost function. Any
+e-class reached more than once (fan-out greater than one via hash-consing) is
+bound once to a `gensym` and reused. This is a greedy sharing pass; it is not
+optimal with respect to sharing. Do not use `cse=true` when extracted
+expressions may contain assignments or other stateful / effectful code.
 
 ## Defining custom cost functions for extraction.
 
