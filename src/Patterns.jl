@@ -126,24 +126,21 @@ function setdebrujin!(p::PatTerm, pvars)
 end
 
 
-# ==============================================
-# ====== PATTERN VARIABLE PREDICATE PROPAGATION
-# ==============================================
-# Matchers only check a variable's predicate on the first (unbound) occurrence.
-# Later occurrences only test equality with the existing binding. If a non-trivial
-# predicate is attached to a later occurrence only (e.g. `a / a::f`), it would be
-# ignored. After de Bruijn indexing, propagate one predicate per idx to every
-# occurrence, and reject conflicting non-trivial predicates.
-# See JuliaSymbolics/Metatheory.jl#246.
-
+# Matchers only check a predicate when they first bind the variable; later
+# occurrences of the same de Bruijn index only test equality with the binding.
 is_trivial_predicate(pred) = pred === alwaystrue
+
+# Same rule / same scope: identical source (`predicate_code`) means equal semantics
+# even when each `::(x -> ...)` expands to a distinct closure object.
+same_var_predicate(prev, p) =
+  prev.predicate === p.predicate || isequal(prev.predicate_code, p.predicate_code)
 
 function collect_var_predicates!(p::Union{PatVar,PatSegment}, table::Dict{Int,Any})
   is_trivial_predicate(p.predicate) && return
   idx = p.idx
   if haskey(table, idx)
     prev = table[idx]
-    if prev.predicate !== p.predicate
+    if !same_var_predicate(prev, p)
       throw(ArgumentError(
         "conflicting predicates for pattern variable $(p.name) " *
         "(de Bruijn index $idx): $(prev.predicate_code) vs $(p.predicate_code)",
@@ -188,10 +185,9 @@ apply_var_predicates(p, ::Dict{Int,Any}) = p
     propagate_pattern_predicates!(p)
 
 After [`setdebrujin!`](@ref), ensure every occurrence of a pattern variable carries
-the same predicate. Non-trivial predicates on later occurrences are copied to
-earlier ones so matchers (which only check predicates when binding) observe them.
-Throws `ArgumentError` if two occurrences of the same variable have different
-non-trivial predicates.
+the same predicate. Non-trivial predicates are copied to every occurrence so matchers
+(which only check predicates when binding) observe them. Throws `ArgumentError` if
+two occurrences of the same variable have different non-trivial predicates.
 """
 function propagate_pattern_predicates!(p)
   table = Dict{Int,Any}()
@@ -218,7 +214,6 @@ export PatTerm
 export PatSegment
 export patvars
 export setdebrujin!
-export propagate_pattern_predicates!
 export isground
 export UnsupportedPatternException
 

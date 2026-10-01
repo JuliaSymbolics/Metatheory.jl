@@ -4,7 +4,7 @@ using TermInterface
 using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
-using Metatheory.Patterns: to_expr
+using Metatheory.Patterns: to_expr, propagate_pattern_predicates!
 using Metatheory: cleanast, binarize, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
