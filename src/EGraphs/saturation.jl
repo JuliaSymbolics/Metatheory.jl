@@ -79,6 +79,8 @@ function eqsat_search!(
   scheduler::AbstractScheduler,
   report::SaturationReport,
   ematch_buffer::OptBuffer{UInt64},
+  rule_stacks::Vector{<:OptBuffer{UInt16}},
+  rule_segbufs::Vector{<:OptBuffer{UInt64}},
 )::Int
   n_matches = 0
 
@@ -101,14 +103,17 @@ function eqsat_search!(
         continue
       end
 
+      # Saturation-local buffers so a shared Theory is safe across threads.
+      stack = rule_stacks[rule_idx]
+      seg_buf = rule_segbufs[rule_idx]
       # Reset per-rule segment buffer before ematch; offset values in ematch_buffer
       # will index into this buffer during the apply phase.
-      empty!(rule.segment_buffer)
+      empty!(seg_buf)
 
       ids_left = cached_ids(g, rule.left)
       for i in ids_left
         cansearch(scheduler, rule_idx, i) || continue
-        n_matches += rule.ematcher_left!(g, rule_idx, i, rule.stack, ematch_buffer, rule.segment_buffer)
+        n_matches += rule.ematcher_left!(g, rule_idx, i, stack, ematch_buffer, seg_buf)
         inform!(scheduler, rule_idx, i, n_matches)
       end
 
@@ -116,7 +121,7 @@ function eqsat_search!(
         ids_right = cached_ids(g, rule.right)
         for i in ids_right
           cansearch(scheduler, rule_idx, i) || continue
-          n_matches += rule.ematcher_right!(g, rule_idx, i, rule.stack, ematch_buffer, rule.segment_buffer)
+          n_matches += rule.ematcher_right!(g, rule_idx, i, stack, ematch_buffer, seg_buf)
           inform!(scheduler, rule_idx, i, n_matches)
         end
       end
@@ -142,7 +147,9 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
       bindings[p.idx]
     end
   elseif p.type === PAT_LITERAL
+    # copy before add!: canonicalize!/v_hash! mutate the buffer; Pats are shared across calls/threads
     add_constant_hashed!(g, p.head, p.head_hash)
+    return add!(g, copy(p.n), false)
   elseif p.type === PAT_EXPR
     if p.has_segment_children
       # Variable-arity instantiation: compute total child count from segment bindings.
@@ -189,20 +196,22 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
       return add!(g, fresh_n, false)
     end
 
-    # --- Fast path: no segment children (zero extra allocations) ---
+    # --- Fast path: no segment children ---
+    # @rule/@theory splice shared Pats; never mutate p.n (threads share the same buffer).
+    n = copy(p.n)
     add_constant_hashed!(g, p.head, p.head_hash)
 
     if needs_operation_quoting(g)
       add_constant_hashed!(g, p.name, p.name_hash)
-      v_set_head!(p.n, p.name_hash)
+      v_set_head!(n, p.name_hash)
     end
 
-    for i in v_children_range(p.n)
-      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH], seg_buf)
+    for i in v_children_range(n)
+      @inbounds n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH], seg_buf)
     end
+    return add!(g, n, false)
   end
-
-  add!(g, p.n, true)
+  error("unsupported pattern type in instantiate_enode!: $(p.type)")
 end
 
 """
@@ -272,6 +281,7 @@ function _eqsat_apply_impl!(
   rep::SaturationReport,
   params::SaturationParams,
   ematch_buffer::OptBuffer{UInt64},
+  rule_segbufs::Vector{<:OptBuffer{UInt64}},
 )
   n_matches = 0
   k = 1
@@ -295,7 +305,7 @@ function _eqsat_apply_impl!(
     bind_end = bind_start + length(rule.patvars) - 1
     bindings = @view ematch_buffer[bind_start:bind_end]
 
-    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction, rule.segment_buffer)
+    res = apply_rule!(bindings, isliteral_bitvec, g, rule, id, direction, rule_segbufs[rule_idx])
 
     k = bind_end + 1
 
@@ -327,16 +337,17 @@ function eqsat_apply!(
   rep::SaturationReport,
   params::SaturationParams,
   ematch_buffer::OptBuffer{UInt64},
+  rule_segbufs::Vector{<:OptBuffer{UInt64}},
 )
   if g.needslock
     lock(g.lock)
     try
-      _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer)
+      _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer, rule_segbufs)
     finally
       unlock(g.lock)
     end
   else
-    _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer)
+    _eqsat_apply_impl!(g, theory, rep, params, ematch_buffer, rule_segbufs)
   end
 end
 
@@ -352,13 +363,15 @@ function eqsat_step!(
   params::SaturationParams,
   report::SaturationReport,
   ematch_buffer::OptBuffer{UInt64},
+  rule_stacks::Vector{<:OptBuffer{UInt16}},
+  rule_segbufs::Vector{<:OptBuffer{UInt64}},
 )
 
   setiter!(scheduler, curr_iter)
 
-  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer)
+  @timeit report.to "Search" eqsat_search!(g, theory, scheduler, report, ematch_buffer, rule_stacks, rule_segbufs)
 
-  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer)
+  @timeit report.to "Apply" eqsat_apply!(g, theory, report, params, ematch_buffer, rule_segbufs)
   if report.reason === nothing && cansaturate(scheduler) && isempty(g.pending)
     report.reason = :saturated
   end
@@ -392,6 +405,9 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
   # Buffer for e-matching. Pre-size generously: large graphs produce many matches
   # and a small initial capacity forces many growth/copy cycles.
   ematch_buffer = OptBuffer{UInt64}(1024)
+  # Per-saturation stacks/segbufs: shared Theory objects must not share rule.stack.
+  rule_stacks = [OptBuffer{UInt16}(STACK_SIZE) for _ in 1:length(theory)]
+  rule_segbufs = [OptBuffer{UInt64}(64) for _ in 1:length(theory)]
 
   while true
     curr_iter += 1
@@ -399,7 +415,7 @@ function saturate!(g::EGraph, theory::Theory, params = SaturationParams())
     @debug "================ EQSAT ITERATION $curr_iter  ================"
     @debug g
 
-    report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer)
+    report = eqsat_step!(g, theory, curr_iter, sched, params, report, ematch_buffer, rule_stacks, rule_segbufs)
 
     elapsed = time_ns() - start_time
 
