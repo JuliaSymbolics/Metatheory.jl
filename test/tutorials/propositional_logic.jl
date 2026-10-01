@@ -8,7 +8,7 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
 
 @testset "Prop logic" begin
   ex = rewrite(:(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s)), impl)
-  @test prove(propositional_logic_theory, ex, 5, 10, 5000)
+  @test prove(propositional_logic_theory, ex, 5, 10)
 
 
   @test @areequal propositional_logic_theory true ((!p == p) == false)
