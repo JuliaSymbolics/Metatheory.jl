@@ -638,7 +638,8 @@ the eclass id in the egraph that represents that ground pattern.
 function lookup_pat(g::EGraph{ExpressionType}, p::Pat)::Id where {ExpressionType}
   if p.type === PAT_LITERAL
     # TODO avoid using enode vector for lookup, just try using hash
-    return has_constant(g, p.head_hash) ? lookup(g, p.n) : 0
+    # copy: lookup → canonicalize!/v_hash! mutate the buffer; Pats are shared
+    return has_constant(g, p.head_hash) ? lookup(g, copy(p.n)) : 0
   end
   @assert p.type === PAT_EXPR && p.isground
 
@@ -648,16 +649,17 @@ function lookup_pat(g::EGraph{ExpressionType}, p::Pat)::Id where {ExpressionType
   has_op = has_constant(g, h) || (h != p.name_hash && has_constant(g, p.name_hash))
   has_op || return 0
 
-  for i in v_children_range(p.n)
-    @inbounds p.n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
-    p.n[i] <= 0 && return 0
+  # Work on a local copy — never write child ids / head into shared p.n
+  n = copy(p.n)
+  for i in v_children_range(n)
+    @inbounds n[i] = lookup_pat(g, args[i - VECEXPR_META_LENGTH])
+    n[i] <= 0 && return 0
   end
 
-  id = lookup(g, p.n)
+  id = lookup(g, n)
   if id <= 0 && h != p.name_hash
-    v_set_head!(p.n, p.name_hash)
-    id = lookup(g, p.n)
-    v_set_head!(p.n, p.head_hash)
+    v_set_head!(n, p.name_hash)
+    id = lookup(g, n)
   end
   id
 end

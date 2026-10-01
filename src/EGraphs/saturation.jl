@@ -142,7 +142,9 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
       bindings[p.idx]
     end
   elseif p.type === PAT_LITERAL
+    # copy before add!: canonicalize!/v_hash! mutate the buffer; Pats are shared across calls/threads
     add_constant_hashed!(g, p.head, p.head_hash)
+    return add!(g, copy(p.n), false)
   elseif p.type === PAT_EXPR
     if p.has_segment_children
       # Variable-arity instantiation: compute total child count from segment bindings.
@@ -189,20 +191,22 @@ function instantiate_enode!(bindings::Bindings, isliteral_bitvec::UInt64, g::EGr
       return add!(g, fresh_n, false)
     end
 
-    # --- Fast path: no segment children (zero extra allocations) ---
+    # --- Fast path: no segment children ---
+    # @rule/@theory splice shared Pats; never mutate p.n (threads share the same buffer).
+    n = copy(p.n)
     add_constant_hashed!(g, p.head, p.head_hash)
 
     if needs_operation_quoting(g)
       add_constant_hashed!(g, p.name, p.name_hash)
-      v_set_head!(p.n, p.name_hash)
+      v_set_head!(n, p.name_hash)
     end
 
-    for i in v_children_range(p.n)
-      @inbounds p.n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH], seg_buf)
+    for i in v_children_range(n)
+      @inbounds n[i] = instantiate_enode!(bindings, isliteral_bitvec, g, p.children[i - VECEXPR_META_LENGTH], seg_buf)
     end
+    return add!(g, n, false)
   end
-
-  add!(g, p.n, true)
+  error("unsupported pattern type in instantiate_enode!: $(p.type)")
 end
 
 """
