@@ -238,9 +238,12 @@ end
   end
 
   @test rewrite(:(x / x), theory1) == 1
-  @test rewrite(:(x / x), theory2) === nothing
-  @test rewrite(:(x / x), theory3) === nothing
-  @test rewrite(:(x / x), theory4) === nothing
+  @test rewrite(:(x / x), theory2) == :(x / x)
+  @test rewrite(:(x / x), theory3) == :(x / x)
+  @test rewrite(:(x / x), theory4) == :(x / x)
+
+  # Direct rule application returns `nothing` when the predicate blocks the match
+  @test theory3[1](:(x / x)) === nothing
 
   # Conflicting non-trivial predicates on the same variable
   @test_throws ArgumentError (@theory a begin
