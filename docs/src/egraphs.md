@@ -115,12 +115,18 @@ report = saturate!(g, t);
 ```
 
 With the EGraph equality saturation backend, Metatheory.jl can prove **simple**
-equalities very efficiently. The `@areequal` macro takes a theory and some
-expressions and returns true iff the expressions are equal according to the
-theory. The following example may return true with an appropriate example theory. 
+equalities very efficiently. [`areequal`](@ref) / [`@areequal`](@ref) take a
+theory and some expressions and return `true` when the expressions are proven
+equivalent under the theory, `false` when saturation finishes without merging
+them, and `missing` when limits stop the search before a proof. See the
+[`areequal`](@ref) docstring for details.
 
-```julia 
-julia> @areequal some_theory (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b)) 
+```julia
+comm_monoid = @commutative_monoid (*) 1
+@areequal comm_monoid (x * y) * z x * (y * z)   # true
+
+t = comm_monoid ∪ (@commutative_group (+) 0 inv) ∪ (@distrib (*) (+))
+@areequal t (x+y)*(a+b) ((a*(x+y))+b*(x+y)) ((x*(a+b))+y*(a+b))  # true
 ```
 
 

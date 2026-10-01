@@ -322,6 +322,32 @@ function saturate!(g::EGraph, theory::Vector{<:AbstractRule}, params = Saturatio
   return report
 end
 
+"""
+    areequal(theory::Vector, exprs...; params = SaturationParams())
+    areequal(g::EGraph, theory::Vector{<:AbstractRule}, exprs...; params = SaturationParams())
+
+Prove that all `exprs` are equivalent under equational `theory` via equality saturation.
+
+Builds (or reuses) an [`EGraph`](@ref), adds every expression, sets an
+[`EqualityGoal`](@ref), and runs [`saturate!`](@ref). Saturation stops early when
+the goal is reached.
+
+# Returns
+- `true` if all expressions end up in the same e-class (equality proven).
+- `false` if saturation completed (`:saturated`) without merging them (not equal
+  under the congruence closure explored by the theory).
+- `missing` if saturation stopped for another reason (e.g. timeout or e-class
+  limit) before proving equality — failure to prove, not a proof of inequality.
+
+# Keyword arguments
+- `params::SaturationParams`: saturation configuration (timeouts, limits, etc.).
+  The goal field of `params` is overwritten for the duration of the call.
+
+The `EGraph` method mutates `g` in place (adds expressions and saturates).
+The theory-only method constructs a fresh e-graph from the first expression.
+
+See also [`@areequal`](@ref), [`@areequalg`](@ref).
+"""
 function areequal(theory::Vector, exprs...; params = SaturationParams())
   g = EGraph(exprs[1])
   areequal(g, theory, exprs...; params = params)
@@ -346,10 +372,31 @@ function areequal(g::EGraph, t::Vector{<:AbstractRule}, exprs...; params = Satur
   return reached(g, goal)
 end
 
+"""
+    @areequal theory exprs...
+
+Convenience macro for [`areequal`](@ref). Expands to
+`areequal(theory, exprs...)`, capturing `exprs` as Julia expression values
+(they are not evaluated as host-language code).
+
+# Example
+```julia
+comm_monoid = @commutative_monoid (*) 1
+@areequal comm_monoid (x * y) * z x * (y * z)
+```
+
+See also [`@areequalg`](@ref).
+"""
 macro areequal(theory, exprs...)
   esc(:(areequal($theory, $exprs...)))
 end
 
+"""
+    @areequalg g theory exprs...
+
+Like [`@areequal`](@ref), but saturates an existing [`EGraph`](@ref) `g` in place.
+Expands to `areequal(g, theory, exprs...)`.
+"""
 macro areequalg(G, theory, exprs...)
   esc(:(areequal($G, $theory, $exprs...)))
 end
