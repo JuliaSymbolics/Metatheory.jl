@@ -219,9 +219,8 @@ using TermInterface
   @test false == (@capture qux(1, 2) qux(3, 4))
 end
 
-# Issue #246: predicates on later occurrences of a repeated pattern variable
-# must be checked (propagated to the first occurrence at rule construction).
-@testset "Issue 246: repeated PatVar predicates (classic)" begin
+# Matchers only check predicates on first bind; later occurrences must still count.
+@testset "Repeated PatVar predicates (classic)" begin
   is_nonzero(_) = false
 
   theory1 = @theory a begin
@@ -244,6 +243,11 @@ end
 
   # Direct rule application returns `nothing` when the predicate blocks the match
   @test theory3[1](:(x / x)) === nothing
+
+  # Textually identical inline lambdas are distinct closures but same predicate_code
+  r_lambda = @rule (~a::(x -> x > 0)) + (~a::(x -> x > 0)) --> 0
+  @test r_lambda(:(1 + 1)) == 0
+  @test r_lambda(:((-1) + (-1))) === nothing
 
   # Conflicting non-trivial predicates on the same variable
   @test_throws ArgumentError (@theory a begin

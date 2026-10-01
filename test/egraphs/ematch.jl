@@ -176,9 +176,8 @@ end
   @test report.reason === :contradiction
 end
 
-# Issue #246: predicates on later occurrences of a repeated pattern variable
-# must be checked (propagated to the first occurrence at rule construction).
-@testset "Issue 246: repeated PatVar predicates (egraph)" begin
+# Matchers only check predicates on first bind; later occurrences must still count.
+@testset "Repeated PatVar predicates (egraph)" begin
   is_nonzero(_) = false
 
   theory1 = @theory a begin
