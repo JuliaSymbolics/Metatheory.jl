@@ -8,15 +8,7 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
 
 @testset "Prop logic" begin
   ex = rewrite(:(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s)), impl)
-  # Match pre-6f39e4b prove(..., steps, timeout, eclasslimit) via SaturationParams
-  params = SaturationParams(
-    timeout = 10,
-    eclasslimit = 5000,
-    scheduler = Schedulers.BackoffScheduler,
-    schedulerparams = (6000, 5),
-    timer = false,
-  )
-  @test prove(propositional_logic_theory, ex, 5, 10, params)
+  @test prove(propositional_logic_theory, ex, 5, 10)
 
 
   @test @areequal propositional_logic_theory true ((!p == p) == false)
