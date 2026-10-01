@@ -157,8 +157,28 @@ function rec_extract(g::EGraph, costfun, id::EClassId; cse_env = nothing)
 end
 
 """
-Given a cost function, extract the expression
-with the smallest computed cost from an [`EGraph`](@ref)
+    extract!(g::EGraph, costfun::Function; root=-1, cse=false)
+
+Given a cost function, extract the expression with the smallest computed cost
+from an [`EGraph`](@ref).
+
+# Keyword arguments
+- `root`: e-class id to extract from. Defaults to the e-graph root (`-1`).
+- `cse::Bool=false`: when `true`, also perform common-subexpression extraction
+  (CSE) on the cheapest e-node DAG selected by `costfun`.
+
+# Common-subexpression extraction (`cse=true`)
+CSE walks that cheapest DAG and records every e-class that is reached more than
+once (fan-out greater than one, thanks to hash-consing). Each such e-class is
+bound once to a fresh `gensym` in a surrounding `let` block; later references
+to that e-class are replaced by the bound symbol. For example,
+`extract!(EGraph(:((a + b) * (a + b))), astsize; cse=true)` yields a `let`
+binding `a + b` once and multiplying the symbol by itself.
+
+This is a *greedy* sharing pass on top of cost-based extraction; it is not
+optimal with respect to sharing (contrast ILP-based optimal extraction). Do
+**not** enable `cse=true` on expressions that may contain assignments or other
+stateful / effectful code: bindings are assumed pure and side-effect free.
 """
 function extract!(g::EGraph, costfun::Function; root = -1, cse = false)
   if root == -1
