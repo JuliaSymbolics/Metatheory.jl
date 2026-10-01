@@ -175,3 +175,33 @@ end
   report = saturate!(g, failme)
   @test report.reason === :contradiction
 end
+
+# Issue #246: predicates on later occurrences of a repeated pattern variable
+# must be checked (propagated to the first occurrence at rule construction).
+@testset "Issue 246: repeated PatVar predicates (egraph)" begin
+  is_nonzero(_) = false
+
+  theory1 = @theory a begin
+    a / a --> 1
+  end
+  theory2 = @theory a begin
+    a::is_nonzero / a --> 1
+  end
+  theory3 = @theory a begin
+    a / a::is_nonzero --> 1
+  end
+  theory4 = @theory a begin
+    a::is_nonzero / a::is_nonzero --> 1
+  end
+
+  function extract_div(theo)
+    g = EGraph(:(x / x))
+    saturate!(g, theo)
+    extract!(g, astsize)
+  end
+
+  @test extract_div(theory1) == 1
+  @test extract_div(theory2) == :(x / x)
+  @test extract_div(theory3) == :(x / x)
+  @test extract_div(theory4) == :(x / x)
+end

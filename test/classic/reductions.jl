@@ -218,3 +218,32 @@ using TermInterface
   @test (@capture qux(1, 2) qux(1, 2))
   @test false == (@capture qux(1, 2) qux(3, 4))
 end
+
+# Issue #246: predicates on later occurrences of a repeated pattern variable
+# must be checked (propagated to the first occurrence at rule construction).
+@testset "Issue 246: repeated PatVar predicates (classic)" begin
+  is_nonzero(_) = false
+
+  theory1 = @theory a begin
+    a / a --> 1
+  end
+  theory2 = @theory a begin
+    a::is_nonzero / a --> 1
+  end
+  theory3 = @theory a begin
+    a / a::is_nonzero --> 1
+  end
+  theory4 = @theory a begin
+    a::is_nonzero / a::is_nonzero --> 1
+  end
+
+  @test rewrite(:(x / x), theory1) == 1
+  @test rewrite(:(x / x), theory2) === nothing
+  @test rewrite(:(x / x), theory3) === nothing
+  @test rewrite(:(x / x), theory4) === nothing
+
+  # Conflicting non-trivial predicates on the same variable
+  @test_throws ArgumentError (@theory a begin
+    a::isodd / a::iseven --> 1
+  end)
+end
