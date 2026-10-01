@@ -4,7 +4,7 @@ using TermInterface
 using AutoHashEquals
 using Metatheory.EMatchCompiler
 using Metatheory.Patterns
-using Metatheory.Patterns: to_expr
+using Metatheory.Patterns: to_expr, propagate_pattern_predicates!
 using Metatheory: cleanast, binarize, matcher, instantiate
 
 const EMPTY_DICT = Base.ImmutableDict{Int,Any}()
@@ -62,6 +62,7 @@ function RewriteRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
+  l = propagate_pattern_predicates!(l)
   RewriteRule(l, r, matcher(l), pvars, ematcher_yield(l, length(pvars)))
 end
 
@@ -107,6 +108,8 @@ function EqualityRule(l, r)
   end
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
+  l = propagate_pattern_predicates!(l)
+  r = propagate_pattern_predicates!(r)
 
   EqualityRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
 end
@@ -149,6 +152,8 @@ function UnequalRule(l, r)
   # sort!(pvars)
   setdebrujin!(l, pvars)
   setdebrujin!(r, pvars)
+  l = propagate_pattern_predicates!(l)
+  r = propagate_pattern_predicates!(r)
   UnequalRule(l, r, pvars, ematcher_yield_bidir(l, r, length(pvars)))
 end
 
@@ -183,6 +188,7 @@ end
 function DynamicRule(l, r::Function, rhs_code = nothing)
   pvars = patvars(l)
   setdebrujin!(l, pvars)
+  l = propagate_pattern_predicates!(l)
   isnothing(rhs_code) && (rhs_code = repr(rhs_code))
 
   DynamicRule(l, r, rhs_code, matcher(l), pvars, ematcher_yield(l, length(pvars)))

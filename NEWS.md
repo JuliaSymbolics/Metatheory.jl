@@ -1,4 +1,5 @@
 # 2.0
+- Different non-trivial predicates on the same pattern variable now raise `ArgumentError` at rule construction (previously the later predicate was silently ignored). Identical annotations (including repeated inline lambdas with the same source) are unified across occurrences.
 - No longer dispatch against types, but instead dispatch against objects.
 - Faster E-Graph Analysis
 - Better library macros 

@@ -126,6 +126,77 @@ function setdebrujin!(p::PatTerm, pvars)
 end
 
 
+# Matchers only check a predicate when they first bind the variable; later
+# occurrences of the same de Bruijn index only test equality with the binding.
+is_trivial_predicate(pred) = pred === alwaystrue
+
+# Same rule / same scope: identical source (`predicate_code`) means equal semantics
+# even when each `::(x -> ...)` expands to a distinct closure object.
+same_var_predicate(prev, p) =
+  prev.predicate === p.predicate || isequal(prev.predicate_code, p.predicate_code)
+
+function collect_var_predicates!(p::Union{PatVar,PatSegment}, table::Dict{Int,Any})
+  is_trivial_predicate(p.predicate) && return
+  idx = p.idx
+  if haskey(table, idx)
+    prev = table[idx]
+    if !same_var_predicate(prev, p)
+      throw(ArgumentError(
+        "conflicting predicates for pattern variable $(p.name) " *
+        "(de Bruijn index $idx): $(prev.predicate_code) vs $(p.predicate_code)",
+      ))
+    end
+  else
+    table[idx] = (; predicate = p.predicate, predicate_code = p.predicate_code)
+  end
+  return
+end
+
+collect_var_predicates!(p::PatTerm, table::Dict{Int,Any}) =
+  (collect_var_predicates!(operation(p), table); foreach(x -> collect_var_predicates!(x, table), arguments(p)))
+collect_var_predicates!(::Any, ::Dict{Int,Any}) = nothing
+
+function apply_var_predicates(p::PatVar, table::Dict{Int,Any})
+  haskey(table, p.idx) || return p
+  info = table[p.idx]
+  p.predicate === info.predicate && return p
+  return PatVar(p.name, p.idx, info.predicate, info.predicate_code)
+end
+
+function apply_var_predicates(p::PatSegment, table::Dict{Int,Any})
+  haskey(table, p.idx) || return p
+  info = table[p.idx]
+  p.predicate === info.predicate && return p
+  return PatSegment(p.name, p.idx, info.predicate, info.predicate_code)
+end
+
+function apply_var_predicates(p::PatTerm, table::Dict{Int,Any})
+  new_op = apply_var_predicates(operation(p), table)
+  for i in eachindex(p.args)
+    p.args[i] = apply_var_predicates(p.args[i], table)
+  end
+  new_op === operation(p) && return p
+  return PatTerm(exprhead(p), new_op, p.args)
+end
+
+apply_var_predicates(p, ::Dict{Int,Any}) = p
+
+"""
+    propagate_pattern_predicates!(p)
+
+After [`setdebrujin!`](@ref), ensure every occurrence of a pattern variable carries
+the same predicate. Non-trivial predicates are copied to every occurrence so matchers
+(which only check predicates when binding) observe them. Throws `ArgumentError` if
+two occurrences of the same variable have different non-trivial predicates.
+"""
+function propagate_pattern_predicates!(p)
+  table = Dict{Int,Any}()
+  collect_var_predicates!(p, table)
+  isempty(table) && return p
+  return apply_var_predicates(p, table)
+end
+
+
 to_expr(x) = x
 to_expr(x::PatVar{T}) where {T} = Expr(:call, :~, Expr(:(::), x.name, x.predicate_code))
 to_expr(x::PatSegment{T}) where {T<:Function} = Expr(:..., Expr(:call, :~, Expr(:(::), x.name, x.predicate_code)))
