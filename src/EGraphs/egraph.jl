@@ -19,7 +19,13 @@ struct ENodeLiteral <: AbstractENode
   ENodeLiteral(a) = new(a, Ref{UInt}(0))
 end
 
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
+# Julia treats `false`/`0` and `1.0`/`1` as `isequal` with the same `hash`.
+# Mix the value type into both equality and the hash so they stay distinct
+# e-nodes (https://github.com/JuliaSymbolics/Metatheory.jl/issues/271).
+function Base.isequal(a::ENodeLiteral, b::ENodeLiteral)
+  typeof(a.value) === typeof(b.value) && isequal(a.value, b.value)
+end
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = isequal(a, b)
 
 TermInterface.istree(n::ENodeLiteral) = false
 TermInterface.exprhead(n::ENodeLiteral) = nothing
@@ -30,7 +36,7 @@ function Base.hash(t::ENodeLiteral, salt::UInt)
   !iszero(salt) && return hash(hash(t, zero(UInt)), salt)
   h = t.hash[]
   !iszero(h) && return h
-  h′ = hash(t.value, salt)
+  h′ = hash(t.value, hash(typeof(t.value), salt))
   t.hash[] = h′
   return h′
 end
