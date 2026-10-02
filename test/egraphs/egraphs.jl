@@ -71,3 +71,32 @@ end
   @test in_same_set(G.uf, t5, EClassId(1)) == true
   @test in_same_set(G.uf, t6, EClassId(1)) == true
 end
+
+# Constructed collision: portable across Julia hash algorithm changes (#287).
+struct Coll
+  x::Int
+end
+Base.hash(::Coll, h::UInt) = hash(0x2870, h)
+
+@testset "Hash-colliding constants stay distinct (#287)" begin
+  a, b = Coll(1), Coll(2)
+  @test !isequal(a, b)
+  @test hash(a) == hash(b)
+  @test ENodeLiteral(a) != ENodeLiteral(b)
+  g = EGraph(:(f($a, $b)))
+  @test g.numclasses == 3
+end
+
+# Discourse UInt64-vector pair: only under Julia ≤ 1.12's hash(::AbstractArray).
+# https://discourse.julialang.org/t/hash-collision-with-small-vectors/131702
+@testset "Discourse vector collision (#287)" begin
+  a = [0x0000000000000080, 0x0000000000100000, 0x0000000000000400, 0x0000000000000100]
+  b = [0x0000000000000100, 0x0000000000100000, 0x0000000000000080, 0x0000000000000400]
+  if hash(a) == hash(b)
+    @test !isequal(a, b)
+    @test ENodeLiteral(a) != ENodeLiteral(b)
+    g = EGraph(:($a - $b))
+    @test g.numclasses == 3
+    @test !in_same_set(g.uf, addexpr!(g, a), addexpr!(g, b))
+  end
+end

@@ -19,7 +19,7 @@ struct ENodeLiteral <: AbstractENode
   ENodeLiteral(a) = new(a, Ref{UInt}(0))
 end
 
-Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b)
+Base.:(==)(a::ENodeLiteral, b::ENodeLiteral) = hash(a) == hash(b) && isequal(a.value, b.value)
 
 TermInterface.istree(n::ENodeLiteral) = false
 TermInterface.exprhead(n::ENodeLiteral) = nothing
