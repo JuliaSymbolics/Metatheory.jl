@@ -71,3 +71,22 @@ end
   @test in_same_set(G.uf, t5, EClassId(1)) == true
   @test in_same_set(G.uf, t6, EClassId(1)) == true
 end
+
+# Discourse hash collision: https://discourse.julialang.org/t/hash-collision-with-small-vectors/131702
+@testset "Hash-colliding constants stay distinct (#287)" begin
+  a = [0x0000000000000080, 0x0000000000100000, 0x0000000000000400, 0x0000000000000100]
+  b = [0x0000000000000100, 0x0000000000100000, 0x0000000000000080, 0x0000000000000400]
+  @test a != b
+  @test hash(a) == hash(b)
+
+  la = ENodeLiteral(a)
+  lb = ENodeLiteral(b)
+  @test hash(la) == hash(lb)
+  @test la != lb
+
+  g = EGraph(:($a - $b))
+  @test g.numclasses == 3
+  id_a = addexpr!(g, a)
+  id_b = addexpr!(g, b)
+  @test !in_same_set(g.uf, id_a, id_b)
+end
