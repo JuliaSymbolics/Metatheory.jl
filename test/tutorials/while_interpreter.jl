@@ -106,10 +106,10 @@ end
 #
 # But should we first evaluate the outermost operations in the expression, or the innermost?
 # Intuitively, if we have the program `(1 + 2) - 3`, it can hint us that we do want to first evaluate the innermost expressions.
-# To do so, we then pass the result to the [Postwalk](@ref) rewriter, which recursively walks the input expression tree, and applies the rewriter first on 
-# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what [Prewalk](@ref) does?).
+# To do so, we then pass the result to the `Postwalk` rewriter, which recursively walks the input expression tree, and applies the rewriter first on 
+# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what `Prewalk` does?).
 #
-# The last component of our strategy is the [Fixpoint](@ref) combinator. This combinator repeatedly applies the rewriter on the input expression,
+# The last component of our strategy is the `Fixpoint` combinator. This combinator repeatedly applies the rewriter on the input expression,
 # and it does stop looping only when the output expression is the unchanged input expression.
 
 using Metatheory.Rewriters

@@ -7,7 +7,7 @@ analysis_reference(x) = error("$x is not a valid analysis reference")
 
 Should return `true` if the EGraph Analysis `an` is lazy
 and false otherwise. A *lazy* EGraph Analysis is computed 
-only when [analyze!](@ref) is called. *Non-lazy* 
+only when [`analyze!`](@ref) is called. *Non-lazy* 
 analyses are instead computed on-the-fly every time ENodes are added to the EGraph or
 EClasses are merged.  
 """
@@ -29,7 +29,7 @@ modify!(an, g, id) = modify!(analysis_reference(an), g, id)
 """
     join(::Val{analysis_name}, a, b)
 
-Joins two analyses values into a single one, used by [analyze!](@ref)
+Joins two analyses values into a single one, used by [`analyze!`](@ref)
 when two eclasses are being merged or the analysis is being constructed.
 """
 join(analysis::Val{analysis_name}, a, b) where {analysis_name} =
@@ -51,12 +51,12 @@ analyze!(g::EGraph, analysis_ref) = analyze!(g, analysis_ref, collect(keys(g.cla
 """
     analyze!(egraph, analysis_name, [ECLASS_IDS])
 
-Given an [EGraph](@ref) and an `analysis` identified by name `analysis_name`, 
+Given an [`EGraph`](@ref) and an `analysis` identified by name `analysis_name`, 
 do an automated bottom up trasversal of the EGraph, associating a value from the 
-domain of analysis to each ENode in the egraph by the [make](@ref) function. 
-Then, for each [EClass](@ref), compute the [join](@ref) of the children ENodes analyses values.
+domain of analysis to each ENode in the egraph by the [`make`](@ref) function. 
+Then, for each `EClass`, compute the [`join`](@ref) of the children ENodes analyses values.
 After `analyze!` is called, an analysis value will be associated to each EClass in the EGraph.
-One can inspect and retrieve analysis values by using [hasdata](@ref) and [getdata](@ref).
+One can inspect and retrieve analysis values by using `hasdata` and `getdata`.
 """
 function analyze!(g::EGraph, analysis_ref, ids::Vector{EClassId})
   addanalysis!(g, analysis_ref)

@@ -25,14 +25,6 @@ Modules = [Metatheory.Rules]
 
 ---
 
-## Rules 
-
-```@autodocs
-Modules = [Metatheory.Rules]
-```
-
----
-
 ## Rewriters
 
 ```@autodocs
@@ -53,4 +45,14 @@ Modules = [Metatheory.EGraphs]
 
 ```@autodocs
 Modules = [Metatheory.EGraphs.Schedulers]
+```
+
+---
+
+## Utilities
+
+```@docs
+Metatheory.@timerewrite
+Metatheory.binarize_rec
+Metatheory.EMatchCompiler.ematcher_yield
 ```

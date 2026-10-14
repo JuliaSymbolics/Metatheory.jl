@@ -18,12 +18,12 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)))
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true
 
-  # Frege's theorem
+  ## Frege's theorem
   @test @areequal propositional_logic_theory true (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))
 
-  # Demorgan's
+  ## Demorgan's
   @test @areequal propositional_logic_theory true (!(p || q) == (!p && !q))
 
-  # Consensus theorem
-  # @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
+  ## Consensus theorem
+  ## @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
 end
