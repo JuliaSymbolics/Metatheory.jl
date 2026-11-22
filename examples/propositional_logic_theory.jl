@@ -89,4 +89,3 @@ function prove(
   end
   return ex
 end
-

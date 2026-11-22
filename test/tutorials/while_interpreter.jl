@@ -24,7 +24,7 @@ WHILE is implemented in around 55 readable lines of code, and reaches around 80 
 
 The goal of this tutorial is to show an implementation of a programming language interpreter that is very, very very close to the
 simple theory used to describe it in a textbook. Each denotational semantics rule in the course notes is a Metatheory.jl rewrite rule, with a few extras and minor naming changes. 
-The idea, is that Julia is a really valid didactical programming language! 
+The idea is that Julia is a really valid didactic programming language!
 
 =#
 
@@ -202,8 +202,7 @@ end
 # `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
 
 write_mem = @theory sym val σ begin
-  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
-  σ)
+  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ); σ)
 end
 
 # ## While loops and sequential computation.
