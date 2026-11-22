@@ -2,6 +2,7 @@
 # https://dl.acm.org/doi/10.1145/3434304
 
 
+"""A term or literal stored in an e-class."""
 abstract type AbstractENode end
 
 import Metatheory: maybelock!
@@ -72,6 +73,7 @@ end
 
 
 # parametrize metadata by M
+"""A collection of equivalent e-nodes and their analysis data."""
 mutable struct EClass
   g # EGraph
   id::EClassId
@@ -144,8 +146,11 @@ function join_analysis_data!(g, dst::AnalysisData, src::AnalysisData)
 end
 
 # Thanks to Shashi Gowda
+"""Return whether the e-class has a value for the given analysis."""
 hasdata(a::EClass, analysis_name::Symbol) = hasproperty(a.data, analysis_name)
 hasdata(a::EClass, f::Function) = hasproperty(a.data, nameof(f))
+
+"""Return the value of the given analysis for the e-class."""
 getdata(a::EClass, analysis_name::Symbol) = getproperty(a.data, analysis_name)[]
 getdata(a::EClass, f::Function) = getproperty(a.data, nameof(f))[]
 getdata(a::EClass, analysis_ref::Union{Symbol,Function}, default) =

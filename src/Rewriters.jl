@@ -107,6 +107,7 @@ end
 end
 
 
+"""Apply a rewriter repeatedly until it stops changing its input."""
 struct Fixpoint{C}
   rw::C
 end
@@ -170,10 +171,12 @@ end
 
 using .Threads
 
+"""Apply a rewriter to each node after visiting its children."""
 function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:post,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
 
+"""Apply a rewriter to each node before visiting its children."""
 function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:pre,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
