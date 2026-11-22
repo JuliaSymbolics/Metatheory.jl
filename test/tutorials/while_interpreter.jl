@@ -24,7 +24,7 @@ WHILE is implemented in around 55 readable lines of code, and reaches around 80 
 
 The goal of this tutorial is to show an implementation of a programming language interpreter that is very, very very close to the
 simple theory used to describe it in a textbook. Each denotational semantics rule in the course notes is a Metatheory.jl rewrite rule, with a few extras and minor naming changes. 
-The idea, is that Julia is a really valid didactical programming language! 
+The idea is that Julia is a really valid didactic programming language!
 
 =#
 
@@ -106,10 +106,10 @@ end
 #
 # But should we first evaluate the outermost operations in the expression, or the innermost?
 # Intuitively, if we have the program `(1 + 2) - 3`, it can hint us that we do want to first evaluate the innermost expressions.
-# To do so, we then pass the result to the [Postwalk](@ref) rewriter, which recursively walks the input expression tree, and applies the rewriter first on 
-# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what [Prewalk](@ref) does?).
+# To do so, we then pass the result to the [`Postwalk`](@ref `Metatheory.Rewriters.Postwalk`) rewriter, which recursively walks the input expression tree, and applies the rewriter first on
+# the inner expressions, and then, on the outer, rewritten expression. (Hence the name `Post`-walk. Can you guess what [`Prewalk`](@ref `Metatheory.Rewriters.Prewalk`) does?).
 #
-# The last component of our strategy is the [Fixpoint](@ref) combinator. This combinator repeatedly applies the rewriter on the input expression,
+# The last component of our strategy is the [`Fixpoint`](@ref `Metatheory.Rewriters.Fixpoint`) combinator. This combinator repeatedly applies the rewriter on the input expression,
 # and it does stop looping only when the output expression is the unchanged input expression.
 
 using Metatheory.Rewriters
@@ -202,8 +202,7 @@ end
 # `store(a, 5)` will store the value 5 in the `a` variable inside the program's memory.
 
 write_mem = @theory sym val σ begin
-  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ);
-  σ)
+  (store(sym::Symbol, val), σ) => (σ[sym] = eval_if(val, σ); σ)
 end
 
 # ## While loops and sequential computation.

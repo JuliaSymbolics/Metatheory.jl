@@ -25,16 +25,16 @@ and_alg = @theory p q r begin
 end
 
 comb = @theory p q r begin
-  # DeMorgan
+  ## De Morgan
   !(p || q) == (!p && !q)
   !(p && q) == (!p || !q)
-  # distrib
+  ## Distribution
   (p && (q || r)) == ((p && q) || (p && r))
   (p || (q && r)) == ((p || q) && (p || r))
-  # absorb
+  ## Absorption
   (p && (p || q)) --> p
   (p || (p && q)) --> p
-  # complement
+  ## Complement
   (p && (!p || q)) --> p && q
   (p || (!p && q)) --> p || q
 end
@@ -73,8 +73,7 @@ function prove(
   for i in 1:steps
     g = EGraph(ex)
 
-    exprs = [true, g[g.root]]
-    ids = [addexpr!(g, e) for e in exprs]
+    ids = (addexpr!(g, true), g.root)
 
     goal = (g::EGraph) -> in_same_class(g, ids...)
     params.goal = goal
@@ -90,4 +89,3 @@ function prove(
   end
   return ex
 end
-

@@ -1,4 +1,4 @@
-# Proving Propositional Logic Statements
+# # Proving Propositional Logic Statements
 
 using Test
 using Metatheory
@@ -8,7 +8,8 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
 
 @testset "Prop logic" begin
   ex = rewrite(:(((p ⟹ q) && (r ⟹ s) && (p || r)) ⟹ (q || s)), impl)
-  @test prove(propositional_logic_theory, ex, 5, 10, 5000)
+  params = SaturationParams(timeout = 10, eclasslimit = 5000, schedulerparams = (6000, 5), timer = false)
+  @test prove(propositional_logic_theory, ex, 5, 10, params)
 
 
   @test @areequal propositional_logic_theory true ((!p == p) == false)
@@ -18,12 +19,13 @@ include(joinpath(dirname(pathof(Metatheory)), "../examples/propositional_logic_t
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)))
   @test @areequal propositional_logic_theory true ((p ⟹ (p || p)) == ((!(p) && q) ⟹ q)) == true
 
-  # Frege's theorem
+  ## Frege's theorem
   @test @areequal propositional_logic_theory true (p ⟹ (q ⟹ r)) ⟹ ((p ⟹ q) ⟹ (p ⟹ r))
 
-  # Demorgan's
+  ## De Morgan's law
   @test @areequal propositional_logic_theory true (!(p || q) == (!p && !q))
 
-  # Consensus theorem
-  # @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))
 end
+
+# Consensus theorem
+# @test_broken @areequal propositional_logic_theory true ((x && y) || (!x && z) || (y && z)) ((x && y) || (!x && z))

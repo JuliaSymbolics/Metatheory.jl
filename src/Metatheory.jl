@@ -1,7 +1,5 @@
 module Metatheory
 
-using DataStructures
-
 using Base.Meta
 using Reexport
 using TermInterface

@@ -13,7 +13,7 @@ rewriters.
 - `RestartedChain(itr)` like `Chain(itr)` but restarts from the first rewriter once on the
    first successful application of one of the chained rewriters.
 - `IfElse(cond, rw1, rw2)` runs the `cond` function on the input, applies `rw1` if cond
-   returns true, `rw2` if it retuns false
+   returns true, `rw2` if it returns false
 - `If(cond, rw)` is the same as `IfElse(cond, rw, Empty())`
 - `Prewalk(rw; threaded=false, thread_cutoff=100)` returns a rewriter which does a pre-order
    traversal of a given expression and applies the rewriter `rw`. Note that if
@@ -107,6 +107,7 @@ end
 end
 
 
+"""Apply a rewriter repeatedly until it stops changing its input."""
 struct Fixpoint{C}
   rw::C
 end
@@ -170,10 +171,12 @@ end
 
 using .Threads
 
+"""Apply a rewriter to each node after visiting its children."""
 function Postwalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:post,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end
 
+"""Apply a rewriter to each node before visiting its children."""
 function Prewalk(rw; threaded::Bool = false, thread_cutoff = 100, similarterm = similarterm)
   Walk{:pre,typeof(rw),typeof(similarterm),threaded}(rw, thread_cutoff, similarterm)
 end

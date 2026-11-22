@@ -4,6 +4,11 @@ using Metatheory
 using Metatheory.EGraphs
 using Metatheory.EGraphs: in_same_set, find_root
 
+@testset "Disjoint-set exports" begin
+  @test Metatheory.IntDisjointSet === EGraphs.IntDisjointSet
+  @test Metatheory.in_same_set === EGraphs.in_same_set
+end
+
 @testset "Merging" begin
   testexpr = :((a * 2) / 2)
   testmatch = :(a << 1)
